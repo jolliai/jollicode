@@ -40,6 +40,7 @@ import { Dynamic } from "solid-js/web"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { CommandProvider, useCommand, type CommandOption } from "@/context/command"
 import { CommentsProvider } from "@/context/comments"
+import { CourseSessionProvider } from "@/jolli/session-binding"
 import { FileProvider } from "@/context/file"
 import { ServerSDKProvider } from "@/context/server-sdk"
 import { ServerSyncProvider, useServerSync } from "@/context/server-sync"
@@ -380,11 +381,15 @@ function NewAppLayout(props: ParentProps<{ serverScoped?: JSX.Element }>) {
 
 // The draft page only renders the prompt composer, so it drops TerminalProvider.
 // FileProvider and CommentsProvider stay because PromptInput uses file search and comment context.
+// CourseSessionProvider is here as well as in DirectoryLayout because this is where a course and
+// assistant are CHOSEN; the directory route is where the resulting binding is read.
 function DraftProviders(props: ParentProps) {
   return (
     <FileProvider>
       <PromptProvider>
-        <CommentsProvider>{props.children}</CommentsProvider>
+        <CommentsProvider>
+          <CourseSessionProvider>{props.children}</CourseSessionProvider>
+        </CommentsProvider>
       </PromptProvider>
     </FileProvider>
   )

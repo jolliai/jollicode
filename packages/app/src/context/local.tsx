@@ -14,6 +14,7 @@ import { useSDK } from "./sdk"
 import { useSync } from "./sync"
 import { useServerSDK } from "./server-sdk"
 import { ScopedKey, type ServerScope } from "@/utils/server-scope"
+import { isModelAllowed, ModelGrant } from "@/jolli/model-grant"
 
 export type ModelKey = { providerID: string; modelID: string; variant?: string }
 
@@ -98,9 +99,18 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       last: undefined,
     })
 
+    /**
+     * ⚠ THE COURSE GRANT IS PART OF VALIDITY, WHICH IS THE FORK'S ONE EDIT TO THIS FUNCTION. Every
+     * path that resolves a model runs through here — the session's saved choice, the agent's
+     * configured one, the recent list, the provider default — so a model the course does not allow
+     * is not merely hidden from the picker, it cannot be SELECTED by any of them. Filtering only
+     * the picker's list would leave a saved selection from another course silently in force, which
+     * is the whole failure the lockdown exists to prevent. See `jolli/model-grant.ts`.
+     */
     const validModel = (model: ModelKey) => {
       const provider = providers.all().get(model.providerID)
-      return !!provider?.models[model.modelID] && connected().has(model.providerID)
+      if (!provider?.models[model.modelID] || !connected().has(model.providerID)) return false
+      return isModelAllowed(model.providerID, model.modelID)
     }
 
     const firstModel = (...items: Array<() => ModelKey | undefined>) => {
@@ -170,14 +180,43 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (validModel(model)) return model
         }
 
-        const first = Object.values(provider.models)[0]
-        if (!first) continue
-        const model = { providerID: provider.id, modelID: first.id }
-        if (validModel(model)) return model
+        /**
+         * ⚠ EVERY MODEL OF THE PROVIDER, WHERE UPSTREAM TRIED ONLY THE FIRST. Unfiltered, the first
+         * model is always usable and the loop never needed a second candidate. Under a course grant
+         * it frequently is not, and stopping there meant the only connected provider contributed
+         * nothing: a student on a restricted assistant landed with no model at all and a blank chip.
+         */
+        for (const candidate of Object.values(provider.models)) {
+          const model = { providerID: provider.id, modelID: candidate.id }
+          if (validModel(model)) return model
+        }
       }
     }
 
-    const fallback = createMemo<ModelKey | undefined>(() => configuredModel() ?? recentModel() ?? defaultModel())
+    /**
+     * THE MODEL THE PROFESSOR SET ON THIS ASSISTANT. `Assistant.modelId`, published through
+     * `jolli/model-grant.ts`.
+     *
+     * ⚠ IT COMES FIRST, AHEAD OF THE RECENT LIST AND THE PROVIDER DEFAULT, which is the whole point
+     * of the field: a course that pinned Opus 4.8 means every session starts there, not on whichever
+     * granted model happens to sort first or whichever one this student used last in another course.
+     * The web mock resolves it the same way — a thread's own pick, then the assistant's default.
+     *
+     * ⚠ AND THE SESSION'S OWN SELECTION STILL WINS, because `current()` checks `scope()?.model`
+     * before it ever reaches this. A student who changes model inside a session keeps that change.
+     */
+    const preferredModel = () => {
+      const key = ModelGrant.preferred()
+      if (!key) return
+      const slash = key.indexOf("/")
+      if (slash <= 0) return
+      const model = { providerID: key.slice(0, slash), modelID: key.slice(slash + 1) }
+      if (validModel(model)) return model
+    }
+
+    const fallback = createMemo<ModelKey | undefined>(
+      () => preferredModel() ?? configuredModel() ?? recentModel() ?? defaultModel(),
+    )
 
     const agent = {
       list,

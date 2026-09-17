@@ -203,6 +203,16 @@ export interface MessagePartProps {
   showAssistantCopyPartID?: string | null
   turnDurationMs?: number
   useV2Actions?: boolean
+  /**
+   * ⚠ FORK ADDITION (Jolli Code). An element rendered at the START of the assistant's action row,
+   * beside copy — see `jolli/coaching.ts`. It is passed in rather than built here because what it
+   * says depends on the course's rubric, which this package knows nothing about.
+   *
+   * ⚠ IT IS THE ONE CHILD OF THAT ROW THAT DOES NOT FADE OUT. The row's other controls are
+   * hover-only affordances the reader goes looking for; a coaching badge is an indicator nobody
+   * knows to look for, so it stays until it has been read. `message-part.css` carries that split.
+   */
+  coachBadge?: JSX.Element
 }
 
 function MessageActionButton(
@@ -1446,6 +1456,7 @@ export function Part(props: MessagePartProps) {
         virtualizeDiff={props.virtualizeDiff}
         onContentRendered={props.onContentRendered}
         showAssistantCopyPartID={props.showAssistantCopyPartID}
+        coachBadge={props.coachBadge}
         turnDurationMs={props.turnDurationMs}
         useV2Actions={props.useV2Actions}
       />
@@ -1736,6 +1747,9 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
         </div>
         <Show when={showCopy()}>
           <div data-slot="text-part-copy-wrapper" data-interrupted={interrupted() ? "" : undefined}>
+            {/* ⚠ FORK ADDITION: first in the row, so the one mark that persists is the one the
+                reader meets first. `data-coach-persist` is what exempts it from the row's fade. */}
+            {props.coachBadge}
             <MessageActionButton
               icon={copied() ? "check" : "copy"}
               label={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copyResponse")}

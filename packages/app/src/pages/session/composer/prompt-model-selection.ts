@@ -7,6 +7,15 @@ import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { useProviders } from "@/hooks/use-providers"
 import { resolveDefaultModel } from "@/hooks/provider-catalog"
+import { isModelAllowed, ModelGrant } from "@/jolli/model-grant"
+
+/**
+ * ⚠ THIS IS THE SECOND IMPLEMENTATION OF THE SELECTION CHAIN IN `context/local.tsx`, AND THE
+ * NEW-SESSION COMPOSER USES THIS ONE. Upstream keeps the two in parallel (`new-session-draft-controller.ts`
+ * builds this; a live session reads `local.model`), which means every rule about what a course
+ * allows has to be written twice or it applies on one screen and not the other — and the screen it
+ * would have missed is the one where a student picks their course.
+ */
 
 export function createPromptModelSelection(input: { agent: () => { model?: ModelKey; variant?: string } | undefined }) {
   const sdk = useSDK()
@@ -15,10 +24,24 @@ export function createPromptModelSelection(input: { agent: () => { model?: Model
   const prompt = usePrompt()
   const providers = useProviders(() => sdk().directory)
   const connected = createMemo(() => new Set(providers.connected().map((item) => item.id)))
-
+  /**
+   * ⚠ VALIDITY INCLUDES THE COURSE GRANT, exactly as in `context/local.tsx`. Without it a model the
+   * assistant does not allow can still be resolved from a saved preference; the picker would not
+   * offer it, and the composer would run on it anyway.
+   */
   const valid = (model: ModelKey) => {
     const provider = providers.all().get(model.providerID)
-    return !!provider?.models[model.modelID] && connected().has(model.providerID)
+    if (!provider?.models[model.modelID] || !connected().has(model.providerID)) return false
+    return isModelAllowed(model.providerID, model.modelID)
+  }
+
+  /** The model the professor set on this assistant. See `Assistant.modelId`. */
+  const preferred = () => {
+    const key = ModelGrant.preferred()
+    if (!key) return
+    const slash = key.indexOf("/")
+    if (slash <= 0) return
+    return { providerID: key.slice(0, slash), modelID: key.slice(slash + 1) }
   }
 
   const configured = () => {
@@ -28,16 +51,26 @@ export function createPromptModelSelection(input: { agent: () => { model?: Model
   }
 
   const recent = () => models.recent.list().find(valid)
+  /**
+   * ⚠ EVERY MODEL OF THE PROVIDER, WHERE UPSTREAM TOOK ONLY THE FIRST. Under a course grant the
+   * provider's first model is usually not allowed, and stopping there left the composer with no
+   * model at all.
+   */
   const fallback = () => {
     const defaults = providers.default()
     return providers.connected().flatMap((provider) => {
-      const modelID = defaults[provider.id] ?? Object.values(provider.models)[0]?.id
-      return modelID ? [{ providerID: provider.id, modelID }] : []
+      const configuredID = defaults[provider.id]
+      const ids = configuredID ? [configuredID, ...Object.keys(provider.models)] : Object.keys(provider.models)
+      return ids.map((modelID) => ({ providerID: provider.id, modelID })).filter(valid)
     })[0]
   }
 
   const current = () => {
-    const key = [prompt.model.current(), input.agent()?.model, configured(), recent(), fallback()].find(
+    /**
+     * ⚠ THE PROFESSOR'S MODEL COMES BEFORE THE RECENT LIST AND THE PROVIDER DEFAULT, and after the
+     * student's own pick for this session. A course that pinned Opus 4.8 starts every session there.
+     */
+    const key = [prompt.model.current(), input.agent()?.model, preferred(), configured(), recent(), fallback()].find(
       (item): item is ModelKey => !!item && valid(item),
     )
     if (!key) return

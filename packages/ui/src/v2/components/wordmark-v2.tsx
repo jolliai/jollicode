@@ -1,69 +1,69 @@
 import { createUniqueId, type ComponentProps } from "solid-js"
+import { JolliLogotypeBody, JolliMarkBody } from "../../components/jolli-brand"
 
+/**
+ * THE NEW-SESSION HERO: the Jolli mark, the "jolli" logotype, and "Code" set in the application's
+ * own type. Replaces upstream's `opencode` wordmark.
+ *
+ * ⚠ "Code" IS TYPE, NOT ARTWORK, AND IT IS INSIDE THE SVG ANYWAY. The brand ships a logo for
+ * "jolli" and nothing for the product name, so the second word has to be set rather than drawn.
+ * Setting it as a sibling HTML element would leave two independently-scaled boxes to align by
+ * eye at every breakpoint; a `<text>` node in the logo's own coordinate system shares the
+ * baseline and the scale factor by construction.
+ *
+ * ⚠ `font-size` IS DERIVED FROM THE X-HEIGHT, NOT THE CAP-HEIGHT, even though the word now leads
+ * with a capital: 96.5 units is the logotype's "o" (52.7) ÷ Inter's 0.546em x-height, which makes
+ * "ode" sit exactly on "olli". The "C" lands at ≈70 units against the logotype's 74-unit
+ * ascenders — caps a little under ascenders is what type does, and matching the cap instead would
+ * have shrunk the lowercase below the logotype it sits beside. Re-derive this if the app's font
+ * changes; `viewBox` width is the text's measured advance, so re-measure that at the same time.
+ *
+ * ⚠ THE FADE IS KEPT FROM WHAT IT REPLACES, IN BOTH SENSES. Upstream's wordmark was a watermark:
+ * ~7% alpha under a gradient that dissolved its lower half into the page. A brand logo cannot be
+ * ghosted that far — the point of putting it here is that it is legible — so the bottom gradient
+ * stays but is pulled back to the last quarter, where it reads as the lockup settling onto the
+ * page rather than as a logo cut in half. The 400ms opacity ramp is the second sense: the hero
+ * arrives rather than appearing.
+ *
+ * ⚠ SMIL RATHER THAN A KEYFRAME. This component lives in the design-system package and is rendered
+ * by an app whose stylesheet it does not own; `<animate>` keeps the whole effect inside the one
+ * file that is responsible for it.
+ */
 export function WordmarkV2(props: Pick<ComponentProps<"svg">, "class">) {
   const mask = createUniqueId()
   const maskGradient = createUniqueId()
 
   return (
     <svg
+      data-component="jolli-code-wordmark"
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 720 129"
+      viewBox="0 0 592 108.72"
       fill="none"
       classList={{ [props.class ?? ""]: !!props.class }}
     >
-      <g opacity="0.6">
-        <g mask={`url(#${mask})`}>
-          <g opacity="0.16">
-            <path
-              opacity="0.7"
-              d="M55.3846 36.4286H18.4615V91.7143H55.3846V36.4286ZM73.8462 110.143H0V18H73.8462V110.143Z"
-              fill="currentColor"
-            />
-            <path
-              opacity="0.7"
-              d="M110.462 91.7143H147.385V36.4286H110.462V91.7143ZM165.846 110.143H110.462V128.571H92V18H165.846V110.143Z"
-              fill="currentColor"
-            />
-            <path
-              opacity="0.7"
-              d="M258.846 73.2857H203.462V91.7143H258.846V110.143H185V18H258.846V73.2857ZM203.462 54.8571H240.385V36.4286H203.462V54.8571Z"
-              fill="currentColor"
-            />
-            <path
-              opacity="0.7"
-              d="M332.385 36.4286H295.462V110.143H277V18H332.385V36.4286ZM350.846 110.143H332.385V36.4286H350.846V110.143Z"
-              fill="currentColor"
-            />
-            <path
-              opacity="0.7"
-              d="M442.846 36.4286H387.462V91.7143H442.846V110.143H369V18H442.846V36.4286Z"
-              fill="currentColor"
-            />
-            <path
-              opacity="0.7"
-              d="M517.385 36.4286H480.462V91.7143H517.385V36.4286ZM535.846 110.143H462V18H535.846V110.143Z"
-              fill="currentColor"
-            />
-            <path
-              opacity="0.7"
-              d="M609.385 36.8571H572.462V92.1429H609.385V36.8571ZM627.846 110.571H554V18.4286H609.385V0H627.846V110.571Z"
-              fill="currentColor"
-            />
-            <path
-              opacity="0.7"
-              d="M664.462 36.4286V54.8571H701.385V36.4286H664.462ZM719.846 73.2857H664.462V91.7143H719.846V110.143H646V18H719.846V73.2857Z"
-              fill="currentColor"
-            />
-          </g>
-        </g>
+      <g mask={`url(#${mask})`} opacity="0">
+        <animate attributeName="opacity" from="0" to="1" dur="0.4s" begin="0s" fill="freeze" />
+        <JolliMarkBody />
+        <JolliLogotypeBody />
+        <text
+          x="359"
+          y="90.7"
+          fill="currentColor"
+          font-size="96.5"
+          font-weight="600"
+          letter-spacing="0"
+          style={{ "font-family": "inherit" }}
+        >
+          Code
+        </text>
       </g>
       <defs>
-        <mask id={mask} style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="720" height="129">
-          <rect width="720" height="129" fill={`url(#${maskGradient})`} />
+        <mask id={mask} style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="592" height="108.72">
+          <rect width="592" height="108.72" fill={`url(#${maskGradient})`} />
         </mask>
-        <linearGradient id={maskGradient} x1="360" y1="68" x2="360" y2="129" gradientUnits="userSpaceOnUse">
-          <stop stop-color="white" stop-opacity="0.7" />
-          <stop offset="1" stop-color="white" stop-opacity="0" />
+        <linearGradient id={maskGradient} x1="0" y1="80" x2="0" y2="108.72" gradientUnits="userSpaceOnUse">
+          <stop stop-color="white" />
+          <stop offset="1" stop-color="white" stop-opacity="0.25" />
         </linearGradient>
       </defs>
     </svg>

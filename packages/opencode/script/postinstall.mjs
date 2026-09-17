@@ -24,9 +24,12 @@ const archMap = {
 
 const platform = platformMap[os.platform()] ?? os.platform()
 const arch = archMap[os.arch()] ?? os.arch()
-const base = `opencode-${platform}-${arch}`
-const sourceBinary = platform === "windows" ? "opencode.exe" : "opencode"
-const targetBinary = path.join(__dirname, "bin", "opencode.exe")
+// Derive the CLI identity from this package's own manifest so the script never drifts
+// from the published bin/name (the bin key is the program name, e.g. "jollicode").
+const binName = Object.keys(packageJson.bin ?? {})[0] ?? "jollicode"
+const base = `${binName}-${platform}-${arch}`
+const sourceBinary = platform === "windows" ? `${binName}.exe` : binName
+const targetBinary = path.join(__dirname, packageJson.bin?.[binName] ?? path.join("bin", `${binName}.exe`))
 
 function supportsAvx2() {
   if (arch !== "x64") return false
@@ -127,7 +130,7 @@ function installPackage(name) {
   const version = packageJson.optionalDependencies?.[name]
   if (!version) return
 
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-install-"))
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), `${binName}-install-`))
   try {
     const result = childProcess.spawnSync(
       "npm",
@@ -175,7 +178,7 @@ function main() {
   }
 
   throw new Error(
-    `It seems your package manager failed to install the right opencode CLI package. Try manually installing ${packageNames()
+    `It seems your package manager failed to install the right ${binName} CLI package. Try manually installing ${packageNames()
       .map((name) => JSON.stringify(name))
       .join(" or ")}.`,
   )

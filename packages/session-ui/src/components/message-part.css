@@ -235,10 +235,19 @@
     align-items: center;
     justify-content: flex-start;
     gap: 10px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.15s ease;
-    will-change: opacity;
+
+    /* ⚠ FORK EDIT (Jolli Code): THE FADE MOVED FROM THIS ROW ONTO ITS CHILDREN, so that one child
+       can opt out of it. `opacity` on the row makes a stacking context and caps every descendant —
+       a child inside an `opacity: 0` parent cannot render itself visible at any value. The coaching
+       badge has to persist until it has been read (it is an indicator nobody knows to look for,
+       unlike copy, which the reader goes looking for), so the row itself must stay fully opaque and
+       each hover-only control fades on its own. Same visual result, same transition. */
+    > *:not([data-coach-persist]) {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+      will-change: opacity;
+    }
 
     [data-component="tooltip-trigger"] {
       display: inline-flex;
@@ -256,8 +265,8 @@
     gap: 12px;
   }
 
-  &:hover [data-slot="text-part-copy-wrapper"],
-  &:focus-within [data-slot="text-part-copy-wrapper"] {
+  &:hover [data-slot="text-part-copy-wrapper"] > *,
+  &:focus-within [data-slot="text-part-copy-wrapper"] > * {
     opacity: 1;
     pointer-events: auto;
   }

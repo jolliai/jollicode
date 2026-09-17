@@ -96,6 +96,15 @@ export type PromptInputV2Suggestion = {
   id: string
   kind: "agent" | "command" | "file" | "reference" | "resource"
   label: string
+  /**
+   * Header this item sits under in the popover, or undefined to sit under none.
+   *
+   * The list stays FLAT and ordered; the popover draws a header wherever this value changes between
+   * one item and the next. Grouping therefore costs the keyboard machine nothing — it still walks a
+   * single array — and a caller that groups is only responsible for sorting its own items so that
+   * items sharing a group are adjacent.
+   */
+  group?: string
   title?: string
   trigger?: string
   description?: string

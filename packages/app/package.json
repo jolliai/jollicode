@@ -10,7 +10,11 @@
     "./updater": "./src/updater.ts",
     "./wsl/types": "./src/wsl/types.ts",
     "./vite": "./vite.js",
-    "./index.css": "./src/index.css"
+    "./index.css": "./src/index.css",
+    "./brand": "./src/brand.ts",
+    "./jolli/fixtures": "./src/jolli/fixtures.ts",
+    "./jolli/types": "./src/jolli/types.ts",
+    "./jolli/model-catalog": "./src/jolli/model-catalog.ts"
   },
   "scripts": {
     "typecheck": "tsgo -b",

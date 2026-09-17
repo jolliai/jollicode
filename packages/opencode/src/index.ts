@@ -9,6 +9,7 @@ import { UpgradeCommand } from "./cli/cmd/upgrade"
 import { UninstallCommand } from "./cli/cmd/uninstall"
 import { ModelsCommand } from "./cli/cmd/models"
 import { UI } from "./cli/ui"
+import { Brand } from "@opencode-ai/core/brand"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { FormatError } from "./cli/error"
 import { ServeCommand } from "./cli/cmd/serve"
@@ -34,7 +35,7 @@ const args = hideBin(process.argv)
 
 function show(out: string) {
   const text = out.trimStart()
-  if (!text.startsWith("opencode ")) {
+  if (!text.startsWith(Brand.bin + " ")) {
     process.stderr.write(UI.logo() + EOL + EOL)
     process.stderr.write(text + EOL)
     return
@@ -44,7 +45,7 @@ function show(out: string) {
 
 const cli = yargs(args)
   .parserConfiguration({ "populate--": true })
-  .scriptName("opencode")
+  .scriptName(Brand.bin)
   .wrap(100)
   .help("help", "show help")
   .alias("help", "h")
@@ -73,8 +74,10 @@ const cli = yargs(args)
     Heap.start()
 
     process.env.AGENT = "1"
-    process.env.OPENCODE = "1"
-    process.env.OPENCODE_PID = String(process.pid)
+    process.env.JOLLICODE = "1"
+    process.env.JOLLICODE_PID = String(process.pid)
+    process.env.OPENCODE = "1" // deprecated alias
+    process.env.OPENCODE_PID = String(process.pid) // deprecated alias
   })
   .usage("")
   .completion("completion", "generate shell completion script")

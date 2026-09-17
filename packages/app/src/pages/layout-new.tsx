@@ -6,6 +6,21 @@ import { Titlebar, type TitlebarUpdate } from "@/components/titlebar"
 import { usePlatform } from "@/context/platform"
 import { setV2Toast, ToastRegion } from "@/utils/toast"
 
+/**
+ * ⚠ THE DEV CHROME IS OPT-IN IN THIS FORK, WHERE UPSTREAM HAS IT ON BY DEFAULT. The `DEV` badge and
+ * the performance bar are the first two things a reader sees in a screenshot, and this build exists
+ * to be shown to people who do not know what CLS or JANK are.
+ *
+ * ⚠ A FLAG RATHER THAN A DELETION, because the bar is genuinely useful while building. Set
+ * `VITE_JOLLI_DEBUG=1` in the environment to get both back:
+ *
+ *   VITE_JOLLI_DEBUG=1 bun run dev:desktop
+ *
+ * It is still gated behind `import.meta.env.DEV` as well, so a packaged build can never show it
+ * however the flag is set.
+ */
+const DEBUG_CHROME = import.meta.env.DEV && import.meta.env.VITE_JOLLI_DEBUG === "1"
+
 export default function NewLayout(props: ParentProps) {
   const platform = usePlatform()
   const [state, setState] = createStore({ debugTools: true })
@@ -33,7 +48,7 @@ export default function NewLayout(props: ParentProps) {
       <Titlebar
         update={update}
         debugTools={
-          import.meta.env.DEV
+          DEBUG_CHROME
             ? { visible: state.debugTools, toggle: () => setState("debugTools", (value) => !value) }
             : undefined
         }
@@ -41,7 +56,7 @@ export default function NewLayout(props: ParentProps) {
       <main class="flex-1 min-h-0 min-w-0 overflow-x-hidden flex flex-col items-start contain-strict">
         <Suspense>{props.children}</Suspense>
       </main>
-      {import.meta.env.DEV && state.debugTools && <DebugBar inline />}
+      {DEBUG_CHROME && state.debugTools && <DebugBar inline />}
       <TabsInfoPopup />
       <ToastRegion v2 />
     </div>

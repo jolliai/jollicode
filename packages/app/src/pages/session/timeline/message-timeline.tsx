@@ -60,6 +60,10 @@ import { normalize } from "@opencode-ai/session-ui/session-diff"
 import { useFileComponent } from "@opencode-ai/ui/context/file"
 import { shouldMarkBoundaryGesture, normalizeWheelDelta } from "@/pages/session/message-gesture"
 import { SessionContextUsage } from "@/components/session-context-usage"
+import { SessionCourseLabel } from "@/components/session-course-label"
+import { useCourseSession } from "@/jolli/session-binding"
+import { coachTurn, type CoachTrigger } from "@/jolli/coaching"
+import { CoachBadge, coachTurnInputFor, exchangeTextFor } from "./coach-nudge"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useLanguage } from "@/context/language"
 import { useSessionKey } from "@/pages/session/session-layout"
@@ -266,6 +270,7 @@ export function MessageTimeline(props: {
   const dialog = useDialog()
   const sessionArchive = useSessionArchive()
   const language = useLanguage()
+  const courseSession = useCourseSession()
   const { params, sessionKey } = useSessionKey()
   const ownerSessionKey = sessionKey()
   const cached = timelineCache.get(ownerSessionKey)
@@ -329,7 +334,64 @@ export function MessageTimeline(props: {
     if (value) return value
     return language.t("command.session.new")
   })
-  const showHeader = createMemo(() => !!(titleValue() || parentID()))
+  // A bound course is enough on its own: a session that has not been titled yet still has a scope,
+  // and that is exactly when a student most needs to see which course they are working in.
+  const showHeader = createMemo(() => !!(titleValue() || parentID() || courseSession.course()))
+  /**
+   * THE COACHING NUDGE FOR EACH TURN, WHICH IS USUALLY NONE OF THEM.
+   *
+   * ⚠ COMPUTED HERE RATHER THAN INSIDE THE PROJECTION BECAUSE IT NEEDS THE COURSE BINDING, and the
+   * projection is a pure function of messages on purpose. What crosses that boundary is the
+   * decision — a trigger id — and never the reasoning behind it.
+   *
+   * ⚠ AND IT RE-READS THE WHOLE SESSION ON EVERY MESSAGE CHANGE, which is affordable because every
+   * branch behind `coachTurn` is a count or a flag over parts this component already has in memory.
+   * If a later round gives the gate something expensive to read, this is the memo that has to become
+   * incremental.
+   */
+  const coachTurns = createMemo(() => {
+    const assistant = courseSession.assistant()
+    const messages = sessionMessages()
+    const byParent = new Map<string, AssistantMessage[]>()
+    for (const message of messages) {
+      if (message.role !== "assistant") continue
+      const existing = byParent.get(message.parentID)
+      if (existing) existing.push(message)
+      else byParent.set(message.parentID, [message])
+    }
+    const result = new Map<string, { triggers: CoachTrigger[]; prompt: string; reply: string }>()
+    for (const message of messages) {
+      if (message.role !== "user") continue
+      const assistants = byParent.get(message.id) ?? []
+      if (assistants.length === 0) continue
+      const triggers = coachTurn(coachTurnInputFor({ assistant, user: message, assistants, parts: getMsgParts }))
+      if (triggers.length === 0) continue
+      result.set(message.id, { triggers, ...exchangeTextFor({ user: message, assistants, parts: getMsgParts }) })
+    }
+    return result
+  })
+  /**
+   * THE BADGE FOR ONE TURN, HANDED TO THE REPLY'S OWN ACTION ROW.
+   *
+   * ⚠ IT IS A PROP ON `MessagePart` RATHER THAN A TIMELINE ROW OF ITS OWN, and the row it replaced
+   * is worth remembering: a separate row put the badge on its own line above the answer, which is
+   * neither where the web mock keeps it nor where this application keeps anything else that is
+   * ABOUT a reply. `session-ui` renders it first in `text-part-copy-wrapper`, beside copy.
+   */
+  const coachBadgeFor = (userMessageID: string) => {
+    const coached = coachTurns().get(userMessageID)
+    if (!coached) return undefined
+    return (
+      <CoachBadge
+        triggers={coached.triggers}
+        instructions={courseSession.assistant()?.coaching.instructions ?? ""}
+        sharing={courseSession.current()?.sharing ?? { staff: false, everyone: false }}
+        prompt={coached.prompt}
+        reply={coached.reply}
+      />
+    )
+  }
+
   const projection = createTimelineProjection({
     messages: sessionMessages,
     userMessages: () => props.userMessages,
@@ -1024,6 +1086,7 @@ export function MessageTimeline(props: {
                 part={part()}
                 message={message()}
                 showAssistantCopyPartID={assistantCopyPartID(row().userMessageID)}
+                coachBadge={coachBadgeFor(row().userMessageID)}
                 turnDurationMs={turnDurationMs(row().userMessageID)}
                 useV2Actions={settings.general.newLayoutDesigns()}
                 defaultOpen={defaultOpen()}
@@ -1392,6 +1455,7 @@ export function MessageTimeline(props: {
                 }}
               >
                 <div class="flex items-center min-w-0 flex-1 w-full">
+                  <SessionCourseLabel />
                   <Show when={parentID()}>
                     <button
                       type="button"
