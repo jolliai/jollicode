@@ -7,7 +7,7 @@ import os from "os"
 import { mergeDeep } from "remeda"
 import { Global } from "@opencode-ai/core/global"
 import fsNode from "fs/promises"
-import { Flag } from "@opencode-ai/core/flag/flag"
+import { Flag, envKey } from "@opencode-ai/core/flag/flag"
 import { Auth } from "../auth"
 import { Env } from "../env"
 import { applyEdits, modify } from "jsonc-parser"
@@ -479,14 +479,18 @@ const layer = Layer.effect(
           yield* mergePluginOrigins(dir, list)
         }
 
-        if (process.env.OPENCODE_CONFIG_CONTENT) {
+        const configContent = Flag.OPENCODE_CONFIG_CONTENT
+        if (configContent) {
+          // Provenance label is an internal identifier (see pluginScopeForSource
+          // and the layer map below), not the env var the user set; it stays
+          // stable while Flag resolves the canonical JOLLICODE_ prefix.
           const source = "OPENCODE_CONFIG_CONTENT"
-          const next = yield* loadConfig(process.env.OPENCODE_CONFIG_CONTENT, {
+          const next = yield* loadConfig(configContent, {
             dir: ctx.directory,
             source,
           })
           yield* merge(source, next, "local")
-          yield* Effect.logDebug("loaded custom config from OPENCODE_CONFIG_CONTENT")
+          yield* Effect.logDebug(`loaded custom config from ${envKey("CONFIG_CONTENT") ?? "JOLLICODE_CONFIG_CONTENT"}`)
         }
 
         const activeAccount = Option.getOrUndefined(

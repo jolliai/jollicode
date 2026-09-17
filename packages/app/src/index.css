@@ -24,6 +24,26 @@
   }
 }
 
+/**
+ * THE COURSE ACCENT RAMP, PORTED FROM THE WEB MOCK (jolli-edu-design, `app/src/index.css`).
+ *
+ * ⚠ THE SAME FIVE HEXES, NOT A NEW PALETTE. A course carries an `accent` from 1 to 5 that a
+ * professor sees on that surface and a student meets on this one; two ramps would mean CS 310 is
+ * amber in the browser and something else in the editor, and the colour is what a reader uses to
+ * pick their course out of a list without reading it.
+ *
+ * ⚠ `light-dark()` RATHER THAN TWO BLOCKS, because this application sets `color-scheme` on the root
+ * and upstream's own tokens (`packages/ui/src/v2/styles/theme.css`) already resolve that way. The
+ * dark values are the web mock's dark values, which are lifted for contrast on a dark ground.
+ */
+:root {
+  --dataviz-cat-1: light-dark(#3f85f5, #6ba5f8);
+  --dataviz-cat-2: light-dark(#57419d, #7563d9);
+  --dataviz-cat-3: light-dark(#ef9c0b, #ffc634);
+  --dataviz-cat-4: light-dark(#1b7569, #3ce1d9);
+  --dataviz-cat-5: light-dark(#da539a, #ea629c);
+}
+
 @layer components {
   [data-component="getting-started"] {
     container-type: inline-size;

@@ -57,7 +57,6 @@ export interface Settings {
 export const monoDefault = "System Mono"
 export const sansDefault = "System Sans"
 export const terminalDefault = "JetBrainsMono Nerd Font Mono"
-const legacyNewLayoutDesignsDefault = import.meta.env.VITE_OPENCODE_CHANNEL !== "prod"
 export const newLayoutDesignsDefault = true
 // Existing users can switch layouts until local midnight on this date. Set new Date(YYYY, M-1, D) to show.
 export const oldInterfaceSunset = new Date(2026, 8, 14)
@@ -260,22 +259,16 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
     const layoutTransition = createMemo(() =>
       layoutTransitionState(!!sunset, layoutTransitionEligible(), oldInterfaceRetired(), newInterfaceNoticeDismissed()),
     )
-    const newLayoutDesigns = createMemo(() => {
-      if (layoutUpgrade()) return true
-      if (!ready() && !oldInterfaceRetired()) return legacyNewLayoutDesignsDefault
-      if (!layoutTransitionClassified()) {
-        return resolveNewLayoutDesigns(
-          oldInterfaceRetired(),
-          store.general?.newLayoutDesigns,
-          legacyNewLayoutDesignsDefault,
-        )
-      }
-      return resolveNewLayoutDesigns(
-        oldInterfaceRetired(),
-        store.general?.newLayoutDesigns,
-        layoutTransitionEligible() ? legacyNewLayoutDesignsDefault : newLayoutDesignsDefault,
-      )
-    })
+    /**
+     * ⚠ JOLLI LOCK: the old interface is never reachable in this fork, so this is pinned on and the
+     * settings toggle is removed. The course-binding send guard — a session with no course cannot send
+     * a message — lives only in the v2 composer (`prompt-input-v2.tsx` `submitDisabled`). While v1 was
+     * reachable, flipping a single settings toggle dropped the student into the unguarded v1 composer
+     * and disabled the guard entirely. Upstream's gradual old→new migration (sunset, upgrade cutoff,
+     * retirement notice) has no old interface to migrate from here; those effects stay only so a
+     * persisted `newLayoutDesigns: false` from before this lock still resolves to the new interface.
+     */
+    const newLayoutDesigns = createMemo(() => true)
     const visible = (preference: () => boolean) => createMemo(() => !newLayoutDesigns() || preference())
     const initializeAgentVisibility = (existing: boolean) => {
       const initial = initialAgentVisibility(store.general?.agentVisibilityInitialized, existing, launchState.previous)

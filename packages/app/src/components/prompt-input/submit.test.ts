@@ -25,6 +25,7 @@ const optimistic: Array<{
 const optimisticSeeded: boolean[] = []
 const storedSessions: Record<string, Array<{ id: string; title?: string }>> = {}
 const promoted: Array<{ directory: string; sessionID: string }> = []
+const coursePromoted: Array<{ directory: string; sessionID: string }> = []
 const sentShell: Array<{ sessionID: string; id?: string; command: string }> = []
 const syncedDirectories: string[] = []
 const promotedDrafts: Array<{ draftID: string; server: string; sessionId: string }> = []
@@ -158,6 +159,16 @@ beforeAll(async () => {
     }),
   }))
 
+  // The course binding is promoted alongside the model/agent selection above. Recorded rather than
+  // ignored so a regression that stops binding a new session to its course fails here.
+  mock.module("@/jolli/session-binding", () => ({
+    useCourseSession: () => ({
+      promote(directory: string, sessionID: string) {
+        coursePromoted.push({ directory, sessionID })
+      },
+    }),
+  }))
+
   mock.module("@/context/permission", () => {
     const state = (server: string) => ({
       enableAutoAccept(sessionID: string, directory: string) {
@@ -286,6 +297,7 @@ beforeEach(() => {
   optimistic.length = 0
   optimisticSeeded.length = 0
   promoted.length = 0
+  coursePromoted.length = 0
   promotedDrafts.length = 0
   sentPrompts.length = 0
   promptInputs.length = 0
@@ -353,6 +365,12 @@ describe("prompt submit worktree selection", () => {
     expect(syncedDirectories).toEqual(["/repo/worktree-a", "/repo/worktree-a", "/repo/worktree-b", "/repo/worktree-b"])
     expect(serverSessionSyncs).toBe(0)
     expect(promoted).toEqual([
+      { directory: "/repo/worktree-a", sessionID: "session-1" },
+      { directory: "/repo/worktree-b", sessionID: "session-2" },
+    ])
+    // Every new session must also carry its course binding forward: a regression that stopped
+    // promoting the course would leave these sessions unbound (and, in the UI, unable to send).
+    expect(coursePromoted).toEqual([
       { directory: "/repo/worktree-a", sessionID: "session-1" },
       { directory: "/repo/worktree-b", sessionID: "session-2" },
     ])

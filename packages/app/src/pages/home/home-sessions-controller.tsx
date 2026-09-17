@@ -21,6 +21,10 @@ import { pathKey } from "@/utils/path-key"
 import { showToast } from "@/utils/toast"
 import { Binary } from "@opencode-ai/core/util/binary"
 import { archiveHomeSession } from "../home-session-archive"
+import { courseById } from "@/jolli/fixtures"
+import { HomeCourseSelection } from "@/jolli/home-selection"
+import { SessionCourses } from "@/jolli/session-store"
+import type { Course } from "@/jolli/types"
 import type { HomeController } from "./home-controller"
 
 const HOME_SESSION_LIMIT = 64
@@ -28,6 +32,11 @@ export type HomeSessionRecord = {
   session: Session
   project: LocalProject
   projectName: string
+  /**
+   * ⚠ OPTIONAL, AND WILL OFTEN BE ABSENT. Sessions created before a course existed — or outside one
+   * entirely — have no binding, and a row for one is an ordinary row rather than a broken one.
+   */
+  course?: Course
 }
 
 export type HomeSessionGroup = {
@@ -94,7 +103,20 @@ export function createHomeSessionsController(home: HomeController) {
       projectByID,
     }),
   )
-  const records = createMemo(() => allRecords().slice(0, HOME_SESSION_LIMIT))
+  /**
+   * ⚠ THE COURSE FILTER IS APPLIED BEFORE THE LIMIT, so selecting a course cannot show fewer than a
+   * full page of its sessions just because busier courses filled the first 64.
+   *
+   * ⚠ AND IT IS EXCLUSIVE WITH THE PROJECT FILTER RATHER THAN COMBINED WITH IT — see
+   * `jolli/home-selection.ts`. Selecting a course already cleared the project selection, so the
+   * directory filter upstream of this is a no-op whenever this one is active.
+   */
+  const courseFiltered = createMemo(() => {
+    const courseId = HomeCourseSelection.courseId()
+    if (!courseId) return allRecords()
+    return allRecords().filter((record) => record.course?.id === courseId)
+  })
+  const records = createMemo(() => courseFiltered().slice(0, HOME_SESSION_LIMIT))
   const groups = createMemo(() => groupSessions(records(), language))
   const prefetched = new Set<string>()
 
@@ -175,6 +197,13 @@ export function createHomeSessionsController(home: HomeController) {
     },
     session: {
       showProjectName: () => !home.project.selected(),
+      /**
+       * ⚠ THE ROW SHOWS THE AXIS YOU ARE NOT FILTERING BY. Standing in a course, the useful
+       * secondary fact is which repository the work happened in; standing in a project — or nowhere
+       * — it is which course the session belongs to. Showing both would put two breadcrumbs on
+       * every row, one of which the reader already knows.
+       */
+      showCourseCode: () => !HomeCourseSelection.courseId(),
       server: () => home.selection.value().server,
       canCreate: () => !!home.project.newSession(),
       create: home.project.openNewSession,
@@ -267,7 +296,12 @@ function buildHomeSessionRecords(input: {
               pathKey(item.worktree) === directory || item.sandboxes?.some((sandbox) => pathKey(sandbox) === directory),
           ) ?? projectForSession(session, input.projects(), input.projectByID())
       if (!project) return []
-      return { session, project, projectName: displayName(project) }
+      return {
+        session,
+        project,
+        projectName: displayName(project),
+        course: courseById(SessionCourses.get(session.id)?.courseId),
+      }
     })
 }
 

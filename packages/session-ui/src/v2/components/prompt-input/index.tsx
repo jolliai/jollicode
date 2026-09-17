@@ -41,6 +41,18 @@ export type PromptInputV2Props = {
   borderUnderlay?: boolean
   class?: string
   modelControl?: JSX.Element
+  /**
+   * Who may read this session. A slot rather than a `view` entry, for the reason `modelControl` is
+   * one: the options and the lock on them are a fact about a COURSE, and this package knows nothing
+   * about courses. Absent renders nothing, which is what every non-Jolli caller wants.
+   */
+  privacyControl?: JSX.Element
+  /**
+   * A reason the composer cannot send yet, from the caller. Upstream the submit button is disabled
+   * only by an empty prompt (`canSubmit`); Jolli Code also refuses a session with no course, which
+   * is a fact this package must not know. OR-ed with `canSubmit` rather than replacing it.
+   */
+  submitDisabled?: boolean
   variantControlVisible?: boolean
   attachKeybind?: string[]
   attachShortcut?: string
@@ -117,7 +129,9 @@ export function PromptInputV2(props: PromptInputV2Props) {
         }}
         onSubmit={(event) => {
           event.preventDefault()
-          if (!props.disabled) props.controller.submit()
+          // `submitDisabled` must gate every send path, not only the button: a caller that
+          // refuses a send (e.g. Jolli Code's "no course, no send") is bypassed otherwise.
+          if (!props.disabled && !props.submitDisabled) props.controller.submit()
         }}
         onDragEnter={props.controller.onDragEnter}
         onDragOver={props.controller.onDragOver}
@@ -174,6 +188,9 @@ export function PromptInputV2(props: PromptInputV2Props) {
               if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
                 event.preventDefault()
                 if (event.repeat) return
+                // Same gate as the button and the form submit: Enter is the easiest way to
+                // bypass a caller's send refusal, so it must honour `submitDisabled` too.
+                if (props.disabled || props.submitDisabled) return
                 props.controller.submit()
               }
             }}
@@ -253,11 +270,14 @@ export function PromptInputV2(props: PromptInputV2Props) {
                 </Show>
               )}
             </Show>
+            {/* Last in the cluster: it is the only control here that says something about the
+                session rather than about how the next turn runs. */}
+            {props.privacyControl}
           </div>
           <PromptInputV2SubmitButton
             mode={state.mode}
             stopping={view.submit.stopping()}
-            disabled={!props.controller.canSubmit()}
+            disabled={!props.controller.canSubmit() || !!props.submitDisabled}
             sendLabel={i18n.t("ui.promptInput.send")}
             stopLabel={i18n.t("ui.promptInput.stop")}
             onSubmit={props.controller.submit}
@@ -642,26 +662,35 @@ export function PromptInputV2Popover(props: {
         fallback={<div class="px-2 py-1 text-v2-text-text-muted">{props.emptyLabel}</div>}
       >
         <For each={props.items}>
-          {(item) => (
-            <button
-              type="button"
-              data-suggestion-id={item.id}
-              class="flex w-full items-center gap-2 rounded-md px-2 py-1 text-start hover:bg-v2-overlay-simple-overlay-hover"
-              classList={{ "bg-v2-overlay-simple-overlay-hover": props.activeID === item.id }}
-              onPointerMove={() => props.onActiveChange(item)}
-              onClick={() => props.onSelect(item)}
-            >
-              <div class="flex min-w-0 flex-1 items-center gap-2">
-                <PromptInputV2SuggestionIcon item={item} />
-                <span class="shrink-0 text-v2-text-text-base">{item.label}</span>
-                <Show when={item.description}>
-                  <span class="min-w-0 truncate text-v2-text-text-muted">{item.description}</span>
-                </Show>
-              </div>
-              <Show when={item.keybind?.length}>
-                <span class="shrink-0 text-v2-text-text-muted">{item.keybind?.join("+")}</span>
+          {(item, index) => (
+            <>
+              {/* A header wherever the group changes, so the flat list the keyboard machine walks is
+                  also the list the eye reads. `index()` looks back rather than the list being
+                  pre-chunked, which keeps filtering free: remove items and the headers still land in
+                  the right places, and a group filtered down to nothing draws no header at all. */}
+              <Show when={item.group && item.group !== props.items[index() - 1]?.group}>
+                <div class="px-2 pb-1 pt-2 text-[11px] font-[560] leading-4 text-v2-text-text-faint">{item.group}</div>
               </Show>
-            </button>
+              <button
+                type="button"
+                data-suggestion-id={item.id}
+                class="flex w-full items-center gap-2 rounded-md px-2 py-1 text-start hover:bg-v2-overlay-simple-overlay-hover"
+                classList={{ "bg-v2-overlay-simple-overlay-hover": props.activeID === item.id }}
+                onPointerMove={() => props.onActiveChange(item)}
+                onClick={() => props.onSelect(item)}
+              >
+                <div class="flex min-w-0 flex-1 items-center gap-2">
+                  <PromptInputV2SuggestionIcon item={item} />
+                  <span class="shrink-0 text-v2-text-text-base">{item.label}</span>
+                  <Show when={item.description}>
+                    <span class="min-w-0 truncate text-v2-text-text-muted">{item.description}</span>
+                  </Show>
+                </div>
+                <Show when={item.keybind?.length}>
+                  <span class="shrink-0 text-v2-text-text-muted">{item.keybind?.join("+")}</span>
+                </Show>
+              </button>
+            </>
           )}
         </For>
       </Show>

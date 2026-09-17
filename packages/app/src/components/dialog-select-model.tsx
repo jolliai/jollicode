@@ -30,7 +30,6 @@ type ModelState = ReturnType<typeof useLocal>["model"]
 type ModelItem = ReturnType<ModelState["list"]>[number]
 
 const modelKey = (model: ModelItem) => `${model.provider.id}:${model.id}`
-const manageKey = "action:manage"
 
 const sortModelGroups = (a: { category: string; items: ModelItem[] }, b: { category: string; items: ModelItem[] }) => {
   const aIndex = popularProviders.indexOf(a.category)
@@ -228,7 +227,6 @@ export function ModelSelectorPopoverV2(props: {
   trigger: ModelSelectorTrigger
   onClose?: () => void
 }) {
-  const dialog = useDialog()
   const controller = createModelSelectorController({
     model: props.model,
     provider: () => props.provider,
@@ -242,11 +240,6 @@ export function ModelSelectorPopoverV2(props: {
       groups={controller.groups}
       current={controller.current}
       select={controller.select}
-      onManage={() => {
-        void import("./dialog-manage-models").then((module) => {
-          void dialog.show(() => <module.DialogManageModelsV2 />)
-        })
-      }}
       onClose={() => props.onClose?.()}
     />
   )
@@ -297,7 +290,6 @@ function ModelSelectorPopoverV2View(props: {
   groups: (models: ModelItem[]) => { category: string; items: ModelItem[] }[]
   current: () => string | undefined
   select: (item: ModelItem) => void
-  onManage: () => void
   onClose: () => void
 }) {
   const language = useLanguage()
@@ -308,7 +300,7 @@ function ModelSelectorPopoverV2View(props: {
 
   const models = createMemo(() => props.models(store.search))
   const groups = createMemo(() => props.groups(models()))
-  const keys = () => [...models().map(modelKey), manageKey]
+  const keys = () => models().map(modelKey)
   const initialActive = () => {
     const selected = props.current()
     const options = keys()
@@ -336,18 +328,10 @@ function ModelSelectorPopoverV2View(props: {
     setOpen(false)
     dismiss.afterClose(() => props.select(item))
   }
-  const manage = () => {
-    dismiss.preventTriggerRestore()
-    setOpen(false)
-    dismiss.afterClose(props.onManage)
-  }
   const selectActive = () => {
     const item = models().find((item) => modelKey(item) === store.active)
-    if (item) {
-      selectModel(item)
-      return
-    }
-    if (store.active === manageKey) manage()
+    if (item) selectModel(item)
+    // A search matching nothing leaves `store.active === ""`, which matches no option, so Enter is a no-op.
   }
   const moveActive = (delta: number) => {
     const options = keys()
@@ -359,7 +343,7 @@ function ModelSelectorPopoverV2View(props: {
   }
   const setSearch = (value: string) => {
     const first = props.models(value)[0]
-    setStore({ search: value, active: first ? modelKey(first) : manageKey })
+    setStore({ search: value, active: first ? modelKey(first) : "" })
   }
 
   createEffect(() => {
@@ -500,21 +484,18 @@ function ModelSelectorPopoverV2View(props: {
               </Show>
             </div>
           </ScrollView>
-          <div class="h-px bg-v2-border-border-muted" />
-          <div class="flex flex-col p-0.5">
-            <MenuV2.Item
-              data-option-key={manageKey}
-              classList={{ "!bg-v2-overlay-simple-overlay-hover": store.active === manageKey }}
-              onMouseEnter={() => {
-                setStore("active", manageKey)
-                setTimeout(() => searchRef?.focus())
-              }}
-              onSelect={manage}
-            >
-              <Icon name="outline-sliders" size="small" />
-              <span class="min-w-0 flex-1 truncate leading-5">{language.t("dialog.model.manage")}</span>
-            </MenuV2.Item>
-          </div>
+          {/*
+           * ⚠ THE "MANAGE MODELS" FOOTER IS GONE. It opened a dialog whose first control is
+           * "Connect provider", and a student has no provider to connect: the server is started with
+           * a config that enables exactly one (`desktop/src/main/jolli-gateway.ts`). What was left of
+           * that dialog — per-model show/hide — is a preference about a list their professor already
+           * chose, so it takes a decision back off them for no gain.
+           *
+           * ⚠ NOTHING REPLACES IT AS A KEYBOARD TARGET. `keys()` is exactly the models, so a search
+           * matching nothing leaves `active === ""`, which highlights nothing and makes Enter a no-op —
+           * the correct empty state, rather than a placeholder key that pointed at a row that no longer
+           * renders (arrows landed on it invisibly and needed a second press to wrap).
+           */}
         </MenuV2.Content>
       </MenuV2.Portal>
     </MenuV2>

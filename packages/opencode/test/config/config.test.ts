@@ -2122,6 +2122,23 @@ describe("OPENCODE_CONFIG_CONTENT token substitution", () => {
       )
     }),
   )
+
+  // Regression: the canonical JOLLICODE_ prefix must actually load, not just be
+  // accepted by Flag. Before the fix, config loading read process.env.OPENCODE_CONFIG_CONTENT
+  // directly and silently ignored JOLLICODE_CONFIG_CONTENT.
+  it.instance("loads config from the canonical JOLLICODE_CONFIG_CONTENT", () =>
+    withProcessEnv(
+      "JOLLICODE_CONFIG_CONTENT",
+      JSON.stringify({
+        $schema: "https://opencode.ai/config.json",
+        username: "from_jollicode_prefix",
+      }),
+      Effect.gen(function* () {
+        const config = yield* Config.use.get()
+        expect(config.username).toBe("from_jollicode_prefix")
+      }),
+    ),
+  )
 })
 
 // parseManagedPlist unit tests — pure function, no OS interaction

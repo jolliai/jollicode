@@ -40,6 +40,8 @@ export type HomeSessionsViewProps = {
   language: ReturnType<typeof useLanguage>
   groups: Accessor<HomeSessionGroup[]>
   showProjectName: Accessor<boolean>
+  /** False while a course is selected — see `session.showCourseCode` in the controller. */
+  showCourseCode: Accessor<boolean>
   server: Accessor<ServerConnection.Key>
   canCreateSession: Accessor<boolean>
   searchValue: Accessor<string>
@@ -416,12 +418,27 @@ function HomeSessionGroupHeader(props: {
 
 function HomeSessionRow(props: HomeSessionsViewProps & { record: HomeSessionRecord }) {
   const title = createMemo(() => sessionTitle(props.record.session.title) || props.record.session.id)
-  const showProjectName = () => props.showProjectName() && props.record.projectName
+  const showProjectName = () => secondary() === props.record.projectName && !!props.record.projectName
+
+  /**
+   * ONE SECONDARY LABEL, NAMING THE AXIS THE READER IS NOT ALREADY STANDING IN.
+   *
+   * ⚠ INSIDE A COURSE IT IS THE REPOSITORY; ANYWHERE ELSE IT IS THE COURSE. Both at once would put
+   * two breadcrumbs on every row, one of which the reader just clicked on.
+   *
+   * ⚠ AND IT IS PLAIN TEXT, NEVER THE KIND CHIP. Here the course code identifies what a session
+   * BELONGS to; a tinted chip in this position would read as a claim about the session itself.
+   */
+  const secondary = () => {
+    if (!props.showCourseCode()) return props.record.projectName
+    if (props.record.course) return props.record.course.code
+    return props.showProjectName() ? props.record.projectName : undefined
+  }
 
   return (
     <div
       class="group/session relative flex h-10 min-w-0 items-center rounded-[6px]"
-      classList={{ group: !!showProjectName() }}
+      classList={{ group: !!secondary() }}
     >
       <button
         type="button"
@@ -448,10 +465,8 @@ function HomeSessionRow(props: HomeSessionsViewProps & { record: HomeSessionReco
           record={props.record}
           revealProjectOnHover={!!showProjectName()}
         />
-        <HomeSessionTitle title={title()} showProjectName={!!showProjectName()} />
-        <Show when={showProjectName()}>
-          <HomeSessionProjectName name={props.record.projectName} />
-        </Show>
+        <HomeSessionTitle title={title()} showProjectName={!!secondary()} />
+        <Show when={secondary()}>{(name) => <HomeSessionProjectName name={name()} />}</Show>
       </button>
       <Show when={SHOW_HOME_SESSION_ARCHIVE}>
         <div

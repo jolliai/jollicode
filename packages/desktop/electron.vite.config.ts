@@ -35,6 +35,13 @@ export default defineConfig({
   main: {
     define: {
       "import.meta.env.OPENCODE_CHANNEL": JSON.stringify(channel),
+      // ⚠ BUILD-TIME, NOT RUNTIME. The gateway endpoint is part of the model lockdown, so it must not
+      // be a runtime env var: `preferAppEnv` merges the student's login shell into process.env, so a
+      // runtime `JOLLICODE_GATEWAY_URL` would let a student redirect the gateway (and its key) from
+      // ~/.zshrc — the same bypass the sidecar env scrub closes. Baked in here instead. Empty means
+      // "use the built-in default" (Brand.gatewayUrl); set it to point a build at another gateway.
+      "import.meta.env.JOLLICODE_GATEWAY_URL": JSON.stringify(process.env.JOLLICODE_GATEWAY_URL ?? ""),
+      "import.meta.env.JOLLICODE_GATEWAY_KEY": JSON.stringify(process.env.JOLLICODE_GATEWAY_KEY ?? ""),
     },
     build: {
       rollupOptions: {

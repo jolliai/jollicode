@@ -8,7 +8,10 @@ import { TooltipV2 } from "@opencode-ai/ui/v2/tooltip-v2"
 import type { ReferenceInfo } from "@opencode-ai/sdk/v2/client"
 import { createEffect, createMemo, on, Show } from "solid-js"
 import { ModelSelectorPopoverV2 } from "@/components/dialog-select-model"
-import { DialogSelectModelUnpaidV2 } from "@/components/dialog-select-model-unpaid-v2"
+import { PromptPrivacyControl } from "@/components/prompt-privacy-control"
+import { groupSlashCommands } from "@/jolli/slash-groups"
+import { useCourseSession } from "@/jolli/session-binding"
+import { ModelGrant } from "@/jolli/model-grant"
 import type { PromptInputProps } from "@/components/prompt-input/contracts"
 import { normalizePromptHistoryEntry, promptLength, type PromptHistoryComment } from "@/components/prompt-input/history"
 import { createPersistedPromptInputHistory } from "@/components/prompt-input/history-store"
@@ -48,29 +51,66 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
   const dialog = useDialog()
   const command = useCommand()
   const language = useLanguage()
+  const courseSession = useCourseSession()
+
+  /**
+   * A LIVE SESSION (has an id) THAT CARRIES NO COURSE: one from the CLI/server, a pre-rebrand
+   * session, or one whose binding was lost when localStorage was cleared. There is no course picker
+   * on this screen to bind one in place — course is chosen only when a session starts — so the notice
+   * below is the exit rather than a dead, un-sendable composer.
+   */
+  const unboundLive = () => courseSession.locked() && !courseSession.course()
 
   return (
     <div class="flex flex-col gap-3">
+      <Show when={unboundLive()}>
+        <div
+          data-component="session-no-course-notice"
+          class="flex items-center gap-2 rounded-xl bg-v2-background-bg-base px-3 py-2 text-[13px] leading-5 text-v2-text-text-muted shadow-[var(--v2-elevation-raised)]"
+        >
+          <Icon name="help" class="shrink-0 text-v2-icon-icon-info" />
+          <span class="min-w-0 flex-1">{language.t("prompt.session.noCourse.notice")}</span>
+          <ButtonV2
+            variant="neutral"
+            size="normal"
+            data-action="session-no-course-new"
+            onClick={() => command.trigger("session.new")}
+          >
+            {language.t("prompt.session.noCourse.new")}
+          </ButtonV2>
+        </div>
+      </Show>
       <PromptInputV2
         controller={props.controller}
         borderUnderlay={props.borderUnderlay}
         class={props.class}
+        /**
+         * ⚠ NO COURSE, NO SEND — ON EVERY SCREEN. Nothing is pre-selected on a new session, and a
+         * session created without a binding is one no screen can describe: no assistant to run, no
+         * model grant, no visibility, and an in-chat header with nothing in it. The guard is
+         * `!course()` alone, so it holds on the new-session screen AND on a live session that never
+         * got one. It gates every send path — see `submitDisabled` handling in `session-ui`'s
+         * prompt-input (button, form submit, and Enter all honour it), so it cannot be keyboard-bypassed.
+         *
+         * ⚠ A LIVE SESSION WITH NO COURSE IS BLOCKED, NOT TRAPPED. It has no course control on screen
+         * to fix the binding in place, so the `unboundLive` notice above hands the reader a new
+         * session — the one screen where a course can be chosen — rather than leaving them stuck.
+         */
+        submitDisabled={!courseSession.course()}
         variantControlVisible={!props.controller.model.loading}
         attachKeybind={command.keybindParts("file.attach")}
         attachShortcut={command.keybind("file.attach")}
+        privacyControl={<PromptPrivacyControl />}
         modelControl={
           <PromptInputV2ModelControl
             loading={props.controller.model.loading}
-            paid={props.controller.model.paid}
             title={language.t("command.model.choose")}
             keybind={command.keybindParts("model.choose")}
             model={props.controller.model.selection}
             providerID={props.controller.model.selection.current()?.provider?.id}
             modelName={props.controller.model.selection.current()?.name ?? language.t("dialog.model.select.title")}
+            unboundLabel={language.t("prompt.model.noCourse")}
             onClose={props.controller.restoreFocus}
-            onUnpaidClick={() =>
-              dialog.show(() => <DialogSelectModelUnpaidV2 model={props.controller.model.selection} />)
-            }
           />
         }
       />
@@ -89,6 +129,7 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
   const permission = usePermission()
   const language = useLanguage()
   const platform = usePlatform()
+  const courseSession = useCourseSession()
   const prompt = props.state ?? usePrompt()
   let editor: HTMLDivElement | undefined
 
@@ -289,24 +330,35 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
       mention: { type: "file" as const, path, content: `@${path}`, start: 0, end: 0 },
     })),
   ])
-  const slashCommands = createMemo(() => [
-    ...sync().data.command.map((item) => ({
-      id: `custom.${item.name}`,
-      trigger: item.name,
-      title: item.name,
-      description: item.description,
-      type: "custom" as const,
-    })),
-    ...command.options
-      .filter((item) => !item.disabled && !item.id.startsWith("suggested.") && item.slash)
-      .map((item) => ({
-        id: item.id,
-        trigger: item.slash!,
-        title: item.title,
-        description: item.description,
-        type: "builtin" as const,
-      })),
-  ])
+  /**
+   * THE SLASH LIST, WITH THE COURSE'S OWN PROCEDURES LIFTED TO THE TOP UNDER THE ASSISTANT'S NAME.
+   * Upstream's order is [custom, builtin] and stays that way inside each group; `slash-groups.ts`
+   * owns the reordering and says there why ownership is decided by `skillId` rather than by the
+   * server's `source: "skill"`, and why a list with no course procedures in it gets no headers.
+   */
+  const slashCommands = createMemo(() =>
+    groupSlashCommands(
+      [
+        ...sync().data.command.map((item) => ({
+          id: `custom.${item.name}`,
+          trigger: item.name,
+          title: item.name,
+          description: item.description,
+          type: "custom" as const,
+        })),
+        ...command.options
+          .filter((item) => !item.disabled && !item.id.startsWith("suggested.") && item.slash)
+          .map((item) => ({
+            id: item.id,
+            trigger: item.slash!,
+            title: item.title,
+            description: item.description,
+            type: "builtin" as const,
+          })),
+      ],
+      courseSession.assistant(),
+    ),
+  )
   const commands = createMemo<PromptInputV2Suggestion[]>(() =>
     slashCommands().map((item) => ({
       id: item.id,
@@ -315,6 +367,7 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
       trigger: item.trigger,
       title: item.title,
       description: item.description,
+      group: item.group,
       keybind: command.keybindParts(item.id),
     })),
   )
@@ -385,6 +438,16 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
     view: {
       placeholder: designPlaceholder,
       get agent() {
+        /**
+         * ⚠ THE AGENT CHIP IS THE ASSISTANT PICKER, AND A COURSE-BOUND SESSION MUST NOT OFFER IT.
+         * The assistant is chosen once, on the new-session screen, and carries the professor's
+         * instructions and guardrails; letting a student cycle agents mid-session would swap those
+         * out from under a session already scoped to them.
+         *
+         * ⚠ HIDDEN ONLY WHERE A COURSE IS ACTUALLY BOUND, so an unbound session behaves exactly
+         * like upstream rather than losing a control for no stated reason.
+         */
+        if (courseSession.course()) return undefined
         return props.controls.agents.visible && props.controls.agents.options.length > 0
           ? {
               options: () => props.controls.agents.options.map((name) => ({ id: name, label: name })),
@@ -470,14 +533,14 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
 
 function PromptInputV2ModelControl(props: {
   loading: boolean
-  paid: boolean
   title: string
   keybind: string[]
   model: PromptInputV2ComposerController["model"]["selection"]
   providerID?: string
   modelName: string
+  /** Shown greyed when no course is chosen: naming a model there would credit a course decision. */
+  unboundLabel: string
   onClose: () => void
-  onUnpaidClick: () => void
 }) {
   const shouldAnimate = createMemo<boolean>((previous) => previous ?? props.loading)
   const content = () => (
@@ -497,8 +560,28 @@ function PromptInputV2ModelControl(props: {
       </span>
     </>
   )
+  /**
+   * ⚠ NO CONTROL WHERE THE COURSE LEFT NO CHOICE. Ported from the web mock's rule verbatim
+   * (`RecipientComposer.tsx`): "fewer than two allowed is not a choice, so it renders nothing rather
+   * than a control with one option". A professor who pinned one model has decided; a disabled chip
+   * repeating that decision on every screen is furniture, and a live-looking one invites a click
+   * that cannot do anything.
+   *
+   * ⚠ AN EMPTY GRANT IS "ALL", NOT "NONE", so an unrestricted assistant keeps its picker — see
+   * `jolli/model-grant.ts`. The provider list behind it is already only Jolli's, because the server
+   * is started with a config that enables one provider (`desktop/src/main/jolli-gateway.ts`), so
+   * "all" here can never mean somebody's own API key.
+   */
+  const pickable = () => ModelGrant.allowed().length !== 1
+  /**
+   * ⚠ GREYED, NOT HIDDEN, BEFORE A COURSE IS CHOSEN. With no assistant there is no grant, and an
+   * ungranted picker would offer the institution's whole catalogue — the one list this product
+   * exists to not show. Hiding it instead would move the composer's controls sideways the moment a
+   * course is picked, on the screen where the reader is choosing one.
+   */
+  const bound = () => ModelGrant.bound()
   return (
-    <Show when={!props.loading}>
+    <Show when={!props.loading && pickable()}>
       <TooltipV2
         placement="top"
         gutter={4}
@@ -509,20 +592,29 @@ function PromptInputV2ModelControl(props: {
           </>
         }
       >
+        {/*
+         * ⚠ NO "UNPAID" BRANCH. Upstream swaps the picker for a button that opens a dialog offering
+         * OpenCode's free models and a grid of providers to connect, whenever no paid provider is
+         * connected. There is nothing for a student to connect and no second catalogue to offer, so
+         * the branch is gone rather than left to a condition the gateway config happens to satisfy.
+         */}
         <Show
-          when={props.paid}
+          when={bound()}
           fallback={
             <ButtonV2
-              data-action="prompt-model"
-              data-control-type="dialog"
               variant="ghost-muted"
               size="normal"
-              class="min-w-0 max-w-[220px] justify-start ![font-weight:440] group"
-              classList={{ "animate-in fade-in": shouldAnimate() }}
               style={{ height: "28px" }}
-              onClick={props.onUnpaidClick}
+              class="min-w-0 max-w-[220px] justify-start ![font-weight:440] group"
+              data-action="prompt-model"
+              disabled
             >
-              {content()}
+              {/* The placeholder, not the resolved model: with no course there is no course decision
+                  to name, and showing one would credit a professor with a choice nobody made. */}
+              <span class="truncate leading-4">{props.unboundLabel}</span>
+              <span class="-ml-0.5 -mr-1 flex shrink-0">
+                <Icon name="chevron-down" />
+              </span>
             </ButtonV2>
           }
         >

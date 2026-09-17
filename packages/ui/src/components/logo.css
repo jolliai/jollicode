@@ -1,4 +1,22 @@
-[data-component="logo-mark"] {
-  width: 16px;
-  aspect-ratio: 4/5;
+/*
+ * Intrinsic sizing for the brand SVGs, which carry a `viewBox` and no width/height. Without this a
+ * mark dropped into a flex row with no size class falls back to the SVG default of 300x150 and
+ * distorts. Every current call site sets its own `w-`/`h-` utility, and those win — Tailwind's
+ * utilities layer sorts after `components`, which is the layer this file is imported into.
+ *
+ * The upstream rule here pinned `aspect-ratio: 4/5` on the old portrait mark; these ratios are the
+ * viewBoxes in `jolli-brand.tsx` and `v2/components/wordmark-v2.tsx`.
+ */
+
+[data-component="jolli-mark"] {
+  width: 20px;
+  aspect-ratio: 120.43 / 108.72;
+}
+
+[data-component="jolli-logo"] {
+  aspect-ratio: 332.23 / 108.72;
+}
+
+[data-component="jolli-code-wordmark"] {
+  aspect-ratio: 592 / 108.72;
 }

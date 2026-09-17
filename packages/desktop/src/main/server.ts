@@ -5,6 +5,7 @@ import type { Details } from "electron"
 import { getLogger } from "./logging"
 import { getUserShell, loadShellEnv } from "./shell-env"
 import { getStore } from "./store"
+import { jolliGatewayConfig, writeCourseSkills } from "./jolli-gateway"
 import { DEFAULT_SERVER_URL_KEY } from "./store-keys"
 
 export type HealthCheck = { wait: Promise<void> }
@@ -216,6 +217,56 @@ function createSidecarEnv(): Record<string, string> {
   )
   delete env.DEBUG
   if (process.platform === "linux") delete env.LD_PRELOAD
+  /**
+   * ⚠ SCRUB EVERY CONFIG SURFACE THE STUDENT COULD HAVE EXPORTED — UNDER BOTH PREFIXES — BEFORE WRITING
+   * THE GATEWAY CONFIG BELOW. `preferAppEnv` sources the student's login shell (`$SHELL -il`, so
+   * `~/.zshrc`) into `process.env`, which is copied into `env` above. The core flag reader resolves each
+   * of these by suffix, preferring the canonical `JOLLICODE_` over the legacy `OPENCODE_` alias
+   * (`packages/core/src/flag/flag.ts`), so an inherited `JOLLICODE_CONFIG_CONTENT` would shadow the
+   * gateway config and re-open bring-your-own-key — the exact inversion the lockdown exists to prevent.
+   * The rest are the other ways the same config could be widened: CONFIG/CONFIG_DIR/TUI_CONFIG redirect
+   * config loading, PERMISSION widens permissions, MODELS_URL/MODELS_PATH swap the catalogue, and
+   * PLUGIN_META_FILE loads foreign plugins. Stripping both prefixes is what makes "the desktop app is the
+   * only writer of this environment" (below) actually true.
+   */
+  for (const suffix of [
+    "CONFIG_CONTENT",
+    "CONFIG",
+    "CONFIG_DIR",
+    "TUI_CONFIG",
+    "PERMISSION",
+    "MODELS_URL",
+    "MODELS_PATH",
+    "PLUGIN_META_FILE",
+  ]) {
+    delete env["JOLLICODE_" + suffix]
+    delete env["OPENCODE_" + suffix]
+  }
+  /**
+   * ⚠ THE COURSE'S MODEL CATALOGUE, HANDED TO THE SERVER THAT OWNS PROVIDERS. See
+   * `jolli-gateway.ts` for what it declares and why it is the strongest config layer.
+   *
+   * ⚠ IT GOES IN THE SIDECAR'S ENVIRONMENT RATHER THAN INTO A FILE, because a file is a thing a
+   * student can find and edit, and because the desktop app is the only writer of this environment.
+   * A server the app did not spawn — the one a developer runs by hand — will not have it, which is
+   * a real difference to remember when reviewing (jolli/DEV.md says how to pass it).
+   */
+  /**
+   * ⚠ THE COURSES' SKILLS ARE WRITTEN BEFORE THE CONFIG THAT POINTS AT THEM, at every launch, so a
+   * skill a professor removed stops being offered rather than lingering as a file. It fails soft: a
+   * disk error costs the session its skills, not its models, so the lockdown above still holds.
+   */
+  const skills = (() => {
+    try {
+      return writeCourseSkills(app.getPath("userData"))
+    } catch (error) {
+      getLogger().warn("failed to write course skills", { error: serializeError(error).message })
+      return undefined
+    }
+  })()
+  // Write the canonical JOLLICODE_ key — the one the flag reader prefers — so nothing inherited can
+  // out-rank it (the OPENCODE_ alias was scrubbed above).
+  env.JOLLICODE_CONFIG_CONTENT = jolliGatewayConfig(skills)
   return env
 }
 

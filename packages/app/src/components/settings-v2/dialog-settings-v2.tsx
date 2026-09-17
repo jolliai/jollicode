@@ -1,3 +1,12 @@
+/**
+ * ⚠ NO PROVIDERS TAB AND NO MODELS TAB IN THIS FORK. Both were settings a student cannot legitimately
+ * have: the first connects API keys, the second hides and shows models from a list their professor
+ * chose. Jolli decides what runs, which is the product, so the panes have nothing left to decide.
+ *
+ * ⚠ THE PANE COMPONENTS ARE LEFT IN THE TREE, unreferenced from here. They are upstream files this
+ * fork will keep taking updates to, and deleting them widens the diff for no behaviour: nothing
+ * reaches them once the tabs are gone.
+ */
 import { Component, createMemo, createSignal, startTransition } from "solid-js"
 import { Dialog } from "@opencode-ai/ui/v2/dialog-v2"
 import { TabsV2 } from "@opencode-ai/ui/v2/tabs-v2"
@@ -6,11 +15,8 @@ import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { SettingsGeneralV2 } from "./general"
 import { SettingsKeybinds } from "../settings-keybinds"
-import { SettingsProvidersV2 } from "./providers"
-import { SettingsModelsV2 } from "./models"
 import "./settings-v2.css"
 import { SettingsServersV2 } from "./servers"
-import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useLayout } from "@/context/layout"
 import { useTabs } from "@/context/tabs"
 import { useServerSync } from "@/context/server-sync"
@@ -21,7 +27,6 @@ export const DialogSettings: Component<{
 }> = (props) => {
   const language = useLanguage()
   const platform = usePlatform()
-  const dialog = useDialog()
   const layout = useLayout()
   const tabs = useTabs()
   const serverSync = useServerSync()
@@ -36,11 +41,6 @@ export const DialogSettings: Component<{
     if (route.type === "session") return serverSync().session.get(route.sessionId)?.directory
     return undefined
   })
-
-  const showProviders = () => {
-    void dialog.show(() => <DialogSettings sessionID={props.sessionID} defaultValue="providers" />)
-  }
-
   return (
     <Dialog size="x-large" variant="settings" class="settings-v2-dialog">
       <TabsV2
@@ -75,14 +75,6 @@ export const DialogSettings: Component<{
                       <Icon name="server" />
                       {language.t("status.popover.tab.servers")}
                     </TabsV2.Trigger>
-                    <TabsV2.Trigger value="providers">
-                      <Icon name="providers" />
-                      {language.t("settings.providers.title")}
-                    </TabsV2.Trigger>
-                    <TabsV2.Trigger value="models">
-                      <Icon name="models" />
-                      {language.t("settings.models.title")}
-                    </TabsV2.Trigger>
                   </div>
                 </div>
               </div>
@@ -101,12 +93,6 @@ export const DialogSettings: Component<{
         </TabsV2.Content>
         <TabsV2.Content value="servers" class="settings-v2-panel">
           <SettingsServersV2 />
-        </TabsV2.Content>
-        <TabsV2.Content value="providers" class="settings-v2-panel">
-          <SettingsProvidersV2 directory={directory} onBack={showProviders} />
-        </TabsV2.Content>
-        <TabsV2.Content value="models" class="settings-v2-panel">
-          <SettingsModelsV2 />
         </TabsV2.Content>
       </TabsV2>
     </Dialog>

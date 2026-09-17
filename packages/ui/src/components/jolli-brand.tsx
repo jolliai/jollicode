@@ -1,0 +1,101 @@
+/**
+ * THE JOLLI BRAND ARTWORK, TRACED FROM https://www.jolli.ai/brand.
+ *
+ * ⚠ THE ONLY PLACE THE LOGO IS DRAWN. `logo.tsx` (`Mark` / `Splash` / `Logo`) and
+ * `v2/components/wordmark-v2.tsx` are now thin re-skins over these two components, so a surface
+ * this fork has not visited yet cannot render the upstream glyph by accident.
+ *
+ * ⚠ FILLS ARE INLINE, NOT CLASSES. The downloaded assets carry a `<style>` block of `.cls-1` …
+ * `.cls-7`, which is a global stylesheet the moment it renders inside an app — two logos on one
+ * page would fight, and any other `.cls-1` in the document would win or lose at random.
+ *
+ * ⚠ THE NODE COLOURS ARE THE BRAND'S AND ARE NOT THEMED. The letterforms are `currentColor` so the
+ * wordmark reads on either background (the brand ships that as separate black/white files; one
+ * component with `currentColor` is the same two files without the fork having to pick between
+ * them). Everything else keeps the published hex — brand guidance is explicit that the mark is not
+ * to be recoloured.
+ */
+
+import type { ComponentProps } from "solid-js"
+
+const NODE_STROKE = "#d1d2fa"
+
+/** The mark alone: six nodes and the edges between them. Square-ish, `120.43 × 108.72`. */
+export function JolliMark(props: Pick<ComponentProps<"svg">, "ref" | "class">) {
+  return (
+    <svg
+      ref={props.ref}
+      data-component="jolli-mark"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 120.43 108.72"
+      fill="none"
+      classList={{ [props.class ?? ""]: !!props.class }}
+    >
+      <JolliMarkBody />
+    </svg>
+  )
+}
+
+/**
+ * The mark and the "jolli" logotype, `332.23 × 108.72`.
+ *
+ * The logotype inherits `currentColor`; set a text colour on the element or a parent.
+ */
+export function JolliLogo(props: { class?: string }) {
+  return (
+    <svg
+      data-component="jolli-logo"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 332.23 108.72"
+      fill="none"
+      classList={{ [props.class ?? ""]: !!props.class }}
+    >
+      <JolliMarkBody />
+      <JolliLogotypeBody />
+    </svg>
+  )
+}
+
+/**
+ * ⚠ EXPORTED AS RAW GEOMETRY, NOT AS AN `<svg>`. The new-session hero draws the logotype beside a
+ * word set in the app's own type, which only lines up if both live in one coordinate system — so
+ * that component owns the `<svg>` and drops these in. See `wordmark-v2.tsx`.
+ */
+export function JolliMarkBody() {
+  return (
+    <>
+      <g stroke={NODE_STROKE} stroke-width="2" stroke-miterlimit="10">
+        <line x1="58.74" y1="15.04" x2="58.74" y2="53.84" />
+        <line x1="99.45" y1="36.93" x2="65.84" y2="56.33" />
+        <line x1="100.43" y1="78.03" x2="64.86" y2="62.51" />
+        <line x1="53.59" y1="65.92" x2="27.42" y2="94.58" />
+        <line x1="9.66" y1="50.52" x2="25.01" y2="99.19" />
+        <line x1="49.95" y1="58.01" x2="11.6" y2="52.08" />
+        <line x1="60.27" y1="11.38" x2="9.66" y2="50.52" />
+        <line x1="99.45" y1="37.84" x2="58.61" y2="11.8" />
+        <line x1="106.51" y1="82.1" x2="101.51" y2="33.92" />
+        <line x1="28.51" y1="97.04" x2="109.37" y2="80.25" />
+      </g>
+      <circle cx="58.74" cy="59.95" r="14.57" fill="#7e3dec" />
+      <circle cx="100.6" cy="35.63" r="9.75" fill="#06b6d5" />
+      <circle cx="107.57" cy="80.25" r="12.86" fill="#6466f1" />
+      <circle cx="23.97" cy="97.73" r="11" fill="#ae95fb" />
+      <circle cx="9.43" cy="50.52" r="9.43" fill="#61a6fb" />
+      <circle cx="58.74" cy="12.94" r="12.94" fill="#3b83f6" />
+    </>
+  )
+}
+
+/** The word "jolli", in the same coordinate system as the mark. Baseline sits at y ≈ 90.7. */
+export function JolliLogotypeBody() {
+  return (
+    <g fill="currentColor">
+      <path d="M172.7,91.67c-10.35.54-18.1-3.05-22.79-10.1l10.65-9.12c3.62,3.96,7.62,6.22,11.97,5.21,4.11-.95,7.45-5.08,7.51-10.1l.51-49.05c6.34-1.23,8.94-1.23,14.72-.03l-.53,51.46c-.12,12-9.45,21.06-22.03,21.72Z" />
+      <path d="M256.57,65.86c0,14.56-11.8,26.36-26.36,26.36s-26.36-11.8-26.36-26.36,11.8-26.36,26.36-26.36,26.36,11.8,26.36,26.36ZM242.32,65.92c0-6.7-5.43-12.14-12.14-12.14s-12.14,5.43-12.14,12.14,5.43,12.14,12.14,12.14,12.14-5.43,12.14-12.14Z" />
+      <path d="M279.61,90.16c-3.89.92-8.35.65-14.23.43l-.06-73.6c5.04-.67,9.58-.61,14.26-.04l.03,73.22Z" />
+      <path d="M305.61,90.16c-3.89.92-8.35.65-14.23.43l-.06-73.6c5.04-.67,9.58-.61,14.26-.04l.03,73.22Z" />
+      <rect x="317.01" y="41.09" width="14.11" height="49.61" />
+      <circle cx="324.08" cy="26.21" r="8.15" />
+    </g>
+  )
+}

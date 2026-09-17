@@ -5,6 +5,7 @@ import { filter, firstBy, flat, groupBy, mapValues, pipe, uniqueBy, values } fro
 import { createSimpleContext } from "@opencode-ai/ui/context"
 import { useProviders } from "@/hooks/use-providers"
 import { Persist, persisted } from "@/utils/persist"
+import { isModelAllowed } from "@/jolli/model-grant"
 
 export type ModelKey = { providerID: string; modelID: string }
 
@@ -37,13 +38,19 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
       }),
     )
 
+    // ⚠ THE COURSE GRANT IS APPLIED HERE AND NOWHERE ELSE. `list`, `latest`, `release` and `find`
+    // all derive from this memo, so filtering once means the picker, the composer chip and the
+    // settings panes cannot disagree about which models a course allows.
     const available = createMemo(() =>
-      providers.connected().flatMap((p) =>
-        Object.values(p.models).map((m) => ({
-          ...m,
-          provider: p,
-        })),
-      ),
+      providers
+        .connected()
+        .flatMap((p) =>
+          Object.values(p.models).map((m) => ({
+            ...m,
+            provider: p,
+          })),
+        )
+        .filter((m) => isModelAllowed(m.provider.id, m.id)),
     )
 
     const release = createMemo(

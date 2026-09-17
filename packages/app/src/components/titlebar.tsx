@@ -661,6 +661,17 @@ function ChannelIndicator(props: { debugTools?: { visible: boolean; toggle: () =
     )
   }
 
+  /**
+   * ⚠ NO CHANNEL CHIP IN THIS FORK. Upstream badges `dev` and `beta` so a contributor knows which
+   * build they are in; this one is shown to prospective customers, and a coloured DEV chip beside
+   * the product name is the first thing they would ask about.
+   *
+   * ⚠ IT RETURNS EARLY RATHER THAN HAVING THE CALLERS STOP CALLING IT, so there is exactly one place
+   * to undo this and both titlebar layouts stay identical. `VITE_JOLLI_DEBUG=1` brings it back,
+   * along with the debug bar it used to toggle (see `pages/layout-new.tsx`).
+   */
+  if (import.meta.env.VITE_JOLLI_DEBUG !== "1") return null
+
   return (
     <>
       {["beta", "dev"].includes(channel) && (

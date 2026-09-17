@@ -32,3 +32,11 @@ UPCOMING_CHANGELOG.md
 logs/
 *.bun-build
 tsconfig.tsbuildinfo
+
+# Local Jolli tooling state (session hooks, daemon memory) — never part of a change
+.jolli/
+.claude/
+.codex/
+.cursor/
+.gemini/
+
