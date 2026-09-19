@@ -77,8 +77,8 @@ export const dict = {
   "desktop.wsl.error.installDistro": "დისტროს დაყენება ვერ მოხერხდა: {{distro}}",
   "desktop.wsl.error.installOpencode": "Jolli Code ინსტალაცია ვერ მოხერხდა",
   "desktop.wsl.error.alreadyAdded": "{{distro}} უკვე დამატებულია",
-  "desktop.wsl.error.opencodeMissing": "opencode არ არის დაინსტალირებული ამ დისტროში",
-  "desktop.wsl.error.opencodeCannotRun": "opencode დაინსტალირებულია, მაგრამ ვერ გაშვება",
+  "desktop.wsl.error.opencodeMissing": "Jolli Code არ არის დაინსტალირებული ამ დისტროში",
+  "desktop.wsl.error.opencodeCannotRun": "Jolli Code დაინსტალირებულია, მაგრამ ვერ გაშვება",
   "desktop.wsl.error.opencodeNotInstalled": "Jolli Code არ არის დაინსტალირებული {{distro}}",
   "desktop.wsl.error.updateVersion":
     "Jolli Code განახლება დასრულდა, მაგრამ {{distro}} კვლავ იუწყება {{installed}}; მოსალოდნელია {{expected}}",

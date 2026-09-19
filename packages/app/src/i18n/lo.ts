@@ -77,8 +77,8 @@ export const dict = {
   "desktop.wsl.error.installDistro": "ລົ້ມເຫລວໃນການຕິດຕັ້ງ distro: {{distro}}",
   "desktop.wsl.error.installOpencode": "ການຕິດຕັ້ງ Jolli Code ລົ້ມເຫລວ",
   "desktop.wsl.error.alreadyAdded": "{{distro}} ຖືກເພີ່ມແລ້ວ",
-  "desktop.wsl.error.opencodeMissing": "opencode ບໍ່ໄດ້ຕິດຕັ້ງຢູ່ໃນ distro ນີ້",
-  "desktop.wsl.error.opencodeCannotRun": "opencode ຖືກຕິດຕັ້ງແຕ່ບໍ່ສາມາດດໍາເນີນການໄດ້",
+  "desktop.wsl.error.opencodeMissing": "Jolli Code ບໍ່ໄດ້ຕິດຕັ້ງຢູ່ໃນ distro ນີ້",
+  "desktop.wsl.error.opencodeCannotRun": "Jolli Code ຖືກຕິດຕັ້ງແຕ່ບໍ່ສາມາດດໍາເນີນການໄດ້",
   "desktop.wsl.error.opencodeNotInstalled": "Jolli Code ບໍ່ໄດ້ຕິດຕັ້ງຢູ່ໃນ {{distro}}",
   "desktop.wsl.error.updateVersion":
     "ການປັບປຸງ Jolli Code ສໍາເລັດແລ້ວແຕ່ {{distro}} ຍັງລາຍງານ {{installed}}; ຄາດວ່າ {{expected}}",

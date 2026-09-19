@@ -78,8 +78,8 @@ export const dict = {
   "desktop.wsl.error.installDistro": "distro ကို ထည့်သွင်းရန် မအောင်မြင်ပါ- {{distro}}",
   "desktop.wsl.error.installOpencode": "Jolli Code ထည့်သွင်းခြင်း မအောင်မြင်ပါ။",
   "desktop.wsl.error.alreadyAdded": "{{distro}} ကို ထည့်သွင်းပြီးဖြစ်သည်။",
-  "desktop.wsl.error.opencodeMissing": "opencode ကို ဤ distro တွင် ထည့်သွင်းမထားပါ။",
-  "desktop.wsl.error.opencodeCannotRun": "opencode ကို ထည့်သွင်းထားသော်လည်း မလည်ပတ်နိုင်ပါ။",
+  "desktop.wsl.error.opencodeMissing": "Jolli Code ကို ဤ distro တွင် ထည့်သွင်းမထားပါ။",
+  "desktop.wsl.error.opencodeCannotRun": "Jolli Code ကို ထည့်သွင်းထားသော်လည်း မလည်ပတ်နိုင်ပါ။",
   "desktop.wsl.error.opencodeNotInstalled": "Jolli Code ကို {{distro}} တွင် ထည့်သွင်းမထားပါ။",
   "desktop.wsl.error.updateVersion":
     "Jolli Code အပ်ဒိတ် ပြီးဆုံးသွားသော်လည်း {{distro}} သည် {{installed}} မှ ဆက်လက်တင်ပြနေပါသည်။ {{expected}} မျှော်လင့်ထားသည်။",

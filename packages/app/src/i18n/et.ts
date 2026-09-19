@@ -77,8 +77,8 @@ export const dict = {
   "desktop.wsl.error.installDistro": "Distro installimine ebaõnnestus: {{distro}}",
   "desktop.wsl.error.installOpencode": "Jolli Code installimine ebaõnnestus",
   "desktop.wsl.error.alreadyAdded": "{{distro}} on juba lisatud",
-  "desktop.wsl.error.opencodeMissing": "opencode pole sellesse distrosse installitud",
-  "desktop.wsl.error.opencodeCannotRun": "opencode on installitud, kuid seda ei saa käivitada",
+  "desktop.wsl.error.opencodeMissing": "Jolli Code pole sellesse distrosse installitud",
+  "desktop.wsl.error.opencodeCannotRun": "Jolli Code on installitud, kuid seda ei saa käivitada",
   "desktop.wsl.error.opencodeNotInstalled": "Jolli Code pole installitud asukohta {{distro}}",
   "desktop.wsl.error.updateVersion":
     "Jolli Code värskendus on lõpetatud, kuid {{distro}} teatab endiselt {{installed}}; oodata {{expected}}",

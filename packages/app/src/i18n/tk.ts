@@ -79,7 +79,7 @@ export const dict = {
   "desktop.wsl.error.installOpencode": "Jolli Code gurmak şowsuz",
   "desktop.wsl.error.alreadyAdded": "{{distro}} eýýäm goşuldy",
   "desktop.wsl.error.opencodeMissing": "açyk kod bu distroda gurlanok",
-  "desktop.wsl.error.opencodeCannotRun": "opencode guruldy, ýöne işledip bilmedi",
+  "desktop.wsl.error.opencodeCannotRun": "Jolli Code guruldy, ýöne işledip bilmedi",
   "desktop.wsl.error.opencodeNotInstalled": "Jolli Code {{distro}} gurulmady",
   "desktop.wsl.error.updateVersion":
     "Jolli Code täzelenmesi gutardy, ýöne {{distro}} henizem {{installed}} habar berýär; garaşylýan {{expected}}",

@@ -29,7 +29,7 @@ test("starts every configured WSL server on initialization", () => {
 test("rejects an update that did not install the desktop version", () => {
   expect(() => expectOpencodeVersion("1.16.2", "1.16.2")).not.toThrow()
   expect(() => expectOpencodeVersion("1.14.35", "1.16.2")).toThrow(
-    "OpenCode update finished but Debian still reports 1.14.35; expected 1.16.2",
+    "Jolli Code update finished but Debian still reports 1.14.35; expected 1.16.2",
   )
 })
 
@@ -55,7 +55,7 @@ test("clears cached distro probes when removing a WSL server", () => {
       {
         Debian: {
           distro: "Debian",
-          resolvedPath: "/home/luke/.opencode/bin/opencode",
+          resolvedPath: "/home/luke/.jolli/bin/jollicode",
           version: "1.16.2",
           expectedVersion: "1.16.2",
           matchesDesktop: true,
@@ -115,7 +115,7 @@ test("ignores stale background OpenCode checks after removing a WSL server", asy
         onExit: () => undefined,
       },
       url: "http://127.0.0.1:4096",
-      username: "opencode",
+      username: "jolli",
       password: "secret",
     }),
     testControllerOptions(),
@@ -164,7 +164,7 @@ test("probes addable distros in parallel before checking OpenCode", async () => 
     },
     resolveOpencode: async (distro) => {
       opencode.push(distro)
-      return "/home/me/.opencode/bin/opencode"
+      return "/home/me/.jolli/bin/jollicode"
     },
   })
 
@@ -195,7 +195,7 @@ test("does not check OpenCode in addable distros that cannot execute commands", 
     }),
     resolveOpencode: async (distro) => {
       opencode.push(distro)
-      return "/home/me/.opencode/bin/opencode"
+      return "/home/me/.jolli/bin/jollicode"
     },
   })
 
@@ -225,7 +225,7 @@ function testControllerOptions() {
       await new Promise<void>((resolve) => {
         releaseOpencodeResolve = resolve
       })
-      return "/home/me/.opencode/bin/opencode"
+      return "/home/me/.jolli/bin/jollicode"
     },
   }
 }

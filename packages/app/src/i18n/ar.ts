@@ -81,8 +81,8 @@ export const dict = {
   "desktop.wsl.error.installDistro": "فشل تثبيت التوزيعة: {{distro}}",
   "desktop.wsl.error.installOpencode": "فشل تثبيت Jolli Code",
   "desktop.wsl.error.alreadyAdded": "تمت إضافة {{distro}} بالفعل",
-  "desktop.wsl.error.opencodeMissing": "opencode غير مثبت في هذه التوزيعة",
-  "desktop.wsl.error.opencodeCannotRun": "opencode مثبت، لكن تعذر تشغيله",
+  "desktop.wsl.error.opencodeMissing": "Jolli Code غير مثبت في هذه التوزيعة",
+  "desktop.wsl.error.opencodeCannotRun": "Jolli Code مثبت، لكن تعذر تشغيله",
   "desktop.wsl.error.opencodeNotInstalled": "Jolli Code غير مثبت في {{distro}}",
   "desktop.wsl.error.updateVersion":
     "اكتمل تحديث Jolli Code، لكن {{distro}} ما زالت تعرض الإصدار {{installed}}؛ الإصدار المتوقع هو {{expected}}",

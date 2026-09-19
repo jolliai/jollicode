@@ -86,8 +86,8 @@ export const dict = {
   "desktop.wsl.error.installDistro": "Dağıtım kurulamadı: {{distro}}",
   "desktop.wsl.error.installOpencode": "Jolli Code kurulamadı",
   "desktop.wsl.error.alreadyAdded": "{{distro}} zaten eklendi",
-  "desktop.wsl.error.opencodeMissing": "opencode bu dağıtımda kurulu değil",
-  "desktop.wsl.error.opencodeCannotRun": "opencode kurulu ancak çalıştırılamadı",
+  "desktop.wsl.error.opencodeMissing": "Jolli Code bu dağıtımda kurulu değil",
+  "desktop.wsl.error.opencodeCannotRun": "Jolli Code kurulu ancak çalıştırılamadı",
   "desktop.wsl.error.opencodeNotInstalled": "Jolli Code, {{distro}} içinde kurulu değil",
   "desktop.wsl.error.updateVersion":
     "Jolli Code güncellemesi tamamlandı ancak {{distro}} hâlâ {{installed}} sürümünü bildiriyor; beklenen sürüm: {{expected}}",
