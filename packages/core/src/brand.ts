@@ -22,4 +22,15 @@ export const Brand = {
   gatewayUrl: "https://api.jolli.ai",
   /** Canonical env-var prefix. OPENCODE_ is a deprecated read-alias. */
   envPrefix: "JOLLICODE_",
+  /**
+   * Build the runtime HTTP User-Agent from the brand prefix plus caller-supplied
+   * parts, e.g. `Brand.userAgent(version)` -> "jollicode/1.2.3" and
+   * `Brand.userAgent(channel, version, client)` -> "jollicode/latest/1.2.3/cli".
+   *
+   * Callers pass version/channel/client as arguments so Brand stays
+   * dependency-free (it must NOT import InstallationVersion/Channel itself).
+   */
+  userAgent(...parts: string[]): string {
+    return [Brand.bin, ...parts.filter(Boolean)].join("/")
+  },
 } as const

@@ -14,6 +14,7 @@ process.chdir(dir)
 const generated = await import("./generate.ts")
 
 import { Script } from "@opencode-ai/script"
+import { Brand } from "@opencode-ai/core/brand"
 import pkg from "../package.json"
 
 const singleFlag = process.argv.includes("--single")
@@ -176,7 +177,7 @@ for (const item of targets) {
       autoloadPackageJson: true,
       target: name.replace(pkg.name, "bun") as any,
       outfile: `dist/${name}/bin/jollicode`,
-      execArgv: [`--user-agent=opencode/${Script.version}`, "--use-system-ca", "--"],
+      execArgv: [`--user-agent=${Brand.userAgent(Script.version)}`, "--use-system-ca", "--"],
       windows: {},
     },
     files: {
