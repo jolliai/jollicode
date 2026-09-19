@@ -3,9 +3,10 @@ import { randomUUID } from "node:crypto"
 import { createServer } from "node:net"
 import { app } from "electron"
 import { checkHealth } from "../server"
-import { type WslCommandLine, resolveWslOpencode, shellEscape, wslArgs } from "./runtime"
+import { type WslCommandLine, resolveWslJollicode, shellEscape, wslArgs } from "./runtime"
 import { pollWslHealth } from "./startup"
 import { nativeT } from "../native-translations"
+import { Brand } from "@opencode-ai/app/brand"
 
 export type WslSidecar = {
   listener: { stop: () => void; onExit: (cb: (code: number | null, signal: NodeJS.Signals | null) => void) => void }
@@ -18,12 +19,12 @@ export async function spawnWslSidecar(
   distro: string,
   opts: { onLine?: (line: WslCommandLine) => void; healthTimeoutMs?: number } = {},
 ): Promise<WslSidecar> {
-  const opencode = await resolveWslOpencode(distro)
+  const opencode = await resolveWslJollicode(distro)
   if (!opencode) throw new Error(nativeT("desktop.wsl.error.opencodeNotInstalled", { distro }))
 
   const port = await allocatePort()
   const password = randomUUID()
-  const username = "opencode"
+  const username = Brand.short
   const script = [
     "set -euo pipefail",
     'cd "$HOME" || cd /',

@@ -77,8 +77,8 @@ export const dict = {
   "desktop.wsl.error.installDistro": "Det gick inte att installera distributionen: {{distro}}",
   "desktop.wsl.error.installOpencode": "Installationen av Jolli Code misslyckades",
   "desktop.wsl.error.alreadyAdded": "{{distro}} har redan lagts till",
-  "desktop.wsl.error.opencodeMissing": "opencode är inte installerat i den här distributionen",
-  "desktop.wsl.error.opencodeCannotRun": "opencode är installerat men kunde inte köras",
+  "desktop.wsl.error.opencodeMissing": "Jolli Code är inte installerat i den här distributionen",
+  "desktop.wsl.error.opencodeCannotRun": "Jolli Code är installerat men kunde inte köras",
   "desktop.wsl.error.opencodeNotInstalled": "Jolli Code är inte installerat i {{distro}}",
   "desktop.wsl.error.updateVersion":
     "Jolli Code-uppdateringen slutfördes, men {{distro}} rapporterar fortfarande {{installed}}. {{expected}} förväntades",

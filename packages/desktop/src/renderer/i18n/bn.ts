@@ -18,7 +18,7 @@ export const dict: Record<string, string> = {
   "desktop.updater.installFailed.title": "আপডেট ব্যর্থ হয়েছে৷",
   "desktop.updater.installFailed.message": "আপডেট ইনস্টল করতে ব্যর্থ হয়েছে",
   "desktop.cli.installed.title": "CLI ইনস্টল করা হয়েছে",
-  "desktop.cli.installed.message": "CLI {{path}}\n\n'ওপেনকোড' কমান্ড ব্যবহার করতে আপনার টার্মিনাল পুনরায় চালু করুন।",
+  "desktop.cli.installed.message": "CLI {{path}}\n\n'jollicode' কমান্ড ব্যবহার করতে আপনার টার্মিনাল পুনরায় চালু করুন।",
   "desktop.cli.failed.title": "ইনস্টলেশন ব্যর্থ হয়েছে",
   "desktop.cli.failed.message": "CLI ইনস্টল করতে ব্যর্থ: {{error}}",
 

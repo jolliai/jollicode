@@ -82,8 +82,8 @@ export const dict = {
   "desktop.wsl.error.installDistro": "Gagal menginstal distro: {{distro}}",
   "desktop.wsl.error.installOpencode": "Instalasi Jolli Code gagal",
   "desktop.wsl.error.alreadyAdded": "{{distro}} sudah ditambahkan",
-  "desktop.wsl.error.opencodeMissing": "opencode belum terinstal di distro ini",
-  "desktop.wsl.error.opencodeCannotRun": "opencode telah terinstal, tetapi tidak dapat dijalankan",
+  "desktop.wsl.error.opencodeMissing": "Jolli Code belum terinstal di distro ini",
+  "desktop.wsl.error.opencodeCannotRun": "Jolli Code telah terinstal, tetapi tidak dapat dijalankan",
   "desktop.wsl.error.opencodeNotInstalled": "Jolli Code belum terinstal di {{distro}}",
   "desktop.wsl.error.updateVersion":
     "Pembaruan Jolli Code selesai, tetapi {{distro}} masih melaporkan {{installed}}; seharusnya {{expected}}",

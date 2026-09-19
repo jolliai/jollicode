@@ -61,7 +61,7 @@ jobs:
           OPENCODE_BUMP: ${{ inputs.bump }}
           OPENCODE_VERSION: ${{ inputs.version }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-          GH_REPO: ${{ (github.ref_name == 'beta' && 'anomalyco/opencode-beta') || github.repository }}
+          GH_REPO: ${{ (github.ref_name == 'beta' && 'jolliai/jollicode-beta') || github.repository }}
     outputs:
       version: ${{ steps.version.outputs.version }}
       release: ${{ steps.version.outputs.release }}
@@ -220,7 +220,7 @@ jobs:
   build-electron:
     needs:
       - version
-    if: github.repository == 'anomalyco/opencode'
+    if: github.repository == 'jolliai/jollicode'
     continue-on-error: false
     env:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -359,10 +359,10 @@ jobs:
         run: |
           if [[ "${{ matrix.settings.target }}" == "x86_64-apple-darwin" ]]; then
             APP_DIR="mac"
-            OUT_NAME="opencode-desktop-mac-x64.app.tar.gz"
+            OUT_NAME="jollicode-desktop-mac-x64.app.tar.gz"
           elif [[ "${{ matrix.settings.target }}" == "aarch64-apple-darwin" ]]; then
             APP_DIR="mac-arm64"
-            OUT_NAME="opencode-desktop-mac-arm64.app.tar.gz"
+            OUT_NAME="jollicode-desktop-mac-arm64.app.tar.gz"
           else
             echo "Unknown macOS target: ${{ matrix.settings.target }}"
             exit 1
@@ -392,7 +392,7 @@ jobs:
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: opencode-desktop-${{ matrix.settings.target }}
+          name: jollicode-desktop-${{ matrix.settings.target }}
           path: packages/desktop/dist/*
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -461,7 +461,7 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         if: needs.version.outputs.release
         with:
-          pattern: opencode-desktop-*
+          pattern: jollicode-desktop-*
           path: /tmp/desktop
           merge-multiple: true
 

@@ -78,8 +78,8 @@ export const dict = {
   "desktop.wsl.error.installDistro": "Instalimi i shpërndarjes dështoi: {{distro}}",
   "desktop.wsl.error.installOpencode": "Instalimi i Jolli Code dështoi",
   "desktop.wsl.error.alreadyAdded": "{{distro}} është shtuar tashmë",
-  "desktop.wsl.error.opencodeMissing": "Opencode nuk është i instaluar në këtë shpërndarje",
-  "desktop.wsl.error.opencodeCannotRun": "Opencode është instaluar por nuk mund të ekzekutohet",
+  "desktop.wsl.error.opencodeMissing": "Jolli Code nuk është i instaluar në këtë shpërndarje",
+  "desktop.wsl.error.opencodeCannotRun": "Jolli Code është instaluar por nuk mund të ekzekutohet",
   "desktop.wsl.error.opencodeNotInstalled": "Jolli Code nuk është i instaluar në {{distro}}",
   "desktop.wsl.error.updateVersion":
     "Përditësimi i Jolli Code përfundoi, por {{distro}} ende raporton {{installed}}; pritet {{expected}}",

@@ -18,6 +18,8 @@ export const Brand = {
   org: "jolliai",
   /** Desktop URL scheme: jollicode://. */
   protocol: "jollicode",
+  /** Desktop bundle id (reverse-DNS). prod uses this; dev/beta append .dev/.beta. */
+  appId: "ai.jolli.desktop",
   /** Base URL of the Jolli gateway (multi-protocol LLM proxy). */
   gatewayUrl: "https://api.jolli.ai",
   /** Canonical env-var prefix. OPENCODE_ is a deprecated read-alias. */

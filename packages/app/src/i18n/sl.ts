@@ -77,8 +77,8 @@ export const dict = {
   "desktop.wsl.error.installDistro": "Namestitev distribucije ni uspela: {{distro}}",
   "desktop.wsl.error.installOpencode": "Namestitev Jolli Code ni uspela",
   "desktop.wsl.error.alreadyAdded": "{{distro}} je že dodan",
-  "desktop.wsl.error.opencodeMissing": "opencode ni nameščen v tej distribuciji",
-  "desktop.wsl.error.opencodeCannotRun": "opencode je nameščen, vendar se ne more zagnati",
+  "desktop.wsl.error.opencodeMissing": "Jolli Code ni nameščen v tej distribuciji",
+  "desktop.wsl.error.opencodeCannotRun": "Jolli Code je nameščen, vendar se ne more zagnati",
   "desktop.wsl.error.opencodeNotInstalled": "Jolli Code ni nameščen v {{distro}}",
   "desktop.wsl.error.updateVersion":
     "Posodobitev Jolli Code je končana, vendar {{distro}} še vedno poroča {{installed}}; pričakovano {{expected}}",

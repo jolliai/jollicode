@@ -81,8 +81,8 @@ export const dict = {
   "desktop.wsl.error.installDistro": "ڈسٹرو انسٹال نئیں ہو سکیا: {{distro}}",
   "desktop.wsl.error.installOpencode": "Jolli Code دی تنصیب ناکام ہو گئی",
   "desktop.wsl.error.alreadyAdded": "{{distro}} پہلے ای شامل اے",
-  "desktop.wsl.error.opencodeMissing": "اس ڈسٹرو وچ opencode انسٹال نئیں اے",
-  "desktop.wsl.error.opencodeCannotRun": "opencode انسٹال اے پر چل نئیں سکیا",
+  "desktop.wsl.error.opencodeMissing": "اس ڈسٹرو وچ Jolli Code انسٹال نئیں اے",
+  "desktop.wsl.error.opencodeCannotRun": "Jolli Code انسٹال اے پر چل نئیں سکیا",
   "desktop.wsl.error.opencodeNotInstalled": "{{distro}} وچ Jolli Code انسٹال نئیں اے",
   "desktop.wsl.error.updateVersion":
     "Jolli Code دی اپ ڈیٹ پوری ہو گئی پر {{distro}} ہلے وی {{installed}} دس رہیا اے؛ {{expected}} چاہیدا سی",

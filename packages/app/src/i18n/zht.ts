@@ -85,8 +85,8 @@ export const dict = {
   "desktop.wsl.error.installDistro": "無法安裝發行版：{{distro}}",
   "desktop.wsl.error.installOpencode": "Jolli Code 安裝失敗",
   "desktop.wsl.error.alreadyAdded": "已新增 {{distro}}",
-  "desktop.wsl.error.opencodeMissing": "此發行版中未安裝 opencode",
-  "desktop.wsl.error.opencodeCannotRun": "已安裝 opencode，但無法執行",
+  "desktop.wsl.error.opencodeMissing": "此發行版中未安裝 Jolli Code",
+  "desktop.wsl.error.opencodeCannotRun": "已安裝 Jolli Code，但無法執行",
   "desktop.wsl.error.opencodeNotInstalled": "{{distro}} 中未安裝 Jolli Code",
   "desktop.wsl.error.updateVersion":
     "Jolli Code 更新完成，但 {{distro}} 回報的版本仍為 {{installed}}；預期版本為 {{expected}}",

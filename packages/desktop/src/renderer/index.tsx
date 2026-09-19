@@ -15,6 +15,7 @@ import {
   useWslServers,
   useLanguage,
 } from "@opencode-ai/app"
+import { Brand } from "@opencode-ai/app/brand"
 import type { UpdaterState } from "@opencode-ai/app/updater"
 import * as Sentry from "@sentry/solid"
 import type { AsyncStorage } from "@solid-primitives/storage"
@@ -63,7 +64,7 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 const [updaterState, setUpdaterState] = createSignal<UpdaterState>({ status: "disabled" })
 void window.api.updater.subscribe(setUpdaterState)
 
-const deepLinkEvent = "opencode:deep-link"
+const deepLinkEvent = "jollicode:deep-link"
 
 type DesktopWindowState = {
   id?: string
@@ -257,7 +258,7 @@ const createPlatform = (windowState: DesktopWindowState): Platform => {
 
       const notification = new Notification(title, {
         body: description ?? "",
-        icon: "https://opencode.ai/favicon-96x96-v3.png",
+        icon: `${Brand.url}/favicon.ico`,
       })
       notification.onclick = () => {
         void window.api.showWindow()

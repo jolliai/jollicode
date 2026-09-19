@@ -78,8 +78,8 @@ export const dict = {
   "desktop.wsl.error.installDistro": "Չհաջողվեց տեղադրել բաշխում՝ {{distro}}",
   "desktop.wsl.error.installOpencode": "Jolli Code տեղադրումը ձախողվեց",
   "desktop.wsl.error.alreadyAdded": "{{distro}} արդեն ավելացված է",
-  "desktop.wsl.error.opencodeMissing": "opencode-ը տեղադրված չէ այս բաշխում",
-  "desktop.wsl.error.opencodeCannotRun": "opencode-ը տեղադրված է, բայց չի կարող գործարկվել",
+  "desktop.wsl.error.opencodeMissing": "Jolli Code-ը տեղադրված չէ այս բաշխում",
+  "desktop.wsl.error.opencodeCannotRun": "Jolli Code-ը տեղադրված է, բայց չի կարող գործարկվել",
   "desktop.wsl.error.opencodeNotInstalled": "Jolli Code տեղադրված չէ {{distro}}",
   "desktop.wsl.error.updateVersion":
     "Jolli Code թարմացումն ավարտված է, բայց {{distro}}-ը դեռ հայտնում է {{installed}}; սպասվում է {{expected}}",
