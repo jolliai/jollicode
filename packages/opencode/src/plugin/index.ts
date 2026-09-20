@@ -21,6 +21,7 @@ import { AzureAuthPlugin } from "./azure"
 import { DigitalOceanAuthPlugin } from "./digitalocean"
 import { XaiAuthPlugin } from "./xai"
 import { CerebrasPlugin } from "./cerebras"
+import { JolliAuthPlugin } from "./jolli"
 import { SnowflakeCortexAuthPlugin } from "./snowflake-cortex"
 import { Effect, Layer, Context } from "effect"
 import { EffectBridge } from "@/effect/bridge"
@@ -66,6 +67,9 @@ export function experimentalWebSocketsEnabled(input: { enabled: boolean; channel
 // Built-in plugins that are directly imported (not installed from npm)
 function internalPlugins(flags: RuntimeFlags.Info): PluginInstance[] {
   return [
+    // The only provider a Jolli Code install is allowed to connect; `enabled_providers` prunes the
+    // rest, and this is what gives the survivor a way to sign in.
+    JolliAuthPlugin,
     // Temporary rollout: pre-release builds use WebSockets by default; releases require explicit opt-in.
     (input) =>
       CodexAuthPlugin(input, {

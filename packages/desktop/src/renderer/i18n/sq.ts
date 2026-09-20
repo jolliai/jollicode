@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "Instalo CLI...",
   "desktop.menu.reloadWebview": "Rifresko pamjen e internetit",
   "desktop.menu.restart": "Rinis",
+
+  "desktop.jolli.signIn.title": "Hyni në Jolli Code",
+  "desktop.jolli.signIn.body":
+    "Llogaria juaj e shkollës përcakton cilat modele dhe asistentë kursesh mund të përdorni. Hyrja hap shfletuesin tuaj.",
+  "desktop.jolli.signIn.action": "Hyni me Jolli",
+  "desktop.jolli.signIn.waiting": "Në pritje të shfletuesit tuaj…",
+  "desktop.jolli.signIn.hint": "Përfundoni hyrjen në skedën e shfletuesit që sapo u hap dhe më pas kthehuni këtu.",
   "desktop.dialog.chooseFolder": "Zgjidhni një dosje",
   "desktop.dialog.chooseFile": "Zgjidhni një skedar",
   "desktop.dialog.saveFile": "Ruaj skedarin",

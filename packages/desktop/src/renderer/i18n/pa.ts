@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "CLI انسٹال کرو...",
   "desktop.menu.reloadWebview": "ویب ویو دوبارہ لوڈ کرو",
   "desktop.menu.restart": "دوبارہ شروع کرو",
+
+  "desktop.jolli.signIn.title": "Jolli Code وچ سائن ان کرو",
+  "desktop.jolli.signIn.body":
+    "تُسی کہڑے ماڈل تے کورس اسسٹنٹ ورت سکدے او، ایہہ تہاڈا سکول کھاتہ طے کردا اے۔ سائن ان کرن نال تہاڈا براؤزر کھل جائے گا۔",
+  "desktop.jolli.signIn.action": "Jolli نال سائن ان کرو",
+  "desktop.jolli.signIn.waiting": "تہاڈے براؤزر دی اڈیک ہو رہی اے…",
+  "desktop.jolli.signIn.hint": "ہُنے کھُلے براؤزر ٹیب وچ سائن ان مکمل کرو، تے فیر ایتھے واپس آ جاؤ۔",
   "desktop.dialog.chooseFolder": "اک فولڈر چنو",
   "desktop.dialog.chooseFile": "اک فائل چنو",
   "desktop.dialog.saveFile": "فائل محفوظ کرو",

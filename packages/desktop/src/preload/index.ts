@@ -59,6 +59,8 @@ const api: ElectronAPI = {
   consumeInitialDeepLinks: () => ipcRenderer.invoke("consume-initial-deep-links"),
   getDefaultServerUrl: () => ipcRenderer.invoke("get-default-server-url"),
   setDefaultServerUrl: (url) => ipcRenderer.invoke("set-default-server-url", url),
+  isJolliSignedIn: () => ipcRenderer.invoke("is-jolli-signed-in"),
+  jolliSignIn: () => ipcRenderer.invoke("jolli-sign-in"),
   isFirstLaunchOnboardingPending: () => ipcRenderer.invoke("is-first-launch-onboarding-pending"),
   finishFirstLaunchOnboarding: (createDefaultProject) =>
     ipcRenderer.invoke("finish-first-launch-onboarding", createDefaultProject),

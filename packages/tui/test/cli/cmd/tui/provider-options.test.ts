@@ -1,41 +1,62 @@
 import { describe, expect, test } from "bun:test"
-import { normalizeCustomProviderID, providerOptions } from "../../../../src/component/dialog-provider"
+import { Brand } from "@opencode-ai/core/brand"
+import { connectAction, providerOptions } from "../../../../src/component/dialog-provider"
 
 describe("providerOptions", () => {
-  test("includes a synthetic Other option for custom providers", () => {
-    expect(providerOptions([{ id: "openai", name: "OpenAI" }]).at(-1)).toMatchObject({
-      title: "Other",
-      description: "Custom provider",
-      category: "Providers",
-    })
+  test("offers no way to attach a provider of one's own", () => {
+    // Upstream ends the list with a synthetic "Other" row that prompts for a provider id and writes
+    // a credential for it, bypassing `enabled_providers` entirely. That row is the model lockdown's
+    // only hole, so its absence is asserted rather than assumed.
+    const values = providerOptions([{ id: "openai", name: "OpenAI" }]).map((option) => option.value)
+    expect(values).toEqual(["openai"])
   })
 
   test("does not use Other as the generic provider category", () => {
     expect(providerOptions([{ id: "mistral", name: "Mistral" }])[0]?.category).toBe("Providers")
   })
 
-  test("keeps popular providers first and sorts the rest alphabetically", () => {
+  test("puts Jolli first, then the popular providers, then the rest alphabetically", () => {
     expect(
       providerOptions([
         { id: "openai", name: "OpenAI" },
         { id: "custom-z", name: "Zebra Provider" },
+        { id: Brand.short, name: "Jolli" },
         { id: "anthropic", name: "Anthropic" },
         { id: "mistral", name: "Mistral" },
         { id: "aws", name: "AWS Bedrock" },
       ]).map((option) => option.value),
-    ).toEqual(["openai", "anthropic", "aws", "mistral", "custom-z", "__opencode_custom_provider__"])
+    ).toEqual([Brand.short, "openai", "anthropic", "aws", "mistral", "custom-z"])
   })
 
-  test("does not collide with a configured provider named other", () => {
-    const values = providerOptions([{ id: "other", name: "Other Provider" }]).map((option) => option.value)
-    expect(new Set(values).size).toBe(values.length)
+  test("categorises Jolli as popular and describes it", () => {
+    expect(providerOptions([{ id: Brand.short, name: "Jolli" }])[0]).toMatchObject({
+      category: "Popular",
+      description: "Your school account",
+    })
+  })
+})
+
+describe("connectAction", () => {
+  const methods = [{ type: "oauth" as const, label: "Sign in to Jolli Code" }]
+
+  test("signs the student in when Jolli is the only provider and nothing is connected yet", () => {
+    // Signed out the provider list is genuinely empty — Jolli is not in models.dev, so it enters
+    // the list only once a credential exists. The auth methods are what is left to key off.
+    expect(connectAction({ providerIDs: [], methods, connected: [] })).toBe("login")
   })
 
-  test("normalizes and validates custom provider ids", () => {
-    expect(normalizeCustomProviderID("  custom-provider  ")).toBe("custom-provider")
-    expect(normalizeCustomProviderID("custom_provider")).toBe("custom_provider")
-    expect(normalizeCustomProviderID("@ai-sdk/custom-provider")).toBe("custom-provider")
-    expect(normalizeCustomProviderID("-custom-provider")).toBeUndefined()
-    expect(normalizeCustomProviderID("Custom Provider")).toBeUndefined()
+  test("does not send an already signed-in student back out to a browser", () => {
+    // The whole dialog would otherwise render nothing while a new sign-in tab opened behind it.
+    expect(connectAction({ providerIDs: [Brand.short], methods, connected: [Brand.short] })).toBe("signed-in")
+  })
+
+  test("still shows the picker when there is more than one provider to pick", () => {
+    expect(connectAction({ providerIDs: [Brand.short, "openai"], methods, connected: [Brand.short] })).toBe("pick")
+    expect(connectAction({ providerIDs: ["openai"], methods, connected: [] })).toBe("pick")
+  })
+
+  test("shows the picker rather than a sign-in the plugin registry cannot start", () => {
+    // No declared auth method means nothing to launch; an empty dialog beats a silent no-op.
+    expect(connectAction({ providerIDs: [], methods: undefined, connected: [] })).toBe("pick")
   })
 })

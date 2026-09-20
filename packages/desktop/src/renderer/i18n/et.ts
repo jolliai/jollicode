@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "Installi CLI...",
   "desktop.menu.reloadWebview": "Laadi veebivaade uuesti",
   "desktop.menu.restart": "Taaskäivita",
+
+  "desktop.jolli.signIn.title": "Logi Jolli Code'i sisse",
+  "desktop.jolli.signIn.body":
+    "Sinu koolikonto määrab, milliseid mudeleid ja kursuseassistente saad kasutada. Sisselogimisel avaneb brauser.",
+  "desktop.jolli.signIn.action": "Logi sisse Jolliga",
+  "desktop.jolli.signIn.waiting": "Ootan sinu brauserit…",
+  "desktop.jolli.signIn.hint": "Lõpeta sisselogimine äsja avatud brauserivahekaardil ja tule siis siia tagasi.",
   "desktop.dialog.chooseFolder": "Valige kaust",
   "desktop.dialog.chooseFile": "Valige fail",
   "desktop.dialog.saveFile": "Salvesta fail",

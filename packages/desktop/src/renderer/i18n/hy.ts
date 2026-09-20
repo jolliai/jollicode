@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "Տեղադրեք CLI...",
   "desktop.menu.reloadWebview": "Վերբեռնել Webview",
   "desktop.menu.restart": "Վերագործարկեք",
+
+  "desktop.jolli.signIn.title": "Մուտք գործեք Jolli Code",
+  "desktop.jolli.signIn.body":
+    "Ձեր դպրոցական հաշիվը որոշում է, թե որ մոդելներից և դասընթացի օգնականներից կարող եք օգտվել։ Մուտք գործելիս կբացվի ձեր դիտարկիչը։",
+  "desktop.jolli.signIn.action": "Մուտք գործել Jolli-ով",
+  "desktop.jolli.signIn.waiting": "Սպասում ենք ձեր դիտարկիչին…",
+  "desktop.jolli.signIn.hint": "Ավարտեք մուտքը նոր բացված դիտարկիչի ներդիրում, ապա վերադարձեք այստեղ։",
   "desktop.dialog.chooseFolder": "Ընտրեք թղթապանակ",
   "desktop.dialog.chooseFile": "Ընտրեք ֆայլ",
   "desktop.dialog.saveFile": "Պահպանել ֆայլը",

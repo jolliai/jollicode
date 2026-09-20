@@ -62,6 +62,20 @@ export const Flag = {
   get OPENCODE_DISABLE_AUTOUPDATE() {
     return truthyEnv("DISABLE_AUTOUPDATE")
   },
+  /**
+   * Whether this process is the shipped Jolli Code product rather than a bare library consumer.
+   *
+   * ⚠ THE LOCKDOWN IS THE PRODUCT'S, NOT THE LIBRARY'S, WHICH IS THE WHOLE REASON THIS FLAG EXISTS.
+   * `enabled_providers: ["jolli"]` applied unconditionally inside the config loader makes "only
+   * Jolli exists" true for every consumer of that module, which is wrong for a library and breaks
+   * the upstream provider tests that legitimately exercise other providers. The `jollicode` entry
+   * point sets this; nothing else does.
+   *
+   * Evaluated at access time because the entry point sets it at runtime, before config loads.
+   */
+  get JOLLICODE_LOCKDOWN() {
+    return truthyEnv("LOCKDOWN")
+  },
   OPENCODE_ALWAYS_NOTIFY_UPDATE: truthyEnv("ALWAYS_NOTIFY_UPDATE"),
   OPENCODE_DISABLE_PRUNE: truthyEnv("DISABLE_PRUNE"),
   OPENCODE_DISABLE_TERMINAL_TITLE: truthyEnv("DISABLE_TERMINAL_TITLE"),

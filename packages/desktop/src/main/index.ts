@@ -3,7 +3,7 @@ import { mkdirSync, rmSync } from "node:fs"
 import * as http from "node:http"
 import { createServer } from "node:net"
 import { homedir, tmpdir } from "node:os"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
 import { getCACertificates, setDefaultCACertificates } from "node:tls"
 import type { Event } from "electron"
 import { app, BrowserWindow } from "electron"
@@ -13,6 +13,7 @@ import contextMenu from "electron-context-menu"
 
 import { Brand } from "@opencode-ai/app/brand"
 import type { ServerReadyData } from "../preload/types"
+import { currentSession, signIn } from "./jolli-auth"
 import { checkAppExists, resolveAppPath } from "./apps"
 import { CHANNEL } from "./constants"
 import { registerIpcHandlers, sendDeepLinks, sendMenuCommand } from "./ipc"
@@ -55,17 +56,21 @@ const APP_NAMES: Record<string, string> = {
   beta: "Jolli Code Beta",
   prod: "Jolli Code",
 }
+// Keep in sync with APP_IDS in ../../electron-builder.config.ts.
 const APP_IDS: Record<string, string> = {
   dev: `${Brand.appId}.dev`,
   beta: `${Brand.appId}.beta`,
   prod: Brand.appId,
 }
+/** Matches the first-launch health wait in the loading task below. */
+const SIDECAR_RESTART_HEALTH_TIMEOUT = 30_000
 const TEST_ONBOARDING = process.env.OPENCODE_TEST_ONBOARDING === "1"
 const SIDECAR_VERSION = process.env.OPENCODE_SIDECAR_V2 === "1" ? "v2" : "v1"
 const jsCallStackFeature = "DocumentPolicyIncludeJSCallStacksInCrashReports"
 
 let logger: ReturnType<typeof initLogging>
 let server: SidecarListener | null = null
+let sidecarAddress: { hostname: string; port: number; password: string } | null = null
 
 const pendingDeepLinks: string[] = []
 
@@ -90,6 +95,46 @@ async function killSidecar() {
   const current = server
   server = null
   await current.stop()
+}
+
+/**
+ * Spawns the local sidecar and remembers how, so it can be replaced later on the same address.
+ *
+ * The renderer learns the server's URL and password exactly once (`serverReady`), so a restart has
+ * to come back up on the same host, port and password — otherwise every open window would be left
+ * talking to a server that no longer exists.
+ */
+async function startSidecar(hostname: string, port: number, password: string) {
+  sidecarAddress = { hostname, port, password }
+  const spawned = await spawnLocalServer(hostname, port, password, {
+    userDataPath: app.getPath("userData"),
+    onStdout: (message) => writeLog("server", "stdout", { message }),
+    onStderr: (message) => writeLog("server", "stderr", { message }, "warn"),
+    onExit: (code) => writeLog("utility", "sidecar exited", { code }, "warn"),
+  })
+  server = spawned.listener
+  return spawned
+}
+
+/**
+ * Replaces a running sidecar so it picks up config that only reaches it through its spawn env.
+ *
+ * ⚠ THE HEALTH WAIT IS BOUNDED AND SWALLOWED, LIKE THE ONE AT FIRST LAUNCH. `health.wait` polls
+ * without a deadline of its own, so awaiting it bare leaves the `jolli-sign-in` IPC — and with it
+ * the onboarding button — hung forever on a sidecar that never comes up; and it rejects when the
+ * process dies, which would report a sign-in that actually succeeded as a failure. The server being
+ * slow or dead is a separate problem from the sign-in, and it surfaces through the health check the
+ * renderer already runs.
+ */
+async function restartSidecar() {
+  if (!sidecarAddress) return
+  const address = sidecarAddress
+  await killSidecar()
+  const { health } = await startSidecar(address.hostname, address.port, address.password)
+  await Promise.race([
+    health.wait,
+    new Promise<void>((resolve) => setTimeout(resolve, SIDECAR_RESTART_HEALTH_TIMEOUT).unref()),
+  ]).catch((error) => logger.error("sidecar health check failed after restart", error))
 }
 
 function ensureLoopbackNoProxy() {
@@ -267,7 +312,13 @@ const main = Effect.gen(function* () {
       }),
     ),
   )
-  app.setAsDefaultProtocolClient(Brand.protocol)
+  /**
+   * ⚠ AN UNPACKAGED BUILD HAS TO NAME THE EXECUTABLE AND THE SCRIPT. Windows registers the command
+   * line verbatim, and in development that is Electron plus this entry point — without the extra
+   * arguments the OS would register bare `electron.exe` and the link would open an empty shell.
+   */
+  if (app.isPackaged) app.setAsDefaultProtocolClient(Brand.protocol)
+  else app.setAsDefaultProtocolClient(Brand.protocol, process.execPath, [resolve(process.argv[1] ?? "")])
   registerRendererProtocol()
   setDockIcon()
   const updater = setupAutoUpdater(stopSidecars)
@@ -294,6 +345,17 @@ const main = Effect.gen(function* () {
     consumeInitialDeepLinks: () => pendingDeepLinks.splice(0),
     getDefaultServerUrl: () => getDefaultServerUrl(),
     setDefaultServerUrl: (url) => setDefaultServerUrl(url),
+    isJolliSignedIn: () => !!currentSession(),
+    /**
+     * ⚠ THE SIDECAR IS RESTARTED AFTER A SIGN-IN, NOT BEFORE IT. `JOLLICODE_CONFIG_CONTENT` is read
+     * once when the sidecar forks, so a server that started signed out keeps a config with no
+     * provider in it until it is replaced. First launch signs in before the server starts and this
+     * is a no-op; a later sign-in from the app is what needs it.
+     */
+    jolliSignIn: async () => {
+      await signIn()
+      if (server) await restartSidecar()
+    },
     isFirstLaunchOnboardingPending,
     finishFirstLaunchOnboarding,
     isOldLayoutEligible,
@@ -374,15 +436,7 @@ const main = Effect.gen(function* () {
     const password = randomUUID()
 
     logger.log("spawning sidecar", { url })
-    const { listener, health } = yield* Effect.promise(() =>
-      spawnLocalServer(hostname, port, password, {
-        userDataPath: app.getPath("userData"),
-        onStdout: (message) => writeLog("server", "stdout", { message }),
-        onStderr: (message) => writeLog("server", "stderr", { message }, "warn"),
-        onExit: (code) => writeLog("utility", "sidecar exited", { code }, "warn"),
-      }),
-    )
-    server = listener
+    const { health } = yield* Effect.promise(() => startSidecar(hostname, port, password))
     yield* Deferred.succeed(serverReady, {
       url,
       username: Brand.short,

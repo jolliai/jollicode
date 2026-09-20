@@ -35,6 +35,9 @@ import { ConfigPlugin } from "./plugin"
 import { ConfigVariable } from "./variable"
 import { ConfigV2Compat } from "./v2-compat"
 import { Npm } from "@opencode-ai/core/npm"
+import { Brand } from "@opencode-ai/core/brand"
+import { jolliBaseConfig } from "@opencode-ai/core/jolli/gateway-config"
+import { catalogModels } from "@opencode-ai/core/jolli/model-catalog"
 import { withTransientReadRetry } from "@/util/effect-http-client"
 
 // Custom merge function that concatenates array fields instead of replacing them
@@ -49,6 +52,18 @@ function mergeConfigConcatArrays(target: Info, source: Info): Info {
     merged.instructions = Array.from(new Set([...target.instructions, ...source.instructions]))
   }
   return merged
+}
+
+/** The Jolli floor for one stored credential: locked either way, with a provider once signed in. */
+function jolliLockdownConfig(credential: Auth.Info | undefined): Info {
+  const signedIn = credential?.type === "api"
+  return jolliBaseConfig({
+    signedIn,
+    // Interim: which models a student may run is the course's decision and should arrive with
+    // sign-in. `catalogModels` is the seam, and says so where it is defined.
+    models: catalogModels(),
+    ...(signedIn && credential.metadata?.["baseUrl"] ? { baseUrl: credential.metadata["baseUrl"] } : {}),
+  })
 }
 
 function normalizeLoadedConfig(data: unknown) {
@@ -329,7 +344,16 @@ const layer = Layer.effect(
       function* (ctx: InstanceContext) {
         const auth = yield* authSvc.all().pipe(Effect.orDie)
 
-        let result: Info = {}
+        /**
+         * The shipped Jolli Code product's own floor, seeded as the bottom layer so everything
+         * below can still override it. Gated on `JOLLICODE_LOCKDOWN` because this module is a
+         * library: applying it unconditionally would make "only Jolli exists" true for every
+         * consumer, including the provider tests that legitimately exercise other providers.
+         *
+         * The provider block only appears once a Jolli credential exists — `jolliBaseConfig`
+         * explains why declaring it while signed out breaks first-run sign-in.
+         */
+        let result: Info = Flag.JOLLICODE_LOCKDOWN ? jolliLockdownConfig(auth[Brand.short]) : {}
         const authEnv: Record<string, string> = {}
         const consoleManagedProviders = new Set<string>()
         let activeOrgName: string | undefined

@@ -4,6 +4,13 @@ export const dict = {
   "desktop.menu.reloadWebview": "Recarregar Webview",
   "desktop.menu.restart": "Reiniciar",
 
+  "desktop.jolli.signIn.title": "Entrar no Jolli Code",
+  "desktop.jolli.signIn.body":
+    "Sua conta da escola determina quais modelos e assistentes de curso você pode usar. Entrar abre seu navegador.",
+  "desktop.jolli.signIn.action": "Entrar com a Jolli",
+  "desktop.jolli.signIn.waiting": "Aguardando seu navegador…",
+  "desktop.jolli.signIn.hint": "Conclua o login na aba do navegador que acabou de abrir e volte para cá.",
+
   "desktop.dialog.chooseFolder": "Escolher uma pasta",
   "desktop.dialog.chooseFile": "Escolher um arquivo",
   "desktop.dialog.saveFile": "Salvar arquivo",
@@ -21,7 +28,8 @@ export const dict = {
   "desktop.updater.installFailed.message": "Falha ao instalar a atualização",
 
   "desktop.cli.installed.title": "CLI instalada",
-  "desktop.cli.installed.message": "CLI instalada em {{path}}\n\nReinicie seu terminal para usar o comando 'jollicode'.",
+  "desktop.cli.installed.message":
+    "CLI instalada em {{path}}\n\nReinicie seu terminal para usar o comando 'jollicode'.",
   "desktop.cli.failed.title": "Falha na instalação",
   "desktop.cli.failed.message": "Falha ao instalar a CLI: {{error}}",
 

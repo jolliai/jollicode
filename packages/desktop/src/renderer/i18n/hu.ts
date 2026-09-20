@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "CLI telepítése...",
   "desktop.menu.reloadWebview": "A Webview újratöltése",
   "desktop.menu.restart": "Újraindítás",
+
+  "desktop.jolli.signIn.title": "Bejelentkezés a Jolli Code-ba",
+  "desktop.jolli.signIn.body":
+    "Az iskolai fiókja határozza meg, mely modelleket és kurzusasszisztenseket használhatja. A bejelentkezés megnyitja a böngészőt.",
+  "desktop.jolli.signIn.action": "Bejelentkezés Jollival",
+  "desktop.jolli.signIn.waiting": "Várakozás a böngészőre…",
+  "desktop.jolli.signIn.hint": "Fejezze be a bejelentkezést az imént megnyílt böngészőlapon, majd térjen vissza ide.",
   "desktop.dialog.chooseFolder": "Válasszon egy mappát",
   "desktop.dialog.chooseFile": "Válasszon egy fájlt",
   "desktop.dialog.saveFile": "Fájl mentése",

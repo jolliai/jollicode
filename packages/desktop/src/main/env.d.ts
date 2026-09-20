@@ -2,7 +2,6 @@ interface ImportMetaEnv {
   readonly OPENCODE_CHANNEL: string
   // Build-time gateway override; empty string means "use the Brand default". See electron.vite.config.ts.
   readonly JOLLICODE_GATEWAY_URL: string
-  readonly JOLLICODE_GATEWAY_KEY: string
 }
 
 interface ImportMeta {

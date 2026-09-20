@@ -39,6 +39,8 @@ type Deps = {
   consumeInitialDeepLinks: () => Promise<string[]> | string[]
   getDefaultServerUrl: () => Promise<string | null> | string | null
   setDefaultServerUrl: (url: string | null) => Promise<void> | void
+  isJolliSignedIn: () => boolean
+  jolliSignIn: () => Promise<void>
   isFirstLaunchOnboardingPending: () => Promise<boolean> | boolean
   finishFirstLaunchOnboarding: (createDefaultProject: boolean) => Promise<string | null> | string | null
   isOldLayoutEligible: () => Promise<boolean> | boolean
@@ -69,6 +71,10 @@ export function registerIpcHandlers(deps: Deps) {
   ipcMain.handle("set-default-server-url", (_event: IpcMainInvokeEvent, url: string | null) =>
     deps.setDefaultServerUrl(url),
   )
+  ipcMain.handle("is-jolli-signed-in", () => deps.isJolliSignedIn())
+  // Resolves only once the browser has come back, so the renderer can simply await it. Errors
+  // surface as a rejected invoke and the sign-in screen shows them.
+  ipcMain.handle("jolli-sign-in", () => deps.jolliSignIn())
   ipcMain.handle("is-first-launch-onboarding-pending", () => deps.isFirstLaunchOnboardingPending())
   ipcMain.handle("finish-first-launch-onboarding", (_event: IpcMainInvokeEvent, createDefaultProject: boolean) =>
     deps.finishFirstLaunchOnboarding(createDefaultProject),

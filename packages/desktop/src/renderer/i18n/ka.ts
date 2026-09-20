@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "დააინსტალირეთ CLI...",
   "desktop.menu.reloadWebview": "გადატვირთვა Webview",
   "desktop.menu.restart": "გადატვირთვა",
+
+  "desktop.jolli.signIn.title": "შედით Jolli Code-ში",
+  "desktop.jolli.signIn.body":
+    "თქვენი სასკოლო ანგარიში განსაზღვრავს, რომელი მოდელებისა და კურსის ასისტენტების გამოყენება შეგიძლიათ. შესვლისას გაიხსნება თქვენი ბრაუზერი.",
+  "desktop.jolli.signIn.action": "შესვლა Jolli-ით",
+  "desktop.jolli.signIn.waiting": "ველოდებით თქვენს ბრაუზერს…",
+  "desktop.jolli.signIn.hint": "დაასრულეთ შესვლა ახლახან გახსნილ ბრაუზერის ჩანართში და დაბრუნდით აქ.",
   "desktop.dialog.chooseFolder": "აირჩიე საქაღალდე",
   "desktop.dialog.chooseFile": "აირჩიე ფაილი",
   "desktop.dialog.saveFile": "ფაილის შენახვა",

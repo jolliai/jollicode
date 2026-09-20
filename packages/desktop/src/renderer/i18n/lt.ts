@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "Įdiegti CLI...",
   "desktop.menu.reloadWebview": "Iš naujo įkelti Webview",
   "desktop.menu.restart": "Paleisti iš naujo",
+
+  "desktop.jolli.signIn.title": "Prisijungti prie Jolli Code",
+  "desktop.jolli.signIn.body":
+    "Jūsų mokyklos paskyra nulemia, kuriuos modelius ir kursų asistentus galite naudoti. Prisijungiant atsidarys jūsų naršyklė.",
+  "desktop.jolli.signIn.action": "Prisijungti su Jolli",
+  "desktop.jolli.signIn.waiting": "Laukiama jūsų naršyklės…",
+  "desktop.jolli.signIn.hint": "Užbaikite prisijungimą ką tik atsidariusioje naršyklės kortelėje ir grįžkite čia.",
   "desktop.dialog.chooseFolder": "Pasirinkite aplanką",
   "desktop.dialog.chooseFile": "Pasirinkite failą",
   "desktop.dialog.saveFile": "Išsaugoti failą",

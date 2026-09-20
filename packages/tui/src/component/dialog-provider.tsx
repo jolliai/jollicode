@@ -15,72 +15,143 @@ import { isConsoleManagedProvider } from "../util/provider-origin"
 import { useConnected } from "./use-connected"
 import { useBindings } from "../keymap"
 import { useClipboard } from "../context/clipboard"
+import { Brand } from "@opencode-ai/core/brand"
+import open from "open"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
-  opencode: 0,
-  "opencode-go": 1,
-  openai: 2,
-  "github-copilot": 3,
-  anthropic: 4,
-  google: 5,
+  [Brand.short]: 0,
+  opencode: 1,
+  "opencode-go": 2,
+  openai: 3,
+  "github-copilot": 4,
+  anthropic: 5,
+  google: 6,
 }
 
-const CUSTOM_PROVIDER_OPTION_VALUE = "__opencode_custom_provider__"
-const CUSTOM_PROVIDER_ID = /^[a-z0-9][a-z0-9-_]*$/
-
-type ProviderOptionBase = {
+type ProviderOption = {
   title: string
   value: string
   description?: string
   category: string
+  providerID: string
 }
 
-type ProviderOption =
-  | (ProviderOptionBase & {
-      type: "provider"
-      providerID: string
-    })
-  | (ProviderOptionBase & {
-      type: "custom"
-    })
-
+/**
+ * ⚠ THERE IS NO "OTHER" ENTRY ANY MORE, AND ITS ABSENCE IS THE POINT. Upstream ends this list with a
+ * synthetic row that prompts for a provider id and writes a credential for it. That row does not go
+ * through the provider list at all, so `enabled_providers` — which is the whole model lockdown —
+ * never sees it: it was the one way a student could still attach their own key.
+ */
 export function providerOptions(list: { id: string; name: string }[]): ProviderOption[] {
-  return [
-    ...pipe(
-      list,
-      sortBy(
-        (x) => PROVIDER_PRIORITY[x.id] ?? 99,
-        (x) => x.name.toLowerCase(),
-        (x) => x.id,
-      ),
-      map((provider) => ({
-        type: "provider" as const,
-        title: provider.name,
-        value: provider.id,
-        providerID: provider.id,
-        description: {
-          opencode: "(Recommended)",
-          anthropic: "(API key)",
-          openai: "(ChatGPT Plus/Pro or API key)",
-          "opencode-go": "Low cost subscription for everyone",
-        }[provider.id],
-        category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Providers",
-      })),
+  return pipe(
+    list,
+    sortBy(
+      (x) => PROVIDER_PRIORITY[x.id] ?? 99,
+      (x) => x.name.toLowerCase(),
+      (x) => x.id,
     ),
-    {
-      type: "custom",
-      title: "Other",
-      value: CUSTOM_PROVIDER_OPTION_VALUE,
-      description: "Custom provider",
-      category: "Providers",
-    },
-  ]
+    map((provider) => ({
+      title: provider.name,
+      value: provider.id,
+      providerID: provider.id,
+      description: {
+        [Brand.short]: "Your school account",
+        opencode: "(Recommended)",
+        anthropic: "(API key)",
+        openai: "(ChatGPT Plus/Pro or API key)",
+        "opencode-go": "Low cost subscription for everyone",
+      }[provider.id],
+      category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Providers",
+    })),
+  )
 }
 
-export function normalizeCustomProviderID(value: string) {
-  const providerID = value.trim().replace(/^@ai-sdk\//, "")
-  if (!CUSTOM_PROVIDER_ID.test(providerID)) return
-  return providerID
+/**
+ * Drives one provider's login, from picking an auth method to whichever dialog finishes it.
+ *
+ * Lifted out of the picker's `onSelect` because two callers need it: selecting a row, and the
+ * picker skipping itself entirely when Jolli is the only provider there is.
+ */
+export function createProviderLogin() {
+  const sync = useSync()
+  const dialog = useDialog()
+  const sdk = useSDK()
+  const toast = useToast()
+
+  return async function startLogin(providerID: string) {
+    const methods = sync.data.provider_auth[providerID] ?? [
+      {
+        type: "api",
+        label: "API key",
+      },
+    ]
+    let index: number | null = 0
+    if (methods.length > 1) {
+      index = await new Promise<number | null>((resolve) => {
+        dialog.replace(
+          () => (
+            <DialogSelect
+              title="Select auth method"
+              options={methods.map((x, index) => ({
+                title: x.label,
+                value: index,
+              }))}
+              onSelect={(option) => resolve(option.value)}
+            />
+          ),
+          () => resolve(null),
+        )
+      })
+    }
+    if (index == null) return
+    const method = methods[index]
+    if (method.type === "oauth") {
+      let inputs: Record<string, string> | undefined
+      if (method.prompts?.length) {
+        const value = await PromptsMethod({
+          dialog,
+          prompts: method.prompts,
+        })
+        if (!value) return
+        inputs = value
+      }
+
+      const result = await sdk.client.provider.oauth.authorize({
+        providerID,
+        method: index,
+        inputs,
+      })
+      if (result.error) {
+        toast.show({
+          variant: "error",
+          message: JSON.stringify(result.error),
+        })
+        dialog.clear()
+        return
+      }
+      if (result.data?.method === "code") {
+        dialog.replace(() => (
+          <CodeMethod providerID={providerID} title={method.label} index={index} authorization={result.data!} />
+        ))
+      }
+      if (result.data?.method === "auto") {
+        dialog.replace(() => (
+          <AutoMethod providerID={providerID} title={method.label} index={index} authorization={result.data!} />
+        ))
+      }
+    }
+    if (method.type === "api") {
+      let metadata: Record<string, string> | undefined
+      if (method.prompts?.length) {
+        const value = await PromptsMethod({ dialog, prompts: method.prompts })
+        if (!value) return
+        metadata = value
+      }
+      return dialog.replace(() => (
+        <ApiMethod providerID={providerID} title={method.label} metadata={metadata} />
+      ))
+    }
+  }
 }
 
 export function createDialogProviderOptions() {
@@ -90,47 +161,12 @@ export function createDialogProviderOptions() {
   const toast = useToast()
   const { theme } = useTheme()
   const onboarded = useConnected()
-
-  async function promptCustomProviderID(): Promise<string | undefined> {
-    const value = await DialogPrompt.show(dialog, "Other", {
-      placeholder: "Provider id",
-      description: () => (
-        <text fg={theme.textMuted}>
-          This only stores a credential. Configure the provider in opencode.json to use it.
-        </text>
-      ),
-    })
-    if (value === null) return
-
-    const providerID = normalizeCustomProviderID(value)
-    if (providerID) return providerID
-
-    toast.show({
-      variant: "error",
-      message:
-        "Provider ids must start with a lowercase letter or number and only use lowercase letters, numbers, hyphens, and underscores",
-    })
-    return promptCustomProviderID()
-  }
+  const startLogin = createProviderLogin()
 
   const options = createMemo(() => {
     return pipe(
       providerOptions(sync.data.provider_next.all),
       map((provider) => {
-        if (provider.type === "custom") {
-          return {
-            title: provider.title,
-            value: provider.value,
-            description: provider.description,
-            category: provider.category,
-            async onSelect() {
-              const providerID = await promptCustomProviderID()
-              if (!providerID) return
-              return dialog.replace(() => <ApiMethod providerID={providerID} title="API key" custom />)
-            },
-          }
-        }
-
         const providerID = provider.providerID
         const consoleManaged = isConsoleManagedProvider(sync.data.console_state.consoleManagedProviders, providerID)
         const connected = sync.data.provider_next.connected.includes(providerID)
@@ -144,79 +180,7 @@ export function createDialogProviderOptions() {
           gutter: connected && onboarded() ? () => <text fg={theme.success}>✓</text> : undefined,
           async onSelect() {
             if (consoleManaged) return
-
-            const methods = sync.data.provider_auth[providerID] ?? [
-              {
-                type: "api",
-                label: "API key",
-              },
-            ]
-            let index: number | null = 0
-            if (methods.length > 1) {
-              index = await new Promise<number | null>((resolve) => {
-                dialog.replace(
-                  () => (
-                    <DialogSelect
-                      title="Select auth method"
-                      options={methods.map((x, index) => ({
-                        title: x.label,
-                        value: index,
-                      }))}
-                      onSelect={(option) => resolve(option.value)}
-                    />
-                  ),
-                  () => resolve(null),
-                )
-              })
-            }
-            if (index == null) return
-            const method = methods[index]
-            if (method.type === "oauth") {
-              let inputs: Record<string, string> | undefined
-              if (method.prompts?.length) {
-                const value = await PromptsMethod({
-                  dialog,
-                  prompts: method.prompts,
-                })
-                if (!value) return
-                inputs = value
-              }
-
-              const result = await sdk.client.provider.oauth.authorize({
-                providerID,
-                method: index,
-                inputs,
-              })
-              if (result.error) {
-                toast.show({
-                  variant: "error",
-                  message: JSON.stringify(result.error),
-                })
-                dialog.clear()
-                return
-              }
-              if (result.data?.method === "code") {
-                dialog.replace(() => (
-                  <CodeMethod providerID={providerID} title={method.label} index={index} authorization={result.data!} />
-                ))
-              }
-              if (result.data?.method === "auto") {
-                dialog.replace(() => (
-                  <AutoMethod providerID={providerID} title={method.label} index={index} authorization={result.data!} />
-                ))
-              }
-            }
-            if (method.type === "api") {
-              let metadata: Record<string, string> | undefined
-              if (method.prompts?.length) {
-                const value = await PromptsMethod({ dialog, prompts: method.prompts })
-                if (!value) return
-                metadata = value
-              }
-              return dialog.replace(() => (
-                <ApiMethod providerID={providerID} title={method.label} metadata={metadata} />
-              ))
-            }
+            return startLogin(providerID)
           },
         }
       }),
@@ -225,9 +189,65 @@ export function createDialogProviderOptions() {
   return options
 }
 
+/**
+ * What opening the provider picker should actually do.
+ *
+ * ⚠ WITH ONE PROVIDER THERE IS NOTHING TO PICK, SO THE PICKER GETS OUT OF THE WAY. Every entry
+ * point into it goes through `DialogProvider` — startup, `/connect`, the model dialog, the
+ * composer's prompt — so deciding in this one place covers all of them.
+ *
+ * ⚠ SIGNED OUT, THE LIST IS EMPTY RATHER THAN SHORT. Jolli is not in models.dev, so it only appears
+ * once a credential exists; without the `methods` check the student would be shown a dialog with no
+ * rows and no way forward. The auth methods come from the plugin registry instead, which is
+ * populated whether or not anyone has signed in.
+ *
+ * ⚠ AND SIGNED IN, THERE IS NOTHING TO DO EITHER. Sending a student who already has a credential
+ * straight back out to a browser sign-in is not a provider picker doing its job — it is `/connect`
+ * with no way to see the state it is reporting on and nothing to cancel. Switching accounts goes
+ * through an explicit sign-out first.
+ *
+ * `connected` is the honest signal for holding a credential on both surfaces: the bare CLI keeps
+ * the JWT in `auth.json` under this provider id, while the desktop keeps it in the OS keychain and
+ * declares the provider block from it — and the list route counts either one.
+ */
+export function connectAction(input: {
+  providerIDs: string[]
+  methods: ProviderAuthMethod[] | undefined
+  connected: string[]
+}) {
+  if (input.providerIDs.length > 1) return "pick" as const
+  if (input.providerIDs.length === 1 && input.providerIDs[0] !== Brand.short) return "pick" as const
+  if (!input.methods) return "pick" as const
+  return input.connected.includes(Brand.short) ? ("signed-in" as const) : ("login" as const)
+}
+
 export function DialogProvider() {
+  const sync = useSync()
+  const dialog = useDialog()
+  const toast = useToast()
   const options = createDialogProviderOptions()
-  return <DialogSelect title="Connect a provider" options={options()} />
+  const startLogin = createProviderLogin()
+
+  const action = createMemo(() =>
+    connectAction({
+      providerIDs: options().map((option) => option.value),
+      methods: sync.data.provider_auth[Brand.short],
+      connected: sync.data.provider_next.connected,
+    }),
+  )
+
+  onMount(() => {
+    if (action() === "pick") return
+    if (action() === "login") return void startLogin(Brand.short)
+    toast.show({ message: `Already signed in to ${Brand.name}`, variant: "info" })
+    dialog.clear()
+  })
+
+  return (
+    <Show when={action() === "pick"}>
+      <DialogSelect title="Connect a provider" options={options()} />
+    </Show>
+  )
 }
 
 interface AutoMethodProps {
@@ -263,6 +283,14 @@ function AutoMethod(props: AutoMethodProps) {
   }))
 
   onMount(async () => {
+    /**
+     * ⚠ THE CLIENT OPENS THE BROWSER, NOT THE PLUGIN THAT BUILT THE URL. `authorize` runs inside the
+     * opencode server, which for a remote `opencode serve` is not the machine anyone is looking at.
+     * The TUI is the surface the user is actually sitting in front of, so it is the honest place to
+     * launch a browser from. The link above stays as the fallback when the launch fails.
+     */
+    await open(props.authorization.url).catch(() => undefined)
+
     const result = await sdk.client.provider.oauth.callback({
       providerID: props.providerID,
       method: props.index,
@@ -353,7 +381,6 @@ interface ApiMethodProps {
   providerID: string
   title: string
   metadata?: Record<string, string>
-  custom?: boolean
 }
 function ApiMethod(props: ApiMethodProps) {
   const dialog = useDialog()
@@ -404,14 +431,6 @@ function ApiMethod(props: ApiMethodProps) {
         })
         await sdk.client.instance.dispose()
         await sync.bootstrap()
-        if (props.custom && !sync.data.provider_next.all.some((provider) => provider.id === props.providerID)) {
-          toast.show({
-            variant: "info",
-            message: `Saved credential for ${props.providerID}. Configure it in opencode.json to use it.`,
-          })
-          dialog.clear()
-          return
-        }
         dialog.replace(() => <DialogModel providerID={props.providerID} />)
       }}
     />

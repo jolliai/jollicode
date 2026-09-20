@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "Инсталирайте CLI...",
   "desktop.menu.reloadWebview": "Презареди Webview",
   "desktop.menu.restart": "Рестартирайте",
+
+  "desktop.jolli.signIn.title": "Вход в Jolli Code",
+  "desktop.jolli.signIn.body":
+    "Училищният ви акаунт определя кои модели и асистенти за курсове можете да използвате. При влизане се отваря браузърът ви.",
+  "desktop.jolli.signIn.action": "Вход с Jolli",
+  "desktop.jolli.signIn.waiting": "Изчаква се браузърът ви…",
+  "desktop.jolli.signIn.hint": "Завършете влизането в току-що отворения раздел на браузъра и се върнете тук.",
   "desktop.dialog.chooseFolder": "Изберете папка",
   "desktop.dialog.chooseFile": "Изберете файл",
   "desktop.dialog.saveFile": "Запазете файла",

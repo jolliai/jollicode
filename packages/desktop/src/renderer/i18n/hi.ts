@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "CLI स्थापित करें...",
   "desktop.menu.reloadWebview": "Webview पुनः लोड करें",
   "desktop.menu.restart": "पुनः आरंभ करें",
+
+  "desktop.jolli.signIn.title": "Jolli Code में साइन इन करें",
+  "desktop.jolli.signIn.body":
+    "आप कौन-से मॉडल और कोर्स सहायक उपयोग कर सकते हैं, यह आपका स्कूल खाता तय करता है। साइन इन करने पर आपका ब्राउज़र खुलेगा।",
+  "desktop.jolli.signIn.action": "Jolli से साइन इन करें",
+  "desktop.jolli.signIn.waiting": "आपके ब्राउज़र की प्रतीक्षा की जा रही है…",
+  "desktop.jolli.signIn.hint": "अभी खुले ब्राउज़र टैब में साइन इन पूरा करें, फिर यहाँ वापस आएँ।",
   "desktop.dialog.chooseFolder": "एक फ़ोल्डर चुनें",
   "desktop.dialog.chooseFile": "एक फ़ाइल चुनें",
   "desktop.dialog.saveFile": "फ़ाइल सहेजें",

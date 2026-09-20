@@ -3,7 +3,6 @@ import type { Model } from "@opencode-ai/sdk/v2"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { OauthCallbackPage } from "@opencode-ai/core/oauth/page"
 import { createServer } from "http"
-import open from "open"
 
 const DO_OAUTH_CLIENT_ID = "b1a6c5158156caac821fd1b30253ca8acb52454a48fa744420e41889cb589f82"
 const DO_AUTHORIZE_URL = "https://cloud.digitalocean.com/v1/oauth/authorize"
@@ -279,7 +278,12 @@ export async function DigitalOceanAuthPlugin(input: PluginInput): Promise<Hooks>
             const state = generateState()
             const callbackPromise = waitForOAuthCallback(state)
             const url = buildAuthorizeUrl(state)
-            await open(url).catch(() => undefined)
+            /**
+             * No `open()` here: the client that is actually in front of a user launches the browser
+             * (`packages/tui/src/component/dialog-provider.tsx`). Opening it from the server double-
+             * opens the tab locally and, for a remote `opencode serve`, launches it on a machine
+             * nobody is looking at.
+             */
             return {
               url,
               instructions:

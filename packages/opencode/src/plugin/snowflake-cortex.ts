@@ -3,7 +3,6 @@ import { OAUTH_DUMMY_KEY } from "../auth"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { OauthCallbackPage } from "@opencode-ai/core/oauth/page"
 import { createServer } from "http"
-import open from "open"
 
 const OAUTH_CLIENT_ID = "LOCAL_APPLICATION"
 const OAUTH_CALLBACK_HOST = "127.0.0.1"
@@ -470,8 +469,12 @@ export async function SnowflakeCortexAuthPlugin(_input: PluginInput): Promise<Ho
             const role = (inputs.role || "").trim() || undefined
             const url = buildAuthorizeUrl(account, role, state, pkce)
             const callbackPromise = waitForOAuthCallback(account, pkce, state)
-            await open(url).catch(() => undefined)
-
+            /**
+             * No `open()` here: the client that is actually in front of a user launches the browser
+             * (`packages/tui/src/component/dialog-provider.tsx`). Opening it from the server double-
+             * opens the tab locally and, for a remote `opencode serve`, launches it on a machine
+             * nobody is looking at.
+             */
             return {
               url,
               instructions:

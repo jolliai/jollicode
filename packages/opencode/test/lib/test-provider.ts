@@ -10,6 +10,12 @@ export function testProviderConfig(llmUrl: string) {
   return {
     formatter: false,
     lsp: false,
+    // Subprocess tests spawn src/index.ts, which unconditionally sets JOLLICODE_LOCKDOWN=1 and makes
+    // config.ts seed `enabled_providers: ["jolli"]` as the bottom layer. Without naming `test` here
+    // the lockdown filters this provider out of Provider.list() and every model resolves as
+    // "Model not found: test/test-model". Declaring it replaces that floor outright, which is the
+    // documented CLI behavior (mergeDeep replaces arrays) that test/config/jolli-lockdown.test.ts pins.
+    enabled_providers: ["test"],
     provider: {
       test: {
         name: "Test",

@@ -2,29 +2,31 @@ import type { APIEvent } from "@solidjs/start"
 import { waitUntil } from "@opencode-ai/console-resource"
 import type { DownloadPlatform } from "../types"
 
+// These must match artifactName in packages/desktop/electron-builder.config.ts.
+// Only releases cut after the jollicode rebrand carry these names.
 const prodAssetNames: Record<string, string> = {
-  "darwin-aarch64-dmg": "opencode-desktop-mac-arm64.dmg",
-  "darwin-x64-dmg": "opencode-desktop-mac-x64.dmg",
-  "windows-x64-nsis": "opencode-desktop-win-x64.exe",
-  "linux-x64-deb": "opencode-desktop-linux-amd64.deb",
-  "linux-x64-appimage": "opencode-desktop-linux-x86_64.AppImage",
-  "linux-x64-rpm": "opencode-desktop-linux-x86_64.rpm",
+  "darwin-aarch64-dmg": "jollicode-desktop-mac-arm64.dmg",
+  "darwin-x64-dmg": "jollicode-desktop-mac-x64.dmg",
+  "windows-x64-nsis": "jollicode-desktop-win-x64.exe",
+  "linux-x64-deb": "jollicode-desktop-linux-amd64.deb",
+  "linux-x64-appimage": "jollicode-desktop-linux-x86_64.AppImage",
+  "linux-x64-rpm": "jollicode-desktop-linux-x86_64.rpm",
 } satisfies Record<DownloadPlatform, string>
 
 const betaAssetNames: Record<string, string> = {
-  "darwin-aarch64-dmg": "opencode-desktop-mac-arm64.dmg",
-  "darwin-x64-dmg": "opencode-desktop-mac-x64.dmg",
-  "windows-x64-nsis": "opencode-desktop-win-x64.exe",
-  "linux-x64-deb": "opencode-desktop-linux-amd64.deb",
-  "linux-x64-appimage": "opencode-desktop-linux-x86_64.AppImage",
-  "linux-x64-rpm": "opencode-desktop-linux-x86_64.rpm",
+  "darwin-aarch64-dmg": "jollicode-desktop-mac-arm64.dmg",
+  "darwin-x64-dmg": "jollicode-desktop-mac-x64.dmg",
+  "windows-x64-nsis": "jollicode-desktop-win-x64.exe",
+  "linux-x64-deb": "jollicode-desktop-linux-amd64.deb",
+  "linux-x64-appimage": "jollicode-desktop-linux-x86_64.AppImage",
+  "linux-x64-rpm": "jollicode-desktop-linux-x86_64.rpm",
 } satisfies Record<DownloadPlatform, string>
 
 // Doing this on the server lets us preserve the original name for platforms we don't care to rename for
 const downloadNames: Record<string, string> = {
-  "darwin-aarch64-dmg": "OpenCode Desktop.dmg",
-  "darwin-x64-dmg": "OpenCode Desktop.dmg",
-  "windows-x64-nsis": "OpenCode Desktop Installer.exe",
+  "darwin-aarch64-dmg": "Jolli Code Desktop.dmg",
+  "darwin-x64-dmg": "Jolli Code Desktop.dmg",
+  "windows-x64-nsis": "Jolli Code Desktop Installer.exe",
 } satisfies { [K in DownloadPlatform]?: string }
 
 export async function GET({ params: { platform, channel } }: APIEvent) {
