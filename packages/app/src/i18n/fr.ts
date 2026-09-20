@@ -1196,4 +1196,7 @@ export const dict = {
 
   "titlebar.update": "Mettre à jour",
   "titlebar.updateVersion": "Mettre à jour {{version}}",
+  "prompt.model.noCourse": "No course",
+  "prompt.session.noCourse.notice": "This session has no course, so it can’t send messages. Start a new session to choose one.",
+  "prompt.session.noCourse.new": "New session",
 }

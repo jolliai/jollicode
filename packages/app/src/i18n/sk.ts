@@ -1156,4 +1156,7 @@ export const dict = {
   "workspace.reset.archived.many": "{{count}} relácií bude archivovaných.",
   "workspace.reset.note": "Týmto sa pracovný priestor obnoví podľa predvolenej vetvy.",
   "dialog.usageExceeded.dontShowAgain": "Znova nezobrazovať",
+  "prompt.model.noCourse": "No course",
+  "prompt.session.noCourse.notice": "This session has no course, so it can’t send messages. Start a new session to choose one.",
+  "prompt.session.noCourse.new": "New session",
 }

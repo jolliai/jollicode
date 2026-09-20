@@ -1156,4 +1156,7 @@ export const dict = {
   "workspace.reset.archived.many": "{{count}} sessiýalary arhiwlener.",
   "workspace.reset.note": "Bu workspace-i adaty şaha gabat getirmek üçin täzeden düzer.",
   "dialog.usageExceeded.dontShowAgain": "Gaýtadan görkezme",
+  "prompt.model.noCourse": "No course",
+  "prompt.session.noCourse.notice": "This session has no course, so it can’t send messages. Start a new session to choose one.",
+  "prompt.session.noCourse.new": "New session",
 }

@@ -1160,4 +1160,7 @@ export const dict = {
   "workspace.reset.archived.one": "1 सेशन संग्रहित किया जाएगा।",
   "workspace.reset.archived.many": "{{count}} सेशन संग्रहित किए जाएँगे।",
   "workspace.reset.note": "यह डिफ़ॉल्ट शाखा से मिलान करने के लिए वर्कस्पेस को रीसेट कर देगा।",
+  "prompt.model.noCourse": "No course",
+  "prompt.session.noCourse.notice": "This session has no course, so it can’t send messages. Start a new session to choose one.",
+  "prompt.session.noCourse.new": "New session",
 }
