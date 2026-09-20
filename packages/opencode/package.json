@@ -3,7 +3,7 @@
   "version": "1.18.31",
   "name": "jollicode",
   "type": "module",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "private": true,
   "scripts": {
     "typecheck": "tsgo --noEmit",

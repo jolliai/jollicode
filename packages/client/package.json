@@ -3,7 +3,7 @@
   "name": "@opencode-ai/client",
   "private": true,
   "type": "module",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "exports": {
     ".": "./src/index.ts",
     "./effect": "./src/effect.ts"

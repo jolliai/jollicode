@@ -3,7 +3,7 @@
   "name": "@opencode-ai/schema",
   "private": true,
   "type": "module",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "exports": {
     ".": "./src/index.ts",
     "./*": "./src/*.ts"
