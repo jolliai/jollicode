@@ -196,6 +196,10 @@ describe("WebFetchTool registration", () => {
         value: `Unable to fetch ${url}`,
       })
     }),
+    // Building and walking the deeply-nested DOM that forces the conversion to
+    // overflow the stack is CPU-heavy (~1s locally) and can exceed the default
+    // 5s test timeout on loaded CI runners, so give this case extra headroom.
+    30_000,
   )
 
   it.effect("rejects declared and streamed oversized bodies", () =>
