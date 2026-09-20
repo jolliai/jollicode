@@ -18,4 +18,6 @@ jobs:
         uses: ./.github/actions/setup-bun
 
       - name: Run typecheck
-        run: bun typecheck
+        # Cap turbo concurrency: 36 parallel tsgo processes OOM a
+        # standard GitHub-hosted runner (16 GB).
+        run: bun turbo typecheck --concurrency=2
