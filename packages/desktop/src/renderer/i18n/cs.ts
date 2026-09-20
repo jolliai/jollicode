@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "Instalovat CLI...",
   "desktop.menu.reloadWebview": "Znovu načíst Webview",
   "desktop.menu.restart": "Restartovat",
+
+  "desktop.jolli.signIn.title": "Přihlaste se do Jolli Code",
+  "desktop.jolli.signIn.body":
+    "Váš školní účet určuje, které modely a kurzové asistenty můžete používat. Při přihlášení se otevře prohlížeč.",
+  "desktop.jolli.signIn.action": "Přihlásit se přes Jolli",
+  "desktop.jolli.signIn.waiting": "Čekání na prohlížeč…",
+  "desktop.jolli.signIn.hint": "Dokončete přihlášení na právě otevřené kartě prohlížeče a pak se vraťte sem.",
   "desktop.dialog.chooseFolder": "Vyberte složku",
   "desktop.dialog.chooseFile": "Vyberte soubor",
   "desktop.dialog.saveFile": "Uložit soubor",

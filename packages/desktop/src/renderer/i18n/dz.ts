@@ -3,6 +3,13 @@ export const dict: Record<string, string> = {
   "desktop.menu.installCli": "CLI...",
   "desktop.menu.reloadWebview": "ཡང་བསྐྱར་མངོན་གསལ་ Webview།",
   "desktop.menu.restart": "ལོག་འགོ་བཙུགས།",
+
+  "desktop.jolli.signIn.title": "Jolli Code ནང་ཐོ་བཀོད་འབད།",
+  "desktop.jolli.signIn.body":
+    "ཁྱོད་ཀྱིས་ལག་ལེན་འཐབ་ཚུགས་པའི་དཔེ་གཞི་དང་སློབ་ཚན་ལས་རོགས་པ་ཚུ་ ཁྱོད་ཀྱི་སློབ་གྲྭའི་རྩིས་ཐོ་གིས་གཏན་འབེབས་འབདཝ་ཨིན། ཐོ་བཀོད་འབད་བའི་སྐབས་ ཁྱོད་ཀྱི་བརའུ་ཛར་ཁ་ཕྱེ་འོང་།",
+  "desktop.jolli.signIn.action": "Jolli གི་ཐོག་ལས་ཐོ་བཀོད་འབད།",
+  "desktop.jolli.signIn.waiting": "ཁྱོད་ཀྱི་བརའུ་ཛར་ལུ་བསྒུག་དོ་…",
+  "desktop.jolli.signIn.hint": "ད་ལྟོ་ཁ་ཕྱེ་ཡོད་པའི་བརའུ་ཛར་ཊེབ་ནང་ ཐོ་བཀོད་མཇུག་བསྡུ་ཞིནམ་ལས་ ནཱ་ལོག་སྟེ་ཤོག།",
   "desktop.dialog.chooseFolder": "སྣོད་འཛིན་ཅིག་གདམ་ཁ་རྐྱབས།",
   "desktop.dialog.chooseFile": "ཡིག་སྣོད་གདམ་ཁ་རྐྱབས།",
   "desktop.dialog.saveFile": "ཡིག་སྣོད་སྲུངས།",

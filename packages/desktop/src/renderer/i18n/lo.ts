@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "ຕິດຕັ້ງ CLI...",
   "desktop.menu.reloadWebview": "ໂຫຼດ Webview ຄືນໃໝ່",
   "desktop.menu.restart": "ຣີສະຕາດ",
+
+  "desktop.jolli.signIn.title": "ເຂົ້າສູ່ລະບົບ Jolli Code",
+  "desktop.jolli.signIn.body":
+    "ບັນຊີໂຮງຮຽນຂອງທ່ານເປັນຕົວກຳນົດວ່າທ່ານສາມາດໃຊ້ໂມເດວ ແລະ ຜູ້ຊ່ວຍວິຊາໃດໄດ້ແດ່. ການເຂົ້າສູ່ລະບົບຈະເປີດເບຣົາເຊີຂອງທ່ານ.",
+  "desktop.jolli.signIn.action": "ເຂົ້າສູ່ລະບົບດ້ວຍ Jolli",
+  "desktop.jolli.signIn.waiting": "ກຳລັງລໍຖ້າເບຣົາເຊີຂອງທ່ານ…",
+  "desktop.jolli.signIn.hint": "ເຮັດການເຂົ້າສູ່ລະບົບໃຫ້ສຳເລັດໃນແທັບເບຣົາເຊີທີ່ຫາກໍເປີດ ແລ້ວກັບມາທີ່ນີ້.",
   "desktop.dialog.chooseFolder": "ເລືອກໂຟນເດີ",
   "desktop.dialog.chooseFile": "ເລືອກໄຟລ໌",
   "desktop.dialog.saveFile": "ບັນທຶກໄຟລ໌",

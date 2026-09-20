@@ -4,6 +4,13 @@ export const dict = {
   "desktop.menu.reloadWebview": "Muat ulang WebView",
   "desktop.menu.restart": "Mulai ulang",
 
+  "desktop.jolli.signIn.title": "Masuk ke Jolli Code",
+  "desktop.jolli.signIn.body":
+    "Akun sekolah Anda menentukan model dan asisten mata pelajaran yang dapat Anda gunakan. Masuk akan membuka browser Anda.",
+  "desktop.jolli.signIn.action": "Masuk dengan Jolli",
+  "desktop.jolli.signIn.waiting": "Menunggu browser Anda…",
+  "desktop.jolli.signIn.hint": "Selesaikan proses masuk di tab browser yang baru saja terbuka, lalu kembali ke sini.",
+
   "desktop.dialog.chooseFolder": "Pilih folder",
   "desktop.dialog.chooseFile": "Pilih berkas",
   "desktop.dialog.saveFile": "Simpan berkas",

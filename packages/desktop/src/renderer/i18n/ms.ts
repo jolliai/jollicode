@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "Pasang CLI...",
   "desktop.menu.reloadWebview": "Muat Semula Paparan Web",
   "desktop.menu.restart": "Mulakan Semula",
+
+  "desktop.jolli.signIn.title": "Log masuk ke Jolli Code",
+  "desktop.jolli.signIn.body":
+    "Akaun sekolah anda menentukan model dan pembantu kursus yang boleh anda gunakan. Log masuk akan membuka pelayar anda.",
+  "desktop.jolli.signIn.action": "Log masuk dengan Jolli",
+  "desktop.jolli.signIn.waiting": "Menunggu pelayar anda…",
+  "desktop.jolli.signIn.hint": "Selesaikan log masuk dalam tab pelayar yang baru dibuka, kemudian kembali ke sini.",
   "desktop.dialog.chooseFolder": "Pilih folder",
   "desktop.dialog.chooseFile": "Pilih fail",
   "desktop.dialog.saveFile": "Simpan fail",

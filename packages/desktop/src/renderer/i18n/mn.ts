@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "Суулгах CLI...",
   "desktop.menu.reloadWebview": "Дахин ачаалах Webview",
   "desktop.menu.restart": "Дахин эхлүүлэх",
+
+  "desktop.jolli.signIn.title": "Jolli Code-д нэвтрэх",
+  "desktop.jolli.signIn.body":
+    "Танд ямар загвар, хичээлийн туслахуудыг ашиглах боломжтойг сургуулийн бүртгэл тань тодорхойлдог. Нэвтрэхэд таны хөтөч нээгдэнэ.",
+  "desktop.jolli.signIn.action": "Jolli-ээр нэвтрэх",
+  "desktop.jolli.signIn.waiting": "Таны хөтчийг хүлээж байна…",
+  "desktop.jolli.signIn.hint": "Дөнгөж сая нээгдсэн хөтчийн табад нэвтрэлтээ дуусгаад энд буцаж ирнэ үү.",
   "desktop.dialog.chooseFolder": "Фолдер сонгоно уу",
   "desktop.dialog.chooseFile": "Файл сонгоно уу",
   "desktop.dialog.saveFile": "Файлыг хадгалах",

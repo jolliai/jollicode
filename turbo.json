@@ -8,10 +8,13 @@
       "dependsOn": [],
       "outputs": ["dist/**"]
     },
-    "opencode#test": {
+    "jollicode#test": {
       "dependsOn": ["^build"],
       "outputs": [],
       "passThroughEnv": ["*"]
+    },
+    "@jolli.ai/desktop#test": {
+      "outputs": []
     },
     "@opencode-ai/core#test": {
       "dependsOn": ["^build"],

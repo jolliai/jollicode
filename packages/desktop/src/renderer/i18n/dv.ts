@@ -3,6 +3,14 @@ export const dict = {
   "desktop.menu.installCli": "CLI އިންސްޓޯލް ކުރާށެވެ...",
   "desktop.menu.reloadWebview": "ވެބްވިއު ރީލޯޑް ކުރާށެވެ",
   "desktop.menu.restart": "އަލުން ފަށާށެވެ",
+
+  "desktop.jolli.signIn.title": "Jolli Code އަށް ސައިން އިން ކުރައްވާ",
+  "desktop.jolli.signIn.body":
+    "ބޭނުންކުރެއްވޭނެ މޮޑެލްތަކާއި ކޯސް އެހީތެރިން ކަނޑައަޅަނީ ތިޔަބޭފުޅާގެ ސްކޫލް އެކައުންޓުންނެވެ. ސައިން އިން ކުރެއްވުމުން ބްރައުޒަރު ހުޅުވޭނެއެވެ.",
+  "desktop.jolli.signIn.action": "Jolli އިން ސައިން އިން ކުރައްވާ",
+  "desktop.jolli.signIn.waiting": "ބްރައުޒަރަށް އިންތިޒާރު ކުރެވެނީ…",
+  "desktop.jolli.signIn.hint":
+    "މިހާރު ހުޅުވުނު ބްރައުޒަރ ޓެބުގައި ސައިން އިން ފުރިހަމަ ކުރެއްވުމަށްފަހު، މިތަނަށް އެނބުރި ވަޑައިގަންނަވާ.",
   "desktop.dialog.chooseFolder": "ފޯލްޑަރެއް ހޮވާށެވެ",
   "desktop.dialog.chooseFile": "ފައިލެއް ހޮވާށެވެ",
   "desktop.dialog.saveFile": "ފައިލް ސޭވްކުރުން",

@@ -3,6 +3,14 @@ export const dict = {
   "desktop.menu.installCli": "Instal·la CLI...",
   "desktop.menu.reloadWebview": "Torna a carregar Webview",
   "desktop.menu.restart": "Reinicia",
+
+  "desktop.jolli.signIn.title": "Inicia la sessió a Jolli Code",
+  "desktop.jolli.signIn.body":
+    "El teu compte escolar determina quins models i assistents de curs pots utilitzar. En iniciar la sessió s'obrirà el navegador.",
+  "desktop.jolli.signIn.action": "Inicia la sessió amb Jolli",
+  "desktop.jolli.signIn.waiting": "S'està esperant el navegador…",
+  "desktop.jolli.signIn.hint":
+    "Acaba d'iniciar la sessió a la pestanya del navegador que s'acaba d'obrir i torna aquí.",
   "desktop.dialog.chooseFolder": "Trieu una carpeta",
   "desktop.dialog.chooseFile": "Trieu un fitxer",
   "desktop.dialog.saveFile": "Desa el fitxer",

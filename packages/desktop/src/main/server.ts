@@ -6,6 +6,7 @@ import { getLogger } from "./logging"
 import { getUserShell, loadShellEnv } from "./shell-env"
 import { getStore } from "./store"
 import { jolliGatewayConfig, writeCourseSkills } from "./jolli-gateway"
+import { currentSession } from "./jolli-auth"
 import { DEFAULT_SERVER_URL_KEY } from "./store-keys"
 import { Brand } from "@opencode-ai/app/brand"
 
@@ -265,9 +266,26 @@ function createSidecarEnv(): Record<string, string> {
       return undefined
     }
   })()
+  /**
+   * ⚠ THE SIGNED-IN STUDENT IS READ HERE, AT SPAWN, AND NOWHERE ELSE. The sidecar reads this env
+   * once when it forks, so a sign-in that happens afterwards does not reach a running server — the
+   * onboarding flow signs in before the server starts, and a later sign-in restarts it.
+   */
+  const session = currentSession()
   // Write the canonical JOLLICODE_ key — the one the flag reader prefers — so nothing inherited can
   // out-rank it (the OPENCODE_ alias was scrubbed above).
-  env.JOLLICODE_CONFIG_CONTENT = jolliGatewayConfig(skills)
+  //
+  // ⚠ THE TOKEN GOES IN HERE, AND THIS ENVIRONMENT IS THE ONLY PLACE THE SIDECAR CAN GET IT. The
+  // sidecar resolves a provider's credential from `auth.json`, which has no Jolli entry on this
+  // surface — sign-in happened in the main process and the token is kept in the OS keychain. Without
+  // it the provider resolves with no key, the app still reports as connected, and the first message
+  // comes back 401. `jolli-gateway.ts` says why the config content rather than a file on disk.
+  env.JOLLICODE_CONFIG_CONTENT = jolliGatewayConfig({
+    signedIn: !!session,
+    ...(session ? { authToken: session.token } : {}),
+    ...(session?.baseUrl ? { baseUrl: session.baseUrl } : {}),
+    ...(skills ? { skillsDir: skills } : {}),
+  })
   return env
 }
 

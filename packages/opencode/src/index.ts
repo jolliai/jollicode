@@ -73,6 +73,14 @@ const cli = yargs(args)
 
     Heap.start()
 
+    /**
+     * ⚠ THIS IS WHERE "ONLY JOLLI" BECOMES TRUE, AND IT IS SET HERE RATHER THAN IN THE CONFIG
+     * LOADER ON PURPOSE. The loader is a library shared with tests and other consumers; the
+     * lockdown is a property of the shipped product, so the product's entry point declares it.
+     * `config.ts` reads the flag and seeds the Jolli floor when it is set.
+     */
+    process.env.JOLLICODE_LOCKDOWN = "1"
+
     process.env.AGENT = "1"
     process.env.JOLLICODE = "1"
     process.env.JOLLICODE_PID = String(process.pid)

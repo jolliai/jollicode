@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "Setja upp CLI...",
   "desktop.menu.reloadWebview": "Endurhlaða Webview",
   "desktop.menu.restart": "Endurræsa",
+
+  "desktop.jolli.signIn.title": "Skrá inn í Jolli Code",
+  "desktop.jolli.signIn.body":
+    "Skólareikningurinn þinn ræður hvaða líkön og námskeiðsaðstoðarmenn þú getur notað. Þegar þú skráir þig inn opnast vafrinn þinn.",
+  "desktop.jolli.signIn.action": "Skrá inn með Jolli",
+  "desktop.jolli.signIn.waiting": "Bíð eftir vafranum…",
+  "desktop.jolli.signIn.hint": "Ljúktu innskráningunni í vafraflipanum sem var að opnast og komdu svo aftur hingað.",
   "desktop.dialog.chooseFolder": "Veldu möppu",
   "desktop.dialog.chooseFile": "Veldu skrá",
   "desktop.dialog.saveFile": "Vista skrá",

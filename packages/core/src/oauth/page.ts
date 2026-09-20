@@ -6,10 +6,12 @@
 // offline and drop into any transport (`res.end(...)`, Effect `response.end`,
 // etc.).
 //
-// The visual language mirrors the OpenCode app: the design tokens are a curated
-// subset of the OC-2 semantic tokens in `packages/ui/src/styles/theme.css`, and
-// the wordmark is the same geometry as `packages/ui/src/components/logo.tsx`.
+// The visual language mirrors the app: the design tokens are a curated subset of
+// the OC-2 semantic tokens in `packages/ui/src/styles/theme.css`, and the
+// wordmark is the same geometry as `packages/ui/src/components/jolli-brand.tsx`.
 // Keep this file in sync with those sources when the brand changes.
+
+import { Brand } from "../brand"
 
 export interface CallbackPageOptions {
   /** Friendly integration name shown as a subtitle, e.g. "xAI", "Snowflake", "MCP". */
@@ -25,7 +27,9 @@ export function success(options?: CallbackPageOptions) {
     body: renderCard({
       status: "success",
       headline: "Authorization successful",
-      message: provider ? `OpenCode is now connected to ${escapeHtml(provider)}.` : "OpenCode is now authorized.",
+      message: provider
+        ? `${Brand.name} is now connected to ${escapeHtml(provider)}.`
+        : `${Brand.name} is now authorized.`,
       footnote: "You can close this window.",
     }),
     script: options?.autoClose === false ? undefined : AUTO_CLOSE_SCRIPT,
@@ -40,10 +44,10 @@ export function error(detail: string, options?: CallbackPageOptions) {
       status: "error",
       headline: "Authorization failed",
       message: provider
-        ? `OpenCode couldn't finish connecting to ${escapeHtml(provider)}.`
-        : "OpenCode couldn't complete authorization.",
+        ? `${Brand.name} couldn't finish connecting to ${escapeHtml(provider)}.`
+        : `${Brand.name} couldn't complete authorization.`,
       detail,
-      footnote: "Close this window and try again from OpenCode.",
+      footnote: `Close this window and try again from ${Brand.name}.`,
     }),
   })
 }
@@ -100,7 +104,7 @@ function renderDocument(input: { title: string; body: string; script?: string })
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <title>${escapeHtml(input.title)} · OpenCode</title>
+    <title>${escapeHtml(input.title)} · ${escapeHtml(Brand.name)}</title>
     <style>${STYLES}</style>
   </head>
   <body>
@@ -113,11 +117,12 @@ const AUTO_CLOSE_SCRIPT = `setTimeout(function(){try{window.close()}catch(e){}},
 
 function bootstrapScript(options: BootstrapOptions) {
   return `var PROVIDER=${scriptString(options.provider ?? "")};
+var BRAND=${scriptString(Brand.name)};
 var TOKEN_URL=new URL(${scriptString(options.tokenPath)},window.location.origin).href;
 (function(){
   var card=document.getElementById("oc-card"),headline=document.getElementById("oc-headline"),message=document.getElementById("oc-message"),detail=document.getElementById("oc-detail"),footnote=document.getElementById("oc-footnote");
-  function fail(text){card.dataset.status="error";headline.textContent="Authorization failed";message.textContent=PROVIDER?("OpenCode couldn't finish connecting to "+PROVIDER+"."):"OpenCode couldn't complete authorization.";if(text){detail.textContent=text;detail.hidden=false}footnote.textContent="Close this window and try again from OpenCode."}
-  function ok(){card.dataset.status="success";headline.textContent="Authorization successful";message.textContent=PROVIDER?("OpenCode is now connected to "+PROVIDER+"."):"OpenCode is now authorized.";detail.hidden=true;footnote.textContent="You can close this window.";setTimeout(function(){try{window.close()}catch(e){}},2500)}
+  function fail(text){card.dataset.status="error";headline.textContent="Authorization failed";message.textContent=PROVIDER?(BRAND+" couldn't finish connecting to "+PROVIDER+"."):(BRAND+" couldn't complete authorization.");if(text){detail.textContent=text;detail.hidden=false}footnote.textContent="Close this window and try again from "+BRAND+"."}
+  function ok(){card.dataset.status="success";headline.textContent="Authorization successful";message.textContent=PROVIDER?(BRAND+" is now connected to "+PROVIDER+"."):(BRAND+" is now authorized.");detail.hidden=true;footnote.textContent="You can close this window.";setTimeout(function(){try{window.close()}catch(e){}},2500)}
   try{
     var hash=new URLSearchParams((window.location.hash||"").slice(1));
     var search=new URLSearchParams(window.location.search||"");
@@ -156,9 +161,6 @@ const LIGHT_VARS = `
     --oc-text-base: #6f6f6f;
     --oc-text-weak: #8f8f8f;
     --oc-border-weak: #e5e5e5;
-    --oc-icon-strong: #171717;
-    --oc-icon-base: #8f8f8f;
-    --oc-icon-weak: #dbdbdb;
     --oc-success: #2dba26;
     --oc-error: #ed4831;
     --oc-detail-bg: #fff8f6;
@@ -172,9 +174,6 @@ const DARK_VARS = `
     --oc-text-base: rgba(255,255,255,.618);
     --oc-text-weak: rgba(255,255,255,.422);
     --oc-border-weak: #282828;
-    --oc-icon-strong: #ededed;
-    --oc-icon-base: #7e7e7e;
-    --oc-icon-weak: #343434;
     --oc-success: #12c905;
     --oc-error: #fc533a;
     --oc-detail-bg: #28110c;
@@ -213,8 +212,10 @@ const STYLES = `
     box-shadow: var(--oc-shadow);
     text-align: center;
   }
-  .brand { display: flex; justify-content: center; margin-bottom: 1.75rem; }
-  .brand svg { height: 19px; width: auto; }
+  .brand { display: flex; justify-content: center; margin-bottom: 1.75rem; color: var(--oc-text-strong); }
+  /* Taller than the 19px the old wordmark used: this viewBox carries the mark's
+     full height, so the logotype only reads at a comparable size around 24px. */
+  .brand svg { height: 24px; width: auto; }
   .status { display: flex; justify-content: center; margin-bottom: 1.125rem; }
   .icon { display: none; line-height: 0; }
   .icon svg { display: block; }
@@ -249,24 +250,38 @@ const STYLES = `
   @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
 `
 
-// OpenCode wordmark — same path geometry as packages/ui/src/components/logo.tsx (Logo).
-const WORDMARK = `<svg class="wordmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 234 42" fill="none" aria-label="OpenCode" role="img">
-        <path d="M18 30H6V18H18V30Z" fill="var(--oc-icon-weak)" />
-        <path d="M18 12H6V30H18V12ZM24 36H0V6H24V36Z" fill="var(--oc-icon-base)" />
-        <path d="M48 30H36V18H48V30Z" fill="var(--oc-icon-weak)" />
-        <path d="M36 30H48V12H36V30ZM54 36H36V42H30V6H54V36Z" fill="var(--oc-icon-base)" />
-        <path d="M84 24V30H66V24H84Z" fill="var(--oc-icon-weak)" />
-        <path d="M84 24H66V30H84V36H60V6H84V24ZM66 18H78V12H66V18Z" fill="var(--oc-icon-base)" />
-        <path d="M108 36H96V18H108V36Z" fill="var(--oc-icon-weak)" />
-        <path d="M108 12H96V36H90V6H108V12ZM114 36H108V12H114V36Z" fill="var(--oc-icon-base)" />
-        <path d="M144 30H126V18H144V30Z" fill="var(--oc-icon-weak)" />
-        <path d="M144 12H126V30H144V36H120V6H144V12Z" fill="var(--oc-icon-strong)" />
-        <path d="M168 30H156V18H168V30Z" fill="var(--oc-icon-weak)" />
-        <path d="M168 12H156V30H168V12ZM174 36H150V6H174V36Z" fill="var(--oc-icon-strong)" />
-        <path d="M198 30H186V18H198V30Z" fill="var(--oc-icon-weak)" />
-        <path d="M198 12H186V30H198V12ZM204 36H180V6H198V0H204V36Z" fill="var(--oc-icon-strong)" />
-        <path d="M234 24V30H216V24H234Z" fill="var(--oc-icon-weak)" />
-        <path d="M216 12V18H228V12H216ZM234 24H216V30H234V36H210V6H234V24Z" fill="var(--oc-icon-strong)" />
+// Jolli logo — same geometry as packages/ui/src/components/jolli-brand.tsx
+// (JolliMarkBody + JolliLogotypeBody). Duplicated as a raw string because this
+// file renders standalone HTML and cannot import a Solid component; keep the two
+// in sync. Per the brand note in that file the node colours are the brand's own
+// hex and are deliberately not themed, while the logotype rides on currentColor.
+const WORDMARK = `<svg class="wordmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 332.23 108.72" fill="none" aria-label="${escapeHtml(Brand.name)}" role="img">
+        <g stroke="#d1d2fa" stroke-width="2" stroke-miterlimit="10">
+          <line x1="58.74" y1="15.04" x2="58.74" y2="53.84" />
+          <line x1="99.45" y1="36.93" x2="65.84" y2="56.33" />
+          <line x1="100.43" y1="78.03" x2="64.86" y2="62.51" />
+          <line x1="53.59" y1="65.92" x2="27.42" y2="94.58" />
+          <line x1="9.66" y1="50.52" x2="25.01" y2="99.19" />
+          <line x1="49.95" y1="58.01" x2="11.6" y2="52.08" />
+          <line x1="60.27" y1="11.38" x2="9.66" y2="50.52" />
+          <line x1="99.45" y1="37.84" x2="58.61" y2="11.8" />
+          <line x1="106.51" y1="82.1" x2="101.51" y2="33.92" />
+          <line x1="28.51" y1="97.04" x2="109.37" y2="80.25" />
+        </g>
+        <circle cx="58.74" cy="59.95" r="14.57" fill="#7e3dec" />
+        <circle cx="100.6" cy="35.63" r="9.75" fill="#06b6d5" />
+        <circle cx="107.57" cy="80.25" r="12.86" fill="#6466f1" />
+        <circle cx="23.97" cy="97.73" r="11" fill="#ae95fb" />
+        <circle cx="9.43" cy="50.52" r="9.43" fill="#61a6fb" />
+        <circle cx="58.74" cy="12.94" r="12.94" fill="#3b83f6" />
+        <g fill="currentColor">
+          <path d="M172.7,91.67c-10.35.54-18.1-3.05-22.79-10.1l10.65-9.12c3.62,3.96,7.62,6.22,11.97,5.21,4.11-.95,7.45-5.08,7.51-10.1l.51-49.05c6.34-1.23,8.94-1.23,14.72-.03l-.53,51.46c-.12,12-9.45,21.06-22.03,21.72Z" />
+          <path d="M256.57,65.86c0,14.56-11.8,26.36-26.36,26.36s-26.36-11.8-26.36-26.36,11.8-26.36,26.36-26.36,26.36,11.8,26.36,26.36ZM242.32,65.92c0-6.7-5.43-12.14-12.14-12.14s-12.14,5.43-12.14,12.14,5.43,12.14,12.14,12.14,12.14-5.43,12.14-12.14Z" />
+          <path d="M279.61,90.16c-3.89.92-8.35.65-14.23.43l-.06-73.6c5.04-.67,9.58-.61,14.26-.04l.03,73.22Z" />
+          <path d="M305.61,90.16c-3.89.92-8.35.65-14.23.43l-.06-73.6c5.04-.67,9.58-.61,14.26-.04l.03,73.22Z" />
+          <rect x="317.01" y="41.09" width="14.11" height="49.61" />
+          <circle cx="324.08" cy="26.21" r="8.15" />
+        </g>
       </svg>`
 
 const ICON_CHECK = `<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.4 2.4 4.6-5.4" /></svg>`

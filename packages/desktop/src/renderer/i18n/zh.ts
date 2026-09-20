@@ -4,6 +4,12 @@ export const dict = {
   "desktop.menu.reloadWebview": "重新加载 WebView",
   "desktop.menu.restart": "重启",
 
+  "desktop.jolli.signIn.title": "登录 Jolli Code",
+  "desktop.jolli.signIn.body": "你可以使用哪些模型和课程助手由你的学校账号决定。登录时会打开浏览器。",
+  "desktop.jolli.signIn.action": "使用 Jolli 登录",
+  "desktop.jolli.signIn.waiting": "正在等待浏览器…",
+  "desktop.jolli.signIn.hint": "在刚刚打开的浏览器标签页中完成登录，然后返回这里。",
+
   "desktop.dialog.chooseFolder": "选择文件夹",
   "desktop.dialog.chooseFile": "选择文件",
   "desktop.dialog.saveFile": "保存文件",

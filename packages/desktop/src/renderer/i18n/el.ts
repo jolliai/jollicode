@@ -3,6 +3,14 @@ export const dict = {
   "desktop.menu.installCli": "Εγκατάσταση CLI...",
   "desktop.menu.reloadWebview": "Επανάληψη φόρτωσης Webview",
   "desktop.menu.restart": "Επανεκκίνηση",
+
+  "desktop.jolli.signIn.title": "Σύνδεση στο Jolli Code",
+  "desktop.jolli.signIn.body":
+    "Ο σχολικός σας λογαριασμός καθορίζει ποια μοντέλα και βοηθούς μαθημάτων μπορείτε να χρησιμοποιήσετε. Με τη σύνδεση ανοίγει το πρόγραμμα περιήγησής σας.",
+  "desktop.jolli.signIn.action": "Σύνδεση με Jolli",
+  "desktop.jolli.signIn.waiting": "Αναμονή για το πρόγραμμα περιήγησης…",
+  "desktop.jolli.signIn.hint":
+    "Ολοκληρώστε τη σύνδεση στην καρτέλα του προγράμματος περιήγησης που μόλις άνοιξε και επιστρέψτε εδώ.",
   "desktop.dialog.chooseFolder": "Επιλογή φακέλου",
   "desktop.dialog.chooseFile": "Επιλογή αρχείου",
   "desktop.dialog.saveFile": "Αποθήκευση αρχείου",

@@ -1,16 +1,17 @@
 {
-  "name": "@opencode-ai/desktop",
+  "name": "@jolli.ai/desktop",
   "private": true,
   "version": "1.18.31",
   "type": "module",
   "license": "UNLICENSED",
   "homepage": "https://opencode.ai",
   "author": {
-    "name": "OpenCode",
-    "email": "hello@opencode.ai"
+    "name": "Jolli",
+    "email": "hello@jolli.ai"
   },
   "scripts": {
     "typecheck": "tsgo -b",
+    "test": "bun test --timeout 30000 --only-failures",
     "predev": "bun ./scripts/predev.ts",
     "dev": "electron-vite dev",
     "prebuild": "bun ./scripts/prebuild.ts",
@@ -37,6 +38,7 @@
     "@actions/artifact": "4.0.0",
     "@lydell/node-pty": "catalog:",
     "@opencode-ai/app": "workspace:*",
+    "@opencode-ai/core": "workspace:*",
     "@opencode-ai/ui": "workspace:*",
     "@sentry/solid": "catalog:",
     "@sentry/vite-plugin": "catalog:",

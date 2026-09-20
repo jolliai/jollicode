@@ -4,6 +4,14 @@ export const dict = {
   "desktop.menu.reloadWebview": "Webview neu laden",
   "desktop.menu.restart": "Neustart",
 
+  "desktop.jolli.signIn.title": "Bei Jolli Code anmelden",
+  "desktop.jolli.signIn.body":
+    "Ihr Schulkonto bestimmt, welche Modelle und Kursassistenten Sie verwenden können. Bei der Anmeldung wird Ihr Browser geöffnet.",
+  "desktop.jolli.signIn.action": "Mit Jolli anmelden",
+  "desktop.jolli.signIn.waiting": "Warten auf Ihren Browser…",
+  "desktop.jolli.signIn.hint":
+    "Schließen Sie die Anmeldung im soeben geöffneten Browser-Tab ab und kehren Sie dann hierher zurück.",
+
   "desktop.dialog.chooseFolder": "Ordner auswählen",
   "desktop.dialog.chooseFile": "Datei auswählen",
   "desktop.dialog.saveFile": "Datei speichern",

@@ -1,10 +1,11 @@
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
 import path from "path"
+import { Brand } from "@opencode-ai/core/brand"
 import { cliIt } from "../lib/cli-process"
 
 describe("opencode mcp add (non-interactive subprocess)", () => {
-  cliIt.concurrent(
+  cliIt.live(
     "adds a remote server with HTTP headers",
     ({ home, opencode }) =>
       Effect.gen(function* () {
@@ -22,7 +23,7 @@ describe("opencode mcp add (non-interactive subprocess)", () => {
         opencode.expectExit(result, 0)
 
         const config = yield* Effect.promise(() =>
-          Bun.file(path.join(home, ".config", "opencode", "opencode.json")).json(),
+          Bun.file(path.join(home, ".config", Brand.short, "opencode.json")).json(),
         )
         expect(config.mcp.github).toEqual({
           type: "remote",
@@ -36,7 +37,7 @@ describe("opencode mcp add (non-interactive subprocess)", () => {
     60_000,
   )
 
-  cliIt.concurrent(
+  cliIt.live(
     "adds a local server while preserving argv and environment values",
     ({ home, opencode }) =>
       Effect.gen(function* () {
@@ -58,7 +59,7 @@ describe("opencode mcp add (non-interactive subprocess)", () => {
         opencode.expectExit(result, 0)
 
         const config = yield* Effect.promise(() =>
-          Bun.file(path.join(home, ".config", "opencode", "opencode.json")).json(),
+          Bun.file(path.join(home, ".config", Brand.short, "opencode.json")).json(),
         )
         expect(config.mcp.local).toEqual({
           type: "local",

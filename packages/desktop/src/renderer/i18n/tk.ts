@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "CLI guruň ...",
   "desktop.menu.reloadWebview": "Web sahypasyny täzeden ýükläň",
   "desktop.menu.restart": "Gaýtadan açyň",
+
+  "desktop.jolli.signIn.title": "Jolli Code-a girmek",
+  "desktop.jolli.signIn.body":
+    "Haýsy modelleri we kurs kömekçilerini ulanyp biljekdigiňizi mekdep hasabyňyz kesgitleýär. Girilende brauzeriňiz açylar.",
+  "desktop.jolli.signIn.action": "Jolli bilen girmek",
+  "desktop.jolli.signIn.waiting": "Brauzeriňize garaşylýar…",
+  "desktop.jolli.signIn.hint": "Şu wagt açylan brauzer bellikde girişi tamamlaň, soňra bu ýere dolanyň.",
   "desktop.dialog.chooseFolder": "Papka saýlaň",
   "desktop.dialog.chooseFile": "Faýl saýlaň",
   "desktop.dialog.saveFile": "Faýly ýazdyryň",

@@ -3,6 +3,12 @@ export const dict = {
   "desktop.menu.installCli": "ጫን CLI...",
   "desktop.menu.reloadWebview": "ዳግም ጫን Webview",
   "desktop.menu.restart": "ዳግም አስጀምር",
+
+  "desktop.jolli.signIn.title": "ወደ Jolli Code ይግቡ",
+  "desktop.jolli.signIn.body": "የትምህርት ቤትዎ መለያ የትኞቹን ሞዴሎችና የትምህርት ረዳቶች መጠቀም እንደሚችሉ ይወስናል። ሲገቡ አሳሽዎ ይከፈታል።",
+  "desktop.jolli.signIn.action": "በ Jolli ይግቡ",
+  "desktop.jolli.signIn.waiting": "አሳሽዎን በመጠበቅ ላይ…",
+  "desktop.jolli.signIn.hint": "አሁን በተከፈተው የአሳሽ ትር ውስጥ መግባትዎን ያጠናቅቁ፣ ከዚያ ወደዚህ ይመለሱ።",
   "desktop.dialog.chooseFolder": "አቃፊ ምረጥ",
   "desktop.dialog.chooseFile": "ፋይል ምረጥ",
   "desktop.dialog.saveFile": "ፋይሉን አስቀምጥ",

@@ -3,6 +3,14 @@ export const dict = {
   "desktop.menu.installCli": "Instalēt CLI...",
   "desktop.menu.reloadWebview": "Pārlādēt tīmekļa skatu",
   "desktop.menu.restart": "Restartēt",
+
+  "desktop.jolli.signIn.title": "Pierakstīties Jolli Code",
+  "desktop.jolli.signIn.body":
+    "Jūsu skolas konts nosaka, kurus modeļus un kursu asistentus varat izmantot. Pierakstoties tiks atvērta jūsu pārlūkprogramma.",
+  "desktop.jolli.signIn.action": "Pierakstīties ar Jolli",
+  "desktop.jolli.signIn.waiting": "Gaida jūsu pārlūkprogrammu…",
+  "desktop.jolli.signIn.hint":
+    "Pabeidziet pierakstīšanos tikko atvērtajā pārlūkprogrammas cilnē un pēc tam atgriezieties šeit.",
   "desktop.dialog.chooseFolder": "Izvēlieties mapi",
   "desktop.dialog.chooseFile": "Izvēlieties failu",
   "desktop.dialog.saveFile": "Saglabāt failu",

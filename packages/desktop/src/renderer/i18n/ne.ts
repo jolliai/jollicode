@@ -3,6 +3,13 @@ export const dict: Record<string, string> = {
   "desktop.menu.installCli": "स्थापना गर्नुहोस् CLI...",
   "desktop.menu.reloadWebview": "Webview पुन: लोड गर्नुहोस्",
   "desktop.menu.restart": "पुन: सुरु गर्नुहोस्",
+
+  "desktop.jolli.signIn.title": "Jolli Code मा साइन इन गर्नुहोस्",
+  "desktop.jolli.signIn.body":
+    "तपाईंले कुन मोडेल र पाठ्यक्रम सहायकहरू प्रयोग गर्न सक्नुहुन्छ भन्ने कुरा तपाईंको विद्यालय खाताले निर्धारण गर्छ। साइन इन गर्दा तपाईंको ब्राउजर खुल्नेछ।",
+  "desktop.jolli.signIn.action": "Jolli बाट साइन इन गर्नुहोस्",
+  "desktop.jolli.signIn.waiting": "तपाईंको ब्राउजर पर्खँदै…",
+  "desktop.jolli.signIn.hint": "भर्खरै खुलेको ब्राउजर ट्याबमा साइन इन पूरा गर्नुहोस्, त्यसपछि यहाँ फर्कनुहोस्।",
   "desktop.dialog.chooseFolder": "एउटा फोल्डर छान्नुहोस्",
   "desktop.dialog.chooseFile": "एउटा फाइल छान्नुहोस्",
   "desktop.dialog.saveFile": "फाइल बचत गर्नुहोस्",

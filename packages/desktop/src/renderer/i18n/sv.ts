@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "Installera CLI...",
   "desktop.menu.reloadWebview": "Ladda om webbvyn",
   "desktop.menu.restart": "Starta om",
+
+  "desktop.jolli.signIn.title": "Logga in på Jolli Code",
+  "desktop.jolli.signIn.body":
+    "Ditt skolkonto avgör vilka modeller och kursassistenter du kan använda. När du loggar in öppnas din webbläsare.",
+  "desktop.jolli.signIn.action": "Logga in med Jolli",
+  "desktop.jolli.signIn.waiting": "Väntar på din webbläsare…",
+  "desktop.jolli.signIn.hint": "Slutför inloggningen i webbläsarfliken som just öppnades och kom sedan tillbaka hit.",
   "desktop.dialog.chooseFolder": "Välj en mapp",
   "desktop.dialog.chooseFile": "Välj en fil",
   "desktop.dialog.saveFile": "Spara filen",

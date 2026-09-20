@@ -1,42 +1,36 @@
 /**
- * THE MODELS JOLLI RUNS, DECLARED AS OPENCODE'S OWN CONFIG.
+ * THE JOLLI CONFIG THE SIDECAR SERVER IS STARTED WITH.
  *
- * ⚠ THE STUDENT DOES NOT CHOOSE A PROVIDER, EVER. They sign in to Jolli and Jolli decides what they
- * may run — that is the product. So rather than hiding provider screens one at a time in the
- * renderer, this removes the subject: `enabled_providers` names exactly one provider, so every list
- * the app builds — the composer's picker, the model dialogs, the settings panes — is already empty
- * of anything else before a component reads it. A screen we forget to hide has nothing to show.
+ * ⚠ THE SHAPE ITSELF LIVES IN `@opencode-ai/core/jolli/gateway-config`, SHARED WITH THE BARE CLI.
+ * Both surfaces must lock to the same provider and point at the same gateway, and an earlier
+ * version of this file was the only place that knew how — so the CLI had none of it. What stays
+ * here is what is genuinely desktop-only: the course skills written to `userData`, and `ROUTE`.
  *
- * ⚠ IT IS UPSTREAM'S MECHANISM, NOT A FORK OF ONE. `enabled_providers`, `provider.<id>.models` and
- * per-model routing are how OpenCode has always let a gateway declare its catalogue
- * (`packages/opencode/src/provider/provider.ts`). The real product ships this same shape from the
- * gateway's `.well-known/opencode`; this file is the stand-in until that exists (jolli/PLAN.md).
- *
- * ⚠ IT ARRIVES AS `JOLLICODE_CONFIG_CONTENT`, WHICH IS THE STRONGEST LAYER. Config merges
- * well-known → global → custom → project → this (`config/config.ts`), so a student who writes an
- * `opencode.json` into their coursework repository cannot widen the list. That inversion is the
- * whole credibility problem in jolli/PLAN.md's Phase 3, and for the model surface it is closed here.
- *
- * ⚠ THE CATALOGUE LIVES IN `@opencode-ai/app/jolli/model-catalog` (`MODEL_CATALOG`), NOT HERE. A
- * customer shown both halves of this product must meet one list of models, and the coaching heuristic
- * reads the same tiers — so the list is defined once and both surfaces import it. Ids and labels are
- * the web mock's, row for row; here `tier` survives only as the routing key below.
+ * ⚠ IT ARRIVES AS `JOLLICODE_CONFIG_CONTENT`, WHICH IS THE STRONGEST LAYER SHORT OF MDM. Config
+ * merges well-known → global → custom → project → this (`config/config.ts`), so a student who
+ * writes an `opencode.json` into their coursework repository cannot widen the list.
  */
 import { mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { Brand } from "@opencode-ai/app/brand"
 import { ASSISTANTS } from "@opencode-ai/app/jolli/fixtures"
-import { MODEL_CATALOG, type ModelTier } from "@opencode-ai/app/jolli/model-catalog"
+import { jolliBaseConfig } from "@opencode-ai/core/jolli/gateway-config"
+import { catalogModels, type ModelTier } from "@opencode-ai/core/jolli/model-catalog"
 
 /**
- * WHICH REAL ENDPOINT ANSWERS, AND AS WHOM. Defaults to the Jolli gateway (`Brand.gatewayUrl`, the one
- * source of truth for the endpoint), overridable at BUILD time via `JOLLICODE_GATEWAY_URL` /
- * `JOLLICODE_GATEWAY_KEY` (electron.vite define). It is deliberately NOT a runtime env var: the gateway
- * is the model lockdown, and a runtime var would be inherited from the student's shell (`preferAppEnv`)
- * and let them repoint it — see the scrub in `server.ts`.
+ * WHICH REAL ENDPOINT ANSWERS. A build may pin one via `JOLLICODE_GATEWAY_URL` (electron.vite
+ * define); otherwise the tenant the student signed in to decides, and `jolliBaseConfig` falls back
+ * to `Brand.gatewayUrl`. It is deliberately NOT a runtime env var: the gateway is the model
+ * lockdown, and a runtime var would be inherited from the student's shell (`preferAppEnv`) and let
+ * them repoint it — see the scrub in `server.ts`.
+ *
+ * ⚠ THERE IS NO LONGER A BUILD-TIME KEY. Requests authenticate as the signed-in student, with the
+ * credential sign-in stored; the old static `"public"` key authenticated as nobody in particular.
+ *
+ * ⚠ IT IS A GATEWAY ROOT, NOT A TENANT, AND `jolliBaseConfig` KEEPS THOSE APART. It is handed over
+ * as `gatewayUrl` so it reaches the SDK verbatim; passing it as `baseUrl` would have `/api` appended
+ * to an endpoint that is already the gateway, and would drop any path it carries.
  */
-const GATEWAY_URL = import.meta.env.JOLLICODE_GATEWAY_URL || Brand.gatewayUrl
-const GATEWAY_KEY = import.meta.env.JOLLICODE_GATEWAY_KEY || "public"
+const GATEWAY_URL = import.meta.env.JOLLICODE_GATEWAY_URL || undefined
 
 /**
  * ⚠ EVERY JOLLI MODEL IS ROUTED TO A MODEL THAT ACTUALLY ANSWERS, AND THAT IS THE ONE PLACE THIS
@@ -52,10 +46,10 @@ const GATEWAY_KEY = import.meta.env.JOLLICODE_GATEWAY_KEY || "public"
  * ⚠ SAY THIS OUT LOUD BEFORE ANYBODY JUDGES AN ANSWER'S QUALITY. A reply labelled "Claude Opus 5"
  * came from a free model on OpenCode Zen. Demo the CONTROLS with this; do not demo the ANSWERS.
  *
- * ⚠ FOLLOW-UP (deliberately not done here): `GATEWAY_URL` now defaults to the real gateway
- * (`Brand.gatewayUrl`, build-overridable), but `ROUTE` and the `public` key still rewrite every send to
- * a free OpenCode Zen model. Deleting `ROUTE` (and sending the catalogue id directly) is the remaining
- * step to end the pretence once the real gateway serves the catalogue ids — tracked separately.
+ * ⚠ FOLLOW-UP (deliberately not done here): the static gateway key is gone and requests now
+ * authenticate as the signed-in student, but `ROUTE` still rewrites every send to a free model.
+ * Deleting it — and sending the catalogue id straight through — is the remaining step, and it lands
+ * naturally with the course-granted catalogue that replaces `catalogModels`.
  */
 const ROUTE: Record<ModelTier, string> = {
   premium: "big-pickle",
@@ -64,56 +58,32 @@ const ROUTE: Record<ModelTier, string> = {
 }
 
 /**
- * ⚠ ONE PROVIDER, WHERE THE WEB MOCK GROUPS BY VENDOR. Its picker lists models under Anthropic,
- * OpenAI and Google; this one lists them under "Jolli", because on this surface Jolli IS the
- * provider — it is who the student signed in to and who answers. The vendor is still legible: it is
- * the first word of every model's name. Splitting into three would have meant declaring models on
- * the real `anthropic`/`openai`/`google` provider ids, which drag their whole models.dev catalogue
- * in behind them and expect their own wire formats.
+ * The config the sidecar server is started with, as JSON.
+ *
+ * ⚠ THE TOKEN IS PART OF IT, WHICH IS NOT TRUE OF THE BARE CLI. The sidecar has no `auth.json`
+ * entry for this provider — the student signed in through the Electron main process, not through
+ * the provider plugin — so the credential has to arrive with the config or every model call goes
+ * out unauthenticated while the app still reports as connected. `JolliConfigInput.authToken` spells the
+ * split out; `server.ts` keeps this string in the sidecar's environment rather than on disk.
  */
-const PROVIDER_ID = "jolli"
-
-/** The config the sidecar server is started with, as JSON. */
-export function jolliGatewayConfig(skillsDir?: string): string {
-  return JSON.stringify({
-    /**
-     * ⚠ WHERE THE COURSE'S PROCEDURES COME FROM, AND IT IS UPSTREAM'S MECHANISM RATHER THAN A FORK
-     * OF ONE — the same posture `enabled_providers` takes above. The v1 server scans every path
-     * listed here for files named literally `SKILL.md`, at any depth below it, so a professor's
-     * skill is an ordinary skill to the server and needs no special case anywhere in it.
-     * `writeCourseSkills` lays the files out to match, and says there why nothing looser will do.
-     *
-     * ⚠ THE DIRECTORY IS DERIVED AND REWRITTEN AT EVERY LAUNCH (`writeCourseSkills`), never authored.
-     * The rows live on the assistant in `jolli/fixtures.ts`, which is the one place they are written
-     * down; these files are that data in the shape the server reads. Editing them by hand lasts
-     * until the next start.
-     *
-     * ⚠ IT IS THE V1 SHAPE — `{ paths: [...] }`, NOT A BARE ARRAY — AND THAT IS NOT A GUESS. Two
-     * config schemas live in this repo: v1 takes `skills: { paths, urls }`, v2 takes a flat
-     * `skills: string[]`. `enabled_providers` above is a v1 key and the model lockdown demonstrably
-     * works, so this config is parsed as v1. A flat array here validates against nothing, fails
-     * silently, and the skills simply never appear — which is exactly how it failed the first time.
-     *
-     * ⚠ AND IT IS OMITTED RATHER THAN EMPTY WHEN THERE IS NOTHING TO DECLARE, because an empty path
-     * list is still a list the server walks and logs about.
-     */
-    ...(skillsDir ? { skills: { paths: [skillsDir] } } : {}),
-    /**
-     * ⚠ THE WHOLE LOCKDOWN IS THIS ONE LINE. Everything else here is a catalogue; this is what makes
-     * the catalogue the only one. Removing it does not "show more models", it re-opens BYO keys.
-     */
-    enabled_providers: [PROVIDER_ID],
-    provider: {
-      [PROVIDER_ID]: {
-        name: "Jolli",
-        api: GATEWAY_URL,
-        options: { apiKey: GATEWAY_KEY, baseURL: GATEWAY_URL },
-        models: Object.fromEntries(
-          MODEL_CATALOG.map(({ id, label, tier }) => [id, { name: label, id: ROUTE[tier] }]),
-        ),
-      },
-    },
-  })
+export function jolliGatewayConfig(input: {
+  signedIn: boolean
+  authToken?: string
+  baseUrl?: string
+  skillsDir?: string
+}): string {
+  return JSON.stringify(
+    jolliBaseConfig({
+      signedIn: input.signedIn,
+      // Interim: the grant is the course's and should arrive with sign-in. See `catalogModels`.
+      models: catalogModels(ROUTE),
+      // A build-pinned gateway wins over the tenant, so a demo build can be aimed at a fixture.
+      ...(GATEWAY_URL ? { gatewayUrl: GATEWAY_URL } : {}),
+      ...(input.baseUrl ? { baseUrl: input.baseUrl } : {}),
+      ...(input.authToken ? { authToken: input.authToken } : {}),
+      ...(input.skillsDir ? { skillsDir: input.skillsDir } : {}),
+    }),
+  )
 }
 
 

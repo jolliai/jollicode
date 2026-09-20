@@ -3,6 +3,13 @@ export const dict = {
   "desktop.menu.installCli": "Installa CLI...",
   "desktop.menu.reloadWebview": "Ricarica la webview",
   "desktop.menu.restart": "Riavvia",
+
+  "desktop.jolli.signIn.title": "Accedi a Jolli Code",
+  "desktop.jolli.signIn.body":
+    "Il tuo account scolastico determina quali modelli e assistenti dei corsi puoi usare. L'accesso apre il browser.",
+  "desktop.jolli.signIn.action": "Accedi con Jolli",
+  "desktop.jolli.signIn.waiting": "In attesa del browser…",
+  "desktop.jolli.signIn.hint": "Completa l'accesso nella scheda del browser appena aperta, poi torna qui.",
   "desktop.dialog.chooseFolder": "Scegli una cartella",
   "desktop.dialog.chooseFile": "Scegli un file",
   "desktop.dialog.saveFile": "Salva file",

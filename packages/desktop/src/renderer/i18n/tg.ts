@@ -3,6 +3,14 @@ export const dict = {
   "desktop.menu.installCli": "Насб кунед CLI...",
   "desktop.menu.reloadWebview": "Аз нав бор кунед Webview",
   "desktop.menu.restart": "Оғози дубора",
+
+  "desktop.jolli.signIn.title": "Ба Jolli Code ворид шавед",
+  "desktop.jolli.signIn.body":
+    "Ҳисоби мактабии шумо муайян мекунад, ки шумо кадом моделҳо ва ёрдамчиёни курсро истифода бурда метавонед. Ҳангоми воридшавӣ браузери шумо кушода мешавад.",
+  "desktop.jolli.signIn.action": "Ворид шудан бо Jolli",
+  "desktop.jolli.signIn.waiting": "Дар интизори браузери шумо…",
+  "desktop.jolli.signIn.hint":
+    "Воридшавиро дар варақаи браузере, ки ҳозир кушода шуд, ба анҷом расонед ва сипас ба ин ҷо баргардед.",
   "desktop.dialog.chooseFolder": "Папкаро интихоб кунед",
   "desktop.dialog.chooseFile": "Файлро интихоб кунед",
   "desktop.dialog.saveFile": "Файлро захира кунед",
