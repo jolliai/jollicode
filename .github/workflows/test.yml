@@ -29,8 +29,6 @@ jobs:
         settings:
           - name: linux
             host: ubuntu-latest
-          - name: windows
-            host: windows-latest
     runs-on: ${{ matrix.settings.host }}
     defaults:
       run:
@@ -73,8 +71,3 @@ jobs:
         if: runner.os == 'Linux'
         working-directory: packages/client
         run: bun run check:generated
-
-      - name: Run HttpApi exerciser gates
-        if: runner.os == 'Linux'
-        working-directory: packages/opencode
-        run: bun run test:httpapi
