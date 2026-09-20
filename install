@@ -444,10 +444,15 @@ if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" == "true" ]; then
 fi
 
 echo -e ""
-echo -e "${MUTED}                    ${NC}             ▄     "
-echo -e "${MUTED}█▀▀█ █▀▀█ █▀▀█ █▀▀▄ ${NC}█▀▀▀ █▀▀█ █▀▀█ █▀▀█"
-echo -e "${MUTED}█░░█ █░░█ █▀▀▀ █░░█ ${NC}█░░░ █░░█ █░░█ █▀▀▀"
-echo -e "${MUTED}▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ${NC}▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀"
+printf '%b' "${MUTED}"
+cat <<'BANNER'
+       __      _____    ______          __
+      / /___  / / (_)  / ____/___  ____/ /__
+ __  / / __ \/ / / /  / /   / __ \/ __  / _ \
+/ /_/ / /_/ / / / /  / /___/ /_/ / /_/ /  __/
+\____/\____/_/_/_/   \____/\____/\__,_/\___/
+BANNER
+printf '%b' "${NC}"
 echo -e ""
 echo -e ""
 echo -e "${MUTED}Jolli Code includes free models, to start:${NC}"
