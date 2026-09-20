@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm"
 import { ProjectTable } from "@opencode-ai/core/project/sql"
 import type { ProjectV2 } from "@opencode-ai/core/project"
 import { Slug } from "@opencode-ai/core/util/slug"
+import { Brand } from "@opencode-ai/core/brand"
 import { errorMessage } from "../util/error"
 import { GlobalBus } from "@/bus/global"
 import { Git } from "@/git"
@@ -180,7 +181,7 @@ const layer: Layer.Layer<
       const ctx = yield* InstanceState.context
       for (const attempt of Array.from({ length: MAX_NAME_ATTEMPTS }, (_, i) => i)) {
         const name = input.name ? (attempt === 0 ? input.name : `${input.name}-${Slug.create()}`) : Slug.create()
-        const branch = input.detached ? undefined : `opencode/${name}`
+        const branch = input.detached ? undefined : `${Brand.short}/${name}`
         const directory = pathSvc.join(input.root, name)
 
         if (yield* fs.exists(directory).pipe(Effect.orDie)) continue
