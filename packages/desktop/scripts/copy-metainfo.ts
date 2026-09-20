@@ -5,7 +5,7 @@ const channel = arg === "dev" || arg === "beta" || arg === "prod" ? arg : resolv
 
 const appId = channel === "prod" ? "ai.jolli.desktop" : `ai.jolli.desktop.${channel}`
 const productName = channel === "prod" ? "Jolli Code" : `Jolli Code ${channel.charAt(0).toUpperCase() + channel.slice(1)}`
-const summary = `Open source AI coding agent${channel !== "prod" ? ` (${channel})` : ""}`
+const summary = `AI coding agent for learning${channel !== "prod" ? ` (${channel})` : ""}`
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
