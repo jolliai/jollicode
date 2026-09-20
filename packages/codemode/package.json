@@ -5,7 +5,7 @@
   "description": "Effect-native confined code execution over schema-described tools",
   "private": true,
   "type": "module",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "exports": {
     ".": "./src/index.ts"
   },
