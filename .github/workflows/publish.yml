@@ -34,7 +34,7 @@ permissions:
 jobs:
   version:
     runs-on: ubuntu-latest
-    if: github.repository == 'anomalyco/opencode'
+    if: github.repository == 'jolliai/jollicode'
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
@@ -71,7 +71,7 @@ jobs:
   build-cli:
     needs: version
     runs-on: ubuntu-latest
-    if: github.repository == 'anomalyco/opencode'
+    if: github.repository == 'jolliai/jollicode'
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
@@ -122,7 +122,7 @@ jobs:
       - build-cli
       - version
     runs-on: windows-latest
-    if: github.repository == 'anomalyco/opencode'
+    if: github.repository == 'jolliai/jollicode'
     env:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -407,7 +407,7 @@ jobs:
       - build-cli
       - sign-cli-windows
       - build-electron
-    if: always() && !failure() && !cancelled() && github.repository == 'anomalyco/opencode'
+    if: always() && !failure() && !cancelled() && github.repository == 'jolliai/jollicode'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
