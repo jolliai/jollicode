@@ -71,8 +71,8 @@ export function getCurrentCli(target = RUST_TARGET ?? nativeTarget()) {
 
 export async function downloadCliToResources() {
   const cli = getCurrentCli()
-  const directory = await mkdtemp(join(tmpdir(), "opencode-cli-"))
-  const dest = windowsify("resources/opencode-cli")
+  const directory = await mkdtemp(join(tmpdir(), "jollicode-cli-"))
+  const dest = windowsify("resources/jollicode-cli")
   try {
     // Without a manifest here bun walks up past tmpdir() looking for one and installs
     // into whatever root it finds (e.g. a stray package.json in the user's home dir),
