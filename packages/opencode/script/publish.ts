@@ -101,7 +101,7 @@ if (!Script.preview) {
     `pkgdesc='${Brand.tagline}'`,
     "url='https://github.com/jolliai/jollicode'",
     "arch=('aarch64' 'x86_64')",
-    "license=('MIT')",
+    "license=('LicenseRef-proprietary')",
     "provides=('jollicode')",
     "conflicts=('jollicode')",
     "depends=('ripgrep')",
