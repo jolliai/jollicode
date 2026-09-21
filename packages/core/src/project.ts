@@ -4,6 +4,7 @@ export * as Project from "./project"
 import { Context, Effect, Layer, Schema } from "effect"
 import path from "path"
 import { AbsolutePath } from "./schema"
+import { Brand } from "./brand"
 import { FSUtil } from "./fs-util"
 import { Git } from "./git"
 import { makeGlobalNode } from "./effect/app-node"
@@ -63,7 +64,7 @@ const layer = Layer.effect(
     })
 
     const cached = Effect.fnUntraced(function* (dir: string) {
-      return yield* fs.readFileString(path.join(dir, "opencode")).pipe(
+      return yield* fs.readFileString(path.join(dir, Brand.bin)).pipe(
         Effect.map((value) => value.trim()),
         Effect.map((value) => (value ? ID.make(value) : undefined)),
         Effect.catch(() => Effect.succeed(undefined)),
@@ -122,7 +123,7 @@ const layer = Layer.effect(
     })
 
     const commit = Effect.fn("Project.commit")(function* (input: { store: AbsolutePath; id: ID }) {
-      yield* fs.writeFileString(path.join(input.store, "opencode"), input.id).pipe(Effect.ignore)
+      yield* fs.writeFileString(path.join(input.store, Brand.bin), input.id).pipe(Effect.ignore)
     })
 
     return Service.of({ directories, resolve, commit })
