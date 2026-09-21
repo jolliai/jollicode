@@ -14,6 +14,8 @@ export const Brand = {
   short: "jolli",
   tagline: "AI coding agent for learning",
   url: "https://jolli.ai",
+  /** Hosted web app (GUI) origin the server proxies when the embedded web UI is disabled. */
+  appUrl: "https://app.jolli.ai",
   /** GitHub org for releases / upgrade / taps. */
   org: "jolliai",
   /** Desktop URL scheme: jollicode://. */
