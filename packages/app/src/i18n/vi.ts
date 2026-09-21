@@ -199,8 +199,6 @@ export const dict = {
   "dialog.provider.group.other": "Khác",
   "dialog.provider.custom.label": "Nhà cung cấp tương thích OpenAI tùy chỉnh",
   "dialog.provider.tag.recommended": "Đề xuất",
-  "dialog.provider.opencode.note": "Các mô hình được tuyển chọn, gồm Claude, GPT, Gemini và nhiều mô hình khác",
-  "dialog.provider.opencode.tagline": "Các mô hình tối ưu hóa đáng tin cậy",
   "dialog.provider.opencodeGo.tagline": "Đăng ký chi phí thấp cho mọi người",
   "dialog.provider.anthropic.note": "Truy cập trực tiếp các mô hình Claude, bao gồm Pro và Max",
   "dialog.provider.copilot.note": "Các mô hình AI hỗ trợ lập trình qua GitHub Copilot",
@@ -232,13 +230,6 @@ export const dict = {
   "provider.connect.apiKey.label": "Khóa API {{provider}}",
   "provider.connect.apiKey.placeholder": "khóa API",
   "provider.connect.apiKey.required": "Cần có khóa API",
-  "provider.connect.opencodeZen.line1":
-    "OpenCode Zen cho phép bạn truy cập một bộ mô hình được tuyển chọn, tối ưu hóa và đáng tin cậy dành cho tác nhân lập trình.",
-  "provider.connect.opencodeZen.line2":
-    "Chỉ với một khóa API, bạn sẽ có quyền truy cập vào các mô hình như Claude, GPT, Gemini, GLM và hơn thế nữa.",
-  "provider.connect.opencodeZen.visit.prefix": "Truy cập ",
-  "provider.connect.opencodeZen.visit.link": "opencode.ai/zen",
-  "provider.connect.opencodeZen.visit.suffix": " để lấy khóa API của bạn.",
   "provider.connect.oauth.code.visit.prefix": "Truy cập ",
   "provider.connect.oauth.code.visit.link": "liên kết này",
   "provider.connect.oauth.code.visit.suffix":

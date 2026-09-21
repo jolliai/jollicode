@@ -192,8 +192,6 @@ export const dict = {
   "dialog.provider.group.other": "Të tjera",
   "dialog.provider.custom.label": "Ofrues i personalizuar i përputhshëm me OpenAI",
   "dialog.provider.tag.recommended": "Rekomanduar",
-  "dialog.provider.opencode.note": "Modele të kuruara duke përfshirë Claude, GPT, Gemini dhe më shumë",
-  "dialog.provider.opencode.tagline": "Modele të besueshme të optimizuara",
   "dialog.provider.opencodeGo.tagline": "Abonim me kosto të ulët për të gjithë",
   "dialog.provider.anthropic.note": "Qasje e drejtpërdrejtë në modelet Claude, duke përfshirë Pro dhe Max",
   "dialog.provider.copilot.note": "Modele të AI për ndihmë kodimi përmes GitHub Copilot",
@@ -225,13 +223,6 @@ export const dict = {
   "provider.connect.apiKey.label": "{{provider}} Tasti API",
   "provider.connect.apiKey.placeholder": "Tasti API",
   "provider.connect.apiKey.required": "Kërkohet çelësi API",
-  "provider.connect.opencodeZen.line1":
-    "OpenCode Zen ju jep akses në një grup të kuruar modelesh të optimizuara të besueshme për agjentët e kodimit.",
-  "provider.connect.opencodeZen.line2":
-    "Me një çelës të vetëm API do të keni akses në modele të tilla si Claude, GPT, Gemini, GLM dhe më shumë.",
-  "provider.connect.opencodeZen.visit.prefix": "Vizitoni ",
-  "provider.connect.opencodeZen.visit.link": "opencode.ai/zen",
-  "provider.connect.opencodeZen.visit.suffix": " për të mbledhur çelësin tuaj API.",
   "provider.connect.oauth.code.visit.prefix": "Vizitoni ",
   "provider.connect.oauth.code.visit.link": "kjo lidhje",
   "provider.connect.oauth.code.visit.suffix":

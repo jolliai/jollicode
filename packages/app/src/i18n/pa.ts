@@ -198,8 +198,6 @@ export const dict = {
   "dialog.provider.group.other": "ہور",
   "dialog.provider.custom.label": "من پسند OpenAI نال رلدا پرووائیڈر",
   "dialog.provider.tag.recommended": "سفارش کیتی",
-  "dialog.provider.opencode.note": "Claude، GPT، Gemini تے ہور سمیت کیوریٹڈ ماڈل",
-  "dialog.provider.opencode.tagline": "قابل اعتماد اصلاح شدہ ماڈل",
   "dialog.provider.opencodeGo.tagline": "ہر اک لئی گھٹ قیمت دی رکنیت",
   "dialog.provider.anthropic.note": "پرو تے میکس سمیت Claude ماڈل تک براہ راست رسائی",
   "dialog.provider.copilot.note": "GitHub Copilot دے ذریعے کوڈنگ دی مدد لئی اے آئی ماڈل",
@@ -231,13 +229,6 @@ export const dict = {
   "provider.connect.apiKey.label": "{{provider}} API کلید",
   "provider.connect.apiKey.placeholder": "API کلید",
   "provider.connect.apiKey.required": "API کلید دی لوڑ اے",
-  "provider.connect.opencodeZen.line1":
-    "زین تہانوں کوڈنگ ایجنٹاں لئی قابل اعتماد مرضی دے ماڈلاں دے اک کیوریٹڈ سیٹ تک رسائی فراہم کردا اے۔",
-  "provider.connect.opencodeZen.line2":
-    "اک API کلید دے نال تہانوں Claude، GPT، Gemini، GLM تے ہور ماڈلاں تک رسائی ملے گی۔",
-  "provider.connect.opencodeZen.visit.prefix": "ویکھو ",
-  "provider.connect.opencodeZen.visit.link": "opencode.ai/zen",
-  "provider.connect.opencodeZen.visit.suffix": " اپنی API کلید حاصل کرن لئی۔",
   "provider.connect.oauth.code.visit.prefix": "ویکھو ",
   "provider.connect.oauth.code.visit.link": "ایہہ لنک",
   "provider.connect.oauth.code.visit.suffix":

@@ -194,8 +194,6 @@ export const dict: Record<string, string> = {
   "dialog.provider.group.other": "གཞན",
   "dialog.provider.custom.label": "སྲོལ་སྒྲིག OpenAI-མཐུན་འགྱུར་སྤྲོད་མཁན།",
   "dialog.provider.tag.recommended": "རྒྱབ་སྣོན་འབད་ཡི",
-  "dialog.provider.opencode.note": "Claude དང་ GPT དེ་ལས་ Gemini དང་དེ་ལས་ལྷག་སྟེ་ བཀོད་སྒྲིག་འབད་ཡོད་པའི་དཔེ་ཚད།",
-  "dialog.provider.opencode.tagline": "བློ་གཏད་ཅན་གྱི་ཡར་རྒྱས་ཅན་གྱི་དཔེ་ཚད་ཚུ།",
   "dialog.provider.opencodeGo.tagline": "མི་ཚང་མའི་དོན་ལུ་ གོང་ཚད་དམའ་བའི་ མཁོ་མངགས་འབད་ནི།",
   "dialog.provider.anthropic.note": "པྲོ་དང་མེགསི་ཚུ་རྩིས་ཏེ་ Claudeདཔེ་ཚད་ཚུ་ལུ་ཐད་ཀར་དུ་འཛུལ་སྤྱོད།",
   "dialog.provider.copilot.note": "GitHub Copilot བརྒྱུད་དེ་ ཀོ་ཌིང་གྲོགས་རམ་གྱི་དོན་ལུ་ AI དཔེ་ཚད།",
@@ -228,13 +226,6 @@ export const dict: Record<string, string> = {
   "provider.connect.apiKey.label": "{{provider}} APIལྡེ་མིག།",
   "provider.connect.apiKey.placeholder": "APIལྡེ་མིག།",
   "provider.connect.apiKey.required": "APIལྡེ་མིག་དགོས་མཁོ་ཡོད།",
-  "provider.connect.opencodeZen.line1":
-    "Jolli Code ཟེན་གྱིས་ཁྱོད་ལུ་ གསང་ཡིག་ལས་ཚབ་ཚུ་གི་དོན་ལུ་ བློ་གཏད་ཅན་གྱི་ཡར་འཕེལ་ཅན་གྱི་དཔེ་ཚད་ཚུ་གི་ བཀོད་སྒྲིག་འབད་ཡོད་པའི་ཆ་ཚན་ཅིག་ལུ་འཛུལ་སྤྱོད་བྱིནམ་ཨིན།",
-  "provider.connect.opencodeZen.line2":
-    "API ལྡེ་མིག་རྐྱང་པ་གཅིག་གིས་ ཁྱོད་ཀྱིས་ Claude དང་ GPT དེ་ལས་ Gemini དང་ GLM དེ་ལས་མངམ་བཟུམ་གྱི་དཔེ་ཚད་ཚུ་ལུ་འཛུལ་སྤྱོད་འབད་ཚུགས།",
-  "provider.connect.opencodeZen.visit.prefix": "འགྱོ་ནི",
-  "provider.connect.opencodeZen.visit.link": "opencode.ai/zen",
-  "provider.connect.opencodeZen.visit.suffix": "ཁྱོད་རའི་ API ལྡེ་མིག་བསྡུ་ལེན་འབད་ནིའི་དོན་ལུ།",
   "provider.connect.oauth.code.visit.prefix": "འགྱོ་ནི",
   "provider.connect.oauth.code.visit.link": "འབྲེལ་མཐུད་འདི།",
   "provider.connect.oauth.code.visit.suffix":

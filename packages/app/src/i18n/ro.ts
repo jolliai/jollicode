@@ -191,8 +191,6 @@ export const dict = {
   "dialog.provider.group.other": "Altele",
   "dialog.provider.custom.label": "Furnizor compatibil OpenAI personalizat",
   "dialog.provider.tag.recommended": "Recomandat",
-  "dialog.provider.opencode.note": "Modele selectate, inclusiv Claude, GPT, Gemini și altele",
-  "dialog.provider.opencode.tagline": "Modele optimizate, fiabile",
   "dialog.provider.opencodeGo.tagline": "Abonament accesibil pentru toți",
   "dialog.provider.anthropic.note": "Acces direct la modelele Claude, inclusiv Pro și Max",
   "dialog.provider.copilot.note": "Modele AI pentru asistență la programare prin GitHub Copilot",
@@ -224,13 +222,6 @@ export const dict = {
   "provider.connect.apiKey.label": "Cheie API {{provider}}",
   "provider.connect.apiKey.placeholder": "Cheie API",
   "provider.connect.apiKey.required": "Cheia API este obligatorie",
-  "provider.connect.opencodeZen.line1":
-    "OpenCode Zen îți oferă acces la un set selectat de modele optimizate și fiabile pentru agenți de programare.",
-  "provider.connect.opencodeZen.line2":
-    "Cu o singură cheie API ai acces la modele precum Claude, GPT, Gemini, GLM și altele.",
-  "provider.connect.opencodeZen.visit.prefix": "Vizitează",
-  "provider.connect.opencodeZen.visit.link": "opencode.ai/zen",
-  "provider.connect.opencodeZen.visit.suffix": "pentru a obține cheia ta API.",
   "provider.connect.oauth.code.visit.prefix": "Vizitează",
   "provider.connect.oauth.code.visit.link": "acest link",
   "provider.connect.oauth.code.visit.suffix":

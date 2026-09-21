@@ -194,8 +194,6 @@ export const dict = {
   "dialog.provider.group.other": "Digər",
   "dialog.provider.custom.label": "Xüsusi OpenAI-a uyğun provayder",
   "dialog.provider.tag.recommended": "Tövsiyə olunan",
-  "dialog.provider.opencode.note": "Claude, GPT, Gemini və daha çoxu daxil olmaqla seçilmiş modellər",
-  "dialog.provider.opencode.tagline": "Etibarlı optimallaşdırılmış modellər",
   "dialog.provider.opencodeGo.tagline": "Hamı üçün aşağı qiymətli abunəlik",
   "dialog.provider.anthropic.note": "Pro və Max daxil olmaqla Claude modellərinə birbaşa giriş",
   "dialog.provider.copilot.note": "GitHub Copilot vasitəsilə kodlaşdırma yardımı üçün AI modelləri",
@@ -227,13 +225,6 @@ export const dict = {
   "provider.connect.apiKey.label": "{{provider}} API açarı",
   "provider.connect.apiKey.placeholder": "API açarı",
   "provider.connect.apiKey.required": "API açarı tələb olunur",
-  "provider.connect.opencodeZen.line1":
-    "OpenCode Zen sizə kodlaşdırma agentləri üçün etibarlı optimallaşdırılmış seçilmiş modellər dəstinə giriş verir.",
-  "provider.connect.opencodeZen.line2":
-    "Tək bir API açarı ilə Claude, GPT, Gemini, GLM və daha çox modellərə giriş əldə edəcəksiniz.",
-  "provider.connect.opencodeZen.visit.prefix": "",
-  "provider.connect.opencodeZen.visit.link": "opencode.ai/zen",
-  "provider.connect.opencodeZen.visit.suffix": " səhifəsinə daxil olub API açarınızı əldə edin.",
   "provider.connect.oauth.code.visit.prefix": "",
   "provider.connect.oauth.code.visit.link": "Bu linkə",
   "provider.connect.oauth.code.visit.suffix":

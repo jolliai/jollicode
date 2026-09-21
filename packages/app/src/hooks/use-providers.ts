@@ -6,7 +6,6 @@ import { createEffect, createMemo, type Accessor } from "solid-js"
 import { selectProviderCatalog } from "./provider-catalog"
 
 export const popularProviders = [
-  "opencode",
   "opencode-go",
   "anthropic",
   "github-copilot",
@@ -16,6 +15,10 @@ export const popularProviders = [
   "vercel",
 ]
 const popularProviderSet = new Set(popularProviders)
+
+// Providers hidden from every user-facing surface (picker, settings, connected list).
+// The server catalog still defines "opencode" (OpenCode Zen), but Jolli Code does not surface it.
+const hiddenProviders = new Set(["opencode"])
 
 export function useProviders(directory: Accessor<string | undefined>) {
   const serverSync = useServerSync()
@@ -38,13 +41,15 @@ export function useProviders(directory: Accessor<string | undefined>) {
     })
   }
 
+  const visible = () => new Map(Iterable.filter(providers().all, ([id]) => !hiddenProviders.has(id)))
+
   return {
-    all: () => providers().all,
+    all: () => visible(),
     default: () => providers().default,
     defaultModel: () => providers().defaultModel,
     popular: () =>
       pipe(
-        providers().all,
+        visible(),
         Iterable.map(([, p]) => p),
         Iterable.filter((p) => popularProviderSet.has(p.id)),
         (v) => Array.from(v),
@@ -52,23 +57,11 @@ export function useProviders(directory: Accessor<string | undefined>) {
     connected: () => {
       const connected = new Set(providers().connected)
       return pipe(
-        providers().all,
+        visible(),
         Iterable.map(([, p]) => p),
         Iterable.filter((p) => connected.has(p.id)),
         (v) => Array.from(v),
       )
-    },
-    paid: () => {
-      const connected = new Set(providers().connected)
-      const paid = [
-        ...Iterable.filter(
-          providers().all,
-          ([id]) =>
-            connected.has(id) &&
-            (id !== "opencode" || Object.values(providers().all.get(id)?.models ?? {}).some((m) => m.cost?.input)),
-        ),
-      ]
-      return paid
     },
   }
 }

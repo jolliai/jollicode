@@ -1,4 +1,5 @@
 import { createEffect, onCleanup } from "solid-js"
+import { Brand } from "@/brand"
 import { createStore } from "solid-js/store"
 import { createSimpleContext } from "@opencode-ai/ui/context"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
@@ -7,7 +8,7 @@ import { useSettings } from "@/context/settings"
 import { persisted } from "@/utils/persist"
 import { DialogReleaseNotes, type Highlight } from "@/components/dialog-release-notes"
 
-const CHANGELOG_URL = "https://opencode.ai/changelog.json"
+const CHANGELOG_URL = `${Brand.url}/changelog.json`
 
 type Store = {
   version?: string

@@ -192,8 +192,6 @@ export const dict: Record<string, string> = {
   "dialog.provider.group.other": "अन्य",
   "dialog.provider.custom.label": "आफू अनुकूल OpenAI-कम्प्याटिबल प्रदायक",
   "dialog.provider.tag.recommended": "सिफारिस गर्नुभयो",
-  "dialog.provider.opencode.note": "Claude, GPT, Gemini र थप सहित क्युरेट गरिएका मोडेलहरू",
-  "dialog.provider.opencode.tagline": "भरपर्दो अनुकूलित मोडेलहरू",
   "dialog.provider.opencodeGo.tagline": "सबैको लागि कम लागत सदस्यता",
   "dialog.provider.anthropic.note": "प्रो र म्याक्स सहित Claude मोडेलहरूमा प्रत्यक्ष पहुँच",
   "dialog.provider.copilot.note": "GitHub Copilot मार्फत कोडिङ सहायताका लागि AI मोडेलहरू",
@@ -225,13 +223,6 @@ export const dict: Record<string, string> = {
   "provider.connect.apiKey.label": "{{provider}} API कुञ्जी",
   "provider.connect.apiKey.placeholder": "API कुञ्जी",
   "provider.connect.apiKey.required": "API कुञ्जी आवश्यक छ",
-  "provider.connect.opencodeZen.line1":
-    "OpenCode Zen ले तपाईंलाई कोडिङ एजेन्टहरूका लागि भरपर्दो अनुकूलित मोडेलहरूको क्युरेट गरिएको सेटमा पहुँच दिन्छ।",
-  "provider.connect.opencodeZen.line2":
-    "एकल API कुञ्जीको साथ तपाईंले Claude, GPT, Gemini, GLM र थप जस्ता मोडेलहरूमा पहुँच प्राप्त गर्नुहुनेछ।",
-  "provider.connect.opencodeZen.visit.prefix": "भ्रमण गर्नुहोस्",
-  "provider.connect.opencodeZen.visit.link": "opencode.ai/zen",
-  "provider.connect.opencodeZen.visit.suffix": "तपाईँको API कुञ्जी सङ्कलन गर्न।",
   "provider.connect.oauth.code.visit.prefix": "भ्रमण गर्नुहोस्",
   "provider.connect.oauth.code.visit.link": "यो लिङ्क",
   "provider.connect.oauth.code.visit.suffix":

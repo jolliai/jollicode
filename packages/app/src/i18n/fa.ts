@@ -192,8 +192,6 @@ export const dict = {
   "dialog.provider.group.other": "دیگر",
   "dialog.provider.custom.label": "ارائه دهنده سفارشی سازگار با OpenAI",
   "dialog.provider.tag.recommended": "توصیه می شود",
-  "dialog.provider.opencode.note": "مدل های انتخاب شده از جمله Claude، GPT، Gemini و موارد دیگر",
-  "dialog.provider.opencode.tagline": "مدل های بهینه شده قابل اعتماد",
   "dialog.provider.opencodeGo.tagline": "اشتراک کم هزینه برای همه",
   "dialog.provider.anthropic.note": "دسترسی مستقیم به مدل های Claude، از جمله Pro و Max",
   "dialog.provider.copilot.note": "مدل های AI برای کمک به کدنویسی از طریق GitHub Copilot",
@@ -225,13 +223,6 @@ export const dict = {
   "provider.connect.apiKey.label": "کلید {{provider}} API",
   "provider.connect.apiKey.placeholder": "کلید API",
   "provider.connect.apiKey.required": "کلید API مورد نیاز است",
-  "provider.connect.opencodeZen.line1":
-    "OpenCode Zen به شما امکان دسترسی به مجموعه‌ای از مدل‌های بهینه‌شده قابل اعتماد را برای عوامل کدنویسی می‌دهد.",
-  "provider.connect.opencodeZen.line2":
-    "با یک کلید API به مدل هایی مانند Claude، GPT، Gemini، GLM و موارد دیگر دسترسی خواهید داشت.",
-  "provider.connect.opencodeZen.visit.prefix": "بازدید کنید ",
-  "provider.connect.opencodeZen.visit.link": "opencode.ai/zen",
-  "provider.connect.opencodeZen.visit.suffix": " برای جمع آوری کلید API.",
   "provider.connect.oauth.code.visit.prefix": "بازدید کنید ",
   "provider.connect.oauth.code.visit.link": "این لینک",
   "provider.connect.oauth.code.visit.suffix":

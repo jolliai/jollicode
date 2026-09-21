@@ -194,8 +194,6 @@ export const dict = {
   "dialog.provider.group.other": "други",
   "dialog.provider.custom.label": "Персонализиран OpenAI-съвместим доставчик",
   "dialog.provider.tag.recommended": "Препоръчва се",
-  "dialog.provider.opencode.note": "Подбрани модели, включително Claude, GPT, Gemini и други",
-  "dialog.provider.opencode.tagline": "Надеждни оптимизирани модели",
   "dialog.provider.opencodeGo.tagline": "Абонамент на ниска цена за всеки",
   "dialog.provider.anthropic.note": "Директен достъп до Claude модели, включително Pro и Max",
   "dialog.provider.copilot.note": "AI модели за помощ при кодиране чрез GitHub Copilot",
@@ -227,13 +225,6 @@ export const dict = {
   "provider.connect.apiKey.label": "{{provider}} API ключ",
   "provider.connect.apiKey.placeholder": "API ключ",
   "provider.connect.apiKey.required": "Изисква се ключ API",
-  "provider.connect.opencodeZen.line1":
-    "OpenCode Zen ви дава достъп до подбран набор от надеждни оптимизирани модели за кодиращи агенти.",
-  "provider.connect.opencodeZen.line2":
-    "С един ключ API ще получите достъп до модели като Claude, GPT, Gemini, GLM и други.",
-  "provider.connect.opencodeZen.visit.prefix": "Посетете",
-  "provider.connect.opencodeZen.visit.link": "opencode.ai/zen",
-  "provider.connect.opencodeZen.visit.suffix": "за да вземете своя ключ API.",
   "provider.connect.oauth.code.visit.prefix": "Посетете",
   "provider.connect.oauth.code.visit.link": "тази връзка",
   "provider.connect.oauth.code.visit.suffix":

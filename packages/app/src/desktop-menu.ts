@@ -1,4 +1,5 @@
 import type { DesktopNativeKey } from "./i18n/desktop-native"
+import { Brand } from "./brand"
 
 export type DesktopMenuPlatform = "macos" | "windows"
 
@@ -279,19 +280,19 @@ export const DESKTOP_MENU: DesktopMenu[] = [
     id: "help",
     labelKey: "desktop.menu.help",
     items: [
-      { type: "item", labelKey: "desktop.menu.documentation", href: "https://opencode.ai/docs" },
-      { type: "item", labelKey: "desktop.menu.supportForum", href: "https://discord.com/invite/opencode" },
+      { type: "item", labelKey: "desktop.menu.documentation", href: `${Brand.url}/docs` },
+      { type: "item", labelKey: "desktop.menu.supportForum", href: `${Brand.url}/desktop-feedback` },
       { type: "item", labelKey: "desktop.menu.exportLogs", command: "logs.export" },
       { type: "separator" },
       {
         type: "item",
         labelKey: "desktop.menu.shareFeedback",
-        href: "https://github.com/anomalyco/opencode/issues/new?template=feature_request.yml",
+        href: `${Brand.url}/desktop-feedback`,
       },
       {
         type: "item",
         labelKey: "desktop.menu.reportBug",
-        href: "https://github.com/anomalyco/opencode/issues/new?template=bug_report.yml",
+        href: `${Brand.url}/desktop-feedback`,
       },
     ],
   },

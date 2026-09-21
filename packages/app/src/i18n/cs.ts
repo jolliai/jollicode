@@ -191,8 +191,6 @@ export const dict = {
   "dialog.provider.group.other": "Jiné",
   "dialog.provider.custom.label": "Vlastní poskytovatel kompatibilní s OpenAI",
   "dialog.provider.tag.recommended": "Doporučeno",
-  "dialog.provider.opencode.note": "Vybrané modely včetně Claude, GPT, Gemini a dalších",
-  "dialog.provider.opencode.tagline": "Spolehlivé optimalizované modely",
   "dialog.provider.opencodeGo.tagline": "Nízkonákladové předplatné pro každého",
   "dialog.provider.anthropic.note": "Přímý přístup k modelům Claude, včetně modelů Pro a Max",
   "dialog.provider.copilot.note": "Modely umělé inteligence pro pomoc s kódováním prostřednictvím GitHub Copilot",
@@ -224,13 +222,6 @@ export const dict = {
   "provider.connect.apiKey.label": "{{provider}} API klíč",
   "provider.connect.apiKey.placeholder": "API klíč",
   "provider.connect.apiKey.required": "Je vyžadováno tlačítko API",
-  "provider.connect.opencodeZen.line1":
-    "OpenCode Zen vám poskytuje přístup k upravené sadě spolehlivých optimalizovaných modelů pro kódovací agenty.",
-  "provider.connect.opencodeZen.line2":
-    "Pomocí jediného tlačítka API získáte přístup k modelům jako Claude, GPT, Gemini, GLM a dalším.",
-  "provider.connect.opencodeZen.visit.prefix": "Návštěva ",
-  "provider.connect.opencodeZen.visit.link": "opencode.ai/zen",
-  "provider.connect.opencodeZen.visit.suffix": " vyzvedněte svůj klíč API.",
   "provider.connect.oauth.code.visit.prefix": "Návštěva ",
   "provider.connect.oauth.code.visit.link": "tento odkaz",
   "provider.connect.oauth.code.visit.suffix":

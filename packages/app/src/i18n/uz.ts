@@ -193,8 +193,6 @@ export const dict = {
   "dialog.provider.group.other": "Boshqa",
   "dialog.provider.custom.label": "Maxsus OpenAI-mos keladigan provayder",
   "dialog.provider.tag.recommended": "Tavsiya etilgan",
-  "dialog.provider.opencode.note": "Tanlangan modellar, jumladan Claude, GPT, Gemini va boshqalar",
-  "dialog.provider.opencode.tagline": "Ishonchli optimallashtirilgan modellar",
   "dialog.provider.opencodeGo.tagline": "Hamma uchun arzon obuna",
   "dialog.provider.anthropic.note": "Claude modellariga, jumladan Pro va Maksga to'g'ridan-to'g'ri kirish",
   "dialog.provider.copilot.note": "GitHub Copilot orqali kodlash yordami uchun AI modellari",
@@ -226,13 +224,6 @@ export const dict = {
   "provider.connect.apiKey.label": "{{provider}} API kaliti",
   "provider.connect.apiKey.placeholder": "API kaliti",
   "provider.connect.apiKey.required": "API kaliti talab qilinadi",
-  "provider.connect.opencodeZen.line1":
-    "OpenCode Zen sizga kodlash agentlari uchun ishonchli optimallashtirilgan modellar to'plamiga kirish imkonini beradi.",
-  "provider.connect.opencodeZen.line2":
-    "Bitta API kaliti bilan siz Claude, GPT, Gemini, GLM va boshqalar kabi modellarga kirishingiz mumkin.",
-  "provider.connect.opencodeZen.visit.prefix": "Tashrif buyuring ",
-  "provider.connect.opencodeZen.visit.link": "opencode.ai/zen",
-  "provider.connect.opencodeZen.visit.suffix": " API kalitingizni olish uchun.",
   "provider.connect.oauth.code.visit.prefix": "Tashrif buyuring ",
   "provider.connect.oauth.code.visit.link": "bu havola",
   "provider.connect.oauth.code.visit.suffix":
