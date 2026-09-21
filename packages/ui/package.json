@@ -1,16 +1,9 @@
 {
   "name": "@opencode-ai/ui",
   "version": "1.18.31",
+  "private": true,
   "type": "module",
   "license": "UNLICENSED",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/anomalyco/opencode.git",
-    "directory": "packages/ui"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
   "sideEffects": [
     "**/*.css"
   ],
