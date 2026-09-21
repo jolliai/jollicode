@@ -90,8 +90,7 @@ if (!Script.preview) {
 
   // arch
   const binaryPkgbuild = [
-    "# Maintainer: dax",
-    "# Maintainer: adam",
+    "# Maintainer: Jolli AI <https://jolli.ai>",
     "",
     "pkgname='jollicode-bin'",
     `pkgver=${pkgver}`,

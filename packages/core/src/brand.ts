@@ -13,6 +13,10 @@ export const Brand = {
   /** Short slug: XDG data-dir segment, provider id. */
   short: "jolli",
   tagline: "AI coding agent for learning",
+  /**
+   * Canonical site origin. Keep it a bare `https://host` with no port or path:
+   * `packages/server/src/cors.ts` derives its allowed-origin regex from this host.
+   */
   url: "https://jolli.ai",
   /** Hosted web app (GUI) origin the server proxies when the embedded web UI is disabled. */
   appUrl: "https://app.jolli.ai",

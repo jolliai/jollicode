@@ -95,7 +95,7 @@ bun run dev:web       # packages/app alone in a browser
 ```
 
 `dev:desktop` runs `scripts/predev.ts` first (copies dev icons, then downloads
-`@opencode-ai/cli-windows-x64-baseline` into `resources/opencode-cli.exe` — the sidecar server the
+`@opencode-ai/cli-windows-x64-baseline` into `resources/jollicode-cli.exe` — the sidecar server the
 Electron app spawns, see `packages/desktop/src/main/server.ts` and `sidecar.ts`). It then builds the
 main and preload bundles and serves the renderer at `http://localhost:5173/`.
 
