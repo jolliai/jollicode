@@ -5,11 +5,20 @@ export const dict = {
   "desktop.menu.restart": "إعادة تشغيل",
 
   "desktop.jolli.signIn.title": "تسجيل الدخول إلى Jolli Code",
-  "desktop.jolli.signIn.body":
-    "يحدّد حساب مدرستك النماذج ومساعدي المقررات المتاحة لك. سيؤدي تسجيل الدخول إلى فتح متصفحك.",
+  "desktop.jolli.signIn.body": "عند تسجيل الدخول سيُفتح المتصفح.",
   "desktop.jolli.signIn.action": "تسجيل الدخول باستخدام Jolli",
   "desktop.jolli.signIn.waiting": "في انتظار متصفحك…",
   "desktop.jolli.signIn.hint": "أكمل تسجيل الدخول في علامة تبويب المتصفح التي فُتحت للتو، ثم عد إلى هنا.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "تم تسجيل دخولك، لكن تعذّر على Jolli Code إعادة تشغيل خادمه المحلي. أعد تشغيل التطبيق لإكمال العملية.",
+
+  "desktop.jolli.courseGate.noCourses.title": "لا توجد مقررات Jolli Code",
+  "desktop.jolli.courseGate.noCourses.body":
+    "لا يستخدم أي من مقرراتك Jolli Code بعد. بعد أن يُعدّه أستاذك، تحقّق مرة أخرى.",
+  "desktop.jolli.courseGate.unreachable.title": "تعذّر الوصول إلى Jolli",
+  "desktop.jolli.courseGate.unreachable.body": "تعذّر على Jolli Code تحميل مقرراتك. تحقّق من اتصالك ثم أعد المحاولة.",
+  "desktop.jolli.courseGate.retry": "تحقّق مرة أخرى",
+  "desktop.jolli.courseGate.switchAccount": "استخدام حساب آخر",
 
   "desktop.dialog.chooseFolder": "اختيار مجلد",
   "desktop.dialog.chooseFile": "اختيار ملف",

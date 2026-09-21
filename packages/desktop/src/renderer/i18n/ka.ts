@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "გადატვირთვა",
 
   "desktop.jolli.signIn.title": "შედით Jolli Code-ში",
-  "desktop.jolli.signIn.body":
-    "თქვენი სასკოლო ანგარიში განსაზღვრავს, რომელი მოდელებისა და კურსის ასისტენტების გამოყენება შეგიძლიათ. შესვლისას გაიხსნება თქვენი ბრაუზერი.",
+  "desktop.jolli.signIn.body": "შესვლისას გაიხსნება თქვენი ბრაუზერი.",
   "desktop.jolli.signIn.action": "შესვლა Jolli-ით",
   "desktop.jolli.signIn.waiting": "ველოდებით თქვენს ბრაუზერს…",
   "desktop.jolli.signIn.hint": "დაასრულეთ შესვლა ახლახან გახსნილ ბრაუზერის ჩანართში და დაბრუნდით აქ.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "შესული ხართ, მაგრამ Jolli Code-მა ვერ გადატვირთა ლოკალური სერვერი. დასასრულებლად გადატვირთეთ აპლიკაცია.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Jolli Code-ის კურსები არ არის",
+  "desktop.jolli.courseGate.noCourses.body":
+    "თქვენი არცერთი კურსი ჯერ არ იყენებს Jolli Code-ს. როცა ლექტორი მოამზადებს, შეამოწმეთ ხელახლა.",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli-სთან დაკავშირება ვერ მოხერხდა",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code-მა ვერ ჩატვირთა თქვენი კურსები. შეამოწმეთ კავშირი და სცადეთ ხელახლა.",
+  "desktop.jolli.courseGate.retry": "ხელახლა შემოწმება",
+  "desktop.jolli.courseGate.switchAccount": "სხვა ანგარიშის გამოყენება",
   "desktop.dialog.chooseFolder": "აირჩიე საქაღალდე",
   "desktop.dialog.chooseFile": "აირჩიე ფაილი",
   "desktop.dialog.saveFile": "ფაილის შენახვა",

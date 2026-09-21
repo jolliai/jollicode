@@ -5,12 +5,22 @@ export const dict = {
   "desktop.menu.restart": "Επανεκκίνηση",
 
   "desktop.jolli.signIn.title": "Σύνδεση στο Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Ο σχολικός σας λογαριασμός καθορίζει ποια μοντέλα και βοηθούς μαθημάτων μπορείτε να χρησιμοποιήσετε. Με τη σύνδεση ανοίγει το πρόγραμμα περιήγησής σας.",
+  "desktop.jolli.signIn.body": "Η σύνδεση ανοίγει το πρόγραμμα περιήγησής σας.",
   "desktop.jolli.signIn.action": "Σύνδεση με Jolli",
   "desktop.jolli.signIn.waiting": "Αναμονή για το πρόγραμμα περιήγησης…",
   "desktop.jolli.signIn.hint":
     "Ολοκληρώστε τη σύνδεση στην καρτέλα του προγράμματος περιήγησης που μόλις άνοιξε και επιστρέψτε εδώ.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Έχετε συνδεθεί, αλλά το Jolli Code δεν μπόρεσε να επανεκκινήσει τον τοπικό διακομιστή. Επανεκκινήστε την εφαρμογή για να ολοκληρώσετε.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Κανένα μάθημα Jolli Code",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Κανένα από τα μαθήματά σας δεν χρησιμοποιεί ακόμη το Jolli Code. Μόλις το ρυθμίσει ο διδάσκων, ελέγξτε ξανά.",
+  "desktop.jolli.courseGate.unreachable.title": "Αδυναμία σύνδεσης με το Jolli",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Το Jolli Code δεν μπόρεσε να φορτώσει τα μαθήματά σας. Ελέγξτε τη σύνδεσή σας και δοκιμάστε ξανά.",
+  "desktop.jolli.courseGate.retry": "Έλεγχος ξανά",
+  "desktop.jolli.courseGate.switchAccount": "Χρήση άλλου λογαριασμού",
   "desktop.dialog.chooseFolder": "Επιλογή φακέλου",
   "desktop.dialog.chooseFile": "Επιλογή αρχείου",
   "desktop.dialog.saveFile": "Αποθήκευση αρχείου",

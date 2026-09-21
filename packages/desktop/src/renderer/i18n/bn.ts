@@ -5,11 +5,21 @@ export const dict: Record<string, string> = {
   "desktop.menu.restart": "রিস্টার্ট করুন",
 
   "desktop.jolli.signIn.title": "Jolli Code-এ সাইন ইন করুন",
-  "desktop.jolli.signIn.body":
-    "আপনি কোন মডেল ও কোর্স সহকারী ব্যবহার করতে পারবেন তা আপনার স্কুল অ্যাকাউন্ট নির্ধারণ করে। সাইন ইন করলে আপনার ব্রাউজার খুলবে।",
+  "desktop.jolli.signIn.body": "সাইন ইন করলে আপনার ব্রাউজার খুলবে।",
   "desktop.jolli.signIn.action": "Jolli দিয়ে সাইন ইন করুন",
   "desktop.jolli.signIn.waiting": "আপনার ব্রাউজারের জন্য অপেক্ষা করা হচ্ছে…",
   "desktop.jolli.signIn.hint": "এইমাত্র খোলা ব্রাউজার ট্যাবে সাইন ইন সম্পূর্ণ করুন, তারপর এখানে ফিরে আসুন।",
+  "desktop.jolli.signIn.serverUnavailable":
+    "আপনি সাইন ইন করেছেন, কিন্তু Jolli Code তার লোকাল সার্ভার পুনরায় চালু করতে পারেনি। শেষ করতে অ্যাপটি পুনরায় চালু করুন।",
+
+  "desktop.jolli.courseGate.noCourses.title": "কোনো Jolli Code কোর্স নেই",
+  "desktop.jolli.courseGate.noCourses.body":
+    "আপনার কোনো কোর্স এখনও Jolli Code ব্যবহার করে না। আপনার শিক্ষক একটি সেট আপ করলে আবার দেখুন।",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli-তে পৌঁছানো যায়নি",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code আপনার কোর্স লোড করতে পারেনি। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।",
+  "desktop.jolli.courseGate.retry": "আবার দেখুন",
+  "desktop.jolli.courseGate.switchAccount": "অন্য অ্যাকাউন্ট ব্যবহার করুন",
   "desktop.dialog.chooseFolder": "একটি ফোল্ডার নির্বাচন করুন",
   "desktop.dialog.chooseFile": "একটি ফাইল নির্বাচন করুন",
   "desktop.dialog.saveFile": "ফাইল সংরক্ষণ করুন",

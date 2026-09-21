@@ -15,6 +15,7 @@ import { Plugin } from "../../plugin"
 import type { Hooks } from "@opencode-ai/plugin"
 import { Process } from "@/util/process"
 import { errorMessage } from "@/util/error"
+import { forgetJolliCatalog } from "@/jolli/credential"
 import { text } from "node:stream/consumers"
 import { Effect, Option } from "effect"
 
@@ -529,6 +530,8 @@ export const ProvidersLogoutCommand = effectCmd({
         )
     if (!provider) return yield* fail(`Unknown configured provider "${args.provider}"`)
     yield* Effect.orDie(authSvc.remove(provider))
+    // The student's cached course catalogue belongs to the credential — see `forgetJolliCatalog`.
+    yield* forgetJolliCatalog(provider)
     yield* Prompt.outro("Logout successful")
   }),
 })

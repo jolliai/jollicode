@@ -407,6 +407,16 @@ export function createPromptSubmit(input: PromptSubmitInput) {
           agent: currentAgent.name,
           model: { id: currentModel.id, providerID: currentModel.provider.id, variant },
           location: { directory: sessionDirectory },
+          /**
+           * ⚠ THE BINDING IS WRITTEN AS THE SESSION IS CREATED, NOT PATCHED ON AFTERWARDS. Which
+           * course a session belongs to decides which models may run in it and who may read it, so
+           * a window where the session exists without one is a window where those questions have no
+           * answer. Creating it atomically also means the server can refuse to change it later
+           * without having to allow one write first.
+           */
+          ...(courseSession.current()
+            ? { metadata: { jolli: courseSession.current() as unknown as Record<string, unknown> } }
+            : {}),
         })
         .then(normalizeSessionInfo)
         .catch((err) => {

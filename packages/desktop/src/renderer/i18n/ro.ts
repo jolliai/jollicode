@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "Repornește",
 
   "desktop.jolli.signIn.title": "Conectați-vă la Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Contul dvs. de școală stabilește ce modele și asistenți de curs puteți folosi. La conectare se deschide browserul.",
+  "desktop.jolli.signIn.body": "Conectarea vă deschide browserul.",
   "desktop.jolli.signIn.action": "Conectare cu Jolli",
   "desktop.jolli.signIn.waiting": "Se așteaptă browserul…",
   "desktop.jolli.signIn.hint": "Finalizați conectarea în fila de browser care tocmai s-a deschis, apoi reveniți aici.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "V-ați conectat, dar Jolli Code nu a putut reporni serverul local. Reporniți aplicația pentru a finaliza.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Niciun curs Jolli Code",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Niciunul dintre cursurile dvs. nu folosește încă Jolli Code. După ce profesorul configurează unul, verificați din nou.",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli nu poate fi contactat",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code nu a putut încărca cursurile dvs. Verificați conexiunea și încercați din nou.",
+  "desktop.jolli.courseGate.retry": "Verificați din nou",
+  "desktop.jolli.courseGate.switchAccount": "Folosiți alt cont",
   "desktop.dialog.chooseFolder": "Alege un folder",
   "desktop.dialog.chooseFile": "Alege un fișier",
   "desktop.dialog.saveFile": "Salvează fișierul",

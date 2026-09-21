@@ -1,6 +1,22 @@
-import { describe, expect, test } from "bun:test"
-import { coachTurn, STANDARD_RUBRIC, type CoachTurnInput } from "./coaching"
+import { beforeEach, describe, expect, test } from "bun:test"
+import { Jolli } from "@opencode-ai/schema/jolli"
+import { coachTurn, type CoachTurnInput } from "./coaching"
+import { ModelTiers } from "./model-tier"
 import type { Assistant, CoachingRubric } from "./types"
+
+/**
+ * ⚠ THE TIERS ARE DECLARED HERE RATHER THAN LOOKED UP, because they are the gateway's answer now.
+ * They used to come from a local `MODEL_CATALOG` keyed by model name; ids are Registry UUIDs in the
+ * real product and this map is what `/jolli/course` supplies. A model left out of it has no tier,
+ * which is the "say nothing about a model nobody classified" case several tests below rely on.
+ */
+beforeEach(() => {
+  ModelTiers.set({
+    "jolli/claude-opus-4-8": "premium",
+    "jolli/gemini-2-5-pro": "premium",
+    "jolli/claude-haiku-4-5": "economy",
+  })
+})
 
 function assistant(
   input: {
@@ -23,7 +39,7 @@ function assistant(
       showCitations: true,
       weeklyTokenCap: 0,
     },
-    coaching: { ...STANDARD_RUBRIC, ...input.coaching },
+    coaching: { ...Jolli.STANDARD_RUBRIC, ...input.coaching },
     skills: [],
     status: "live",
   }
@@ -156,9 +172,7 @@ describe("coachTurn — what it ran on", () => {
    * and missed the other four premium Gemini `*-pro` models; the catalogue tier catches them all.
    */
   test("a premium pro model on a few lines with nothing changed is heavy", () => {
-    expect(ids(coachTurn(turn({ modelId: "jolli/gemini-2-5-pro", answerWords: 20 })))).toEqual([
-      "premium-short-answer",
-    ])
+    expect(ids(coachTurn(turn({ modelId: "jolli/gemini-2-5-pro", answerWords: 20 })))).toEqual(["premium-short-answer"])
   })
 })
 

@@ -5,12 +5,22 @@ export const dict = {
   "desktop.menu.restart": "Ponovno pokreni",
 
   "desktop.jolli.signIn.title": "Prijava u Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Vaš školski račun određuje koje modele i asistente za kolegije možete koristiti. Prijava otvara vaš preglednik.",
+  "desktop.jolli.signIn.body": "Prijava otvara vaš preglednik.",
   "desktop.jolli.signIn.action": "Prijavite se putem Jolli",
   "desktop.jolli.signIn.waiting": "Čekanje na preglednik…",
   "desktop.jolli.signIn.hint":
     "Dovršite prijavu u kartici preglednika koja se upravo otvorila, a zatim se vratite ovdje.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Prijavljeni ste, ali Jolli Code nije mogao ponovno pokrenuti lokalni poslužitelj. Ponovno pokrenite aplikaciju za dovršetak.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Nema Jolli Code kolegija",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Nijedan vaš kolegij još ne koristi Jolli Code. Kada ga nastavnik postavi, provjerite ponovno.",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli nije dostupan",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code nije mogao učitati vaše kolegije. Provjerite vezu i pokušajte ponovno.",
+  "desktop.jolli.courseGate.retry": "Provjeri ponovno",
+  "desktop.jolli.courseGate.switchAccount": "Koristi drugi račun",
   "desktop.dialog.chooseFolder": "Odaberite mapu",
   "desktop.dialog.chooseFile": "Odaberite datoteku",
   "desktop.dialog.saveFile": "Spremi datoteku",

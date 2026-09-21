@@ -398,4 +398,27 @@ describe("provider HttpApi", () => {
     }),
     { ...projectOptions, init: writeProviderModelsMutationPlugin },
   )
+
+  /**
+   * ⚠ A CREDENTIAL OUTLIVES EVERY PROVIDER BLOCK THAT WOULD CARRY IT, and this field still has to
+   * report it. A provider whose models all resolved away is deleted from the list outright, so
+   * reading `connected` off the surviving blocks alone answers "signed out" to somebody holding a
+   * credential — which is how a signed-in Jolli student was sent back out to a browser sign-in on
+   * every launch, storing the same credential again each time.
+   */
+  it.instance(
+    "counts a held credential whose provider loaded no models",
+    Effect.gen(function* () {
+      const directory = (yield* TestInstance).directory
+      yield* setEnvScoped("OPENCODE_AUTH_CONTENT", JSON.stringify({ "never-loads": { type: "api", key: "jwt" } }))
+
+      const response = yield* request("/provider", { headers: { "x-opencode-directory": directory } })
+      expect(response.status).toBe(200)
+
+      const body = (yield* response.json) as { connected: string[] }
+      expect(providerByID(body, "all", "never-loads")).toBeUndefined()
+      expect(body.connected).toContain("never-loads")
+    }),
+    projectOptions,
+  )
 })

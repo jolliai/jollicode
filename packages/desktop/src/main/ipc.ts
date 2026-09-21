@@ -6,7 +6,13 @@ import type { IpcMainEvent, IpcMainInvokeEvent } from "electron"
 import type { DesktopMenuAction } from "@opencode-ai/app/desktop-menu"
 import { parseDesktopNativeBundle, type DesktopNativeBundle } from "@opencode-ai/app/i18n/desktop-native"
 
-import type { FatalRendererError, ServerReadyData, TitlebarTheme } from "../preload/types"
+import type {
+  CourseGateResult,
+  FatalRendererError,
+  JolliSignInResult,
+  ServerReadyData,
+  TitlebarTheme,
+} from "../preload/types"
 import { runDesktopMenuAction } from "./desktop-menu-actions"
 import { setForceFocus } from "./debug"
 import { assertAttachmentBudget, createPickedFileAuthorizations } from "./attachment-picker"
@@ -40,7 +46,9 @@ type Deps = {
   getDefaultServerUrl: () => Promise<string | null> | string | null
   setDefaultServerUrl: (url: string | null) => Promise<void> | void
   isJolliSignedIn: () => boolean
-  jolliSignIn: () => Promise<void>
+  jolliCourseGate: () => Promise<CourseGateResult>
+  jolliSignOut: () => Promise<void>
+  jolliSignIn: () => Promise<JolliSignInResult>
   isFirstLaunchOnboardingPending: () => Promise<boolean> | boolean
   finishFirstLaunchOnboarding: (createDefaultProject: boolean) => Promise<string | null> | string | null
   isOldLayoutEligible: () => Promise<boolean> | boolean
@@ -72,8 +80,12 @@ export function registerIpcHandlers(deps: Deps) {
     deps.setDefaultServerUrl(url),
   )
   ipcMain.handle("is-jolli-signed-in", () => deps.isJolliSignedIn())
+  ipcMain.handle("jolli-course-gate", () => deps.jolliCourseGate())
+  ipcMain.handle("jolli-sign-out", () => deps.jolliSignOut())
   // Resolves only once the browser has come back, so the renderer can simply await it. Errors
-  // surface as a rejected invoke and the sign-in screen shows them.
+  // surface as a rejected invoke and the sign-in screen shows them; a sign-in that landed on a
+  // sidecar that did not come back resolves instead, with `serverReady: false` for the screen to
+  // act on.
   ipcMain.handle("jolli-sign-in", () => deps.jolliSignIn())
   ipcMain.handle("is-first-launch-onboarding-pending", () => deps.isFirstLaunchOnboardingPending())
   ipcMain.handle("finish-first-launch-onboarding", (_event: IpcMainInvokeEvent, createDefaultProject: boolean) =>

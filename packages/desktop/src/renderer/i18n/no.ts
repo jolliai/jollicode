@@ -5,12 +5,22 @@ export const dict = {
   "desktop.menu.restart": "Start på nytt",
 
   "desktop.jolli.signIn.title": "Logg inn på Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Skolekontoen din avgjør hvilke modeller og emneassistenter du kan bruke. Når du logger inn, åpnes nettleseren din.",
+  "desktop.jolli.signIn.body": "Innlogging åpner nettleseren din.",
   "desktop.jolli.signIn.action": "Logg inn med Jolli",
   "desktop.jolli.signIn.waiting": "Venter på nettleseren din…",
   "desktop.jolli.signIn.hint":
     "Fullfør innloggingen i nettleserfanen som nettopp ble åpnet, og kom deretter tilbake hit.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Du er logget inn, men Jolli Code klarte ikke å starte den lokale serveren på nytt. Start appen på nytt for å fullføre.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Ingen Jolli Code-emner",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Ingen av emnene dine bruker Jolli Code ennå. Når underviseren setter opp ett, sjekk igjen.",
+  "desktop.jolli.courseGate.unreachable.title": "Fikk ikke kontakt med Jolli",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code klarte ikke å laste emnene dine. Sjekk tilkoblingen og prøv igjen.",
+  "desktop.jolli.courseGate.retry": "Sjekk igjen",
+  "desktop.jolli.courseGate.switchAccount": "Bruk en annen konto",
 
   "desktop.dialog.chooseFolder": "Velg en mappe",
   "desktop.dialog.chooseFile": "Velg en fil",

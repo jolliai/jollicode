@@ -5,7 +5,7 @@ import type { Details } from "electron"
 import { getLogger } from "./logging"
 import { getUserShell, loadShellEnv } from "./shell-env"
 import { getStore } from "./store"
-import { jolliGatewayConfig, writeCourseSkills } from "./jolli-gateway"
+import { clearCourseSkills, jolliGatewayConfig } from "./jolli-gateway"
 import { currentSession } from "./jolli-auth"
 import { DEFAULT_SERVER_URL_KEY } from "./store-keys"
 import { Brand } from "@opencode-ai/app/brand"
@@ -13,9 +13,7 @@ import { Brand } from "@opencode-ai/app/brand"
 export type HealthCheck = { wait: Promise<void> }
 
 type SidecarMessage =
-  | { type: "ready" }
-  | { type: "stopped" }
-  | { type: "error"; error: { message: string; stack?: string } }
+  { type: "ready" } | { type: "stopped" } | { type: "error"; error: { message: string; stack?: string } }
 
 export type SidecarListener = { stop: () => Promise<void> }
 
@@ -66,7 +64,7 @@ export async function spawnLocalServer(
   const sidecar = join(dirname(fileURLToPath(import.meta.url)), "sidecar.js")
   const child = utilityProcess.fork(sidecar, [], {
     cwd: process.cwd(),
-    env: createSidecarEnv(),
+    env: await createSidecarEnv(),
     serviceName: SIDECAR_SERVICE_NAME,
     stdio: "pipe",
   })
@@ -213,7 +211,7 @@ export async function checkHealth(url: string, password?: string | null): Promis
   return false
 }
 
-function createSidecarEnv(): Record<string, string> {
+async function createSidecarEnv(): Promise<Record<string, string>> {
   const env = Object.fromEntries(
     Object.entries(process.env).flatMap(([key, value]) => (value === undefined ? [] : [[key, String(value)]])),
   )
@@ -240,6 +238,15 @@ function createSidecarEnv(): Record<string, string> {
     "MODELS_URL",
     "MODELS_PATH",
     "PLUGIN_META_FILE",
+    /**
+     * ⚠ THE CREDENTIAL KEYS ARE SCRUBBED LIKE ANY OTHER CONFIG SURFACE, AND FOR A SHARPER REASON.
+     * The sidecar reads its Jolli token out of the environment because the desktop keeps it in the
+     * OS keychain rather than in `auth.json`; an inherited `JOLLICODE_JOLLI_TOKEN` from the
+     * student's own shell would therefore be the account the server acts as. Deleting both spellings
+     * first is what makes this process the only writer of them.
+     */
+    "JOLLI_TOKEN",
+    "JOLLI_BASE_URL",
   ]) {
     delete env["JOLLICODE_" + suffix]
     delete env["OPENCODE_" + suffix]
@@ -254,18 +261,16 @@ function createSidecarEnv(): Record<string, string> {
    * a real difference to remember when reviewing (jolli/DEV.md says how to pass it).
    */
   /**
-   * ⚠ THE COURSES' SKILLS ARE WRITTEN BEFORE THE CONFIG THAT POINTS AT THEM, at every launch, so a
-   * skill a professor removed stops being offered rather than lingering as a file. It fails soft: a
-   * disk error costs the session its skills, not its models, so the lockdown above still holds.
+   * ⚠ STALE COURSE SKILLS ARE CLEARED AT EVERY LAUNCH, and nothing writes any. A build that did
+   * write them leaves `SKILL.md` files under `userData` that the server would keep discovering and
+   * offering as slash commands no professor authored. It fails soft: a disk error costs the cleanup,
+   * not the models, so the lockdown above still holds.
    */
-  const skills = (() => {
-    try {
-      return writeCourseSkills(app.getPath("userData"))
-    } catch (error) {
-      getLogger().warn("failed to write course skills", { error: serializeError(error).message })
-      return undefined
-    }
-  })()
+  try {
+    clearCourseSkills(app.getPath("userData"))
+  } catch (error) {
+    getLogger().warn("failed to clear course skills", { error: serializeError(error).message })
+  }
   /**
    * ⚠ THE SIGNED-IN STUDENT IS READ HERE, AT SPAWN, AND NOWHERE ELSE. The sidecar reads this env
    * once when it forks, so a sign-in that happens afterwards does not reach a running server — the
@@ -280,12 +285,22 @@ function createSidecarEnv(): Record<string, string> {
   // surface — sign-in happened in the main process and the token is kept in the OS keychain. Without
   // it the provider resolves with no key, the app still reports as connected, and the first message
   // comes back 401. `jolli-gateway.ts` says why the config content rather than a file on disk.
-  env.JOLLICODE_CONFIG_CONTENT = jolliGatewayConfig({
+  env.JOLLICODE_CONFIG_CONTENT = await jolliGatewayConfig({
     signedIn: !!session,
     ...(session ? { authToken: session.token } : {}),
     ...(session?.baseUrl ? { baseUrl: session.baseUrl } : {}),
-    ...(skills ? { skillsDir: skills } : {}),
   })
+  /**
+   * ⚠ THE CREDENTIAL TRAVELS SEPARATELY FROM THE CONFIG, BECAUSE THE SERVER NEEDS IT FOR MORE THAN
+   * MODEL CALLS. `JOLLICODE_CONFIG_CONTENT` carries it as the provider's key, which is enough to
+   * answer a prompt; but the server also answers `/jolli/course`, and refreshing that catalogue is
+   * an authenticated call to Jolli in its own right. Mining the token back out of the config JSON
+   * would work and would be a trap — `credential.ts` reads these two keys instead.
+   */
+  if (session) {
+    env.JOLLICODE_JOLLI_TOKEN = session.token
+    if (session.baseUrl) env.JOLLICODE_JOLLI_BASE_URL = session.baseUrl
+  }
   return env
 }
 

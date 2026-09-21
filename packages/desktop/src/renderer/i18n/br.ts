@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "Reiniciar",
 
   "desktop.jolli.signIn.title": "Entrar no Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Sua conta da escola determina quais modelos e assistentes de curso você pode usar. Entrar abre seu navegador.",
+  "desktop.jolli.signIn.body": "An enskrivadur a zigor ho merdeer.",
   "desktop.jolli.signIn.action": "Entrar com a Jolli",
   "desktop.jolli.signIn.waiting": "Aguardando seu navegador…",
   "desktop.jolli.signIn.hint": "Conclua o login na aba do navegador que acabou de abrir e volte para cá.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Kevreet oc'h, met n'eus ket bet gallet Jolli Code adloc'hañ e servijer lec'hel. Adloc'hit an arload evit echuiñ.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Kentelioù Jolli Code ebet",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Hini ebet eus ho kentelioù ne implij Jolli Code c'hoazh. Pa vo savet unan gant ho kelenner, gwiriit en-dro.",
+  "desktop.jolli.courseGate.unreachable.title": "N'eus ket bet gallet tizhout Jolli",
+  "desktop.jolli.courseGate.unreachable.body":
+    "N'eus ket bet gallet Jolli Code kargañ ho kentelioù. Gwiriit ho kevreadenn ha klaskit en-dro.",
+  "desktop.jolli.courseGate.retry": "Gwiriañ en-dro",
+  "desktop.jolli.courseGate.switchAccount": "Implijout ur gont all",
 
   "desktop.dialog.chooseFolder": "Escolher uma pasta",
   "desktop.dialog.chooseFile": "Escolher um arquivo",

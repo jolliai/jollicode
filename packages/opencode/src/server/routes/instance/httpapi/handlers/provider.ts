@@ -44,9 +44,10 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
       const all = yield* ModelsDev.Service.use((s) => s.get())
       const disabled = new Set(config.disabled_providers ?? [])
       const enabled = config.enabled_providers ? new Set(config.enabled_providers) : undefined
+      const allowed = (id: string) => (enabled ? enabled.has(id) : true) && !disabled.has(id)
       const filtered: Record<string, (typeof all)[string]> = {}
       for (const [key, value] of Object.entries(all)) {
-        if ((enabled ? enabled.has(key) : true) && !disabled.has(key)) filtered[key] = value
+        if (allowed(key)) filtered[key] = value
       }
       const connected = yield* provider.list()
       const credentials = yield* authStore.all().pipe(Effect.orDie)
@@ -57,7 +58,17 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
       return {
         all: Object.values(providers).map(Provider.toPublicInfo),
         default: Provider.defaultModelIDs(providers),
-        connected: Object.keys(providers).filter((id) => id in connected || credentials[id]),
+        /**
+         * ⚠ A HELD CREDENTIAL COUNTS EVEN WHEN NO PROVIDER BLOCK SURVIVED TO CARRY IT. A provider
+         * that resolves to zero models is deleted outright (`provider/provider.ts`), and that is
+         * exactly what a Jolli sign-in looks like whenever the course catalogue cannot be fetched —
+         * `cli-exchange` on an older backend reports no tenant, and there is no origin to guess. Read
+         * off the surviving blocks alone, this then answers "signed out" to a student who has just
+         * signed in; `dialog-provider.tsx` believes it and sends them back out to a browser sign-in
+         * that stores the same credential again, on every launch. Holding the credential is the
+         * honest answer to the question this field asks.
+         */
+        connected: Array.from(new Set([...Object.keys(connected), ...Object.keys(credentials).filter(allowed)])),
       }
     })
 

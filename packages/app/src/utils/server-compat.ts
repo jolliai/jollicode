@@ -20,8 +20,17 @@ type LegacyClient = OpencodeClient
 type LegacyFor = (directory?: string) => LegacyClient
 type CompatibleSessionApi = Omit<
   SessionApi,
-  "prompt" | "command" | "shell" | "compact" | "rename" | "archive" | "remove"
+  "prompt" | "command" | "shell" | "compact" | "rename" | "archive" | "remove" | "create"
 > & {
+  /**
+   * ⚠ `metadata` IS DECLARED HERE BECAUSE V2's INPUT TYPE DOES NOT CARRY IT, and leaving that
+   * mismatch implicit is how it got lost once already: an object spread (`...(x ? {metadata} : {})`)
+   * satisfies excess-property checking, so a caller passing it type-checked cleanly while the shim
+   * below quietly dropped the field. Naming it makes both halves fail loudly instead.
+   */
+  create: (
+    input?: Parameters<SessionApi["create"]>[0] & { metadata?: Record<string, unknown> },
+  ) => ReturnType<SessionApi["create"]>
   prompt: (input: SessionPromptInput & LegacyPrompt) => Promise<SessionPromptOutput>
   command: (input: SessionCommandInput) => Promise<SessionCommandOutput>
   shell: (input: SessionShellInput & LegacyPrompt) => Promise<SessionShellOutput>
@@ -160,9 +169,17 @@ function createV1Api(input: CompatibleInput): CompatibleApi {
         })
         return { data: (result.data ?? []).map(sessionInfo), cursor: {} }
       },
-      async create(value?: Parameters<ServerApi["session"]["create"]>[0]) {
+      async create(value?: Parameters<CompatibleSessionApi["create"]>[0]) {
         const result = await legacy(value?.location ?? undefined).session.create({
           directory: directory(value?.location ?? undefined),
+          /**
+           * ⚠ `metadata` HAS TO BE FORWARDED, AND FORGETTING IT FAILS SILENTLY. The desktop always
+           * negotiates v1, so every `session.create` goes through this shim; a field dropped here
+           * is a field the server never hears about, with no error anywhere. Jolli's course
+           * binding travels this way and must exist from the session's first moment — that is what
+           * lets the server refuse to change it later.
+           */
+          ...(value?.metadata ? { metadata: value.metadata } : {}),
         })
         if (!result.data) throw new Error("Failed to create session")
         return sessionInfo(result.data)

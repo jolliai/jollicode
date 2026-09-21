@@ -5,11 +5,21 @@ export const dict: Record<string, string> = {
   "desktop.menu.restart": "යළි අරඹන්න",
 
   "desktop.jolli.signIn.title": "Jolli Code වෙත පුරනය වන්න",
-  "desktop.jolli.signIn.body":
-    "ඔබට භාවිත කළ හැකි ආකෘති සහ පාඨමාලා සහායකයන් තීරණය වන්නේ ඔබේ පාසල් ගිණුම අනුවයි. පුරනය වන විට ඔබේ බ්‍රව්සරය විවෘත වේ.",
+  "desktop.jolli.signIn.body": "පුරනය වන විට ඔබේ බ්‍රව්සරය විවෘත වේ.",
   "desktop.jolli.signIn.action": "Jolli සමඟ පුරනය වන්න",
   "desktop.jolli.signIn.waiting": "ඔබේ බ්‍රව්සරය එනතුරු බලා සිටී…",
   "desktop.jolli.signIn.hint": "දැන් විවෘත වූ බ්‍රව්සර ටැබය තුළ පුරනය සම්පූර්ණ කර, නැවත මෙහි එන්න.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "ඔබ පුරනය වී ඇත, නමුත් Jolli Code හට එහි ස්ථානීය සේවාදායකය නැවත ආරම්භ කළ නොහැකි විය. සම්පූර්ණ කිරීමට යෙදුම නැවත ආරම්භ කරන්න.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Jolli Code පාඨමාලා නැත",
+  "desktop.jolli.courseGate.noCourses.body":
+    "ඔබේ කිසිදු පාඨමාලාවක් තවම Jolli Code භාවිත නොකරයි. ඔබේ කථිකාචාර්යවරයා එකක් සකසූ පසු, නැවත පරීක්ෂා කරන්න.",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli වෙත ළඟා විය නොහැකි විය",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code හට ඔබේ පාඨමාලා පූරණය කළ නොහැකි විය. සම්බන්ධතාවය පරීක්ෂා කර නැවත උත්සාහ කරන්න.",
+  "desktop.jolli.courseGate.retry": "නැවත පරීක්ෂා කරන්න",
+  "desktop.jolli.courseGate.switchAccount": "වෙනත් ගිණුමක් භාවිත කරන්න",
   "desktop.dialog.chooseFolder": "ෆෝල්ඩරයක් තෝරන්න",
   "desktop.dialog.chooseFile": "ගොනුවක් තෝරන්න",
   "desktop.dialog.saveFile": "ගොනුව සුරකින්න",

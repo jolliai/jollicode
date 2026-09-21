@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "Restart",
 
   "desktop.jolli.signIn.title": "Sign in to Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Your school account decides which models and course assistants you can use. Signing in opens your browser.",
+  "desktop.jolli.signIn.body": "Signing in opens your browser.",
   "desktop.jolli.signIn.action": "Sign in with Jolli",
   "desktop.jolli.signIn.waiting": "Waiting for your browser\u2026",
   "desktop.jolli.signIn.hint": "Finish signing in in the browser tab that just opened, then come back here.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "You're signed in, but Jolli Code couldn't restart its local server. Restart the app to finish.",
+
+  "desktop.jolli.courseGate.noCourses.title": "No Jolli Code courses",
+  "desktop.jolli.courseGate.noCourses.body":
+    "None of your courses use Jolli Code yet. Once your instructor sets one up, check again.",
+  "desktop.jolli.courseGate.unreachable.title": "Couldn't reach Jolli",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code couldn't load your courses. Check your connection, then try again.",
+  "desktop.jolli.courseGate.retry": "Check again",
+  "desktop.jolli.courseGate.switchAccount": "Use a different account",
 
   "desktop.dialog.chooseFolder": "Choose a folder",
   "desktop.dialog.chooseFile": "Choose a file",

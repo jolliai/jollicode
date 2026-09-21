@@ -6,6 +6,7 @@ import { useEvent } from "./event"
 import path from "path"
 import { useTuiPaths } from "./runtime"
 import { useArgs } from "./args"
+import { ModelGrant, parseModelKey } from "./jolli"
 import { useSDK } from "./sdk"
 import { RGBA } from "@opentui/core"
 import { readJson, writeJsonAtomic } from "../util/persistence"
@@ -61,9 +62,17 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const event = useEvent()
     const permission = usePermission()
 
+    /**
+     * ⚠ VALIDITY NOW INCLUDES THE COURSE GRANT, and that is the only fork change in this function.
+     * Without it a model the assistant does not allow can still be resolved from `--model`, from a
+     * saved recent or from the config default: the picker would not offer it and the prompt would
+     * run on it anyway. An assistant with an empty grant — or no course at all — allows everything,
+     * so a bare opencode session is unaffected. See `ModelGrant` for why this crosses as a signal.
+     */
     function isModelValid(model: { providerID: string; modelID: string }) {
       const provider = sync.data.provider.find((item) => item.id === model.providerID)
-      return !!provider?.models[model.modelID]
+      if (!provider?.models[model.modelID]) return false
+      return ModelGrant.isAllowed(model.providerID, model.modelID)
     }
 
     function getFirstValidModel(...modelFns: (() => { providerID: string; modelID: string } | undefined)[]) {
@@ -205,6 +214,16 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           }
         }
 
+        /**
+         * ⚠ THE PROFESSOR'S MODEL COMES BEFORE THE CONFIG DEFAULT AND THE RECENT LIST, and after an
+         * explicit `--model`. A course that pinned one model starts every session there. It still
+         * goes through `isModelValid`, so an assistant whose own default is missing from its own
+         * grant — nothing on the gateway enforces that they agree — is rejected here and the scan
+         * at the bottom finds what the course did allow.
+         */
+        const preferred = parseModelKey(ModelGrant.preferred())
+        if (preferred && isModelValid(preferred)) return preferred
+
         if (sync.data.config.model) {
           const { providerID, modelID } = parseModel(sync.data.config.model)
           if (isModelValid({ providerID, modelID })) {
@@ -221,16 +240,20 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           }
         }
 
-        const provider = sync.data.provider[0]
-        if (!provider) return undefined
-        const defaultModel = sync.data.provider_default[provider.id]
-        const firstModel = Object.values(provider.models)[0]
-        const model = defaultModel ?? firstModel?.id
-        if (!model) return undefined
-        return {
-          providerID: provider.id,
-          modelID: model,
-        }
+        /**
+         * ⚠ EVERY MODEL OF EVERY PROVIDER, WHERE THIS USED TO TAKE THE FIRST OF THE FIRST. Under a
+         * course grant the leading model is usually not one the assistant allows, and stopping
+         * there left the prompt with no model at all on a session that had several to choose from.
+         * With no grant in force the first candidate is still the first provider's default, so
+         * nothing changes for a session that has no course.
+         */
+        return sync.data.provider
+          .flatMap((provider) => {
+            const configured = sync.data.provider_default[provider.id]
+            const ids = configured ? [configured, ...Object.keys(provider.models)] : Object.keys(provider.models)
+            return ids.map((modelID) => ({ providerID: provider.id, modelID }))
+          })
+          .find(isModelValid)
       })
 
       const currentModel = createMemo(() => {

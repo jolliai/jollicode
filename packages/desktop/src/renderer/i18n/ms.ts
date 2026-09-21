@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "Mulakan Semula",
 
   "desktop.jolli.signIn.title": "Log masuk ke Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Akaun sekolah anda menentukan model dan pembantu kursus yang boleh anda gunakan. Log masuk akan membuka pelayar anda.",
+  "desktop.jolli.signIn.body": "Log masuk akan membuka pelayar anda.",
   "desktop.jolli.signIn.action": "Log masuk dengan Jolli",
   "desktop.jolli.signIn.waiting": "Menunggu pelayar anda…",
   "desktop.jolli.signIn.hint": "Selesaikan log masuk dalam tab pelayar yang baru dibuka, kemudian kembali ke sini.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Anda telah log masuk, tetapi Jolli Code tidak dapat memulakan semula pelayan setempatnya. Mulakan semula aplikasi untuk selesai.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Tiada kursus Jolli Code",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Tiada kursus anda yang menggunakan Jolli Code lagi. Setelah pensyarah anda menyediakannya, semak semula.",
+  "desktop.jolli.courseGate.unreachable.title": "Tidak dapat menghubungi Jolli",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code tidak dapat memuatkan kursus anda. Semak sambungan anda, kemudian cuba lagi.",
+  "desktop.jolli.courseGate.retry": "Semak semula",
+  "desktop.jolli.courseGate.switchAccount": "Guna akaun lain",
   "desktop.dialog.chooseFolder": "Pilih folder",
   "desktop.dialog.chooseFile": "Pilih fail",
   "desktop.dialog.saveFile": "Simpan fail",

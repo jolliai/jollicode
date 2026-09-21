@@ -1,12 +1,23 @@
 import { describe, expect, test } from "bun:test"
-import { ASSISTANTS } from "./fixtures"
 import { groupSlashCommands, OTHER_SLASH_GROUP } from "./slash-groups"
 
 const custom = (trigger: string) => ({ trigger, type: "custom" as const })
 const builtin = (trigger: string) => ({ trigger, type: "builtin" as const })
 
-const coder = ASSISTANTS.find((assistant) => assistant.id === "cs-310-code")!
-const desk = ASSISTANTS.find((assistant) => assistant.skills.length === 0)!
+/**
+ * ⚠ DECLARED HERE RATHER THAN READ OFF THE PRODUCT'S DATA, which is what this used to do back when
+ * a fixtures file existed. Courses now come from the gateway, and a test that reaches for whatever
+ * the product happens to contain is a test that changes meaning when a professor edits a course.
+ *
+ * ⚠ THE GATEWAY SERVES NO SKILLS TODAY, so `coder` is a shape this grouping supports rather than
+ * one it currently meets. The behaviour is kept — and kept tested — because the field exists and
+ * the server is expected to fill it.
+ */
+const coder = {
+  name: "Pair programmer",
+  skills: [{ skillId: "read-the-error" }, { skillId: "plan-the-change" }],
+}
+const desk = { name: "Help desk", skills: [] }
 
 describe("groupSlashCommands", () => {
   test("lifts the assistant's own procedures above everything else", () => {

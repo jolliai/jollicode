@@ -5,11 +5,20 @@ export const dict = {
   "desktop.menu.restart": "ຣີສະຕາດ",
 
   "desktop.jolli.signIn.title": "ເຂົ້າສູ່ລະບົບ Jolli Code",
-  "desktop.jolli.signIn.body":
-    "ບັນຊີໂຮງຮຽນຂອງທ່ານເປັນຕົວກຳນົດວ່າທ່ານສາມາດໃຊ້ໂມເດວ ແລະ ຜູ້ຊ່ວຍວິຊາໃດໄດ້ແດ່. ການເຂົ້າສູ່ລະບົບຈະເປີດເບຣົາເຊີຂອງທ່ານ.",
+  "desktop.jolli.signIn.body": "ເມື່ອເຂົ້າສູ່ລະບົບ ບຣາວເຊີຂອງທ່ານຈະເປີດຂຶ້ນ.",
   "desktop.jolli.signIn.action": "ເຂົ້າສູ່ລະບົບດ້ວຍ Jolli",
   "desktop.jolli.signIn.waiting": "ກຳລັງລໍຖ້າເບຣົາເຊີຂອງທ່ານ…",
   "desktop.jolli.signIn.hint": "ເຮັດການເຂົ້າສູ່ລະບົບໃຫ້ສຳເລັດໃນແທັບເບຣົາເຊີທີ່ຫາກໍເປີດ ແລ້ວກັບມາທີ່ນີ້.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "ທ່ານເຂົ້າສູ່ລະບົບແລ້ວ ແຕ່ Jolli Code ບໍ່ສາມາດເລີ່ມເຊີບເວີໃນເຄື່ອງຄືນໃໝ່ໄດ້. ກະລຸນາເລີ່ມແອັບຄືນໃໝ່ເພື່ອໃຫ້ສຳເລັດ.",
+
+  "desktop.jolli.courseGate.noCourses.title": "ບໍ່ມີວິຊາ Jolli Code",
+  "desktop.jolli.courseGate.noCourses.body":
+    "ຍັງບໍ່ມີວິຊາໃດຂອງທ່ານທີ່ໃຊ້ Jolli Code. ເມື່ອອາຈານຕັ້ງຄ່າແລ້ວ ໃຫ້ກວດອີກຄັ້ງ.",
+  "desktop.jolli.courseGate.unreachable.title": "ຕິດຕໍ່ Jolli ບໍ່ໄດ້",
+  "desktop.jolli.courseGate.unreachable.body": "Jolli Code ບໍ່ສາມາດໂຫຼດວິຊາຂອງທ່ານໄດ້. ກວດການເຊື່ອມຕໍ່ແລ້ວລອງໃໝ່.",
+  "desktop.jolli.courseGate.retry": "ກວດອີກຄັ້ງ",
+  "desktop.jolli.courseGate.switchAccount": "ໃຊ້ບັນຊີອື່ນ",
   "desktop.dialog.chooseFolder": "ເລືອກໂຟນເດີ",
   "desktop.dialog.chooseFile": "ເລືອກໄຟລ໌",
   "desktop.dialog.saveFile": "ບັນທຶກໄຟລ໌",

@@ -22,7 +22,7 @@
  * config can step over, and the tests in `test/config/jolli-lockdown.test.ts` pin it that way.
  */
 import { Brand } from "../brand"
-import { parseJolliUrl } from "./origin"
+import { isJolliOriginAllowed, parseJolliUrl } from "./origin"
 
 /** The provider id, the XDG directory segment and the auth.json key are all this one slug. */
 const PROVIDER_ID = Brand.short
@@ -167,11 +167,31 @@ function providerBlock(input: JolliConfigInput) {
  * which nothing serves. A tenant is the app, and there the gateway does live under `/api` with the
  * slug in a header. A pinned `gatewayUrl` also keeps any path it carries, which `parseJolliUrl`
  * would otherwise drop.
+ *
+ * ⚠ A PINNED GATEWAY REPLACES THE TENANT RATHER THAN JOINING IT, SO THE TWO CANNOT BOTH BE
+ * EXPRESSED. Nothing is derived from a gateway root — it is an endpoint, not a tenant — which means
+ * the `x-tenant-slug` a path-based deployment (`https://host/<slug>`) would otherwise carry is
+ * absent whenever one is pinned. Harmless for what pinning is for, a demo build aimed at a fixture
+ * or a single-tenant host; a build aimed at a multi-tenant PATH deployment would reach the gateway
+ * unidentified, and must leave `JOLLICODE_GATEWAY_URL` unset and let the signed-in tenant decide.
  */
 function gatewayOptions(input: JolliConfigInput) {
+  /**
+   * ⚠ A BUILD-TIME PIN IS NOT ALLOWLISTED AND A STORED TENANT IS, WHICH IS THE ONE ASYMMETRY HERE.
+   * `gatewayUrl` is compiled into the binary by whoever built it — a demo build aimed at a local
+   * fixture is the whole point of it, and an allowlist would forbid exactly that. `baseUrl` arrives
+   * from the credential store or the environment at runtime, which is a different kind of value.
+   */
   if (input.gatewayUrl) return { baseURL: input.gatewayUrl }
-  // A stored tenant is only as good as whatever wrote it: garbage must fail here, not reach the SDK.
-  if (!input.baseUrl || !URL.canParse(input.baseUrl)) return { baseURL: Brand.gatewayUrl }
+  /**
+   * ⚠ THE SAME ALLOWLIST THE CATALOGUE FETCH APPLIES, FOR A SHARPER REASON. `gatewayRequest` in
+   * `api.ts` re-checks a stored tenant before sending the student's token to it, and this value is
+   * held to that too: it becomes the LLM provider's `baseURL`, and on the desktop the JWT travels
+   * beside it as `options.apiKey`. Refusing an origin for the catalogue while handing it the same
+   * credential on every model call would be the wrong half to guard. Falling back to the default
+   * gateway keeps a garbled value from reaching the SDK at all.
+   */
+  if (!input.baseUrl || !isJolliOriginAllowed(input.baseUrl)) return { baseURL: Brand.gatewayUrl }
   const tenant = parseJolliUrl(input.baseUrl)
   return {
     baseURL: `${tenant.origin}/api`,

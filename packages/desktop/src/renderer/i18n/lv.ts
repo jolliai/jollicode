@@ -5,12 +5,22 @@ export const dict = {
   "desktop.menu.restart": "Restartēt",
 
   "desktop.jolli.signIn.title": "Pierakstīties Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Jūsu skolas konts nosaka, kurus modeļus un kursu asistentus varat izmantot. Pierakstoties tiks atvērta jūsu pārlūkprogramma.",
+  "desktop.jolli.signIn.body": "Pieteikšanās atver jūsu pārlūkprogrammu.",
   "desktop.jolli.signIn.action": "Pierakstīties ar Jolli",
   "desktop.jolli.signIn.waiting": "Gaida jūsu pārlūkprogrammu…",
   "desktop.jolli.signIn.hint":
     "Pabeidziet pierakstīšanos tikko atvērtajā pārlūkprogrammas cilnē un pēc tam atgriezieties šeit.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Jūs esat pieteicies, bet Jolli Code nevarēja restartēt savu lokālo serveri. Restartējiet lietotni, lai pabeigtu.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Nav Jolli Code kursu",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Neviens no jūsu kursiem vēl neizmanto Jolli Code. Kad pasniedzējs to iestatīs, pārbaudiet vēlreiz.",
+  "desktop.jolli.courseGate.unreachable.title": "Nevarēja sasniegt Jolli",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code nevarēja ielādēt jūsu kursus. Pārbaudiet savienojumu un mēģiniet vēlreiz.",
+  "desktop.jolli.courseGate.retry": "Pārbaudīt vēlreiz",
+  "desktop.jolli.courseGate.switchAccount": "Izmantot citu kontu",
   "desktop.dialog.chooseFolder": "Izvēlieties mapi",
   "desktop.dialog.chooseFile": "Izvēlieties failu",
   "desktop.dialog.saveFile": "Saglabāt failu",

@@ -5,6 +5,12 @@
  * professor picks a policy there and the student meets it here, so the two surfaces must give the
  * same answer and, where they say it out loud, say it the same way.
  *
+ * ⚠ IT SITS IN CORE RATHER THAN IN A RENDERER BECAUSE BOTH RENDERERS SEED A BINDING NOW. The
+ * desktop app offers the visibility switches and the TUI does not, but both have to write the
+ * SAME starting value into a new session's metadata — a session whose readers depend on which
+ * client created it would be a disclosure rule decided by accident. Only `defaultSessionSharing`
+ * is on the TUI's path today; the rest is here so the answer stays in one file when it is not.
+ *
  * ⚠ ONE ADAPTATION, MADE DELIBERATELY: the web product calls a thread a **chat** and its
  * terminology canon forbids "session" for one. This product calls it a **session**, which is how a
  * student tells the two apart — the same way Claude distinguishes a Chat from a Code session.
@@ -22,13 +28,13 @@
  * relabelling every row of it — three sentences kept in sync with a table nothing here reads.
  */
 
-import type { Assistant, ChatSharing, Course, SessionSharing } from "./types"
+import { Jolli } from "@opencode-ai/schema/jolli"
 
 /**
  * HOW MUCH EACH POLICY WITHHOLDS, USED ONLY TO RESOLVE A CONFLICT. Not exported: nothing outside
  * this file should be ranking policies, because "stricter" is not a question any screen asks.
  */
-const STRICTNESS: Record<ChatSharing, number> = {
+const STRICTNESS: Record<Jolli.ChatSharing, number> = {
   private: 0,
   staff: 1,
   "staff-required": 2,
@@ -49,8 +55,11 @@ const STRICTNESS: Record<ChatSharing, number> = {
  * The web product runs several assistants in one chat, and keeping the shapes aligned is worth more
  * than the two characters saved by narrowing it here.
  */
-export function effectiveSharing(course: Course | undefined, assistants: Assistant[] = []): ChatSharing | undefined {
-  const overrides = assistants.map((a) => a.chatSharing).filter((p): p is ChatSharing => !!p)
+export function effectiveSharing(
+  course: Jolli.Course | undefined,
+  assistants: Jolli.Assistant[] = [],
+): Jolli.ChatSharing | undefined {
+  const overrides = assistants.map((a) => a.chatSharing).filter((p): p is Jolli.ChatSharing => !!p)
   if (overrides.length === 0) return course?.chatSharing
   return overrides.reduce((a, b) => (STRICTNESS[b] > STRICTNESS[a] ? b : a))
 }
@@ -63,7 +72,10 @@ export function effectiveSharing(course: Course | undefined, assistants: Assista
  * arrived pre-shared with two hundred classmates would be a disclosure the student never made.
  * Sharing with the class is an act, and it happens in the composer.
  */
-export function defaultSessionSharing(course: Course | undefined, assistants: Assistant[] = []): SessionSharing {
+export function defaultSessionSharing(
+  course: Jolli.Course | undefined,
+  assistants: Jolli.Assistant[] = [],
+): Jolli.SessionSharing {
   const policy = effectiveSharing(course, assistants)
   return { staff: policy === "staff" || policy === "staff-required", everyone: false }
 }
@@ -79,7 +91,7 @@ export function defaultSessionSharing(course: Course | undefined, assistants: As
  * verbatim from the web mock, where a session that was private before the course switched to
  * `staff-required` stays private and the student may still hand it over.
  */
-export function mayMakePrivate(course: Course | undefined, assistants: Assistant[] = []): boolean {
+export function mayMakePrivate(course: Jolli.Course | undefined, assistants: Jolli.Assistant[] = []): boolean {
   return effectiveSharing(course, assistants) !== "staff-required"
 }
 
@@ -95,7 +107,7 @@ export function mayMakePrivate(course: Course | undefined, assistants: Assistant
  * to others" is the wrong resolution: a student who has shared with their class and reads "shared"
  * has to open the control to find out with whom.
  */
-export function sharingSummary(sharing: SessionSharing | undefined, course: Course | undefined): string {
+export function sharingSummary(sharing: Jolli.SessionSharing | undefined, course: Jolli.Course | undefined): string {
   if (!sharing) return "Who can read this session"
   const where = course ? course.code : "this course"
   if (sharing.everyone && sharing.staff) return `Everyone in ${where} can read this, staff included`

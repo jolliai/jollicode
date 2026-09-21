@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "Endurræsa",
 
   "desktop.jolli.signIn.title": "Skrá inn í Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Skólareikningurinn þinn ræður hvaða líkön og námskeiðsaðstoðarmenn þú getur notað. Þegar þú skráir þig inn opnast vafrinn þinn.",
+  "desktop.jolli.signIn.body": "Innskráning opnar vafrann þinn.",
   "desktop.jolli.signIn.action": "Skrá inn með Jolli",
   "desktop.jolli.signIn.waiting": "Bíð eftir vafranum…",
   "desktop.jolli.signIn.hint": "Ljúktu innskráningunni í vafraflipanum sem var að opnast og komdu svo aftur hingað.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Þú ert skráður inn, en Jolli Code gat ekki endurræst staðbundna þjóninn. Endurræstu forritið til að ljúka.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Engin Jolli Code námskeið",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Ekkert námskeiða þinna notar Jolli Code enn. Þegar kennarinn setur eitt upp, athugaðu aftur.",
+  "desktop.jolli.courseGate.unreachable.title": "Náði ekki sambandi við Jolli",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code gat ekki hlaðið námskeiðunum þínum. Athugaðu tenginguna og reyndu aftur.",
+  "desktop.jolli.courseGate.retry": "Athuga aftur",
+  "desktop.jolli.courseGate.switchAccount": "Nota annan reikning",
   "desktop.dialog.chooseFolder": "Veldu möppu",
   "desktop.dialog.chooseFile": "Veldu skrá",
   "desktop.dialog.saveFile": "Vista skrá",

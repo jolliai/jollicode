@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "راه اندازی مجدد",
 
   "desktop.jolli.signIn.title": "ورود به Jolli Code",
-  "desktop.jolli.signIn.body":
-    "حساب مدرسه‌ی شما تعیین می‌کند از چه مدل‌ها و دستیارهای درسی می‌توانید استفاده کنید. با ورود، مرورگر شما باز می‌شود.",
+  "desktop.jolli.signIn.body": "با ورود، مرورگر شما باز می‌شود.",
   "desktop.jolli.signIn.action": "ورود با Jolli",
   "desktop.jolli.signIn.waiting": "در انتظار مرورگر شما…",
   "desktop.jolli.signIn.hint": "ورود را در زبانه‌ی مرورگری که همین حالا باز شد کامل کنید و سپس به اینجا بازگردید.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "وارد شده‌اید، اما Jolli Code نتوانست سرور محلی خود را دوباره راه‌اندازی کند. برای تکمیل، برنامه را دوباره اجرا کنید.",
+
+  "desktop.jolli.courseGate.noCourses.title": "هیچ درس Jolli Code وجود ندارد",
+  "desktop.jolli.courseGate.noCourses.body":
+    "هنوز هیچ‌یک از درس‌های شما از Jolli Code استفاده نمی‌کند. وقتی استادتان یکی را تنظیم کرد، دوباره بررسی کنید.",
+  "desktop.jolli.courseGate.unreachable.title": "دسترسی به Jolli ممکن نشد",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code نتوانست درس‌های شما را بارگیری کند. اتصال خود را بررسی کنید و دوباره تلاش کنید.",
+  "desktop.jolli.courseGate.retry": "بررسی دوباره",
+  "desktop.jolli.courseGate.switchAccount": "استفاده از حساب دیگر",
   "desktop.dialog.chooseFolder": "یک پوشه را انتخاب کنید",
   "desktop.dialog.chooseFile": "یک فایل را انتخاب کنید",
   "desktop.dialog.saveFile": "ذخیره فایل",

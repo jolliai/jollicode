@@ -5,12 +5,22 @@ export const dict = {
   "desktop.menu.restart": "Reinicia",
 
   "desktop.jolli.signIn.title": "Inicia la sessió a Jolli Code",
-  "desktop.jolli.signIn.body":
-    "El teu compte escolar determina quins models i assistents de curs pots utilitzar. En iniciar la sessió s'obrirà el navegador.",
+  "desktop.jolli.signIn.body": "En iniciar la sessió s'obrirà el navegador.",
   "desktop.jolli.signIn.action": "Inicia la sessió amb Jolli",
   "desktop.jolli.signIn.waiting": "S'està esperant el navegador…",
   "desktop.jolli.signIn.hint":
     "Acaba d'iniciar la sessió a la pestanya del navegador que s'acaba d'obrir i torna aquí.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Heu iniciat la sessió, però Jolli Code no ha pogut reiniciar el seu servidor local. Reinicieu l'aplicació per acabar.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Cap curs de Jolli Code",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Cap dels vostres cursos fa servir encara Jolli Code. Quan el vostre professor en configuri un, torneu-ho a comprovar.",
+  "desktop.jolli.courseGate.unreachable.title": "No s'ha pogut connectar amb Jolli",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code no ha pogut carregar els vostres cursos. Comproveu la connexió i torneu-ho a provar.",
+  "desktop.jolli.courseGate.retry": "Torna-ho a comprovar",
+  "desktop.jolli.courseGate.switchAccount": "Utilitza un altre compte",
   "desktop.dialog.chooseFolder": "Trieu una carpeta",
   "desktop.dialog.chooseFile": "Trieu un fitxer",
   "desktop.dialog.saveFile": "Desa el fitxer",

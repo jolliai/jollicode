@@ -5,12 +5,22 @@ export const dict = {
   "desktop.menu.restart": "ပြန်လည်စတင်ပါ။",
 
   "desktop.jolli.signIn.title": "Jolli Code သို့ ဝင်ရောက်ရန်",
-  "desktop.jolli.signIn.body":
-    "သင်အသုံးပြုနိုင်သော မော်ဒယ်များနှင့် သင်တန်းလက်ထောက်များကို သင့်ကျောင်းအကောင့်က ဆုံးဖြတ်ပါသည်။ ဝင်ရောက်သည့်အခါ သင့်ဘရောက်ဇာ ပွင့်လာပါမည်။",
+  "desktop.jolli.signIn.body": "ဝင်ရောက်သောအခါ သင့်ဘရောက်ဇာ ပွင့်လာပါမည်။",
   "desktop.jolli.signIn.action": "Jolli ဖြင့် ဝင်ရောက်ရန်",
   "desktop.jolli.signIn.waiting": "သင့်ဘရောက်ဇာကို စောင့်ဆိုင်းနေသည်…",
   "desktop.jolli.signIn.hint":
     "ယခုပွင့်လာသော ဘရောက်ဇာတက်ဘ်တွင် ဝင်ရောက်မှုကို ပြီးမြောက်အောင်လုပ်ပြီး ဤနေရာသို့ ပြန်လာပါ။",
+  "desktop.jolli.signIn.serverUnavailable":
+    "သင်ဝင်ရောက်ပြီးပါပြီ၊ သို့သော် Jolli Code သည် ၎င်း၏ဒေသတွင်းဆာဗာကို ပြန်လည်စတင်၍မရပါ။ ပြီးမြောက်ရန် အက်ပ်ကို ပြန်လည်စတင်ပါ။",
+
+  "desktop.jolli.courseGate.noCourses.title": "Jolli Code သင်တန်းများ မရှိပါ",
+  "desktop.jolli.courseGate.noCourses.body":
+    "သင့်သင်တန်းများထဲမှ မည်သည့်သင်တန်းမျှ Jolli Code ကို မသုံးသေးပါ။ သင့်ဆရာက စီစဉ်ပြီးပါက ထပ်စစ်ဆေးပါ။",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli သို့ မဆက်သွယ်နိုင်ပါ",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code သည် သင့်သင်တန်းများကို ဖွင့်၍မရပါ။ ချိတ်ဆက်မှုကို စစ်ဆေးပြီး ထပ်ကြိုးစားပါ။",
+  "desktop.jolli.courseGate.retry": "ထပ်စစ်ဆေးပါ",
+  "desktop.jolli.courseGate.switchAccount": "အခြားအကောင့် သုံးပါ",
   "desktop.dialog.chooseFolder": "ဖိုင်တွဲတစ်ခုကို ရွေးပါ။",
   "desktop.dialog.chooseFile": "ဖိုင်တစ်ခုကို ရွေးပါ။",
   "desktop.dialog.saveFile": "ဖိုင်ကို သိမ်းဆည်းပါ။",

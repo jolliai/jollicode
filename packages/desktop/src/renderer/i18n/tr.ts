@@ -5,12 +5,22 @@ export const dict = {
   "desktop.menu.restart": "Yeniden başlat",
 
   "desktop.jolli.signIn.title": "Jolli Code'da oturum aç",
-  "desktop.jolli.signIn.body":
-    "Hangi modelleri ve ders asistanlarını kullanabileceğinizi okul hesabınız belirler. Oturum açtığınızda tarayıcınız açılır.",
+  "desktop.jolli.signIn.body": "Oturum açtığınızda tarayıcınız açılır.",
   "desktop.jolli.signIn.action": "Jolli ile oturum aç",
   "desktop.jolli.signIn.waiting": "Tarayıcınız bekleniyor…",
   "desktop.jolli.signIn.hint":
     "Az önce açılan tarayıcı sekmesinde oturum açmayı tamamlayın, ardından buraya geri dönün.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Oturum açtınız, ancak Jolli Code yerel sunucusunu yeniden başlatamadı. Tamamlamak için uygulamayı yeniden başlatın.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Jolli Code dersi yok",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Derslerinizin hiçbiri henüz Jolli Code kullanmıyor. Eğitmeniniz bir ders ayarladığında tekrar kontrol edin.",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli'ye ulaşılamadı",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code derslerinizi yükleyemedi. Bağlantınızı kontrol edip tekrar deneyin.",
+  "desktop.jolli.courseGate.retry": "Tekrar kontrol et",
+  "desktop.jolli.courseGate.switchAccount": "Başka bir hesap kullan",
 
   "desktop.dialog.chooseFolder": "Bir klasör seçin",
   "desktop.dialog.chooseFile": "Bir dosya seçin",

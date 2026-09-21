@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "دوبارہ شروع کرو",
 
   "desktop.jolli.signIn.title": "Jolli Code وچ سائن ان کرو",
-  "desktop.jolli.signIn.body":
-    "تُسی کہڑے ماڈل تے کورس اسسٹنٹ ورت سکدے او، ایہہ تہاڈا سکول کھاتہ طے کردا اے۔ سائن ان کرن نال تہاڈا براؤزر کھل جائے گا۔",
+  "desktop.jolli.signIn.body": "ਸਾਈਨ ਇਨ ਕਰਨ 'ਤੇ ਤੁਹਾਡਾ ਬ੍ਰਾਊਜ਼ਰ ਖੁੱਲ੍ਹੇਗਾ।",
   "desktop.jolli.signIn.action": "Jolli نال سائن ان کرو",
   "desktop.jolli.signIn.waiting": "تہاڈے براؤزر دی اڈیک ہو رہی اے…",
   "desktop.jolli.signIn.hint": "ہُنے کھُلے براؤزر ٹیب وچ سائن ان مکمل کرو، تے فیر ایتھے واپس آ جاؤ۔",
+  "desktop.jolli.signIn.serverUnavailable":
+    "ਤੁਸੀਂ ਸਾਈਨ ਇਨ ਹੋ, ਪਰ Jolli Code ਆਪਣਾ ਲੋਕਲ ਸਰਵਰ ਮੁੜ ਚਾਲੂ ਨਹੀਂ ਕਰ ਸਕਿਆ। ਪੂਰਾ ਕਰਨ ਲਈ ਐਪ ਮੁੜ ਚਾਲੂ ਕਰੋ।",
+
+  "desktop.jolli.courseGate.noCourses.title": "ਕੋਈ Jolli Code ਕੋਰਸ ਨਹੀਂ",
+  "desktop.jolli.courseGate.noCourses.body":
+    "ਤੁਹਾਡਾ ਕੋਈ ਵੀ ਕੋਰਸ ਅਜੇ Jolli Code ਨਹੀਂ ਵਰਤਦਾ। ਜਦੋਂ ਤੁਹਾਡੇ ਅਧਿਆਪਕ ਇੱਕ ਸੈੱਟ ਕਰਨ, ਮੁੜ ਜਾਂਚੋ।",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli ਤੱਕ ਨਹੀਂ ਪਹੁੰਚ ਸਕੇ",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code ਤੁਹਾਡੇ ਕੋਰਸ ਲੋਡ ਨਹੀਂ ਕਰ ਸਕਿਆ। ਆਪਣਾ ਕਨੈਕਸ਼ਨ ਜਾਂਚੋ ਅਤੇ ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+  "desktop.jolli.courseGate.retry": "ਮੁੜ ਜਾਂਚੋ",
+  "desktop.jolli.courseGate.switchAccount": "ਹੋਰ ਖਾਤਾ ਵਰਤੋ",
   "desktop.dialog.chooseFolder": "اک فولڈر چنو",
   "desktop.dialog.chooseFile": "اک فائل چنو",
   "desktop.dialog.saveFile": "فائل محفوظ کرو",

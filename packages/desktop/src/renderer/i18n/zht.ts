@@ -5,10 +5,19 @@ export const dict = {
   "desktop.menu.restart": "重新啟動",
 
   "desktop.jolli.signIn.title": "登入 Jolli Code",
-  "desktop.jolli.signIn.body": "你可以使用哪些模型和課程助理由你的學校帳號決定。登入時會開啟瀏覽器。",
+  "desktop.jolli.signIn.body": "登入時會開啟瀏覽器。",
   "desktop.jolli.signIn.action": "使用 Jolli 登入",
   "desktop.jolli.signIn.waiting": "正在等待瀏覽器…",
   "desktop.jolli.signIn.hint": "在剛剛開啟的瀏覽器分頁中完成登入，然後回到這裡。",
+  "desktop.jolli.signIn.serverUnavailable":
+    "你已登入，但 Jolli Code 無法重新啟動本機伺服器。請重新啟動應用程式以完成。",
+
+  "desktop.jolli.courseGate.noCourses.title": "沒有 Jolli Code 課程",
+  "desktop.jolli.courseGate.noCourses.body": "你的課程還沒有使用 Jolli Code。等老師設定好之後再檢查一次。",
+  "desktop.jolli.courseGate.unreachable.title": "無法連線 Jolli",
+  "desktop.jolli.courseGate.unreachable.body": "Jolli Code 無法載入你的課程。請檢查網路連線後再試一次。",
+  "desktop.jolli.courseGate.retry": "重新檢查",
+  "desktop.jolli.courseGate.switchAccount": "使用其他帳號",
 
   "desktop.dialog.chooseFolder": "選擇資料夾",
   "desktop.dialog.chooseFile": "選擇檔案",

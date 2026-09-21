@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "Reštartovať",
 
   "desktop.jolli.signIn.title": "Prihláste sa do Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Váš školský účet určuje, ktoré modely a kurzových asistentov môžete používať. Pri prihlásení sa otvorí prehliadač.",
+  "desktop.jolli.signIn.body": "Prihlásenie otvorí váš prehliadač.",
   "desktop.jolli.signIn.action": "Prihlásiť sa cez Jolli",
   "desktop.jolli.signIn.waiting": "Čaká sa na prehliadač…",
   "desktop.jolli.signIn.hint": "Dokončite prihlásenie na práve otvorenej karte prehliadača a potom sa vráťte sem.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Ste prihlásení, ale Jolli Code nedokázal reštartovať svoj lokálny server. Dokončite reštartovaním aplikácie.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Žiadne kurzy Jolli Code",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Zatiaľ žiadny z vašich kurzov nepoužíva Jolli Code. Keď ho vyučujúci nastaví, skontrolujte to znova.",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli je nedostupné",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code nedokázal načítať vaše kurzy. Skontrolujte pripojenie a skúste to znova.",
+  "desktop.jolli.courseGate.retry": "Skontrolovať znova",
+  "desktop.jolli.courseGate.switchAccount": "Použiť iný účet",
   "desktop.dialog.chooseFolder": "Vybrať priečinok",
   "desktop.dialog.chooseFile": "Vybrať súbor",
   "desktop.dialog.saveFile": "Uložiť súbor",

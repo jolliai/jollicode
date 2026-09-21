@@ -5,6 +5,7 @@ import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { RootHttpApi } from "../api"
 import { LogInput } from "../groups/control"
 import { ProviderV2 } from "@opencode-ai/core/provider"
+import { forgetJolliCatalog } from "@/jolli/credential"
 
 export const controlHandlers = HttpApiBuilder.group(RootHttpApi, "control", (handlers) =>
   Effect.gen(function* () {
@@ -22,6 +23,8 @@ export const controlHandlers = HttpApiBuilder.group(RootHttpApi, "control", (han
       params: { providerID: ProviderV2.ID }
     }) {
       yield* auth.remove(ctx.params.providerID).pipe(Effect.orDie)
+      // The student's cached course catalogue belongs to the credential — see `forgetJolliCatalog`.
+      yield* forgetJolliCatalog(ctx.params.providerID)
       return true
     })
 

@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "ចាប់ផ្ដើមឡើងវិញ",
 
   "desktop.jolli.signIn.title": "ចូលទៅ Jolli Code",
-  "desktop.jolli.signIn.body":
-    "គណនីសាលារបស់អ្នកកំណត់ថាតើអ្នកអាចប្រើម៉ូដែល និងជំនួយការវគ្គសិក្សាណាខ្លះ។ ការចូលនឹងបើកកម្មវិធីរុករករបស់អ្នក។",
+  "desktop.jolli.signIn.body": "ពេលចូល កម្មវិធីរុករករបស់អ្នកនឹងបើក។",
   "desktop.jolli.signIn.action": "ចូលដោយប្រើ Jolli",
   "desktop.jolli.signIn.waiting": "កំពុងរង់ចាំកម្មវិធីរុករករបស់អ្នក…",
   "desktop.jolli.signIn.hint": "បញ្ចប់ការចូលនៅក្នុងផ្ទាំងកម្មវិធីរុករកដែលទើបបើក បន្ទាប់មកត្រឡប់មកទីនេះវិញ។",
+  "desktop.jolli.signIn.serverUnavailable":
+    "អ្នកបានចូលរួចហើយ ប៉ុន្តែ Jolli Code មិនអាចចាប់ផ្ដើមម៉ាស៊ីនមេមូលដ្ឋានឡើងវិញបានទេ។ សូមចាប់ផ្ដើមកម្មវិធីឡើងវិញដើម្បីបញ្ចប់។",
+
+  "desktop.jolli.courseGate.noCourses.title": "គ្មានវគ្គសិក្សា Jolli Code",
+  "desktop.jolli.courseGate.noCourses.body":
+    "គ្មានវគ្គសិក្សាណាមួយរបស់អ្នកប្រើ Jolli Code នៅឡើយទេ។ នៅពេលគ្រូរបស់អ្នករៀបចំរួច សូមពិនិត្យម្ដងទៀត។",
+  "desktop.jolli.courseGate.unreachable.title": "មិនអាចទាក់ទង Jolli បានទេ",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code មិនអាចផ្ទុកវគ្គសិក្សារបស់អ្នកបានទេ។ សូមពិនិត្យការតភ្ជាប់ រួចព្យាយាមម្ដងទៀត។",
+  "desktop.jolli.courseGate.retry": "ពិនិត្យម្ដងទៀត",
+  "desktop.jolli.courseGate.switchAccount": "ប្រើគណនីផ្សេង",
   "desktop.dialog.chooseFolder": "ជ្រើសរើសថតឯកសារ",
   "desktop.dialog.chooseFile": "ជ្រើសរើសឯកសារ",
   "desktop.dialog.saveFile": "រក្សាទុកឯកសារ",

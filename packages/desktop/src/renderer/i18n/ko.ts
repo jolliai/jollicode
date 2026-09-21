@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "다시 시작",
 
   "desktop.jolli.signIn.title": "Jolli Code에 로그인",
-  "desktop.jolli.signIn.body":
-    "사용할 수 있는 모델과 과목 어시스턴트는 학교 계정에 따라 결정됩니다. 로그인하면 브라우저가 열립니다.",
+  "desktop.jolli.signIn.body": "로그인하면 브라우저가 열립니다.",
   "desktop.jolli.signIn.action": "Jolli로 로그인",
   "desktop.jolli.signIn.waiting": "브라우저를 기다리는 중…",
   "desktop.jolli.signIn.hint": "방금 열린 브라우저 탭에서 로그인을 완료한 다음 여기로 돌아오세요.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "로그인은 되었지만 Jolli Code가 로컬 서버를 다시 시작하지 못했습니다. 앱을 다시 시작해 완료하세요.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Jolli Code 과목 없음",
+  "desktop.jolli.courseGate.noCourses.body":
+    "아직 Jolli Code를 사용하는 과목이 없습니다. 담당 교수가 설정하면 다시 확인하세요.",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli에 연결할 수 없음",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code가 과목을 불러오지 못했습니다. 연결을 확인한 뒤 다시 시도하세요.",
+  "desktop.jolli.courseGate.retry": "다시 확인",
+  "desktop.jolli.courseGate.switchAccount": "다른 계정 사용",
 
   "desktop.dialog.chooseFolder": "폴더 선택",
   "desktop.dialog.chooseFile": "파일 선택",

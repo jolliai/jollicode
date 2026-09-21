@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "Endurbyrja",
 
   "desktop.jolli.signIn.title": "Rita inn á Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Skúlakontoin hjá tær avgerð, hvørji modell og skeiðshjálparar tú kanst brúka. Tá tú ritar inn, opnast kagin hjá tær.",
+  "desktop.jolli.signIn.body": "Innritanin letur upp kagarin tín.",
   "desktop.jolli.signIn.action": "Rita inn við Jolli",
   "desktop.jolli.signIn.waiting": "Bíðar eftir kaganum…",
   "desktop.jolli.signIn.hint": "Fullfør innritingina í kaga-teiginum, sum júst opnaðist, og kom so aftur higar.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Tú ert innritaður, men Jolli Code kundi ikki endurbyrja sín lokala ambætara. Endurbyrja appina fyri at gera lidnað.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Eingi Jolli Code skeið",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Eingi av skeiðum tínum brúkar Jolli Code enn. Tá lærarin setur eitt upp, kanna aftur.",
+  "desktop.jolli.courseGate.unreachable.title": "Fekk ikki samband við Jolli",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code kundi ikki lesa skeiðini tíni. Kanna sambandið og royn aftur.",
+  "desktop.jolli.courseGate.retry": "Kanna aftur",
+  "desktop.jolli.courseGate.switchAccount": "Brúka aðra kontu",
   "desktop.dialog.chooseFolder": "Vel eina mappu",
   "desktop.dialog.chooseFile": "Vel eina fílu",
   "desktop.dialog.saveFile": "Goym fílu",

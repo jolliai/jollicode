@@ -90,6 +90,8 @@ import type {
   GlobalUpgradeResponses,
   InstanceDisposeErrors,
   InstanceDisposeResponses,
+  JolliCourseErrors,
+  JolliCourseResponses,
   LocationRef,
   LspStatusErrors,
   LspStatusResponses,
@@ -1379,6 +1381,20 @@ export class Global extends HeyApiClient {
   private _config?: Config
   get config(): Config {
     return (this._config ??= new Config({ client: this.client }))
+  }
+}
+
+export class Jolli extends HeyApiClient {
+  /**
+   * List the signed-in student's courses
+   *
+   * Courses the signed-in student is enrolled in that use Jolli Code, each with the professor-authored assistants a session may run. Courses that cannot be started yet are included and carry the reason in `entryState`. Answers an empty catalogue rather than an error when no Jolli credential is present.
+   */
+  public course<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<JolliCourseResponses, JolliCourseErrors, ThrowOnError>({
+      url: "/jolli/course",
+      ...options,
+    })
   }
 }
 
@@ -7100,6 +7116,11 @@ export class OpencodeClient extends HeyApiClient {
   private _global?: Global
   get global(): Global {
     return (this._global ??= new Global({ client: this.client }))
+  }
+
+  private _jolli?: Jolli
+  get jolli(): Jolli {
+    return (this._jolli ??= new Jolli({ client: this.client }))
   }
 
   private _event?: Event
