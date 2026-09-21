@@ -94,11 +94,11 @@ test("bundles the CLI outside the dev app archive", async () => {
   if (previous === undefined) delete process.env.OPENCODE_CHANNEL
   else process.env.OPENCODE_CHANNEL = previous
 
-  expect(config.files).toContain("!resources/opencode-cli*")
+  expect(config.files).toContain("!resources/jollicode-cli*")
   expect(config.extraResources).toContainEqual({
     from: "resources/",
     to: "",
-    filter: ["opencode-cli*"],
+    filter: ["jollicode-cli*"],
   })
 })
 
@@ -114,7 +114,7 @@ for (const channel of ["beta", "prod"] as const) {
     expect(config.extraResources).not.toContainEqual({
       from: "resources/",
       to: "",
-      filter: ["opencode-cli*"],
+      filter: ["jollicode-cli*"],
     })
   })
 }
