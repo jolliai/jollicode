@@ -3,7 +3,7 @@
   "displayName": "Jolli Code",
   "description": "Jolli Code for VS Code",
   "version": "1.18.31",
-  "publisher": "jolliai",
+  "publisher": "Jolli",
   "repository": {
     "type": "git",
     "url": "https://github.com/jolliai/jollicode"
