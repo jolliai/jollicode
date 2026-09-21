@@ -10,6 +10,7 @@ describe("Brand", () => {
     expect(Brand.org).toBe("jolliai")
     expect(Brand.protocol).toBe("jollicode")
     expect(Brand.gatewayUrl).toBe("https://api.jolli.ai")
+    expect(Brand.appUrl).toBe("https://app.jolli.ai")
     expect(Brand.envPrefix).toBe("JOLLICODE_")
   })
 
