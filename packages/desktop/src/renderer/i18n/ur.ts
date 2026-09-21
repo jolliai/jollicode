@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "دوبارہ شروع کریں۔",
 
   "desktop.jolli.signIn.title": "Jolli Code میں سائن ان کریں",
-  "desktop.jolli.signIn.body":
-    "آپ کون سے ماڈلز اور کورس اسسٹنٹس استعمال کر سکتے ہیں، اس کا تعین آپ کا اسکول اکاؤنٹ کرتا ہے۔ سائن ان کرنے پر آپ کا براؤزر کھل جائے گا۔",
+  "desktop.jolli.signIn.body": "سائن اِن کرنے پر آپ کا براؤزر کھلے گا۔",
   "desktop.jolli.signIn.action": "Jolli سے سائن ان کریں",
   "desktop.jolli.signIn.waiting": "آپ کے براؤزر کا انتظار ہے…",
   "desktop.jolli.signIn.hint": "ابھی کھلنے والے براؤزر ٹیب میں سائن ان مکمل کریں، پھر یہاں واپس آئیں۔",
+  "desktop.jolli.signIn.serverUnavailable":
+    "آپ سائن اِن ہیں، لیکن Jolli Code اپنا مقامی سرور دوبارہ شروع نہیں کر سکا۔ مکمل کرنے کے لیے ایپ دوبارہ شروع کریں۔",
+
+  "desktop.jolli.courseGate.noCourses.title": "کوئی Jolli Code کورس نہیں",
+  "desktop.jolli.courseGate.noCourses.body":
+    "آپ کا کوئی بھی کورس ابھی Jolli Code استعمال نہیں کرتا۔ جب آپ کے استاد اسے ترتیب دیں، دوبارہ دیکھیں۔",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli تک رسائی نہیں ہو سکی",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code آپ کے کورسز لوڈ نہیں کر سکا۔ اپنا کنکشن دیکھیں اور دوبارہ کوشش کریں۔",
+  "desktop.jolli.courseGate.retry": "دوبارہ دیکھیں",
+  "desktop.jolli.courseGate.switchAccount": "دوسرا اکاؤنٹ استعمال کریں",
   "desktop.dialog.chooseFolder": "ایک فولڈر منتخب کریں۔",
   "desktop.dialog.chooseFile": "ایک فائل کا انتخاب کریں۔",
   "desktop.dialog.saveFile": "فائل کو محفوظ کریں۔",

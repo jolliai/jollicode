@@ -3847,6 +3847,81 @@ export type ConfigV2ExperimentalPolicy = {
   resource: string
 }
 
+export type JolliCatalogStatus = "ok" | "unreachable"
+
+export type JolliCourseKind = "standard" | "code"
+
+export type JolliAccent = 1 | 2 | 3 | 4 | 5
+
+export type JolliCourseEntryState = "open" | "draft" | "not-yet" | "ended" | "archived"
+
+export type JolliChatSharing = "private" | "staff" | "staff-required"
+
+export type JolliCourse = {
+  id: string
+  code: string
+  title: string
+  kind: JolliCourseKind
+  description?: string
+  accent: JolliAccent
+  assistantIds: Array<string>
+  status: "draft" | "published" | "archived"
+  entryState: JolliCourseEntryState
+  endsOn: string
+  chatSharing: JolliChatSharing
+}
+
+export type JolliAssistantKind = "standard" | "code"
+
+export type JolliAssistantGuardrails = {
+  neverGiveDirectAnswers: boolean
+  restrictToMaterials: boolean
+  showCitations: boolean
+  weeklyTokenCap: number
+}
+
+export type JolliCoachingRubric = {
+  coachTheQuestion: boolean
+  coachTheProcess: boolean
+  coachTheModelChoice: boolean
+  instructions: string
+}
+
+export type JolliAssistantSkill = {
+  skillId: string
+  name: string
+  instructions: string
+}
+
+export type JolliAssistant = {
+  id: string
+  courseId: string
+  name: string
+  kind: JolliAssistantKind
+  blurb: string
+  accent: JolliAccent
+  isDefault?: boolean
+  instructions: string
+  allowedModelIds: Array<string>
+  modelId?: string
+  guardrails: JolliAssistantGuardrails
+  coaching: JolliCoachingRubric
+  skills: Array<JolliAssistantSkill>
+  chatSharing?: JolliChatSharing
+  status: "draft" | "live" | "paused"
+}
+
+export type JolliModelTier = "premium" | "economy"
+
+export type JolliCatalog = {
+  status: JolliCatalogStatus
+  courses: Array<JolliCourse>
+  assistants: Array<JolliAssistant>
+  modelTiers: {
+    [key: string]: JolliModelTier
+  }
+}
+
 export type ProjectDirectories = Array<{
   directory: string
   strategy?: string
@@ -7388,6 +7463,31 @@ export type GlobalUpgradeResponses = {
 }
 
 export type GlobalUpgradeResponse = GlobalUpgradeResponses[keyof GlobalUpgradeResponses]
+
+export type JolliCourseData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/jolli/course"
+}
+
+export type JolliCourseErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliCourseError = JolliCourseErrors[keyof JolliCourseErrors]
+
+export type JolliCourseResponses = {
+  /**
+   * The student's courses, their assistants and model tiers
+   */
+  200: JolliCatalog
+}
+
+export type JolliCourseResponse = JolliCourseResponses[keyof JolliCourseResponses]
 
 export type EventSubscribeData = {
   body?: never

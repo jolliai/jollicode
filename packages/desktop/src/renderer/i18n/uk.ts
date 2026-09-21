@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "Перезапустити",
 
   "desktop.jolli.signIn.title": "Вхід у Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Ваш шкільний обліковий запис визначає, які моделі та асистенти курсів вам доступні. Під час входу відкриється браузер.",
+  "desktop.jolli.signIn.body": "Під час входу відкриється браузер.",
   "desktop.jolli.signIn.action": "Увійти через Jolli",
   "desktop.jolli.signIn.waiting": "Очікування браузера…",
   "desktop.jolli.signIn.hint": "Завершіть вхід у вкладці браузера, що щойно відкрилася, а потім поверніться сюди.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Ви увійшли, але Jolli Code не зміг перезапустити локальний сервер. Перезапустіть застосунок, щоб завершити.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Немає курсів Jolli Code",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Жоден із ваших курсів ще не використовує Jolli Code. Коли викладач налаштує курс, перевірте ще раз.",
+  "desktop.jolli.courseGate.unreachable.title": "Не вдалося зв'язатися з Jolli",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code не зміг завантажити ваші курси. Перевірте з'єднання та спробуйте ще раз.",
+  "desktop.jolli.courseGate.retry": "Перевірити ще раз",
+  "desktop.jolli.courseGate.switchAccount": "Використати інший обліковий запис",
 
   "desktop.dialog.chooseFolder": "Виберіть папку",
   "desktop.dialog.chooseFile": "Виберіть файл",

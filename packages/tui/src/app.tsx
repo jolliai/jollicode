@@ -37,6 +37,7 @@ import { StartupLoading } from "./component/startup-loading"
 import { SyncProvider, useSync } from "./context/sync"
 import { DataProvider } from "./context/data"
 import { LocationProvider } from "./context/location"
+import { JolliProvider, useJolli } from "./context/jolli"
 import { LocalProvider, useLocal } from "./context/local"
 import { PermissionProvider } from "./context/permission"
 import { DialogModel } from "./component/dialog-model"
@@ -47,6 +48,11 @@ import { DialogDebug } from "./component/dialog-debug"
 import { DialogThemeList } from "./component/dialog-theme-list"
 import { DialogHelp } from "./ui/dialog-help"
 import { DialogAgent } from "./component/dialog-agent"
+import { DialogAssistant } from "./component/dialog-assistant"
+import { Brand } from "@opencode-ai/core/brand"
+import { DialogCourse } from "./component/dialog-course"
+import { DialogCourseGate } from "./component/dialog-course-gate"
+import { DialogLogout } from "./component/dialog-logout"
 import { DialogSessionList } from "./component/dialog-session-list"
 import { DialogWorkspaceList } from "./component/dialog-workspace-list"
 import { DialogConsoleOrg } from "./component/dialog-console-org"
@@ -111,12 +117,15 @@ const appBindingCommands = [
   "model.cycle_favorite",
   "model.cycle_favorite_reverse",
   "agent.list",
+  "jolli.course",
+  "jolli.assistant",
   "mcp.list",
   "agent.cycle",
   "agent.cycle.reverse",
   "variant.cycle",
   "variant.list",
   "provider.connect",
+  "provider.logout",
   "console.org.switch",
   "opencode.status",
   "opencode.debug",
@@ -307,26 +316,28 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                                               <SyncProvider>
                                                 <DataProvider>
                                                   <ThemeProvider mode={mode}>
-                                                    <LocalProvider>
-                                                      <PromptStashProvider>
-                                                        <DialogProvider>
-                                                          <FrecencyProvider>
-                                                            <PromptHistoryProvider>
-                                                              <PromptRefProvider>
-                                                                <EditorContextProvider>
-                                                                  <LocationProvider>
-                                                                    <App
-                                                                      onSnapshot={input.onSnapshot}
-                                                                      pluginHost={input.pluginHost}
-                                                                    />
-                                                                  </LocationProvider>
-                                                                </EditorContextProvider>
-                                                              </PromptRefProvider>
-                                                            </PromptHistoryProvider>
-                                                          </FrecencyProvider>
-                                                        </DialogProvider>
-                                                      </PromptStashProvider>
-                                                    </LocalProvider>
+                                                    <JolliProvider>
+                                                      <LocalProvider>
+                                                        <PromptStashProvider>
+                                                          <DialogProvider>
+                                                            <FrecencyProvider>
+                                                              <PromptHistoryProvider>
+                                                                <PromptRefProvider>
+                                                                  <EditorContextProvider>
+                                                                    <LocationProvider>
+                                                                      <App
+                                                                        onSnapshot={input.onSnapshot}
+                                                                        pluginHost={input.pluginHost}
+                                                                      />
+                                                                    </LocationProvider>
+                                                                  </EditorContextProvider>
+                                                                </PromptRefProvider>
+                                                              </PromptHistoryProvider>
+                                                            </FrecencyProvider>
+                                                          </DialogProvider>
+                                                        </PromptStashProvider>
+                                                      </LocalProvider>
+                                                    </JolliProvider>
                                                   </ThemeProvider>
                                                 </DataProvider>
                                               </SyncProvider>
@@ -541,14 +552,84 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
 
   createEffect(
     on(
-      () => sync.status === "complete" && sync.data.provider.length === 0,
+      () => sync.status === "complete" && sync.data.provider.length === 0 && !jolli.signedIn(),
       (isEmpty, wasEmpty) => {
         // only trigger when we transition into an empty-provider state
         if (!isEmpty || wasEmpty) return
-        dialog.replace(() => <DialogProviderList />)
+        /**
+         * ⚠ AN EMPTY PROVIDER LIST IS NOT "SIGNED OUT" UNDER LOCKDOWN, WHICH IS WHY THE CREDENTIAL
+         * IS CHECKED SEPARATELY. The Jolli provider block is built FROM the course catalogue, so a
+         * student who is signed in and enrolled in nothing has a credential and no providers at
+         * once. Without that guard this effect fired over the course gate, the picker read the
+         * credential, said "already signed in" and cleared the dialog — leaving a student with no
+         * courses looking at an empty screen that had just explained itself and vanished.
+         *
+         * ⚠ `confirm` BECAUSE NOBODY ASKED FOR THIS ONE. Every other way into the provider dialog
+         * follows something the student did; this fires on its own when sync settles with no
+         * provider, which under this fork's single-provider lockdown resolves straight to "log in"
+         * and would otherwise launch a browser before they had touched the keyboard.
+         */
+        dialog.replace(() => <DialogProviderList confirm />)
       },
     ),
   )
+
+  /**
+   * WHERE A SIGNED-IN STUDENT IS SENT NEXT, AND IT IS NEVER A PROVIDER OR MODEL PICKER.
+   *
+   * ⚠ THIS PRODUCT HAS EXACTLY ONE PROVIDER, SO "WHICH PROVIDER" IS NOT A QUESTION and "which
+   * model" is the course's answer, not the student's — an assistant's grant decides it. Upstream
+   * ends a sign-in on the model picker because there choosing a provider was the student's act;
+   * here the act was signing in to Jolli, and the decision still outstanding is WHICH COURSE.
+   *
+   * ⚠ TWO SEPARATE ANSWERS, NOT ONE DIALOG THAT BRANCHES. Having no courses at all is a dead end
+   * the picker cannot help with — it needs its own screen with a way out, which is what the desktop
+   * gate does — while having several is an ordinary choice. `needsChoice()` deliberately excludes
+   * the single-course case, which the context has already bound by the time this could fire.
+   *
+   * ⚠ LATCHED PER TRANSITION, like the provider effect below it. Without the `was` check a student
+   * who escapes the picker meets it again on the next store write, which reads as a dialog that
+   * cannot be dismissed.
+   */
+  const jolli = useJolli()
+  createEffect(
+    on(
+      () => jolli.noCourses() || jolli.unreachable(),
+      (stuck, was) => {
+        if (!stuck || was) return
+        dialog.replace(() => <DialogCourseGate />)
+      },
+    ),
+  )
+  createEffect(
+    on(
+      () => jolli.needsChoice(),
+      (needed, was) => {
+        if (!needed || was) return
+        dialog.replace(() => <DialogCourse />)
+      },
+    ),
+  )
+
+  /**
+   * ⚠ ONCE PER MISMATCH, AND THE RESET IS WHAT STOPS IT LOOPING. A rebuild that produces models
+   * clears the condition and reopens the latch for a future sign-out and back in; one that does
+   * not — a tenant granting none — leaves the latch shut, so this tries exactly once rather than
+   * disposing an instance over and over for an answer that will not change.
+   */
+  let rebuilt = false
+  createEffect(() => {
+    if (!jolli.modelsMissing()) {
+      rebuilt = false
+      return
+    }
+    if (rebuilt) return
+    rebuilt = true
+    void (async () => {
+      await sdk.client.instance.dispose()
+      await sync.bootstrap()
+    })()
+  })
 
   const connected = useConnected()
   const currentWorktreeWorkspace = createMemo(() => {
@@ -686,6 +767,30 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         },
       },
       {
+        name: "jolli.course",
+        title: "Switch course",
+        category: "Agent",
+        slashName: "course",
+        run: () => {
+          dialog.replace(() => <DialogCourse />)
+        },
+      },
+      {
+        /**
+         * ⚠ NAMED "assistant" AND NOT "agent", WHICH IS THE WHOLE REASON IT IS A SEPARATE COMMAND
+         * SITTING NEXT TO `/agents`. An agent is opencode's build-or-plan; an assistant is the
+         * professor's, and it decides the instructions, guardrails and model grant a session runs
+         * under. Collapsing the two would make one of them impossible to reach.
+         */
+        name: "jolli.assistant",
+        title: "Switch assistant",
+        category: "Agent",
+        slashName: "assistant",
+        run: () => {
+          dialog.replace(() => <DialogAssistant />)
+        },
+      },
+      {
         name: "mcp.list",
         title: "Toggle MCPs",
         category: "Agent",
@@ -738,12 +843,35 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         },
       },
       {
+        /**
+         * ⚠ THE COMMAND IS CALLED `login`, NOT `connect`, AND THE INTERNAL NAME STAYS `provider.connect`.
+         * "Connect a provider" is upstream's vocabulary for attaching an API key to one of many
+         * vendors; here there is exactly one provider and the act is signing in to a Jolli account,
+         * which is the thing a student would go looking for. The internal name is what keybinds
+         * refer to, so renaming it would silently break anybody's `keybinds` block — the old
+         * spellings survive as aliases instead, and cost nothing.
+         */
         name: "provider.connect",
-        title: "Connect provider",
+        title: `Sign in to ${Brand.name}`,
         suggested: !connected(),
-        slashName: "connect",
+        slashName: "login",
+        slashAliases: ["signin", "connect"],
         run: () => {
           dialog.replace(() => <DialogProviderList />)
+        },
+        category: "Provider",
+      },
+      {
+        /**
+         * ⚠ NOT `suggested`, UNLIKE ITS OPPOSITE. `/login` is offered up front because a student
+         * who cannot sign in cannot do anything; signing out is something you go looking for.
+         */
+        name: "provider.logout",
+        title: `Sign out of ${Brand.name}`,
+        slashName: "logout",
+        slashAliases: ["signout"],
+        run: () => {
+          dialog.replace(() => <DialogLogout />)
         },
         category: "Provider",
       },

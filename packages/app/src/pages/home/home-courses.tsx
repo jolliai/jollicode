@@ -14,7 +14,7 @@
 
 import { CourseAccent } from "@/components/course-accent"
 import { For, Show } from "solid-js"
-import { canStartSession, enrolledCourses } from "@/jolli/fixtures"
+import { canStartSession, enrolledCourses } from "@/jolli/catalog"
 import { HomeCourseSelection } from "@/jolli/home-selection"
 import { useLayout } from "@/context/layout"
 import { HomeProjectNavButton } from "./home-projects-view"

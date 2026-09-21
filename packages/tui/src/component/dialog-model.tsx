@@ -1,12 +1,14 @@
 import { createMemo, createSignal } from "solid-js"
 import { useLocal } from "../context/local"
-import { map, pipe, flatMap, entries, filter, sortBy, take } from "remeda"
+import { map, pipe, flatMap, entries, filter, sortBy } from "remeda"
 import { DialogSelect } from "../ui/dialog-select"
 import { useDialog } from "../ui/dialog"
-import { createDialogProviderOptions, DialogProvider } from "./dialog-provider"
+import { DialogProvider } from "./dialog-provider"
 import { DialogVariant } from "./dialog-variant"
 import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
+import { ModelGrant } from "../context/jolli"
+import { Brand } from "@opencode-ai/core/brand"
 import { useSync } from "../context/sync"
 
 export function DialogModel(props: { providerID?: string }) {
@@ -16,7 +18,6 @@ export function DialogModel(props: { providerID?: string }) {
   const [query, setQuery] = createSignal("")
 
   const connected = useConnected()
-  const providers = createDialogProviderOptions()
 
   const showExtra = createMemo(() => connected() && !props.providerID)
 
@@ -33,6 +34,15 @@ export function DialogModel(props: { providerID?: string }) {
         if (!provider) return []
         const model = provider.models[item.modelID]
         if (!model) return []
+        /**
+         * ⚠ KEYED ON `item.modelID`, THE MAP KEY, AND NOT ON `model.id`. The key is the Registry
+         * UUID a course grants by. The two agree at this read site only because `provider.ts`
+         * overwrites each model's `id` with its key before the client sees it — in the CONFIG the
+         * Jolli provider writes, `id` is the upstream name (`claude-opus-4-5`) and the key is the
+         * UUID. Keying on the grant's own vocabulary is what stays correct if that overwrite ever
+         * stops; comparing a grant against a vendor name would drop everything.
+         */
+        if (!ModelGrant.isAllowed(provider.id, item.modelID)) return []
         return [
           {
             key: item,
@@ -70,6 +80,12 @@ export function DialogModel(props: { providerID?: string }) {
           entries(),
           filter(([_, info]) => info.status !== "deprecated"),
           filter(([_, info]) => (props.providerID ? info.providerID === props.providerID : true)),
+          /**
+           * ⚠ WHAT THE COURSE'S ASSISTANT ALLOWS, AND AN EMPTY GRANT ALLOWS EVERYTHING. A student
+           * who cannot see a model cannot pick one, which is all this list can honestly claim —
+           * the gateway is what refuses a model a course did not grant.
+           */
+          filter(([model]) => ModelGrant.isAllowed(provider.id, model)),
           map(([model, info]) => ({
             value: { providerID: provider.id, modelID: model },
             title: info.name ?? model,
@@ -105,28 +121,19 @@ export function DialogModel(props: { providerID?: string }) {
       ),
     )
 
-    const popularProviders = !connected()
-      ? pipe(
-          providers(),
-          map((option) => ({
-            ...option,
-            category: "Popular providers",
-          })),
-          take(6),
-        )
-      : []
-
+    /**
+     * ⚠ NO PROVIDER ROWS MIXED IN WITH THE MODELS. Upstream pads this list with providers left to
+     * connect, which only makes sense where there are several; Jolli is the only one here, so
+     * signing in is the action below rather than a row that looks like something to run on.
+     */
     if (needle) {
-      return [
-        ...sortModelOptions(
-          fuzzysort.go(needle, providerOptions, { keys: ["title", "category"] }).map((x) => x.obj),
-          false,
-        ),
-        ...fuzzysort.go(needle, popularProviders, { keys: ["title"] }).map((x) => x.obj),
-      ]
+      return sortModelOptions(
+        fuzzysort.go(needle, providerOptions, { keys: ["title", "category"] }).map((x) => x.obj),
+        false,
+      )
     }
 
-    return [...favoriteOptions, ...recentOptions, ...providerOptions, ...popularProviders]
+    return [...favoriteOptions, ...recentOptions, ...providerOptions]
   })
 
   const provider = createMemo(() =>
@@ -160,7 +167,15 @@ export function DialogModel(props: { providerID?: string }) {
       actions={[
         {
           command: "model.dialog.provider",
-          title: connected() ? "Connect provider" : "View all providers",
+          title: `Sign in to ${Brand.name}`,
+          /**
+           * ⚠ THERE IS NOTHING TO CONNECT ONCE THE ONE PROVIDER IS CONNECTED. Upstream offers
+           * "Connect provider" here forever because it has seventy-five of them; this fork has
+           * Jolli, whose models arrive from the course grant, so the picker is worth opening only
+           * while the student is still signed out — and `DialogProvider` takes them straight to
+           * the Jolli login rather than to a list of one.
+           */
+          hidden: connected(),
           onTrigger() {
             dialog.replace(() => <DialogProvider />)
           },

@@ -4,12 +4,12 @@ Verified 2026-09-09 on Windows 11, upstream `9f8db119`.
 
 ## Toolchain
 
-| Tool | Status |
-|---|---|
-| Bun 1.4.2 | `C:\Users\<user>\.bun\bin\bun.exe` — required |
-| gh | `C:\Program Files\GitHub CLI\gh.exe` — only for the fork remote |
-| Go | **not needed** — the repo has zero `.go` files |
-| Python / MSVC | **not needed** — see the tree-sitter note below |
+| Tool          | Status                                                          |
+| ------------- | --------------------------------------------------------------- |
+| Bun 1.4.2     | `C:\Users\<user>\.bun\bin\bun.exe` — required                   |
+| gh            | `C:\Program Files\GitHub CLI\gh.exe` — only for the fork remote |
+| Go            | **not needed** — the repo has zero `.go` files                  |
+| Python / MSVC | **not needed** — see the tree-sitter note below                 |
 
 ## Install
 
@@ -39,7 +39,7 @@ Revisit only if something starts importing a native tree-sitter binding.
 
 ### Gotcha: Electron binary may not download
 
-Bun runs postinstall scripts only for *freshly installed* packages. If an earlier `bun install`
+Bun runs postinstall scripts only for _freshly installed_ packages. If an earlier `bun install`
 crashed after extracting `electron` but before running its script, a later successful install
 will skip it and leave `electron.exe` missing.
 
@@ -196,33 +196,40 @@ Requires the symlink fix above, or it fails on `src/custom-elements.d.ts`.
 
 ## The models: one provider, declared as server config
 
-This fork connects exactly one provider. `packages/desktop/src/main/jolli-gateway.ts` declares it —
-the web mock's 34-model catalogue (jolli-edu-design, `app/src/data/models.ts`) under a provider
-called `jolli` — and `createSidecarEnv()` hands it to the server as `OPENCODE_CONFIG_CONTENT`, which
-is the strongest config layer. `enabled_providers: ["jolli"]` is what removes everything else, at
-the source, before any screen reads a list.
+This fork connects exactly one provider. `packages/core/src/jolli/gateway-config.ts` declares its
+shape and `createSidecarEnv()` hands it to the server as `JOLLICODE_CONFIG_CONTENT`, which is the
+strongest config layer. `enabled_providers: ["jolli"]` is what removes everything else, at the
+source, before any screen reads a list.
 
-An assistant's `allowedModelIds` then narrows within that: `jolli/<model id>`, enforced in
-`context/models.tsx` (the list) and `context/local.tsx`'s `validModel` (the selection).
+The models in it are the **tenant's own catalogue**, fetched from `/api/agent/models` — the 34-model
+mock list is gone. They are keyed by Registry UUID rather than by name, because names are not unique
+across vendors and that block is an object keyed by id; the wire name rides along as each model's
+`id` override.
+
+An assistant's `allowedModelIds` then narrows within that: `jolli/<uuid>`, which needs no
+translation because a course grants by the same UUID. Enforced in `context/models.tsx` (the list)
+and `context/local.tsx`'s `validModel` (the selection) — and refused for real by the gateway.
 
 ⚠ **A server you start by hand has none of this.** `bun run dev:web` against a plain
-`opencode serve` will show whatever that machine has connected. Pass the same config to review the
-real thing:
+`opencode serve` will show whatever that machine has connected. Give the server the student's
+credential instead and let it fetch its own catalogue — the config is no longer something you can
+bake in one line, because the model list now comes from the gateway:
 
 ```bash
-bun -e 'import {jolliGatewayConfig} from "./packages/desktop/src/main/jolli-gateway.ts"; console.log(jolliGatewayConfig())' > /tmp/gateway.json
-OPENCODE_CONFIG_CONTENT="$(cat /tmp/gateway.json)" bun run --cwd packages/opencode src/index.ts serve --port 4096
+JOLLICODE_JOLLI_TOKEN="<CLI JWT>" JOLLICODE_JOLLI_BASE_URL="<tenant base url>" \
+  bun run --cwd packages/opencode src/index.ts serve --port 4096
 ```
 
-Check what the server ended up with:
+Check what it ended up with:
 
 ```bash
-curl -s http://127.0.0.1:4096/provider
+# Only requiresCoding courses the viewer is actually in. Drafts and ended courses are HERE,
+# carrying `entryState` — the picker greys them and says why.
+curl -s http://127.0.0.1:4096/jolli/course | jq '.courses[] | {code, status, entryState}'
+# One provider, and its models are keyed by Registry UUID.
+curl -s http://127.0.0.1:4096/provider | jq 'keys'
+curl -s http://127.0.0.1:4096/provider | jq '.jolli.models | keys | length'
 ```
-
-⚠ **Every model is routed to a free OpenCode Zen model** (`ROUTE` in that file), because most of the
-web mock's catalogue does not exist yet and a model with no route fails on send. Demo the controls,
-not the answers.
 
 ## Gotcha: a project whose providers have not loaded shows "Select model"
 
@@ -242,8 +249,44 @@ now check the grant (`isModelAllowed`) and both put the assistant's `modelId` ah
 list.
 
 Both also had the same latent bug once a grant existed: the provider-default step tried only each
-provider's *first* model, which under a whitelist is usually not allowed, leaving the composer with
+provider's _first_ model, which under a whitelist is usually not allowed, leaving the composer with
 no model at all. Both now scan the provider's models.
+
+## The TUI has courses too, and shares its answers rather than its code
+
+`packages/tui` is no longer course-blind. It picks a course and an assistant through `/course` and
+`/assistant` (`src/context/jolli.tsx`, `component/dialog-course.tsx`, `component/dialog-assistant.tsx`),
+writes the binding into `metadata.jolli` as the session is created, and narrows its model picker to
+the assistant's grant.
+
+Everything that **decides** something lives in `packages/core/src/jolli/` and is called from both
+renderers — `lookup.ts` (which assistants a course has, whether it can be started, what a grant
+permits, why a course is greyed), `sharing.ts` (who reads a new session) and `binding.ts` (reading a
+binding back off a session). A student must not get two answers depending on which surface they
+opened, and the header of each file says so.
+
+Three things differ on purpose:
+
+- **The TUI offers no visibility switches.** It seeds a new session's readers from the course policy
+  via `defaultSessionSharing` so the metadata shape matches, and stops there. The desktop app owns
+  that control.
+- **A course is mandatory before the first prompt**, under lockdown only, and only for a session
+  being *created* — see `submissionBlocker`. A session that already ran unbound stays usable,
+  because the server refuses to bind a course after the first message and refusing to prompt in one
+  would brick every transcript written before this existed.
+- **`/agents` and `/assistant` are different commands.** An agent is opencode's build-or-plan; an
+  assistant is the professor's, and it decides the instructions, guardrails and model grant.
+
+⚠ **A context must not expose a field called `ready`.** `createSimpleContext` in the TUI gates its
+children on `init.ready`, so a context reporting `ready: false` renders nothing below it — a
+catalogue still in flight would blank the whole terminal. `JolliProvider` calls its flag `loaded`.
+
+⚠ **The grant is keyed by the map KEY, not by `info.id`.** The key in `provider.models` is the
+Registry UUID a course grants by. In the config the Jolli provider writes, the value's `id` is the
+**upstream name** (`claude-opus-4-5`) — check it yourself with `curl -s localhost:4096/config`. They
+happen to agree by the time a client reads `/provider`, because `provider/provider.ts` overwrites
+each model's `id` with its key on the way out. Key on the grant's own vocabulary anyway; comparing a
+grant against a vendor name drops everything.
 
 ## Branding: one source for the artwork, and how the icons were made
 

@@ -1,5 +1,14 @@
 # V2 Schema Changelog
 
+## 2026-09-21: Add Jolli Course Catalogue
+
+- Add `GET /jolli/course` and the generated `sdk.jolli.course()` method, answering the signed-in student's Jolli Code courses, their professor-authored assistants, and each granted model's tier.
+- Add `Jolli.Course`, `Jolli.Assistant` and their attendant types to `@opencode-ai/schema`, shared by the endpoint, the gateway client, and the renderer.
+- Key Jolli models by Registry UUID rather than by name, because names are not unique across vendors and `provider.jolli.models` is keyed by id; the wire name travels as the model's `id` override. Retire `catalogModels()`.
+- Carry a session's course binding in V1 `session.metadata.jolli`, written at creation, and refuse `PATCH /session/:sessionID` writes that change its course or assistant once the session has any message. A session that started unbound is covered too: the first binding is refused after the first message for the same reason a rewrite is. Visibility stays writable and an identical rewrite is not an error.
+- Carry `Jolli.CatalogStatus` on the catalogue response, because "you are enrolled in nothing" and "we could not ask" both arrive as an empty `courses` array and a client that conflates them reports a dropped connection as an enrolment problem. Only a catalogue the gateway actually returned is `ok`; no credential, no tenant, a refused origin and an unreachable gateway are all `unreachable`.
+- Add no migration and no durable event; the binding rides on the existing metadata column and the catalogue is not persisted.
+
 ## 2026-06-26: Add Finite Session History
 
 - Add `GET /api/session/:sessionID/history` and generated Promise, Effect, and legacy JavaScript client methods.

@@ -45,6 +45,98 @@ const tryParseJson = (text: string) =>
     catch: () => new HttpApiError.BadRequest({}),
   })
 
+/**
+ * CARRY A SESSION'S BINDING ACROSS A METADATA WRITE THAT SAYS NOTHING ABOUT IT.
+ *
+ * ⚠ `setMetadata` REPLACES THE WHOLE BAG, WHICH MAKES "NOT MENTIONING THE BINDING" AND "ERASING IT"
+ * THE SAME REQUEST. Today this repo has exactly one writer of session metadata, so nothing has been
+ * lost yet — but the guard below is written as though the bag is shared, and the first feature to
+ * write its own key would silently unbind every session it touched. Re-attaching the existing
+ * binding is what makes both statements true at once: an unrelated write keeps it, and a write that
+ * carries a DIFFERENT binding still reaches the guard and is judged on its merits.
+ */
+export function preserveBinding(before: Record<string, unknown> | undefined, after: Record<string, unknown>) {
+  const previous = before?.["jolli"]
+  if (previous === undefined || "jolli" in after) return after
+  return { ...after, jolli: previous }
+}
+
+/** The two fields of a session's binding that stop being writable. Anything else in there is not. */
+function boundTo(metadata: Record<string, unknown> | undefined) {
+  const jolli = metadata?.["jolli"]
+  if (!jolli || typeof jolli !== "object") return undefined
+  const value = jolli as { courseId?: unknown; assistantId?: unknown }
+  if (typeof value.courseId !== "string" || typeof value.assistantId !== "string") return undefined
+  return { courseId: value.courseId, assistantId: value.assistantId }
+}
+
+/**
+ * A SESSION'S COURSE AND ASSISTANT STOP BEING WRITABLE ONCE THE CONVERSATION HAS BEGUN.
+ *
+ * ⚠ THIS IS THE ONLY PLACE THE LOCK IS REAL. The renderer enforces it by rendering no control —
+ * the course pickers exist on the new-session screen and nowhere else — which is honest about
+ * screens and says nothing about the API. A course decides which models may run and who may read
+ * the transcript, so letting it be rewritten mid-conversation would retroactively re-scope work
+ * already done under different terms.
+ *
+ * ⚠ THE LINE IS THE FIRST MESSAGE, NOT THE SESSION'S EXISTENCE. Creating a session and sending the
+ * first prompt happen in one submit, so a student never observes the gap — but the CLI can create a
+ * session and stop, and a crash can leave one half-made. Both should still be bindable.
+ *
+ * ⚠ AND A SESSION THAT STARTED UNBOUND IS COVERED TOO, WHICH IS EASY TO LEAVE OUT. The comparison
+ * below treats "no binding" as a value rather than as a reason to skip the check, because the CLI
+ * and the TUI create sessions with no metadata at all: a conversation can run to completion unbound
+ * and then be handed a course afterwards. That is the same retroactive re-scoping as a rewrite —
+ * the transcript becomes readable under terms that did not apply while it was being written — so
+ * the first binding is refused after the first message for exactly the same reason a second one is.
+ *
+ * ⚠ AND IT COMPARES, RATHER THAN REFUSING EVERY METADATA WRITE. Metadata is a shared bag: other
+ * features write to it on live sessions, and rejecting those would be a lock on the wrong thing.
+ * Re-writing the SAME binding is also allowed, so an idempotent retry is not an error.
+ */
+export const refuseRebindingAfterFirstMessage = Effect.fn("SessionHttpApi.refuseRebinding")(function* (
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown>,
+  started: () => Effect.Effect<boolean, unknown>,
+) {
+  const previous = boundTo(before)
+  const next = boundTo(after)
+  /**
+   * ⚠ ONLY THE COURSE AND THE ASSISTANT ARE COMPARED, NOT THE WHOLE `jolli` OBJECT. Visibility
+   * lives in there too and IS a student's to change on a live session — comparing the object
+   * wholesale would refuse every privacy toggle after the first message, which is the one part of
+   * a binding this lock is not meant to cover.
+   *
+   * ⚠ AND BOTH SIDES MAY BE ABSENT. Unbound-to-unbound compares equal and passes straight through,
+   * which is what keeps an ordinary metadata write on a session that has no course free of charge.
+   */
+  if (previous?.courseId === next?.courseId && previous?.assistantId === next?.assistantId) return
+
+  /**
+   * ⚠ "HAS IT STARTED" IS "IS THERE ANY MESSAGE", NOT "IS THE NEWEST ONE A USER MESSAGE". An
+   * earlier cut asked for one message and checked its role, which reads correctly and is exactly
+   * backwards: `Session.messages` with a limit pages from `desc(time_created)`, so the one it
+   * returns is the LATEST. In the steady state that is an assistant reply, so the check passed and
+   * the lock never engaged on any session that had been answered — which is every session it was
+   * meant to protect.
+   *
+   * ⚠ AND A READ FAILURE REFUSES RATHER THAN PERMITS. This is a lock; "I could not tell" must not
+   * mean "go ahead".
+   */
+  if (!(yield* started().pipe(Effect.catch(() => Effect.succeed(true))))) return
+  /**
+   * ⚠ THE REASON GOES IN THE LOG, NOT THE BODY. `HttpApiError.BadRequest` carries no message field,
+   * and the only caller that can trip this is a client rewriting a binding it was never offered a
+   * control for — so the audience for the explanation is whoever is reading server logs, not a
+   * screen.
+   */
+  yield* Effect.logWarning("Jolli: refused to rebind a session that has already started", {
+    before: previous,
+    after: next,
+  })
+  return yield* Effect.fail(new HttpApiError.BadRequest({}))
+})
+
 export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", (handlers) =>
   Effect.gen(function* () {
     const session = yield* Session.Service
@@ -185,11 +277,26 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof UpdatePayload.Type
     }) {
       const current = yield* requireSession(ctx.params.sessionID)
+      /**
+       * ⚠ THE BINDING IS JUDGED BEFORE ANYTHING IS WRITTEN, AND THE ORDER IS THE POINT. This
+       * handler applies four independent fields in sequence with no transaction around them, so a
+       * guard placed next to the field it guards lets the earlier ones land on a request that then
+       * answers 400 — a rename that happened on a `PATCH` the API reports as rejected. Deciding
+       * first is the cheapest way to make the refusal mean "nothing changed".
+       */
+      const metadata =
+        ctx.payload.metadata !== undefined ? preserveBinding(current.metadata, ctx.payload.metadata) : undefined
+      if (metadata !== undefined) {
+        yield* refuseRebindingAfterFirstMessage(current.metadata, metadata, () =>
+          session.hasMessages({ sessionID: ctx.params.sessionID }),
+        )
+      }
+
       if (ctx.payload.title !== undefined) {
         yield* session.setTitle({ sessionID: ctx.params.sessionID, title: ctx.payload.title })
       }
-      if (ctx.payload.metadata !== undefined) {
-        yield* session.setMetadata({ sessionID: ctx.params.sessionID, metadata: ctx.payload.metadata })
+      if (metadata !== undefined) {
+        yield* session.setMetadata({ sessionID: ctx.params.sessionID, metadata })
       }
       if (ctx.payload.permission !== undefined) {
         yield* session.setPermission({

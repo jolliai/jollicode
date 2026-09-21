@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Brand } from "@opencode-ai/core/brand"
-import { MODEL_CATALOG } from "@opencode-ai/core/jolli/model-catalog"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { httpClient } from "@opencode-ai/core/effect/app-node-platform"
 import { FSUtil } from "@opencode-ai/core/fs-util"
@@ -168,13 +167,16 @@ describe("Jolli lockdown", () => {
     expect(config.provider?.[Brand.short]?.options?.["baseURL"]).toBe("https://evil.example")
   })
 
-  test("declares the catalogue the student may run, keyed by the id the UI names", async () => {
+  test("declares no models when the tenant catalogue cannot be had", async () => {
+    /**
+     * ⚠ THE LOCKDOWN IS `enabled_providers`, NOT THE MODEL LIST, AND THIS IS WHERE THAT SHOWS. With
+     * no reachable gateway there is nothing to declare — and declaring the old local catalogue
+     * instead would have been worse than nothing, because it names models by name while a course
+     * grants them by Registry UUID, so every one of them would fail the grant.
+     */
     process.env["JOLLICODE_LOCKDOWN"] = "1"
     const config = await loadConfig(signedIn)
-    const models = config.provider?.[Brand.short]?.models ?? {}
-    expect(Object.keys(models)).toEqual(MODEL_CATALOG.map((model) => model.id))
-    // No route on this surface, so the catalogue id is what goes upstream (the desktop sidecar is
-    // the one that rewrites them, in `jolli-gateway.ts`).
-    expect(Object.values(models).every((model) => model?.id === undefined)).toBe(true)
+    expect(config.provider?.[Brand.short]?.models ?? {}).toEqual({})
+    expect(config.enabled_providers).toEqual([Brand.short])
   })
 })

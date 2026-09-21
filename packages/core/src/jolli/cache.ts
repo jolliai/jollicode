@@ -1,0 +1,282 @@
+/**
+ * THE ONE COPY OF THE COURSE CATALOGUE, SHARED BY TWO PROCESSES.
+ *
+ * ⚠ THE CACHE IS A CORRECTNESS MECHANISM HERE, NOT A SPEED ONE. Two processes need this data: the
+ * Electron main process decides whether a student may enter at all and bakes the model list into
+ * the sidecar's config before forking it, and the sidecar answers `/jolli/course` for the renderer.
+ * If they fetched independently they would disagree — a gate that admitted a student and a course
+ * list that came back empty behind it is the shape that bug takes. So main writes and the server
+ * reads, through one file, with `Flock` because they can race.
+ *
+ * ⚠ IT STORES WHAT THE GATEWAY SAID, NOT WHAT A SCREEN SHOULD SHOW. The hard filter is baked in
+ * (it depends only on `requiresCoding` and `viewerRole`, both pure data), but `entryState` is not:
+ * that is a function of TODAY, and a course cached as `open` yesterday can be `ended` now. Every
+ * derived value is computed after the read — see `catalog.ts`.
+ *
+ * ⚠ AND "STALE" IS NOT "ABSENT". The TTL is short so a professor's edits land quickly, which means
+ * an offline student's cache is always expired. Refusing to serve it would make the product
+ * unusable on a train; `stale-if-error` is the rule, and {@link loadCatalog} reports staleness
+ * rather than hiding it.
+ */
+import { readdir, rename, rm, stat, readFile, mkdir, writeFile } from "node:fs/promises"
+import path from "path"
+import { Duration, Effect } from "effect"
+import { FetchHttpClient } from "effect/unstable/http"
+import { Global } from "../global"
+import { Flock } from "../util/flock"
+import { Hash } from "../util/hash"
+import {
+  fetchAssistantChoices,
+  fetchCourses,
+  fetchModelIndex,
+  type AgentModel,
+  type CourseAssistantChoice,
+  type CourseListItem,
+  JolliApiError,
+  type GatewayRequest,
+} from "./api"
+import { isVisibleCourse } from "./catalog"
+
+/** ⚠ Short on purpose: a professor's model grant should land in minutes, not at next launch. */
+const TTL = Duration.minutes(5)
+
+/**
+ * HOW LONG A REFRESH MAY TAKE BEFORE THE STALE COPY WINS.
+ *
+ * ⚠ THE PER-REQUEST TIMEOUTS DO NOT ADD UP TO A BOUND, WHICH IS WHY THIS EXISTS. `api.ts` gives
+ * each call 15 seconds, but a refresh makes three in sequence (courses, models, then the assistant
+ * batch) and `Flock` waits five minutes for a lock by default — so the worst case a caller actually
+ * faces is minutes, not seconds. The callers that cannot afford that pass {@link STARTUP_DEADLINE};
+ * this is the backstop for everyone else.
+ *
+ * ⚠ RUNNING OUT OF TIME IS NOT AN ERROR PATH. It lands in the same place a failed fetch does — the
+ * stale snapshot, and `unreachable` only when there is nothing behind it at all.
+ */
+const REFRESH_DEADLINE = Duration.seconds(45)
+
+/**
+ * HOW LONG A CALLER THAT IS HOLDING UP A LAUNCH MAY WAIT.
+ *
+ * ⚠ ONE CONSTANT FOR ALL OF THEM, BECAUSE IT IS THE SAME WAIT SEEN FROM THREE PROCESSES.
+ * `createSidecarEnv()` is not forking a server until this returns, the course gate is the screen the
+ * student is looking at, and config loading is not starting a server — in every one of them a second
+ * spent here is a second the product does not exist. The honest trade is a shorter wait and an
+ * emptier first answer, which the next refresh corrects within the TTL.
+ *
+ * ⚠ IT IS NOT OPTIONAL FOR THOSE CALLERS THE WAY IT READS. {@link REFRESH_DEADLINE} is a backstop
+ * for a caller with nobody watching; a launch path that forgets to pass this one inherits 45 seconds
+ * of blank screen instead, which is the whole failure it exists to prevent.
+ */
+export const STARTUP_DEADLINE = Duration.seconds(20)
+
+/**
+ * ⚠ BUMP THIS WHENEVER THE SNAPSHOT'S ELEMENT SHAPES CHANGE. The validation below is deliberately
+ * shallow — it checks that the three collections are collections — so a file written by an older
+ * build would otherwise pass and flow straight into the mapping layer as the wrong shape. The
+ * version is what makes "a shape we no longer understand is the same as no cache" true rather than
+ * aspirational.
+ */
+const SCHEMA = 1
+
+/** What one tenant's snapshot holds. Raw gateway fields only — nothing derived. */
+export interface CatalogSnapshot {
+  readonly schema?: number
+  /** Already hard-filtered: coding courses this viewer is actually in. */
+  readonly courses: readonly CourseListItem[]
+  /** Keyed by the course's numeric id as a string. Order is the gateway's — default first. */
+  readonly assistants: Readonly<Record<string, readonly CourseAssistantChoice[]>>
+  readonly models: readonly AgentModel[]
+}
+
+export type CatalogLoad =
+  | { readonly kind: "ok"; readonly snapshot: CatalogSnapshot; readonly stale: boolean }
+  /** Nothing cached and the gateway could not be reached. Distinct from "you have no courses". */
+  | { readonly kind: "unreachable"; readonly error: JolliApiError }
+
+/**
+ * ⚠ THE TOKEN IS PART OF THE KEY, AND LEAVING IT OUT LEAKED ONE STUDENT'S COURSES TO THE NEXT. Two
+ * students share a machine far more often here than in most products — a lab bench, a loaner
+ * laptop — and the gate's own "use a different account" button makes the swap a supported flow.
+ * Keyed by tenant alone, B signing in within the TTL was served A's snapshot: A's courses in the
+ * picker, A's model catalogue baked into B's sidecar.
+ *
+ * ⚠ IT IS HASHED, NEVER WRITTEN. The filename is derived from the credential but cannot be turned
+ * back into it, so a cache directory listing discloses nothing usable.
+ */
+const cachePath = (request: GatewayRequest) =>
+  path.join(
+    Global.Path.cache,
+    `jolli-catalog-${Hash.fast(`${request.origin}|${request.tenantSlug ?? ""}|${request.token}`)}.json`,
+  )
+
+const readSnapshot = Effect.fn("Jolli.readSnapshot")(function* (file: string) {
+  const raw = yield* Effect.promise(() =>
+    readFile(file, "utf8")
+      .then((text) => JSON.parse(text) as unknown)
+      .catch(() => undefined),
+  )
+  if (!raw || typeof raw !== "object") return undefined
+  const value = raw as Partial<CatalogSnapshot>
+  // A shape we no longer understand is the same as no cache: refetch rather than guess.
+  if (value.schema !== SCHEMA) return undefined
+  if (!Array.isArray(value.courses) || !Array.isArray(value.models) || !value.assistants) return undefined
+  return value as CatalogSnapshot
+})
+
+const isFresh = Effect.fn("Jolli.isFresh")(function* (file: string) {
+  const mtime = yield* Effect.promise(() =>
+    stat(file)
+      .then((info) => info.mtimeMs)
+      .catch(() => undefined),
+  )
+  if (mtime === undefined) return false
+  return Date.now() - mtime < Duration.toMillis(TTL)
+})
+
+/**
+ * Fetch the whole catalogue and write it down.
+ *
+ * ⚠ ONE COURSE FAILING MUST NOT COST THE STUDENT THE REST. `assistant-choices` is mounted with
+ * `treatAsNotFound`, so a course the viewer cannot read answers 404 exactly as a deleted one does —
+ * indistinguishable, and a perfectly ordinary thing to meet in a list. Failing the batch would take
+ * every other course down with it; an empty assistant list renders as "this course has no
+ * assistants yet", which is a sentence a student can act on.
+ */
+export const refreshCatalog = Effect.fn("Jolli.refreshCatalog")(function* (request: GatewayRequest) {
+  const courses = (yield* fetchCourses(request)).filter(isVisibleCourse)
+  const models = yield* fetchModelIndex(request)
+  const pairs = yield* Effect.forEach(
+    courses,
+    (course) =>
+      fetchAssistantChoices(request, course.id).pipe(
+        Effect.catch((error) =>
+          Effect.logDebug("Jolli: could not list a course's assistants", { course: course.id, error }).pipe(
+            Effect.as([] as readonly CourseAssistantChoice[]),
+          ),
+        ),
+        Effect.map((choices) => [String(course.id), choices] as const),
+      ),
+    { concurrency: 6 },
+  )
+  const snapshot: CatalogSnapshot = {
+    schema: SCHEMA,
+    courses,
+    assistants: Object.fromEntries(pairs),
+    models: Array.from(models.values()),
+  }
+
+  const file = cachePath(request)
+  const temp = `${file}.${process.pid}.${Date.now()}.tmp`
+  /**
+   * Written to a sibling and renamed, so a reader never meets a half-written snapshot.
+   *
+   * ⚠ A FAILED WRITE IS REPORTED BUT NOT RAISED, AND BOTH HALVES MATTER. Raising would throw away
+   * a catalogue that was fetched perfectly well over a cache that could not be written — but
+   * swallowing it in silence is how the two processes this file exists to keep in step end up
+   * fetching independently forever, with nothing anywhere saying why. A read-only or full cache
+   * directory is the realistic cause and it is not self-evident from any other symptom.
+   */
+  const written = yield* Effect.promise(async () => {
+    try {
+      await mkdir(path.dirname(file), { recursive: true })
+      await writeFile(temp, JSON.stringify(snapshot))
+      await rename(temp, file)
+      return undefined
+    } catch (cause) {
+      await rm(temp, { force: true }).catch(() => {})
+      return cause
+    }
+  })
+  if (written) yield* Effect.logWarning("Jolli: could not write the catalogue snapshot", { file, cause: written })
+  return snapshot
+})
+
+/**
+ * The catalogue, however it can be had.
+ *
+ * Fresh cache wins outright; otherwise a fetch is attempted and its failure falls back to whatever
+ * is on disk, however old. Only a failure with nothing behind it is `unreachable`.
+ */
+/**
+ * ⚠ IT BRINGS ITS OWN HTTP CLIENT RATHER THAN ASKING FOR ONE. The first caller is config loading,
+ * whose effect context has no `HttpClient` — threading one through would mean widening
+ * `InstanceContext` for a single optional fetch. `FetchHttpClient` is the same `fetch` the rest of
+ * the process uses, so the sidecar's global proxy and certificate setup (`sidecar.ts`) still apply.
+ */
+export interface LoadOptions {
+  /** How long a refresh may take before the stale copy wins. Defaults to {@link REFRESH_DEADLINE}. */
+  readonly timeout?: Duration.Input
+}
+
+const loadCatalogEffect = Effect.fn("Jolli.loadCatalog")(function* (request: GatewayRequest, options?: LoadOptions) {
+  const file = cachePath(request)
+  if (yield* isFresh(file)) {
+    const cached = yield* readSnapshot(file)
+    if (cached) return { kind: "ok", snapshot: cached, stale: false } satisfies CatalogLoad
+  }
+  // Cross-process: the desktop's main process and its sidecar can arrive here together.
+  const refreshed = yield* Effect.scoped(
+    Effect.gen(function* () {
+      yield* Flock.effect(`jolli-catalog:${file}`)
+      // Another process may have refreshed while we waited for the lock.
+      if (yield* isFresh(file)) {
+        const cached = yield* readSnapshot(file)
+        if (cached) return cached
+      }
+      return yield* refreshCatalog(request)
+    }),
+  ).pipe(
+    Effect.map((snapshot) => ({ ok: true as const, snapshot })),
+    Effect.catch((error: JolliApiError) => Effect.succeed({ ok: false as const, error })),
+    // ⚠ OUTSIDE THE HANDLER ABOVE, so it bounds the lock wait as well as the fetch. See REFRESH_DEADLINE.
+    Effect.timeout(options?.timeout ?? REFRESH_DEADLINE),
+    /**
+     * ⚠ DEFECTS ARE CAUGHT TOO, AND `Flock` IS WHY. It wraps acquire and release in
+     * `Effect.promise`, so a lock timeout or a compromised lock arrives as a DEFECT rather than a
+     * typed failure — straight past the handler above and out through every fallback this module
+     * documents. Two callers make that fatal rather than merely wrong: config loading, where a
+     * defect stops the server starting, and `createSidecarEnv()`, where it stops the sidecar
+     * forking at all. A catalogue is never worth either.
+     */
+    Effect.catchCause((cause) =>
+      Effect.succeed({
+        ok: false as const,
+        error: new JolliApiError({ path: file, message: `Jolli catalogue refresh failed: ${cause}` }),
+      }),
+    ),
+  )
+
+  if (refreshed.ok) return { kind: "ok", snapshot: refreshed.snapshot, stale: false } satisfies CatalogLoad
+
+  const stale = yield* readSnapshot(file)
+  if (stale) {
+    yield* Effect.logDebug("Jolli: serving a stale catalogue", { error: refreshed.error })
+    return { kind: "ok", snapshot: stale, stale: true } satisfies CatalogLoad
+  }
+  return { kind: "unreachable", error: refreshed.error } satisfies CatalogLoad
+})
+
+export const loadCatalog = (request: GatewayRequest, options?: LoadOptions) =>
+  loadCatalogEffect(request, options).pipe(Effect.provide(FetchHttpClient.layer))
+
+/**
+ * DROP EVERY CACHED CATALOGUE ON THIS MACHINE.
+ *
+ * ⚠ IT TAKES NO REQUEST, DELIBERATELY. The caller is signing out, and the point is that the next
+ * person at this keyboard finds nothing — a snapshot keyed by a token nobody holds any more is
+ * still one student's course list sitting in a directory the next student's account can read. That
+ * is the same shared-bench case the key itself is built around; see {@link cachePath}.
+ *
+ * ⚠ AND IT NEVER FAILS. Sign-out has already happened by the time this runs, and a cache file that
+ * would not delete is not a reason to tell somebody their sign-out did not work.
+ */
+export const clearCatalogCache = Effect.fn("Jolli.clearCatalogCache")(function* () {
+  yield* Effect.promise(async () => {
+    const entries = await readdir(Global.Path.cache).catch(() => [] as string[])
+    await Promise.all(
+      entries
+        .filter((entry) => entry.startsWith("jolli-catalog-"))
+        .map((entry) => rm(path.join(Global.Path.cache, entry), { force: true }).catch(() => {})),
+    )
+  })
+})

@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "Genstart",
 
   "desktop.jolli.signIn.title": "Log ind på Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Din skolekonto bestemmer, hvilke modeller og kursusassistenter du kan bruge. Når du logger ind, åbnes din browser.",
+  "desktop.jolli.signIn.body": "Når du logger ind, åbnes din browser.",
   "desktop.jolli.signIn.action": "Log ind med Jolli",
   "desktop.jolli.signIn.waiting": "Venter på din browser…",
   "desktop.jolli.signIn.hint": "Fuldfør login i den browserfane, der lige er åbnet, og kom så tilbage hertil.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Du er logget ind, men Jolli Code kunne ikke genstarte sin lokale server. Genstart appen for at fuldføre.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Ingen Jolli Code-kurser",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Ingen af dine kurser bruger Jolli Code endnu. Når din underviser opretter et, så tjek igen.",
+  "desktop.jolli.courseGate.unreachable.title": "Kunne ikke nå Jolli",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code kunne ikke indlæse dine kurser. Tjek din forbindelse, og prøv igen.",
+  "desktop.jolli.courseGate.retry": "Tjek igen",
+  "desktop.jolli.courseGate.switchAccount": "Brug en anden konto",
 
   "desktop.dialog.chooseFolder": "Vælg en mappe",
   "desktop.dialog.chooseFile": "Vælg en fil",

@@ -1,10 +1,19 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Brand } from "../src/brand"
 import { jolliBaseConfig } from "../src/jolli/gateway-config"
-import { catalogModels, MODEL_CATALOG, modelTier } from "../src/jolli/model-catalog"
 import { startJolliLogin } from "../src/jolli/loopback"
 import { exchangeCliCode } from "../src/jolli/exchange"
 import { isJolliOriginAllowed, jolliAuthOrigin, parseJolliUrl } from "../src/jolli/origin"
+
+/**
+ * A tenant's models, as the gateway now supplies them: named by Registry UUID, with the wire name
+ * carried separately. A local name-keyed catalogue used to stand in for this and is gone: a course
+ * grants by Registry UUID, so nothing in a name-keyed list could ever match a grant.
+ */
+const MODELS = [
+  { id: "uuid-opus", name: "claude-opus-4-8", upstreamId: "claude-opus-4-8" },
+  { id: "uuid-haiku", name: "claude-haiku-4-5", upstreamId: "claude-haiku-4-5" },
+]
 
 const original = process.env["JOLLI_URL"]
 const originalFetch = globalThis.fetch
@@ -47,7 +56,7 @@ describe("jolliAuthOrigin", () => {
 
 describe("jolliBaseConfig", () => {
   test("declares no provider while signed out", () => {
-    const config = jolliBaseConfig({ signedIn: false, models: catalogModels() })
+    const config = jolliBaseConfig({ signedIn: false, models: MODELS })
     // The lockdown still applies — a signed-out student must not reach another provider either.
     expect(config.enabled_providers).toEqual([Brand.short])
     // And the provider list stays genuinely empty, which is what the sign-in prompt keys off.
@@ -55,7 +64,7 @@ describe("jolliBaseConfig", () => {
   })
 
   test("points at the signed-in tenant's gateway", () => {
-    const config = jolliBaseConfig({ signedIn: true, models: catalogModels(), baseUrl: "https://acme.jolli.ai" })
+    const config = jolliBaseConfig({ signedIn: true, models: MODELS, baseUrl: "https://acme.jolli.ai" })
     const provider = config.provider?.[Brand.short]
     expect(provider?.options.baseURL).toBe("https://acme.jolli.ai/api")
     // Subdomain tenant: the host says who it is, so no header is needed.
@@ -72,7 +81,7 @@ describe("jolliBaseConfig", () => {
     // Verified against a live path-based deployment, which is how this was found.
     const config = jolliBaseConfig({
       signedIn: true,
-      models: catalogModels(),
+      models: MODELS,
       baseUrl: "https://jolli-local.me/t3lwf8aw",
     })
     const options = config.provider?.[Brand.short]?.options
@@ -81,7 +90,7 @@ describe("jolliBaseConfig", () => {
   })
 
   test("falls back to the brand gateway when sign-in reported no tenant", () => {
-    const config = jolliBaseConfig({ signedIn: true, models: catalogModels() })
+    const config = jolliBaseConfig({ signedIn: true, models: MODELS })
     // Used verbatim: `api.jolli.ai` is the gateway on its own host and is already the `/api` mount,
     // so appending again would point every send at `https://api.jolli.ai/api`.
     expect(config.provider?.[Brand.short]?.options.baseURL).toBe(Brand.gatewayUrl)
@@ -90,14 +99,33 @@ describe("jolliBaseConfig", () => {
   test("falls back to the brand gateway rather than emitting a broken baseURL", () => {
     // A stored tenant is only as good as whatever wrote it; `https://` + garbage would otherwise
     // reach the SDK as its baseURL and fail on the first send instead of here.
-    const config = jolliBaseConfig({ signedIn: true, models: catalogModels(), baseUrl: "acme.jolli.ai" })
+    const config = jolliBaseConfig({ signedIn: true, models: MODELS, baseUrl: "acme.jolli.ai" })
     expect(config.provider?.[Brand.short]?.options.baseURL).toBe(Brand.gatewayUrl)
   })
 
+  /**
+   * ⚠ THE SAME ALLOWLIST THE CATALOGUE FETCH APPLIES. `gatewayRequest` re-checks a stored tenant
+   * before sending the student's token to it; this value becomes the provider's `baseURL`, and on
+   * the desktop the JWT rides beside it as `options.apiKey`. Refusing an origin for the catalogue
+   * while handing it the credential on every model call would be the wrong half to guard.
+   */
+  test("refuses a tenant outside the Jolli allowlist", () => {
+    for (const baseUrl of ["https://evil.example", "http://acme.jolli.ai", "https://notjolli.ai"]) {
+      const config = jolliBaseConfig({ signedIn: true, models: MODELS, baseUrl })
+      expect(config.provider?.[Brand.short]?.options.baseURL).toBe(Brand.gatewayUrl)
+    }
+    // And the check is the shared one, so an allowlisted tenant is untouched by it.
+    expect(isJolliOriginAllowed("https://acme.jolli.ai")).toBe(true)
+  })
+
+  /**
+   * ⚠ A BUILD-TIME PIN IS DELIBERATELY EXEMPT. Whoever compiled the binary chose it, and aiming a
+   * demo build at a local fixture is the entire purpose of the field.
+   */
   test("uses a pinned gateway root verbatim and lets it outrank the tenant", () => {
     const config = jolliBaseConfig({
       signedIn: true,
-      models: catalogModels(),
+      models: MODELS,
       gatewayUrl: "https://gw.jolli-local.me/edge",
       baseUrl: "https://acme.jolli.ai",
     })
@@ -111,7 +139,7 @@ describe("jolliBaseConfig", () => {
   test("carries the credential only when the caller has nowhere else to keep it", () => {
     const options = jolliBaseConfig({
       signedIn: true,
-      models: catalogModels(),
+      models: MODELS,
       baseUrl: "https://acme.jolli.ai",
       authToken: "jwt",
     }).provider?.[Brand.short]?.options
@@ -121,16 +149,16 @@ describe("jolliBaseConfig", () => {
     expect(options?.baseURL).toBe("https://acme.jolli.ai/api")
   })
 
-  test("sends the catalogue id upstream unless the caller routes it elsewhere", () => {
-    const plain = jolliBaseConfig({ signedIn: true, models: catalogModels() })
-    expect(Object.values(plain.provider?.[Brand.short]?.models ?? {})[0]).not.toHaveProperty("id")
-
-    const routed = jolliBaseConfig({
-      signedIn: true,
-      models: catalogModels({ premium: "big-pickle", standard: "mid", economy: "small" }),
-    })
-    const models = routed.provider?.[Brand.short]?.models ?? {}
-    expect(models["claude-opus-5"]).toEqual({ name: "Claude Opus 5", id: "big-pickle" })
+  test("keys models by id and sends upstreamId on the wire", () => {
+    /**
+     * ⚠ THE KEY IS THE REGISTRY UUID AND THE WIRE NAME IS A SEPARATE FIELD, WHICH IS THE WHOLE
+     * REASON THE TWO EXIST. Model names are not unique across vendors and this block is an object
+     * keyed by id, so two same-named models would silently overwrite one another. The UUID is also
+     * what a course's `allowedModelIds` already names, so a grant matches with no translation.
+     */
+    const models = jolliBaseConfig({ signedIn: true, models: MODELS }).provider?.[Brand.short]?.models ?? {}
+    expect(Object.keys(models)).toEqual(["uuid-opus", "uuid-haiku"])
+    expect(models["uuid-opus"]).toEqual({ name: "claude-opus-4-8", id: "claude-opus-4-8" })
   })
 
   test("declares exactly the models it was given, and nothing it knows on its own", () => {
@@ -143,32 +171,10 @@ describe("jolliBaseConfig", () => {
   })
 
   test("omits the skills key rather than declaring an empty path list", () => {
-    expect(jolliBaseConfig({ signedIn: true, models: catalogModels() })).not.toHaveProperty("skills")
-    expect(jolliBaseConfig({ signedIn: true, models: catalogModels(), skillsDir: "/tmp/skills" }).skills).toEqual({
+    expect(jolliBaseConfig({ signedIn: true, models: MODELS })).not.toHaveProperty("skills")
+    expect(jolliBaseConfig({ signedIn: true, models: MODELS, skillsDir: "/tmp/skills" }).skills).toEqual({
       paths: ["/tmp/skills"],
     })
-  })
-})
-
-describe("model catalogue", () => {
-  test("reads a tier off a bare id or an opencode model key", () => {
-    expect(modelTier("claude-opus-5")).toBe("premium")
-    expect(modelTier(`${Brand.short}/claude-sonnet-5`)).toBe("standard")
-    expect(modelTier(`${Brand.short}/claude-haiku-4-5`)).toBe("economy")
-    // Unclassified rather than guessed, so the coaching nudge stays silent on an unknown model.
-    expect(modelTier(`${Brand.short}/not-a-model`)).toBeUndefined()
-  })
-
-  test("carries no duplicate ids", () => {
-    // `jolliBaseConfig` keys the provider's models by id, so a duplicate silently drops a row.
-    expect(new Set(MODEL_CATALOG.map((model) => model.id)).size).toBe(MODEL_CATALOG.length)
-  })
-
-  test("routes every entry by its own tier and nothing by another's", () => {
-    const route = { premium: "premium-upstream", standard: "standard-upstream", economy: "economy-upstream" }
-    expect(catalogModels(route)).toEqual(
-      MODEL_CATALOG.map((model) => ({ id: model.id, name: model.label, upstreamId: route[model.tier] })),
-    )
   })
 })
 

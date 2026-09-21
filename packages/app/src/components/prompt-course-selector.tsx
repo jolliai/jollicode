@@ -13,15 +13,34 @@
 
 import { For, Show } from "solid-js"
 import { Icon } from "@opencode-ai/ui/icon"
+import { Lookup } from "@opencode-ai/core/jolli/lookup"
 import { CourseAccent } from "@/components/course-accent"
 import { MenuV2 } from "@opencode-ai/ui/v2/menu-v2"
-import { assistantsForCourse, canStartSession, enrolledCourses } from "@/jolli/fixtures"
+import { useLanguage } from "@/context/language"
+import { assistantsForCourse, blockedReason, canStartSession, enrolledCourses } from "@/jolli/catalog"
 import { useCourseSession } from "@/jolli/session-binding"
+
+/**
+ * ONE DICTIONARY KEY PER REFUSAL. `Lookup.blockedReason` answers with a code rather than a sentence
+ * so that this surface can word them through the dictionary, which `packages/app/AGENTS.md` requires
+ * of everything a student reads.
+ *
+ * ⚠ THE `satisfies` IS THE POINT OF THE MAP. A course entry state added upstream fails to compile
+ * here instead of rendering a blocked row with nothing beside it to say why.
+ */
+const BLOCKED_REASON = {
+  draft: "prompt.course.blocked.draft",
+  "not-yet": "prompt.course.blocked.notYet",
+  ended: "prompt.course.blocked.ended",
+  archived: "prompt.course.blocked.archived",
+  "no-assistants": "prompt.course.blocked.noAssistants",
+} as const satisfies Record<Lookup.CourseBlockedReason, string>
 
 const TRIGGER_CLASS =
   "flex h-7 min-w-0 max-w-[203px] items-center gap-1.5 rounded-sm px-1.5 hover:bg-v2-overlay-simple-overlay-hover focus-visible:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none data-[expanded]:bg-v2-overlay-simple-overlay-pressed data-[expanded]:text-v2-text-text-muted"
 
 export function PromptCourseSelector(props: { onDone?: () => void }) {
+  const language = useLanguage()
   const binding = useCourseSession()
   const courses = () => enrolledCourses()
   const current = () => binding.course()
@@ -34,21 +53,27 @@ export function PromptCourseSelector(props: { onDone?: () => void }) {
         <Show when={current()} keyed>
           {(course) => <CourseAccent accent={course.accent} class="h-3.5 w-1" />}
         </Show>
-        <span class="min-w-0 truncate">{current()?.code ?? "Choose a course"}</span>
+        <span class="min-w-0 truncate">{current()?.code ?? language.t("prompt.course.placeholder")}</span>
         <Icon name="chevron-down" size="small" class="shrink-0 text-v2-icon-icon-muted" />
       </MenuV2.Trigger>
       <MenuV2.Portal>
         <MenuV2.Content class="w-[260px]">
           <MenuV2.Group>
-            <MenuV2.GroupLabel>Work in</MenuV2.GroupLabel>
+            <MenuV2.GroupLabel>{language.t("prompt.course.group")}</MenuV2.GroupLabel>
             <For each={courses()}>
               {(course) => (
                 <MenuV2.Item
                   /**
-                   * ⚠ A PUBLISHED COURSE WITH NOTHING TO ANSWER IS SHOWN AND REFUSED. Drafts never
-                   * get this far (`enrolledCourses`), so a row that lands here is one the professor
-                   * has released; if it still has no assistant this application can run, the
-                   * refusal is about the assistant and the row stays visible to say so.
+                   * ⚠ A COURSE THAT CANNOT BE STARTED IS SHOWN AND REFUSED, NOT HIDDEN, AND THE ROW
+                   * SAYS WHY. This used to cover one case — published, but no assistant configured.
+                   * It now covers four more, because the gateway sends every course a student is in
+                   * rather than only the runnable ones. A list that omitted them could not say "your
+                   * course opens next week"; an empty list says nothing at all, and a student whose
+                   * only course is still a draft would be staring at it.
+                   *
+                   * ⚠ EACH REASON GETS ITS OWN SENTENCE. They lead to different next actions — wait
+                   * for the teacher, wait for term, ask the teacher, nothing — so collapsing them
+                   * into one "unavailable" would throw away the only useful part.
                    */
                   disabled={!canStartSession(course.id)}
                   onSelect={() => binding.draft.setCourse(course.id)}
@@ -57,6 +82,11 @@ export function PromptCourseSelector(props: { onDone?: () => void }) {
                   <span class="min-w-0 flex-1 truncate">
                     {course.code}
                     <span class="text-v2-text-text-faint"> · {course.title}</span>
+                    <Show when={blockedReason(course)}>
+                      {(reason) => (
+                        <span class="text-v2-text-text-faint"> · {language.t(BLOCKED_REASON[reason()])}</span>
+                      )}
+                    </Show>
                   </span>
                   <Show when={current()?.id === course.id}>
                     <Icon name="check" size="small" class="shrink-0" />
@@ -72,6 +102,7 @@ export function PromptCourseSelector(props: { onDone?: () => void }) {
 }
 
 export function PromptAssistantSelector(props: { onDone?: () => void }) {
+  const language = useLanguage()
   const binding = useCourseSession()
   const options = () => assistantsForCourse(binding.course()?.id)
   const current = () => binding.assistant()
@@ -81,13 +112,13 @@ export function PromptAssistantSelector(props: { onDone?: () => void }) {
       <span class="hidden select-none opacity-50 sm:inline mx-1">/</span>
       <MenuV2 placement="bottom" gutter={4} onOpenChange={(open) => !open && props.onDone?.()}>
         <MenuV2.Trigger class={TRIGGER_CLASS}>
-          <span class="min-w-0 truncate">{current()?.name ?? "No assistant yet"}</span>
+          <span class="min-w-0 truncate">{current()?.name ?? language.t("prompt.assistant.placeholder")}</span>
           <Icon name="chevron-down" size="small" class="shrink-0 text-v2-icon-icon-muted" />
         </MenuV2.Trigger>
         <MenuV2.Portal>
           <MenuV2.Content class="w-[300px]">
             <MenuV2.Group>
-              <MenuV2.GroupLabel>Ask</MenuV2.GroupLabel>
+              <MenuV2.GroupLabel>{language.t("prompt.assistant.group")}</MenuV2.GroupLabel>
               <For
                 each={options()}
                 fallback={
@@ -96,7 +127,7 @@ export function PromptAssistantSelector(props: { onDone?: () => void }) {
                      the fixtures by publishing `cs-101`, which has no assistants. */
                   <MenuV2.Item disabled>
                     <span class="min-w-0 flex-1 truncate">
-                      {binding.course()?.code} has no assistants yet — your instructor sets these up.
+                      {language.t("prompt.assistant.empty", { code: binding.course()?.code ?? "" })}
                     </span>
                   </MenuV2.Item>
                 }

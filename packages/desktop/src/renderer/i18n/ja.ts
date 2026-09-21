@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "再起動",
 
   "desktop.jolli.signIn.title": "Jolli Code にサインイン",
-  "desktop.jolli.signIn.body":
-    "利用できるモデルとコースアシスタントは、学校アカウントによって決まります。サインインするとブラウザーが開きます。",
+  "desktop.jolli.signIn.body": "サインインするとブラウザーが開きます。",
   "desktop.jolli.signIn.action": "Jolli でサインイン",
   "desktop.jolli.signIn.waiting": "ブラウザーを待機しています…",
   "desktop.jolli.signIn.hint": "今開いたブラウザーのタブでサインインを完了してから、ここに戻ってください。",
+  "desktop.jolli.signIn.serverUnavailable":
+    "サインインは完了しましたが、Jolli Code がローカルサーバーを再起動できませんでした。アプリを再起動して完了してください。",
+
+  "desktop.jolli.courseGate.noCourses.title": "Jolli Code のコースがありません",
+  "desktop.jolli.courseGate.noCourses.body":
+    "まだ Jolli Code を使うコースがありません。担当教員が設定したら、もう一度確認してください。",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli に接続できません",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code がコースを読み込めませんでした。接続を確認してから、もう一度お試しください。",
+  "desktop.jolli.courseGate.retry": "もう一度確認",
+  "desktop.jolli.courseGate.switchAccount": "別のアカウントを使う",
 
   "desktop.dialog.chooseFolder": "フォルダーを選択",
   "desktop.dialog.chooseFile": "ファイルを選択",

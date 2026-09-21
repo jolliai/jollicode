@@ -574,6 +574,43 @@
         ]
       }
     },
+    "/jolli/course": {
+      "get": {
+        "tags": ["jolli"],
+        "operationId": "jolli.course",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The student's courses, their assistants and model tiers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JolliCatalog"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Courses the signed-in student is enrolled in that use Jolli Code, each with the professor-authored assistants a session may run. Courses that cannot be started yet are included and carry the reason in `entryState`. Answers an empty catalogue rather than an error when no Jolli credential is present.",
+        "summary": "List the signed-in student's courses",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.jolli.course({\n  ...\n})"
+          }
+        ]
+      }
+    },
     "/event": {
       "get": {
         "tags": ["event"],
@@ -27079,6 +27116,236 @@
         "required": ["action", "effect", "resource"],
         "additionalProperties": false
       },
+      "JolliCourseKind": {
+        "type": "string",
+        "enum": ["standard", "code"]
+      },
+      "JolliAccent": {
+        "type": "number",
+        "enum": [1, 2, 3, 4, 5]
+      },
+      "JolliCourseEntryState": {
+        "type": "string",
+        "enum": ["open", "draft", "not-yet", "ended", "archived"]
+      },
+      "JolliChatSharing": {
+        "type": "string",
+        "enum": ["private", "staff", "staff-required"]
+      },
+      "JolliCourse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/JolliCourseKind"
+          },
+          "description": {
+            "type": "string"
+          },
+          "accent": {
+            "$ref": "#/components/schemas/JolliAccent"
+          },
+          "assistantIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "published", "archived"]
+          },
+          "entryState": {
+            "$ref": "#/components/schemas/JolliCourseEntryState"
+          },
+          "endsOn": {
+            "type": "string"
+          },
+          "chatSharing": {
+            "$ref": "#/components/schemas/JolliChatSharing"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "title",
+          "kind",
+          "accent",
+          "assistantIds",
+          "status",
+          "entryState",
+          "endsOn",
+          "chatSharing"
+        ],
+        "additionalProperties": false
+      },
+      "JolliAssistantKind": {
+        "type": "string",
+        "enum": ["standard", "code"]
+      },
+      "JolliAssistantGuardrails": {
+        "type": "object",
+        "properties": {
+          "neverGiveDirectAnswers": {
+            "type": "boolean"
+          },
+          "restrictToMaterials": {
+            "type": "boolean"
+          },
+          "showCitations": {
+            "type": "boolean"
+          },
+          "weeklyTokenCap": {
+            "type": "number"
+          }
+        },
+        "required": ["neverGiveDirectAnswers", "restrictToMaterials", "showCitations", "weeklyTokenCap"],
+        "additionalProperties": false
+      },
+      "JolliCoachingRubric": {
+        "type": "object",
+        "properties": {
+          "coachTheQuestion": {
+            "type": "boolean"
+          },
+          "coachTheProcess": {
+            "type": "boolean"
+          },
+          "coachTheModelChoice": {
+            "type": "boolean"
+          },
+          "instructions": {
+            "type": "string"
+          }
+        },
+        "required": ["coachTheQuestion", "coachTheProcess", "coachTheModelChoice", "instructions"],
+        "additionalProperties": false
+      },
+      "JolliAssistantSkill": {
+        "type": "object",
+        "properties": {
+          "skillId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "string"
+          }
+        },
+        "required": ["skillId", "name", "instructions"],
+        "additionalProperties": false
+      },
+      "JolliAssistant": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "courseId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/JolliAssistantKind"
+          },
+          "blurb": {
+            "type": "string"
+          },
+          "accent": {
+            "$ref": "#/components/schemas/JolliAccent"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "allowedModelIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "modelId": {
+            "type": "string"
+          },
+          "guardrails": {
+            "$ref": "#/components/schemas/JolliAssistantGuardrails"
+          },
+          "coaching": {
+            "$ref": "#/components/schemas/JolliCoachingRubric"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JolliAssistantSkill"
+            }
+          },
+          "chatSharing": {
+            "$ref": "#/components/schemas/JolliChatSharing"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "live", "paused"]
+          }
+        },
+        "required": [
+          "id",
+          "courseId",
+          "name",
+          "kind",
+          "blurb",
+          "accent",
+          "instructions",
+          "allowedModelIds",
+          "guardrails",
+          "coaching",
+          "skills",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "JolliModelTier": {
+        "type": "string",
+        "enum": ["premium", "economy"]
+      },
+      "JolliCatalog": {
+        "type": "object",
+        "properties": {
+          "courses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JolliCourse"
+            }
+          },
+          "assistants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JolliAssistant"
+            }
+          },
+          "modelTiers": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JolliModelTier"
+            }
+          }
+        },
+        "required": ["courses", "assistants", "modelTiers"],
+        "additionalProperties": false
+      },
       "ProjectDirectories": {
         "type": "array",
         "items": {
@@ -36814,6 +37081,10 @@
     {
       "name": "global",
       "description": "Global server routes."
+    },
+    {
+      "name": "jolli",
+      "description": "Jolli Code course and assistant routes."
     },
     {
       "name": "event",

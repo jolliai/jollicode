@@ -42,6 +42,32 @@ export type FatalRendererError = {
   os?: string
 }
 
+/**
+ * Whether this student has a Jolli Code course to work in.
+ *
+ * ⚠ THREE STATES, NOT A BOOLEAN, BECAUSE TWO OF THEM READ THE SAME AND MEAN OPPOSITE THINGS. "You
+ * have no courses" is a message about the student's enrolment and sends them to their instructor;
+ * "we could not ask" is a message about the network and sends them to their Wi-Fi. Collapsing them
+ * would make the app confidently wrong exactly when it is offline.
+ */
+export type CourseGateResult = { kind: "ok" | "none" | "unreachable" }
+
+/** What `jolliSignIn` reports back once the credential is stored. */
+export type JolliSignInResult = {
+  /**
+   * Whether the sidecar came back healthy with the new credential. False means the student is
+   * signed in but the app has no server to talk to, which a restart fixes and another sign-in does
+   * not.
+   */
+  serverReady: boolean
+  /**
+   * Whether they have anywhere to work. Checked here rather than through a second round trip
+   * because signing in is exactly when it changes, and the fetch behind it had to happen anyway to
+   * build the sidecar's config.
+   */
+  courses: CourseGateResult["kind"]
+}
+
 export type ElectronAPI = {
   killSidecar: () => Promise<void>
   installCli: () => Promise<string>
@@ -52,8 +78,25 @@ export type ElectronAPI = {
   getDefaultServerUrl: () => Promise<string | null>
   setDefaultServerUrl: (url: string | null) => Promise<void>
   isJolliSignedIn: () => Promise<boolean>
-  /** Resolves when the browser sign-in completes; rejects with a message worth showing. */
-  jolliSignIn: () => Promise<void>
+  /**
+   * Re-asks whether the signed-in student has a course. The sign-in result already answers this;
+   * this is for the two paths that have no sign-in to ride on — launching already signed in, and
+   * the gate's own "check again" button after the student has been added to a course.
+   */
+  jolliCourseGate: () => Promise<CourseGateResult>
+  /**
+   * Forgets the stored credential AND replaces the local server, because the server holds a copy
+   * of it from when it was forked. Offered from the course gate, where signing in as the wrong
+   * account is a real reason to be looking at an empty course list.
+   */
+  jolliSignOut: () => Promise<void>
+  /**
+   * Resolves when the browser sign-in completes; rejects with a message worth showing.
+   *
+   * A resolved sign-in still reports whether the local server survived being restarted with the new
+   * credential, because those two can fail independently and only one of them is worth a retry.
+   */
+  jolliSignIn: () => Promise<JolliSignInResult>
   isFirstLaunchOnboardingPending: () => Promise<boolean>
   finishFirstLaunchOnboarding: (createDefaultProject: boolean) => Promise<string | null>
   isOldLayoutEligible: () => Promise<boolean>

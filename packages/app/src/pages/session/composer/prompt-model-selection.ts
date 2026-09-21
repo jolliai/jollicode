@@ -7,7 +7,7 @@ import { useSDK } from "@/context/sdk"
 import { useSync } from "@/context/sync"
 import { useProviders } from "@/hooks/use-providers"
 import { resolveDefaultModel } from "@/hooks/provider-catalog"
-import { isModelAllowed, ModelGrant } from "@/jolli/model-grant"
+import { isModelAllowed, ModelGrant, parseModelKey } from "@/jolli/model-grant"
 
 /**
  * ⚠ THIS IS THE SECOND IMPLEMENTATION OF THE SELECTION CHAIN IN `context/local.tsx`, AND THE
@@ -36,13 +36,7 @@ export function createPromptModelSelection(input: { agent: () => { model?: Model
   }
 
   /** The model the professor set on this assistant. See `Assistant.modelId`. */
-  const preferred = () => {
-    const key = ModelGrant.preferred()
-    if (!key) return
-    const slash = key.indexOf("/")
-    if (slash <= 0) return
-    return { providerID: key.slice(0, slash), modelID: key.slice(slash + 1) }
-  }
+  const preferred = () => parseModelKey(ModelGrant.preferred())
 
   const configured = () => {
     const model = resolveDefaultModel(providers.defaultModel(), sync().data.config.model)
@@ -70,9 +64,17 @@ export function createPromptModelSelection(input: { agent: () => { model?: Model
      * ⚠ THE PROFESSOR'S MODEL COMES BEFORE THE RECENT LIST AND THE PROVIDER DEFAULT, and after the
      * student's own pick for this session. A course that pinned Opus 4.8 starts every session there.
      */
-    const key = [prompt.model.current(), input.agent()?.model, preferred(), configured(), recent(), fallback()].find(
-      (item): item is ModelKey => !!item && valid(item),
-    )
+    const key = [
+      prompt.model.current(),
+      input.agent()?.model,
+      preferred(),
+      // A course that granted exactly one model selects it. `ModelGrant.only` says why it outranks
+      // the rest of this chain, and `valid()` below is what still refuses one this install cannot run.
+      ModelGrant.only(),
+      configured(),
+      recent(),
+      fallback(),
+    ].find((item): item is ModelKey => !!item && valid(item))
     if (!key) return
     return models.find(key)
   }

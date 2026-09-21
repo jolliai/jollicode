@@ -422,6 +422,26 @@ export function toModelMessages(
   return Effect.runPromise(toModelMessagesEffect(input, model, options))
 }
 
+/**
+ * WHETHER THIS SESSION HAS ANY MESSAGE AT ALL.
+ *
+ * ⚠ IT IS NOT `page({ limit: 1 })` WITH THE ROWS THROWN AWAY, AND THE DIFFERENCE IS TWO QUERIES AND
+ * a full decode. `page` selects every column of the newest message and then hydrates every one of
+ * its parts — on a turn that produced large tool output that is a lot of JSON parsed to answer one
+ * bit. Selecting a single id answers the same question and touches nothing else.
+ */
+export const exists = Effect.fn("MessageV2.exists")(function* (input: { sessionID: SessionID }) {
+  const { db } = yield* Database.Service
+  const row = yield* db
+    .select({ id: MessageTable.id })
+    .from(MessageTable)
+    .where(eq(MessageTable.session_id, input.sessionID))
+    .limit(1)
+    .get()
+    .pipe(Effect.orDie)
+  return !!row
+})
+
 export const page = Effect.fn("MessageV2.page")(function* (input: {
   sessionID: SessionID
   limit: number

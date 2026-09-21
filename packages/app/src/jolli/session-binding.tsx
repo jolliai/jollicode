@@ -1,9 +1,9 @@
 /**
  * WHICH COURSE AND WHICH ASSISTANT THE SESSION ON SCREEN BELONGS TO.
  *
- * This is the route-aware view of `session-store.ts`: the store holds every binding, and this
- * context answers "the one in force right now" plus the small number of things a student may still
- * decide about it.
+ * This is the route-aware view of `@opencode-ai/core/jolli/binding`: that module reads a binding off
+ * any session, and this context answers "the one in force right now" plus the small number of
+ * things a student may still decide about it.
  *
  * ⚠ A PARALLEL CONTEXT RATHER THAN THREE MORE FIELDS ON `context/local.tsx`, AND THAT IS A FORK
  * DECISION RATHER THAN A DESIGN ONE. `local.tsx` is upstream's file and carries its own migration,
@@ -24,11 +24,23 @@ import { createSimpleContext } from "@opencode-ai/ui/context"
 import { useParams } from "@solidjs/router"
 import { createEffect, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
-import { assistantById, courseById, defaultAssistantFor } from "./fixtures"
+import { useSDK } from "@/context/sdk"
+import { useServerSDK } from "@/context/server-sdk"
+import {
+  assistantById,
+  canStartSession,
+  catalogGeneration,
+  courseById,
+  defaultAssistantFor,
+  ensureCatalog,
+  enrolledCourses,
+  ready,
+} from "./catalog"
 import { ModelGrant } from "./model-grant"
-import { SessionCourses, type CourseBinding } from "./session-store"
-import { defaultSessionSharing, mayMakePrivate } from "./sharing"
-import type { Assistant, Course, SessionSharing } from "./types"
+import { useSync } from "@/context/sync"
+import { courseBindingOf, type CourseBinding } from "@opencode-ai/core/jolli/binding"
+import { defaultSessionSharing, mayMakePrivate } from "@opencode-ai/core/jolli/sharing"
+import type { Assistant, Catalog, Course, SessionSharing } from "./types"
 
 export type { CourseBinding }
 
@@ -38,6 +50,16 @@ export type { CourseBinding }
  * session would find no binding and show no course. This carries it across that gap.
  */
 const handoff = new Map<string, CourseBinding>()
+
+/**
+ * ⚠ THE HANDOFF IS DROPPED AS SOON AS THE SERVER'S COPY ARRIVES, because it only ever covers the
+ * frame between creating a session and syncing it back. Left alone it grows for the life of the
+ * renderer — one entry per session created and per visibility toggle — and each stale entry is a
+ * binding that would be preferred over nothing if a session were ever read back unbound.
+ */
+function forgetHandoff(session: string) {
+  handoff.delete(session)
+}
 
 export const { use: useCourseSession, provider: CourseSessionProvider } = createSimpleContext({
   name: "JolliCourseSession",
@@ -52,6 +74,26 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
     const params = useParams()
     const id = createMemo(() => params.id || undefined)
 
+    /**
+     * ⚠ THE CATALOGUE IS FETCHED HERE BECAUSE THIS IS THE CONTEXT THAT NEEDS IT, and `ensureCatalog`
+     * makes the duplicate harmless — this provider mounts on both the new-session route and inside
+     * the directory layout, so a bare fetch would run twice on every launch.
+     */
+    const serverSDK = useServerSDK()
+    const sdk = useSDK()
+    createEffect(() => {
+      const server = serverSDK()
+      /**
+       * ⚠ THE GENERATION IS READ SO A RESET RE-RUNS THIS. The server's URL survives a sign-in —
+       * the sidecar restarts on the same host and port — so it cannot be the only thing this
+       * depends on, and `resetCatalog()` would otherwise clear the store with nothing left to
+       * refill it.
+       */
+      void ensureCatalog(`${server.url}#${catalogGeneration()}`, () =>
+        server.client.jolli.course().then((response) => response.data as Catalog),
+      )
+    })
+
     const [store, setStore] = createStore<{ draft?: CourseBinding }>({})
 
     /**
@@ -61,10 +103,22 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
      * fallback for the frame after creation. Without one we are on the new-session screen and the
      * draft is all there is.
      */
+    const sync = useSync()
     const current = createMemo<CourseBinding | undefined>(() => {
       const session = id()
       if (!session) return store.draft
-      return SessionCourses.get(session) ?? handoff.get(session)
+      /**
+       * ⚠ THE SERVER'S COPY IS THE AUTHORITY AND THE HANDOFF IS ONLY THE GAP. Creating a session
+       * navigates to its route before the new session has been synced back, so for a frame or two
+       * there is no row to read — that is what `handoff` covers, and nothing else.
+       */
+      const row = sync().data.session.find((item) => item.id === session)
+      const bound = courseBindingOf(row)
+      if (bound) {
+        forgetHandoff(session)
+        return bound
+      }
+      return handoff.get(session)
     })
 
     const course = createMemo<Course | undefined>(() => courseById(current()?.courseId))
@@ -96,19 +150,66 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
         setStore("draft", "sharing", sharing)
         return
       }
-      SessionCourses.set(session, { ...existing, sharing })
+      /**
+       * ⚠ VISIBILITY IS THE ONE PART OF A BINDING A LIVE SESSION MAY STILL CHANGE, so it is the one
+       * write that goes back to the server after the session exists. The course and the assistant
+       * do not: the server refuses to rewrite those once the conversation has started.
+       */
+      handoff.set(session, { ...existing, sharing })
+      void sdk()
+        .client.session.update({
+          sessionID: session,
+          directory: sdk().directory,
+          metadata: { jolli: { ...existing, sharing } },
+        })
+        .catch(() => undefined)
     }
 
     /**
-     * ⚠ NOTHING IS PRE-SELECTED, AND AN EARLIER VERSION SEEDED THE FIRST STARTABLE COURSE. Pre-filling
-     * looked helpful and was the wrong default for a decision this size: a course decides who may
-     * answer, on which models, and who may read the result, so a student who never touched the
-     * control has had all three chosen for them by array order. The project and model selectors
-     * beside it are pre-filled because being wrong about those costs a click.
+     * THE FIRST STARTABLE COURSE IS PRE-SELECTED, SO A STUDENT WHO JUST SIGNED IN CAN TYPE.
+     *
+     * ⚠ THIS REVERSES THE EARLIER RULE, WHICH PRE-SELECTED ONLY WHERE THERE WAS EXACTLY ONE
+     * CANDIDATE. That rule was argued from the weight of the decision — a course decides who may
+     * answer, on which models, and who may read the result — and concluded that choosing by array
+     * order was choosing for the student. What it actually produced was a student landing on the
+     * new-session screen after sign-in, typing, and meeting a refusal they had to clear by opening
+     * a menu. The decision is still theirs: the selector sits above the prompt on every new session
+     * and stays live until the first message, so a wrong default costs one click to correct —
+     * whereas no default cost every multi-course student one click, every time.
+     *
+     * ⚠ UNSTARTABLE COURSES ARE STILL SKIPPED. Drafts, courses that have not opened, ended or
+     * archived ones and ones with no assistant are listed and refused by the picker; seeding one
+     * here would bind the session to something the server will not run.
+     *
+     * ⚠ IT WAITS FOR `ready()`, WHICH IS THE WHOLE REASON THAT FLAG EXISTS. Courses arrive from the
+     * server, and "no courses" and "courses still loading" are the same empty list. Acting on the
+     * second would select nothing and then never revisit it — which is exactly the shape of the
+     * sign-in case this is for, since the pre-sign-in ask is answered with an empty catalogue.
+     *
+     * ⚠ AND IT FIRES ONCE, NOT REACTIVELY. A student who picks a different course, or clears the
+     * selection, would otherwise have this put the first one straight back and the control would
+     * appear broken. Signing in goes through `resetCatalog()`, whose new answer re-runs this while
+     * the latch is still open, because an empty catalogue never closed it.
      *
      * ⚠ PICKING A COURSE STILL PICKS AN ASSISTANT — see `draftFor`, which resolves the course's
      * default. One decision, not two, which is the part that was actually worth automating.
      */
+    let autoSelected = false
+    createEffect(() => {
+      if (autoSelected || !ready() || id() || store.draft) return
+      const first = enrolledCourses().find((course) => canStartSession(course.id))
+      if (!first) return
+      /**
+       * ⚠ THE LATCH CLOSES ONLY IF THE DRAFT WAS ACTUALLY BUILT. `draftFor` returns nothing when the
+       * course resolves but its default assistant does not — rare, but setting the latch first would
+       * make that a permanent refusal to pre-select on a course `canStartSession` just called
+       * startable.
+       */
+      const draft = draftFor(first.id)
+      if (!draft) return
+      autoSelected = true
+      setStore("draft", draft)
+    })
 
     /**
      * PUBLISH WHAT THE ASSISTANT DECIDES ABOUT MODELS so the models context can narrow its list and
@@ -193,12 +294,15 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
       /**
        * CARRY THE DRAFT ONTO THE SESSION THAT WAS JUST CREATED. Called from the submit path
        * alongside `local.session.promote`, which does exactly this for agent/model/variant.
+       *
+       * ⚠ IT NO LONGER WRITES THE BINDING ANYWHERE — `submit.ts` sends it as part of `session.create`
+       * so that the session never exists unbound. All this does is cover the frame between that
+       * call and the new session arriving over sync.
        */
       promote(_dir: string, session: string, binding?: CourseBinding) {
         const next = binding ?? store.draft
         if (!next) return
         handoff.set(session, { ...next })
-        SessionCourses.set(session, next)
         setStore("draft", undefined)
       },
     }

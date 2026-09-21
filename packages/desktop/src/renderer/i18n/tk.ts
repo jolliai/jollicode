@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "Gaýtadan açyň",
 
   "desktop.jolli.signIn.title": "Jolli Code-a girmek",
-  "desktop.jolli.signIn.body":
-    "Haýsy modelleri we kurs kömekçilerini ulanyp biljekdigiňizi mekdep hasabyňyz kesgitleýär. Girilende brauzeriňiz açylar.",
+  "desktop.jolli.signIn.body": "Girseňiz brauzeriňiz açylar.",
   "desktop.jolli.signIn.action": "Jolli bilen girmek",
   "desktop.jolli.signIn.waiting": "Brauzeriňize garaşylýar…",
   "desktop.jolli.signIn.hint": "Şu wagt açylan brauzer bellikde girişi tamamlaň, soňra bu ýere dolanyň.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Siz girdiňiz, ýöne Jolli Code ýerli serweri täzeden başladyp bilmedi. Tamamlamak üçin programmany täzeden başladyň.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Jolli Code kurslary ýok",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Kurslaryňyzyň hiç biri entek Jolli Code ulanmaýar. Mugallymyňyz gurnanyndan soň ýene barlaň.",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli-ä ýetip bolmady",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code kurslaryňyzy ýükläp bilmedi. Birikmäňizi barlaň we ýene synanyşyň.",
+  "desktop.jolli.courseGate.retry": "Ýene barla",
+  "desktop.jolli.courseGate.switchAccount": "Başga hasap ulan",
   "desktop.dialog.chooseFolder": "Papka saýlaň",
   "desktop.dialog.chooseFile": "Faýl saýlaň",
   "desktop.dialog.saveFile": "Faýly ýazdyryň",

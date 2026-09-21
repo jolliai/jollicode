@@ -5,12 +5,22 @@ export const dict = {
   "desktop.menu.restart": "Opnieuw opstarten",
 
   "desktop.jolli.signIn.title": "Aanmelden bij Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Je schoolaccount bepaalt welke modellen en vakassistenten je kunt gebruiken. Bij het aanmelden wordt je browser geopend.",
+  "desktop.jolli.signIn.body": "Bij het inloggen wordt je browser geopend.",
   "desktop.jolli.signIn.action": "Aanmelden met Jolli",
   "desktop.jolli.signIn.waiting": "Wachten op je browser…",
   "desktop.jolli.signIn.hint":
     "Rond het aanmelden af in het browsertabblad dat zojuist is geopend en kom dan hier terug.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Je bent ingelogd, maar Jolli Code kon zijn lokale server niet herstarten. Start de app opnieuw om af te ronden.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Geen Jolli Code-cursussen",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Nog geen van je cursussen gebruikt Jolli Code. Zodra je docent er een instelt, controleer je opnieuw.",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli niet bereikbaar",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code kon je cursussen niet laden. Controleer je verbinding en probeer het opnieuw.",
+  "desktop.jolli.courseGate.retry": "Opnieuw controleren",
+  "desktop.jolli.courseGate.switchAccount": "Ander account gebruiken",
   "desktop.dialog.chooseFolder": "Kies een map",
   "desktop.dialog.chooseFile": "Kies een bestand",
   "desktop.dialog.saveFile": "Bestand opslaan",

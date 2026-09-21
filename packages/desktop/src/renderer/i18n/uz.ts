@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "Qayta ishga tushirish",
 
   "desktop.jolli.signIn.title": "Jolli Code'ga kirish",
-  "desktop.jolli.signIn.body":
-    "Qaysi modellar va kurs yordamchilaridan foydalana olishingizni maktab hisobingiz belgilaydi. Kirishda brauzeringiz ochiladi.",
+  "desktop.jolli.signIn.body": "Tizimga kirganda brauzeringiz ochiladi.",
   "desktop.jolli.signIn.action": "Jolli orqali kirish",
   "desktop.jolli.signIn.waiting": "Brauzeringiz kutilmoqda…",
   "desktop.jolli.signIn.hint": "Hozirgina ochilgan brauzer yorlig'ida kirishni yakunlang, so'ng bu yerga qayting.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Tizimga kirdingiz, lekin Jolli Code mahalliy serverni qayta ishga tushira olmadi. Yakunlash uchun ilovani qayta ishga tushiring.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Jolli Code kurslari yo'q",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Kurslaringizdan hech biri hali Jolli Code'dan foydalanmaydi. O'qituvchingiz sozlagach, qayta tekshiring.",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli'ga ulanib bo'lmadi",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code kurslaringizni yuklay olmadi. Ulanishni tekshiring va qayta urinib ko'ring.",
+  "desktop.jolli.courseGate.retry": "Qayta tekshirish",
+  "desktop.jolli.courseGate.switchAccount": "Boshqa hisobdan foydalanish",
   "desktop.dialog.chooseFolder": "Jildni tanlang",
   "desktop.dialog.chooseFile": "Faylni tanlang",
   "desktop.dialog.saveFile": "Faylni saqlash",

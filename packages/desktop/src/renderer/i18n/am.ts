@@ -5,10 +5,19 @@ export const dict = {
   "desktop.menu.restart": "ዳግም አስጀምር",
 
   "desktop.jolli.signIn.title": "ወደ Jolli Code ይግቡ",
-  "desktop.jolli.signIn.body": "የትምህርት ቤትዎ መለያ የትኞቹን ሞዴሎችና የትምህርት ረዳቶች መጠቀም እንደሚችሉ ይወስናል። ሲገቡ አሳሽዎ ይከፈታል።",
+  "desktop.jolli.signIn.body": "ሲገቡ አሳሽዎ ይከፈታል።",
   "desktop.jolli.signIn.action": "በ Jolli ይግቡ",
   "desktop.jolli.signIn.waiting": "አሳሽዎን በመጠበቅ ላይ…",
   "desktop.jolli.signIn.hint": "አሁን በተከፈተው የአሳሽ ትር ውስጥ መግባትዎን ያጠናቅቁ፣ ከዚያ ወደዚህ ይመለሱ።",
+  "desktop.jolli.signIn.serverUnavailable":
+    "ገብተዋል፣ ነገር ግን Jolli Code የአካባቢውን አገልጋይ እንደገና ማስጀመር አልቻለም። ለማጠናቀቅ መተግበሪያውን እንደገና ያስጀምሩ።",
+
+  "desktop.jolli.courseGate.noCourses.title": "የJolli Code ኮርሶች የሉም",
+  "desktop.jolli.courseGate.noCourses.body": "ከኮርሶችዎ አንዱም እስካሁን Jolli Code አይጠቀምም። አስተማሪዎ አንዱን ካዘጋጁ በኋላ እንደገና ያረጋግጡ።",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli ላይ መድረስ አልተቻለም",
+  "desktop.jolli.courseGate.unreachable.body": "Jolli Code ኮርሶችዎን መጫን አልቻለም። ግንኙነትዎን ያረጋግጡና እንደገና ይሞክሩ።",
+  "desktop.jolli.courseGate.retry": "እንደገና ያረጋግጡ",
+  "desktop.jolli.courseGate.switchAccount": "ሌላ መለያ ይጠቀሙ",
   "desktop.dialog.chooseFolder": "አቃፊ ምረጥ",
   "desktop.dialog.chooseFile": "ፋይል ምረጥ",
   "desktop.dialog.saveFile": "ፋይሉን አስቀምጥ",

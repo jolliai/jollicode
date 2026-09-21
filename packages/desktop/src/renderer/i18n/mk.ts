@@ -5,12 +5,22 @@ export const dict = {
   "desktop.menu.restart": "Рестартирајте",
 
   "desktop.jolli.signIn.title": "Најавете се на Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Вашата училишна сметка определува кои модели и асистенти за курсеви можете да ги користите. При најавата ќе се отвори вашиот прелистувач.",
+  "desktop.jolli.signIn.body": "Најавата го отвора вашиот прелистувач.",
   "desktop.jolli.signIn.action": "Најава со Jolli",
   "desktop.jolli.signIn.waiting": "Се чека вашиот прелистувач…",
   "desktop.jolli.signIn.hint":
     "Завршете ја најавата во картичката на прелистувачот што штотуку се отвори, а потоа вратете се тука.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Најавени сте, но Jolli Code не можеше да го рестартира локалниот сервер. Рестартирајте ја апликацијата за да завршите.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Нема курсеви со Jolli Code",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Ниту еден ваш курс сè уште не користи Jolli Code. Кога наставникот ќе постави, проверете повторно.",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli е недостапен",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code не можеше да ги вчита вашите курсеви. Проверете ја врската и обидете се повторно.",
+  "desktop.jolli.courseGate.retry": "Провери повторно",
+  "desktop.jolli.courseGate.switchAccount": "Користи друга сметка",
   "desktop.dialog.chooseFolder": "Изберете папка",
   "desktop.dialog.chooseFile": "Изберете датотека",
   "desktop.dialog.saveFile": "Зачувај датотека",

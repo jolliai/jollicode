@@ -446,6 +446,8 @@ export interface Interface {
   readonly setWorkspace: (input: { sessionID: SessionID; workspaceID: Info["workspaceID"] }) => Effect.Effect<void>
   readonly diff: (sessionID: SessionID) => Effect.Effect<Snapshot.FileDiff[]>
   readonly messages: (input: { sessionID: SessionID; limit?: number }) => Effect.Effect<SessionV1.WithParts[], NotFound>
+  /** Whether the conversation has begun. Cheaper than `messages` — see `MessageV2.exists`. */
+  readonly hasMessages: (input: { sessionID: SessionID }) => Effect.Effect<boolean>
   readonly children: (parentID: SessionID) => Effect.Effect<Info[]>
   readonly remove: (sessionID: SessionID) => Effect.Effect<void, NotFound>
   readonly updateMessage: <T extends SessionV1.Info>(msg: T) => Effect.Effect<T>
@@ -825,6 +827,12 @@ const layer: Layer.Layer<
       return [] as Snapshot.FileDiff[]
     })
 
+    const hasMessages: Interface["hasMessages"] = Effect.fn("Session.hasMessages")(function* (input) {
+      return yield* MessageV2.exists({ sessionID: input.sessionID }).pipe(
+        Effect.provideService(Database.Service, database),
+      )
+    })
+
     const messages: Interface["messages"] = Effect.fn("Session.messages")(function* (input) {
       if (input.limit) {
         return (yield* MessageV2.page({ sessionID: input.sessionID, limit: input.limit }).pipe(
@@ -922,6 +930,7 @@ const layer: Layer.Layer<
       setWorkspace,
       diff,
       messages,
+      hasMessages,
       children,
       remove,
       updateMessage,

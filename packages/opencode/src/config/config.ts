@@ -37,7 +37,10 @@ import { ConfigV2Compat } from "./v2-compat"
 import { Npm } from "@opencode-ai/core/npm"
 import { Brand } from "@opencode-ai/core/brand"
 import { jolliBaseConfig } from "@opencode-ai/core/jolli/gateway-config"
-import { catalogModels } from "@opencode-ai/core/jolli/model-catalog"
+import { gatewayRequest } from "@opencode-ai/core/jolli/api"
+import { loadCatalog, STARTUP_DEADLINE } from "@opencode-ai/core/jolli/cache"
+import { toProviderModels } from "@opencode-ai/core/jolli/catalog"
+import { jolliCredential } from "@/jolli/credential"
 import { withTransientReadRetry } from "@/util/effect-http-client"
 
 // Custom merge function that concatenates array fields instead of replacing them
@@ -54,17 +57,39 @@ function mergeConfigConcatArrays(target: Info, source: Info): Info {
   return merged
 }
 
-/** The Jolli floor for one stored credential: locked either way, with a provider once signed in. */
-function jolliLockdownConfig(credential: Auth.Info | undefined): Info {
-  const signedIn = credential?.type === "api"
+/**
+ * The Jolli floor for one stored credential: locked either way, with a provider once signed in.
+ *
+ * ⚠ THE MODEL LIST IS THE TENANT'S, FETCHED, AND ITS ABSENCE IS NOT AN ERROR. Which models exist is
+ * the gateway's answer; `loadCatalog` serves it from a short-lived cache and falls back to a stale
+ * one rather than to nothing. When even that is missing the provider is declared with NO models
+ * rather than with a local list: the old `catalogModels()` fallback named models by name
+ * (`claude-opus-4-8`) while a course grants them by Registry UUID, so mixing the two produced a
+ * provider whose every model failed the course grant — an empty picker with no error to explain it.
+ * An empty `models` block is the same emptiness, honestly arrived at.
+ */
+const jolliLockdownConfig = Effect.fnUntraced(function* (credential: Auth.Info | undefined) {
+  const jolli = jolliCredential(credential)
+  if (!jolli) return jolliBaseConfig({ signedIn: false, models: [] })
+  const request = jolli.baseUrl ? gatewayRequest(jolli.baseUrl, jolli.token) : undefined
+  /**
+   * ⚠ CONFIG LOADING MUST NOT BE ABLE TO FAIL ON THIS, NOR HOLD A LAUNCH OPEN OVER IT. A defect
+   * escaping here stops the server starting, and the thing it would die for is a list of models —
+   * so the cause is swallowed and the wait is bounded by `STARTUP_DEADLINE` rather than by the
+   * cache's 45-second backstop. The desktop warms this cache before it forks the sidecar; the bare
+   * CLI does not, so a cold cache behind an unreachable gateway is this path's normal worst case.
+   */
+  const loaded = request
+    ? yield* loadCatalog(request, { timeout: STARTUP_DEADLINE }).pipe(
+        Effect.catchCause(() => Effect.succeed(undefined)),
+      )
+    : undefined
   return jolliBaseConfig({
-    signedIn,
-    // Interim: which models a student may run is the course's decision and should arrive with
-    // sign-in. `catalogModels` is the seam, and says so where it is defined.
-    models: catalogModels(),
-    ...(signedIn && credential.metadata?.["baseUrl"] ? { baseUrl: credential.metadata["baseUrl"] } : {}),
-  })
-}
+    signedIn: true,
+    models: loaded?.kind === "ok" ? toProviderModels(new Map(loaded.snapshot.models.map((m) => [m.id, m]))) : [],
+    ...(jolli.baseUrl ? { baseUrl: jolli.baseUrl } : {}),
+  }) satisfies Info
+})
 
 function normalizeLoadedConfig(data: unknown) {
   if (!isRecord(data)) return data
@@ -353,7 +378,7 @@ const layer = Layer.effect(
          * The provider block only appears once a Jolli credential exists — `jolliBaseConfig`
          * explains why declaring it while signed out breaks first-run sign-in.
          */
-        let result: Info = Flag.JOLLICODE_LOCKDOWN ? jolliLockdownConfig(auth[Brand.short]) : {}
+        let result: Info = Flag.JOLLICODE_LOCKDOWN ? yield* jolliLockdownConfig(auth[Brand.short]) : {}
         const authEnv: Record<string, string> = {}
         const consoleManagedProviders = new Set<string>()
         let activeOrgName: string | undefined

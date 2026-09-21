@@ -11,11 +11,14 @@
  * `.opencode/skill` — so grouping on it would file those under the professor's name. The
  * assistant's own `skills` list is the only thing that knows which ones belong to the course.
  *
- * The join works because `writeCourseSkills` (`packages/desktop/src/main/jolli-gateway.ts`) writes
- * `skillId` into each skill's frontmatter `name`, and the v1 server takes both the skill's name and
- * the slash command it becomes from that field. That chain is the reason `skillId` is a slug and
- * the human title lives in `description` — a title with a space in it would produce a command
- * nobody can type.
+ * The join works because whatever materialises a course's skills writes `skillId` into each
+ * skill's frontmatter `name`, and the v1 server takes both the skill's name and the slash command
+ * it becomes from that field. That chain is the reason `skillId` is a slug and the human title
+ * lives in `description` — a title with a space in it would produce a command nobody can type.
+ *
+ * ⚠ NOTHING WRITES THEM TODAY. The gateway's student-facing assistant shape carries no skills, so
+ * `clearCourseSkills` only removes what older builds left behind; this grouping stays correct and
+ * simply matches nothing until the gateway serves them.
  *
  * ⚠ AND ONLY A `custom` COMMAND CAN BE OWNED. Builtins come from the command palette, never from a
  * skill; testing them too would let a palette entry that happened to share a slug be captured by a

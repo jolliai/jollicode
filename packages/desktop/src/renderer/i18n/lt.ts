@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "Paleisti iš naujo",
 
   "desktop.jolli.signIn.title": "Prisijungti prie Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Jūsų mokyklos paskyra nulemia, kuriuos modelius ir kursų asistentus galite naudoti. Prisijungiant atsidarys jūsų naršyklė.",
+  "desktop.jolli.signIn.body": "Prisijungiant atsidarys jūsų naršyklė.",
   "desktop.jolli.signIn.action": "Prisijungti su Jolli",
   "desktop.jolli.signIn.waiting": "Laukiama jūsų naršyklės…",
   "desktop.jolli.signIn.hint": "Užbaikite prisijungimą ką tik atsidariusioje naršyklės kortelėje ir grįžkite čia.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Prisijungėte, bet „Jolli Code“ nepavyko iš naujo paleisti vietinio serverio. Kad užbaigtumėte, paleiskite programą iš naujo.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Nėra „Jolli Code“ kursų",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Nė vienas jūsų kursas dar nenaudoja „Jolli Code“. Kai dėstytojas jį nustatys, patikrinkite dar kartą.",
+  "desktop.jolli.courseGate.unreachable.title": "Nepavyko pasiekti „Jolli“",
+  "desktop.jolli.courseGate.unreachable.body":
+    "„Jolli Code“ nepavyko įkelti jūsų kursų. Patikrinkite ryšį ir bandykite dar kartą.",
+  "desktop.jolli.courseGate.retry": "Tikrinti dar kartą",
+  "desktop.jolli.courseGate.switchAccount": "Naudoti kitą paskyrą",
   "desktop.dialog.chooseFolder": "Pasirinkite aplanką",
   "desktop.dialog.chooseFile": "Pasirinkite failą",
   "desktop.dialog.saveFile": "Išsaugoti failą",

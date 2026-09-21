@@ -14,7 +14,7 @@ import { useSDK } from "./sdk"
 import { useSync } from "./sync"
 import { useServerSDK } from "./server-sdk"
 import { ScopedKey, type ServerScope } from "@/utils/server-scope"
-import { isModelAllowed, ModelGrant } from "@/jolli/model-grant"
+import { isModelAllowed, ModelGrant, parseModelKey } from "@/jolli/model-grant"
 
 export type ModelKey = { providerID: string; modelID: string; variant?: string }
 
@@ -205,17 +205,22 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
      * ⚠ AND THE SESSION'S OWN SELECTION STILL WINS, because `current()` checks `scope()?.model`
      * before it ever reaches this. A student who changes model inside a session keeps that change.
      */
-    const preferredModel = () => {
-      const key = ModelGrant.preferred()
-      if (!key) return
-      const slash = key.indexOf("/")
-      if (slash <= 0) return
-      const model = { providerID: key.slice(0, slash), modelID: key.slice(slash + 1) }
-      if (validModel(model)) return model
+    const preferredModel = () => grantedModel(ModelGrant.preferred())
+
+    /** A course's only granted model, when it can be run here. `ModelGrant.only` says why it wins. */
+    const onlyGrantedModel = () => {
+      const model = ModelGrant.only()
+      if (model && validModel(model)) return model
+    }
+
+    /** A `provider/model` grant key, if it names a model this install can actually run. */
+    function grantedModel(key: string | undefined) {
+      const model = parseModelKey(key)
+      if (model && validModel(model)) return model
     }
 
     const fallback = createMemo<ModelKey | undefined>(
-      () => preferredModel() ?? configuredModel() ?? recentModel() ?? defaultModel(),
+      () => preferredModel() ?? onlyGrantedModel() ?? configuredModel() ?? recentModel() ?? defaultModel(),
     )
 
     const agent = {

@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "Khởi động lại",
 
   "desktop.jolli.signIn.title": "Đăng nhập vào Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Tài khoản trường học của bạn quyết định những mô hình và trợ lý môn học mà bạn có thể sử dụng. Khi đăng nhập, trình duyệt sẽ mở ra.",
+  "desktop.jolli.signIn.body": "Đăng nhập sẽ mở trình duyệt của bạn.",
   "desktop.jolli.signIn.action": "Đăng nhập bằng Jolli",
   "desktop.jolli.signIn.waiting": "Đang chờ trình duyệt của bạn…",
   "desktop.jolli.signIn.hint": "Hoàn tất đăng nhập trong tab trình duyệt vừa mở, rồi quay lại đây.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Bạn đã đăng nhập, nhưng Jolli Code không thể khởi động lại máy chủ cục bộ. Hãy khởi động lại ứng dụng để hoàn tất.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Không có khóa học Jolli Code",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Chưa có khóa học nào của bạn dùng Jolli Code. Khi giảng viên thiết lập, hãy kiểm tra lại.",
+  "desktop.jolli.courseGate.unreachable.title": "Không kết nối được tới Jolli",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code không tải được các khóa học của bạn. Hãy kiểm tra kết nối rồi thử lại.",
+  "desktop.jolli.courseGate.retry": "Kiểm tra lại",
+  "desktop.jolli.courseGate.switchAccount": "Dùng tài khoản khác",
   "desktop.dialog.chooseFolder": "Chọn một thư mục",
   "desktop.dialog.chooseFile": "Chọn một tệp",
   "desktop.dialog.saveFile": "Lưu tệp",

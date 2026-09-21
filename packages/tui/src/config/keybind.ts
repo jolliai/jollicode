@@ -125,8 +125,16 @@ export const Definitions = {
   model_cycle_favorite_reverse: keybind("none", "Previous favorite model"),
   mcp_list: keybind("none", "List MCP servers"),
   provider_connect: keybind("none", "Connect provider"),
+  provider_logout: keybind("none", "Sign out"),
   console_org_switch: keybind("none", "Switch console organization"),
   agent_list: keybind("<leader>a", "List agents"),
+  /**
+   * ⚠ NO DEFAULT KEY, DELIBERATELY. Every free `<leader>` letter is already spoken for, and these
+   * are chosen once per session rather than cycled — `/course` and `/assistant` are the reach that
+   * fits how often they are used. A student who wants a key binds one.
+   */
+  jolli_course: keybind("none", "Select course"),
+  jolli_assistant: keybind("none", "Select assistant"),
   agent_cycle: keybind("tab", "Next agent"),
   agent_cycle_reverse: keybind("shift+tab", "Previous agent"),
   variant_cycle: keybind("ctrl+t", "Cycle model variants"),
@@ -331,8 +339,11 @@ export const CommandMap = {
   model_cycle_favorite_reverse: "model.cycle_favorite_reverse",
   mcp_list: "mcp.list",
   provider_connect: "provider.connect",
+  provider_logout: "provider.logout",
   console_org_switch: "console.org.switch",
   agent_list: "agent.list",
+  jolli_course: "jolli.course",
+  jolli_assistant: "jolli.assistant",
   agent_cycle: "agent.cycle",
   agent_cycle_reverse: "agent.cycle.reverse",
   variant_cycle: "variant.cycle",

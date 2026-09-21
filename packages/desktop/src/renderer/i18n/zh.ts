@@ -5,10 +5,18 @@ export const dict = {
   "desktop.menu.restart": "重启",
 
   "desktop.jolli.signIn.title": "登录 Jolli Code",
-  "desktop.jolli.signIn.body": "你可以使用哪些模型和课程助手由你的学校账号决定。登录时会打开浏览器。",
+  "desktop.jolli.signIn.body": "登录时会打开浏览器。",
   "desktop.jolli.signIn.action": "使用 Jolli 登录",
   "desktop.jolli.signIn.waiting": "正在等待浏览器…",
   "desktop.jolli.signIn.hint": "在刚刚打开的浏览器标签页中完成登录，然后返回这里。",
+  "desktop.jolli.signIn.serverUnavailable": "你已登录，但 Jolli Code 无法重启本地服务。请重启应用以完成。",
+
+  "desktop.jolli.courseGate.noCourses.title": "没有 Jolli Code 课程",
+  "desktop.jolli.courseGate.noCourses.body": "你的课程还没有使用 Jolli Code。等老师配置好之后再检查一次。",
+  "desktop.jolli.courseGate.unreachable.title": "无法连接 Jolli",
+  "desktop.jolli.courseGate.unreachable.body": "Jolli Code 无法加载你的课程。请检查网络连接后重试。",
+  "desktop.jolli.courseGate.retry": "重新检查",
+  "desktop.jolli.courseGate.switchAccount": "使用其他账号",
 
   "desktop.dialog.chooseFolder": "选择文件夹",
   "desktop.dialog.chooseFile": "选择文件",

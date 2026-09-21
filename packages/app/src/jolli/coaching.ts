@@ -24,24 +24,9 @@
  * ⚠ THE PROFESSOR AUTHORS THE RUBRIC ON THE WEB AND THIS SURFACE ONLY APPLIES IT. There is no
  * builder here; `CoachingRubric` arrives on the assistant exactly as `guardrails` does.
  */
-import { modelTier } from "./model-catalog"
-import type { Assistant, CoachingRubric } from "./types"
-
-/**
- * THE RESTING RUBRIC: everything on, nothing written.
- *
- * ⚠ IT IS THE FALLBACK FOR AN UNRESOLVED ASSISTANT AS WELL AS THE SEED FOR A NEW ONE, and the
- * fallback is the half worth arguing. A session whose assistant is gone resolving to all-off would
- * make a deleted assistant silently delete its own nudges: a professor would watch a thread lose
- * its marks with nothing on any screen to explain it. Resolving to the standard rubric fails
- * towards the behaviour every reader already expects.
- */
-export const STANDARD_RUBRIC: CoachingRubric = {
-  coachTheQuestion: true,
-  coachTheProcess: true,
-  coachTheModelChoice: true,
-  instructions: "",
-}
+import { Jolli } from "@opencode-ai/schema/jolli"
+import { modelTier } from "./model-tier"
+import type { Assistant } from "./types"
 
 /** Which switch a trigger answers to. The rubric key, so a reader can trace one to the other. */
 export type CoachFocus = "coachTheQuestion" | "coachTheProcess" | "coachTheModelChoice"
@@ -81,12 +66,16 @@ const words = (s: string) => s.trim().split(/\s+/).filter(Boolean).length
 /**
  * WHICH MODELS ARE HEAVY AND WHICH ARE LIGHT — READ OFF THE GATEWAY CATALOGUE, NOT GUESSED.
  *
- * ⚠ THE TIER COMES FROM `MODEL_CATALOG` (`./model-catalog`), THE SAME LIST THE GATEWAY SERVES, so the
- * nudge can never disagree with the catalogue about a model's weight. A `premium` model is heavy and
- * an `economy` model is light; `standard` sits between and draws no nudge. An unrecognised model has
- * no tier, so it produces no model-choice nudge rather than a default one — the behaviour the web mock
- * settled on. This replaces a pair of hand-kept regexes that had drifted from the catalogue twice
- * (`flash` was catching five standard models; four premium `*-pro` models were matching nothing).
+ * ⚠ THE TIER IS THE GATEWAY'S OWN ANSWER (`./model-tier`), so the nudge can never disagree with the
+ * catalogue about a model's weight. A `premium` model is heavy and an `economy` model is light; a
+ * model the gateway did not classify has no tier and produces no model-choice nudge rather than a
+ * default one — the behaviour the web mock settled on. This replaces a pair of hand-kept regexes
+ * that had drifted from the catalogue twice (`flash` was catching five standard models; four
+ * premium `*-pro` models were matching nothing).
+ *
+ * ⚠ AND IT IS LOOKED UP BY MODEL KEY, NOT READ OFF THE ASSISTANT, because the question is about the
+ * model that RAN this turn — which the student may have switched away from the professor's
+ * default.
  *
  * ⚠ AND NO NUDGE NAMES A PRICE, EVER. The web mock spends a paragraph on this and it is the branch
  * that would slip: "was the model right for the job" is a question about FIT. A per-message cost
@@ -128,7 +117,8 @@ const RUN = /^(bash|shell|test|run)$/
  */
 export function coachTurn(input: CoachTurnInput): CoachTrigger[] {
   const { assistant, promptText, promptFileCount, answerWords, tools, modelId } = input
-  const rubric = assistant?.coaching ?? STANDARD_RUBRIC
+  /** A session whose assistant is gone keeps its nudges. See `Jolli.STANDARD_RUBRIC`. */
+  const rubric = assistant?.coaching ?? Jolli.STANDARD_RUBRIC
   const lower = promptText.toLowerCase()
   const notes: CoachTrigger[] = []
 

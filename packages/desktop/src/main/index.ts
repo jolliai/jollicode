@@ -13,7 +13,9 @@ import contextMenu from "electron-context-menu"
 
 import { Brand } from "@opencode-ai/app/brand"
 import type { ServerReadyData } from "../preload/types"
-import { currentSession, signIn } from "./jolli-auth"
+import { currentSession, signIn, signOut } from "./jolli-auth"
+import { clearCatalogCache } from "@opencode-ai/core/jolli/cache"
+import { checkCourseGate } from "./jolli-course-gate"
 import { checkAppExists, resolveAppPath } from "./apps"
 import { CHANNEL } from "./constants"
 import { registerIpcHandlers, sendDeepLinks, sendMenuCommand } from "./ipc"
@@ -33,6 +35,7 @@ import {
   spawnLocalServer,
   type SidecarListener,
 } from "./server"
+import { awaitSidecarReady } from "./sidecar-health"
 import { setupAutoUpdater, showUpdaterDialog } from "./updater"
 import { safeWebContentsURL } from "./window-state"
 import {
@@ -117,24 +120,23 @@ async function startSidecar(hostname: string, port: number, password: string) {
 }
 
 /**
- * Replaces a running sidecar so it picks up config that only reaches it through its spawn env.
+ * Replaces a running sidecar so it picks up config that only reaches it through its spawn env, and
+ * reports whether it came back.
  *
- * ⚠ THE HEALTH WAIT IS BOUNDED AND SWALLOWED, LIKE THE ONE AT FIRST LAUNCH. `health.wait` polls
- * without a deadline of its own, so awaiting it bare leaves the `jolli-sign-in` IPC — and with it
- * the onboarding button — hung forever on a sidecar that never comes up; and it rejects when the
- * process dies, which would report a sign-in that actually succeeded as a failure. The server being
- * slow or dead is a separate problem from the sign-in, and it surfaces through the health check the
- * renderer already runs.
+ * ⚠ THE ANSWER IS RETURNED RATHER THAN THROWN OR LOGGED, BECAUSE A DEAD SERVER IS NOT A FAILED
+ * SIGN-IN. The credential is already stored by the time this runs, so rejecting would send the
+ * student back through the browser to fix something the browser has nothing to do with — and a log
+ * line alone is how a renderer left talking to a dead sidecar used to look like a success.
+ * `awaitSidecarReady` says why the wait is bounded and why it never throws.
  */
 async function restartSidecar() {
-  if (!sidecarAddress) return
+  if (!sidecarAddress) return true
   const address = sidecarAddress
   await killSidecar()
   const { health } = await startSidecar(address.hostname, address.port, address.password)
-  await Promise.race([
-    health.wait,
-    new Promise<void>((resolve) => setTimeout(resolve, SIDECAR_RESTART_HEALTH_TIMEOUT).unref()),
-  ]).catch((error) => logger.error("sidecar health check failed after restart", error))
+  const result = await awaitSidecarReady(health.wait, SIDECAR_RESTART_HEALTH_TIMEOUT)
+  if (!result.ready) logger.error("sidecar did not come back healthy after restart", result.error)
+  return result.ready
 }
 
 function ensureLoopbackNoProxy() {
@@ -353,7 +355,35 @@ const main = Effect.gen(function* () {
      * is a no-op; a later sign-in from the app is what needs it.
      */
     jolliSignIn: async () => {
-      await signIn()
+      const session = await signIn()
+      /**
+       * ⚠ THE COURSES ARE CHECKED BEFORE THE SIDECAR IS REPLACED, AND THE ORDER IS THE POINT. This
+       * fetch is what fills the catalogue cache, and the sidecar bakes its model list out of that
+       * cache as it forks — running it the other way round would start a server with no models and
+       * then discover the student had courses after all.
+       */
+      const courses = (await checkCourseGate(session)).kind
+      if (!server) return { serverReady: true, courses }
+      return { serverReady: await restartSidecar(), courses }
+    },
+    jolliCourseGate: () => checkCourseGate(currentSession()),
+    /**
+     * ⚠ THE SIDECAR HAS TO BE REPLACED, NOT JUST THE STORED CREDENTIAL. The token reaches the
+     * server in its environment and is read once, at fork — so a sidecar started by the previous
+     * student keeps answering `/jolli/course` as them, and keeps their key on every model call,
+     * until something restarts it. Signing out without this leaves the account live in a process
+     * the next student is about to use.
+     */
+    jolliSignOut: async () => {
+      signOut()
+      /**
+       * ⚠ THE CACHED CATALOGUE GOES WITH THE CREDENTIAL. Its filename is a hash of the token, so
+       * nothing will ever read this student's snapshot again — but it is still their course list
+       * sitting in a directory the next person to sign in on this machine can read, and the button
+       * that reaches here is literally "use a different account". Keyed storage stops a stale
+       * snapshot being SERVED to the wrong student; only deleting it stops one being FOUND.
+       */
+      await Effect.runPromise(clearCatalogCache()).catch(() => undefined)
       if (server) await restartSidecar()
     },
     isFirstLaunchOnboardingPending,

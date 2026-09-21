@@ -25,6 +25,7 @@ const optimistic: Array<{
 const optimisticSeeded: boolean[] = []
 const storedSessions: Record<string, Array<{ id: string; title?: string }>> = {}
 const promoted: Array<{ directory: string; sessionID: string }> = []
+let courseBinding: { courseId: string; assistantId: string } | undefined
 const coursePromoted: Array<{ directory: string; sessionID: string }> = []
 const sentShell: Array<{ sessionID: string; id?: string; command: string }> = []
 const syncedDirectories: string[] = []
@@ -163,6 +164,12 @@ beforeAll(async () => {
   // ignored so a regression that stops binding a new session to its course fails here.
   mock.module("@/jolli/session-binding", () => ({
     useCourseSession: () => ({
+      /**
+       * The binding travels with `session.create` now, so submitting reads it as well as promoting
+       * it. Unbound is the honest default here — these tests are about worktree selection, and a
+       * session created without a course is exactly what a bare CLI or an older build produces.
+       */
+      current: () => courseBinding,
       promote(directory: string, sessionID: string) {
         coursePromoted.push({ directory, sessionID })
       },

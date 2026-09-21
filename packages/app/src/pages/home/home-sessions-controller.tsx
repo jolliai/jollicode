@@ -21,9 +21,9 @@ import { pathKey } from "@/utils/path-key"
 import { showToast } from "@/utils/toast"
 import { Binary } from "@opencode-ai/core/util/binary"
 import { archiveHomeSession } from "../home-session-archive"
-import { courseById } from "@/jolli/fixtures"
+import { courseById } from "@/jolli/catalog"
 import { HomeCourseSelection } from "@/jolli/home-selection"
-import { SessionCourses } from "@/jolli/session-store"
+import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
 import type { Course } from "@/jolli/types"
 import type { HomeController } from "./home-controller"
 
@@ -300,7 +300,7 @@ function buildHomeSessionRecords(input: {
         session,
         project,
         projectName: displayName(project),
-        course: courseById(SessionCourses.get(session.id)?.courseId),
+        course: courseById(courseBindingOf(session)?.courseId),
       }
     })
 }

@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "Рестартирайте",
 
   "desktop.jolli.signIn.title": "Вход в Jolli Code",
-  "desktop.jolli.signIn.body":
-    "Училищният ви акаунт определя кои модели и асистенти за курсове можете да използвате. При влизане се отваря браузърът ви.",
+  "desktop.jolli.signIn.body": "При влизане ще се отвори браузърът ви.",
   "desktop.jolli.signIn.action": "Вход с Jolli",
   "desktop.jolli.signIn.waiting": "Изчаква се браузърът ви…",
   "desktop.jolli.signIn.hint": "Завършете влизането в току-що отворения раздел на браузъра и се върнете тук.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Влязохте, но Jolli Code не успя да рестартира локалния сървър. Рестартирайте приложението, за да завършите.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Няма курсове с Jolli Code",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Нито един от курсовете ви още не използва Jolli Code. Когато преподавателят настрои такъв, проверете отново.",
+  "desktop.jolli.courseGate.unreachable.title": "Jolli е недостъпен",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code не успя да зареди курсовете ви. Проверете връзката и опитайте отново.",
+  "desktop.jolli.courseGate.retry": "Провери отново",
+  "desktop.jolli.courseGate.switchAccount": "Използвай друг акаунт",
   "desktop.dialog.chooseFolder": "Изберете папка",
   "desktop.dialog.chooseFile": "Изберете файл",
   "desktop.dialog.saveFile": "Запазете файла",

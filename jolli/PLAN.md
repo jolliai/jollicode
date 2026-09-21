@@ -20,8 +20,12 @@ Fork of [sst/opencode](https://github.com/sst/opencode) (MIT), cloned at upstrea
 Goal: a runnable, branded **desktop agent IDE** to show prospective customers what the
 professor/student product is. **Mock only** — not a production hardening pass.
 
-**Scope: the desktop application only.** The TUI (`packages/tui`) is out of scope and gets no
-branding, no lockdown, and no course work.
+**Scope: the desktop application first.** The TUI (`packages/tui`) was originally out of scope and
+that line no longer holds — it carries the branding, it inherits the lockdown from the server's own
+config layer whether or not anyone planned it to, and it now picks a course and an assistant of its
+own (`context/jolli.tsx`, `/course`, `/assistant`). What the two surfaces decide is shared in
+`@opencode-ai/core/jolli/*` precisely so they cannot drift; what differs is deliberate and listed in
+DEV.md. The desktop app remains the surface the product is demonstrated on.
 
 ## What we're demonstrating
 
@@ -244,5 +248,12 @@ and opens on hover or focus; an ordinary one leaves nothing there at all.
 
 ## Deliberately out of scope
 
-The TUI. Production auth, real gateway, code signing/notarization, FERPA/privacy review, LMS
-integration, upstream-drift strategy, grading/telemetry.
+Session visibility controls in the TUI — it seeds a new session's readers from the course policy
+and offers no switches to change them afterwards; the desktop app owns that surface. Production
+auth, real gateway, code signing/notarization, FERPA/privacy review, LMS integration,
+upstream-drift strategy, grading/telemetry.
+
+⚠ **Course model grants are still enforced client-side only.** Both renderers narrow their pickers
+to `allowedModelIds`, and neither is an authority: nothing sent to the gateway carries the session's
+course, so the gateway can refuse a model the STUDENT may not run but not one this COURSE did not
+grant. Moving that check server-side is the real fix and is not done.

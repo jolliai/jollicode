@@ -5,11 +5,21 @@ export const dict = {
   "desktop.menu.restart": "เริ่มการทำงานใหม่",
 
   "desktop.jolli.signIn.title": "ลงชื่อเข้าใช้ Jolli Code",
-  "desktop.jolli.signIn.body":
-    "บัญชีโรงเรียนของคุณเป็นตัวกำหนดว่าคุณใช้โมเดลและผู้ช่วยประจำวิชาใดได้บ้าง การลงชื่อเข้าใช้จะเปิดเบราว์เซอร์ของคุณ",
+  "desktop.jolli.signIn.body": "เมื่อลงชื่อเข้าใช้ เบราว์เซอร์ของคุณจะเปิดขึ้น",
   "desktop.jolli.signIn.action": "ลงชื่อเข้าใช้ด้วย Jolli",
   "desktop.jolli.signIn.waiting": "กำลังรอเบราว์เซอร์ของคุณ…",
   "desktop.jolli.signIn.hint": "ลงชื่อเข้าใช้ให้เสร็จในแท็บเบราว์เซอร์ที่เพิ่งเปิดขึ้น แล้วกลับมาที่นี่",
+  "desktop.jolli.signIn.serverUnavailable":
+    "คุณลงชื่อเข้าใช้แล้ว แต่ Jolli Code ไม่สามารถรีสตาร์ทเซิร์ฟเวอร์ในเครื่องได้ รีสตาร์ทแอปเพื่อทำให้เสร็จสมบูรณ์",
+
+  "desktop.jolli.courseGate.noCourses.title": "ไม่มีรายวิชาที่ใช้ Jolli Code",
+  "desktop.jolli.courseGate.noCourses.body":
+    "ยังไม่มีรายวิชาใดของคุณที่ใช้ Jolli Code เมื่ออาจารย์ตั้งค่าแล้ว ให้ตรวจสอบอีกครั้ง",
+  "desktop.jolli.courseGate.unreachable.title": "ติดต่อ Jolli ไม่ได้",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code ไม่สามารถโหลดรายวิชาของคุณได้ ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง",
+  "desktop.jolli.courseGate.retry": "ตรวจสอบอีกครั้ง",
+  "desktop.jolli.courseGate.switchAccount": "ใช้บัญชีอื่น",
 
   "desktop.dialog.chooseFolder": "เลือกโฟลเดอร์",
   "desktop.dialog.chooseFile": "เลือกไฟล์",

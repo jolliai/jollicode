@@ -13,6 +13,7 @@ import { createEffect, createMemo, onMount, createSignal, onCleanup, on, Show, S
 import { registerOpencodeSpinner } from "../register-spinner"
 import path from "path"
 import { fileURLToPath } from "url"
+import { useJolli } from "../../context/jolli"
 import { useLocal } from "../../context/local"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { tint, useTheme } from "../../context/theme"
@@ -147,6 +148,7 @@ export function Prompt(props: PromptProps) {
 
   const leader = useLeaderActive()
   const local = useLocal()
+  const jolli = useJolli()
   const args = useArgs()
   const paths = useTuiPaths()
   const location = useLocation()
@@ -210,7 +212,22 @@ export function Prompt(props: PromptProps) {
   const workspace = usePromptWorkspace(props.sessionID)
   const move = usePromptMove({ projectID: project.project, sessionID: () => props.sessionID })
   const [cursorVersion, setCursorVersion] = createSignal(0)
-  const currentProviderLabel = createMemo(() => local.model.parsed().provider)
+  /**
+   * WHAT SITS AFTER THE MODEL NAME, AND IT IS NOT THE PROVIDER.
+   *
+   * ⚠ THIS PRODUCT HAS EXACTLY ONE PROVIDER, SO NAMING IT SAYS NOTHING. "Jolli" after every model
+   * is a word a student can neither act on nor change — while the course and assistant in that
+   * same slot are the two things that actually decide what the model may be and how it answers.
+   *
+   * ⚠ IT STILL FALLS BACK TO THE PROVIDER WHERE THE PROVIDER IS A REAL CHOICE. A build without
+   * lockdown can have several connected, and there the name is the useful thing; under lockdown
+   * with nothing bound yet it is better to say nothing than to name the only option there is.
+   */
+  const currentProviderLabel = createMemo(() => {
+    const course = jolli.course()
+    if (course) return jolli.assistant() ? `${course.code}/${jolli.assistant()?.name}` : course.code
+    return Flag.JOLLICODE_LOCKDOWN ? "" : local.model.parsed().provider
+  })
   const hasRightContent = createMemo(() => Boolean(props.right))
 
   function promptModelWarning() {
@@ -965,6 +982,20 @@ export function Prompt(props: PromptProps) {
       void exit()
       return true
     }
+    /**
+     * ⚠ THE COURSE IS DEMANDED BEFORE THE MODEL IS READ, because under a course it is the course
+     * that decides which models exist — warning about a missing model first would send a student
+     * to the model picker to fix something the course picker owns.
+     *
+     * ⚠ AND IT REFUSES OUT LOUD. A silent `return false` on Enter reads as a frozen prompt; the
+     * sentence names the next action, which is the only reason this returns a string at all.
+     */
+    const blocked = jolli.blocked()
+    if (blocked) {
+      toast.show({ message: blocked, variant: "warning", duration: 5000 })
+      return false
+    }
+
     const selectedModel = local.model.current()
     if (!selectedModel) {
       void promptModelWarning()
@@ -997,6 +1028,7 @@ export function Prompt(props: PromptProps) {
       if (move.pending() && !directory) return false
       finishMoveProgress = Boolean(move.progress())
 
+      const binding = jolli.current()
       const res = await sdk.client.session.create({
         directory,
         workspace: workspaceID,
@@ -1006,6 +1038,14 @@ export function Prompt(props: PromptProps) {
           id: selectedModel.modelID,
           variant,
         },
+        /**
+         * ⚠ THE BINDING IS WRITTEN AS THE SESSION IS CREATED, NOT PATCHED ON AFTERWARDS. Which
+         * course a session belongs to decides which models may run in it and who may read it, so a
+         * window where the session exists without one is a window where those questions have no
+         * answer — and the server refuses to bind a course once the first message has landed, so
+         * that window would be permanent.
+         */
+        ...(binding ? { metadata: { jolli: binding as unknown as Record<string, unknown> } } : {}),
       })
 
       if (res.error) {
@@ -1021,6 +1061,7 @@ export function Prompt(props: PromptProps) {
       }
 
       sessionID = res.data.id
+      jolli.promote(sessionID)
     }
 
     const inputText = expandTrackedPastedText(

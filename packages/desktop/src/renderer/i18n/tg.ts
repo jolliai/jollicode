@@ -5,12 +5,22 @@ export const dict = {
   "desktop.menu.restart": "Оғози дубора",
 
   "desktop.jolli.signIn.title": "Ба Jolli Code ворид шавед",
-  "desktop.jolli.signIn.body":
-    "Ҳисоби мактабии шумо муайян мекунад, ки шумо кадом моделҳо ва ёрдамчиёни курсро истифода бурда метавонед. Ҳангоми воридшавӣ браузери шумо кушода мешавад.",
+  "desktop.jolli.signIn.body": "Ҳангоми ворид шудан браузери шумо кушода мешавад.",
   "desktop.jolli.signIn.action": "Ворид шудан бо Jolli",
   "desktop.jolli.signIn.waiting": "Дар интизори браузери шумо…",
   "desktop.jolli.signIn.hint":
     "Воридшавиро дар варақаи браузере, ки ҳозир кушода шуд, ба анҷом расонед ва сипас ба ин ҷо баргардед.",
+  "desktop.jolli.signIn.serverUnavailable":
+    "Шумо ворид шудед, аммо Jolli Code сервери маҳаллиро аз нав оғоз карда натавонист. Барои анҷом додан барномаро аз нав оғоз кунед.",
+
+  "desktop.jolli.courseGate.noCourses.title": "Курсҳои Jolli Code нест",
+  "desktop.jolli.courseGate.noCourses.body":
+    "Ҳеҷ яке аз курсҳои шумо ҳанӯз Jolli Code-ро истифода намебарад. Вақте ки устоди шумо танзим кард, дубора санҷед.",
+  "desktop.jolli.courseGate.unreachable.title": "Ба Jolli пайваст шуда нашуд",
+  "desktop.jolli.courseGate.unreachable.body":
+    "Jolli Code курсҳои шуморо бор карда натавонист. Пайвастро санҷед ва дубора кӯшиш кунед.",
+  "desktop.jolli.courseGate.retry": "Дубора санҷед",
+  "desktop.jolli.courseGate.switchAccount": "Ҳисоби дигарро истифода баред",
   "desktop.dialog.chooseFolder": "Папкаро интихоб кунед",
   "desktop.dialog.chooseFile": "Файлро интихоб кунед",
   "desktop.dialog.saveFile": "Файлро захира кунед",

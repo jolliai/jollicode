@@ -17,9 +17,13 @@
  * grant; nothing in the renderer should be mistaken for that.
  */
 
+import { Lookup } from "@opencode-ai/core/jolli/lookup"
 import { createSignal } from "solid-js"
 
-const [allowed, setAllowed] = createSignal<string[]>([])
+/** Re-exported so this package's ~5 callers keep naming the grant vocabulary in one place. */
+export const parseModelKey = Lookup.parseModelKey
+
+const [allowed, setAllowed] = createSignal<readonly string[]>([])
 const [preferred, setPreferred] = createSignal<string | undefined>(undefined)
 const [bound, setBound] = createSignal(false)
 
@@ -37,21 +41,36 @@ export const ModelGrant = {
    * restriction, which offers everything on purpose.
    */
   bound,
+  /**
+   * THE ONE MODEL A COURSE GRANTED, WHEN IT GRANTED EXACTLY ONE.
+   *
+   * ⚠ THE PROFESSOR'S DEFAULT IS NOT GUARANTEED TO BE IN THEIR OWN GRANT — nothing on the gateway
+   * enforces that `modelId` appears in `allowedModelIds`. When the two disagree the preferred model
+   * is rejected as unrunnable and the chain falls through to a provider scan that happens to land on
+   * the only allowed model. Correct, but by coincidence: make it the answer instead.
+   *
+   * ⚠ IT LIVES HERE BECAUSE BOTH SELECTION CHAINS NEED IT — the workspace one in `context/local.tsx`
+   * and the composer's in `prompt-model-selection.ts`. Two copies meant the grant key format and the
+   * exactly-one rule had to be changed in both, and the two screens disagreeing about which model a
+   * course auto-selects is what that drift would look like.
+   *
+   * ⚠ IT DOES NOT CHECK THAT THE MODEL CAN BE RUN, because its two callers check at different
+   * moments: one validates each candidate as it builds the chain, the other validates the finished
+   * list. What they must agree on is what the grant SAYS, which is all this decides.
+   */
+  only() {
+    const list = allowed()
+    if (list.length !== 1) return
+    return parseModelKey(list[0])
+  },
   /** Called from the course binding whenever the assistant in force changes. */
-  set(next: { allowed: string[]; preferred?: string; bound: boolean }) {
+  set(next: { allowed: readonly string[]; preferred?: string; bound: boolean }) {
     setAllowed(next.allowed)
     setPreferred(next.preferred)
     setBound(next.bound)
   },
 }
 
-/**
- * ⚠ AN EMPTY GRANT MEANS UNRESTRICTED. A course that has not thought about model access must behave
- * exactly like the product did before this existed — the alternative, an empty picker, would read as
- * a broken application rather than as an unconfigured course.
- */
 export function isModelAllowed(providerID: string, modelID: string): boolean {
-  const list = allowed()
-  if (list.length === 0) return true
-  return list.includes(`${providerID}/${modelID}`)
+  return Lookup.isModelAllowed(allowed(), providerID, modelID)
 }

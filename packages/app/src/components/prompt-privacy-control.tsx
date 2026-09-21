@@ -21,7 +21,7 @@ import { MenuV2 } from "@opencode-ai/ui/v2/menu-v2"
 import { TooltipV2 } from "@opencode-ai/ui/v2/tooltip-v2"
 import { Show } from "solid-js"
 import { useCourseSession } from "@/jolli/session-binding"
-import { sharingSummary } from "@/jolli/sharing"
+import { sharingSummary } from "@opencode-ai/core/jolli/sharing"
 
 export function PromptPrivacyControl() {
   const binding = useCourseSession()
