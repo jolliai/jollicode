@@ -191,8 +191,6 @@ export const dict: Record<string, string> = {
   "dialog.provider.group.other": "වෙනත්",
   "dialog.provider.custom.label": "අභිරුචි OpenAI-අනුකූල සැපයුම්කරු",
   "dialog.provider.tag.recommended": "නිර්දේශ කර ඇත",
-  "dialog.provider.opencode.note": "Claude, GPT, Gemini සහ තවත් දේ ඇතුළුව සංවෘත ආකෘති",
-  "dialog.provider.opencode.tagline": "විශ්වසනීය ප්රශස්ත මාදිලි",
   "dialog.provider.opencodeGo.tagline": "සෑම කෙනෙකුටම අඩු වියදම් දායකත්වයක්",
   "dialog.provider.anthropic.note": "Pro සහ Max ඇතුළුව Claude මාදිලි වෙත සෘජු ප්‍රවේශය",
   "dialog.provider.copilot.note": "GitHub Copilot හරහා කේතීකරණ සහාය සඳහා AI ආකෘති",
@@ -224,13 +222,6 @@ export const dict: Record<string, string> = {
   "provider.connect.apiKey.label": "{{provider}} API යතුර",
   "provider.connect.apiKey.placeholder": "API යතුර",
   "provider.connect.apiKey.required": "API යතුර අවශ්‍යයි",
-  "provider.connect.opencodeZen.line1":
-    "OpenCode Zen ඔබට කේතීකරණ නියෝජිතයන් සඳහා විශ්වාසදායක ප්‍රශස්ත මාදිලි සමූහයකට ප්‍රවේශය ලබා දෙයි.",
-  "provider.connect.opencodeZen.line2":
-    "තනි API යතුරක් සමඟින් ඔබට Claude, GPT, Gemini, GLM සහ තවත් ආකෘති වෙත ප්‍රවේශය ලැබෙනු ඇත.",
-  "provider.connect.opencodeZen.visit.prefix": "පිවිසෙන්න",
-  "provider.connect.opencodeZen.visit.link": "opencode.ai/zen",
-  "provider.connect.opencodeZen.visit.suffix": "ඔබගේ API යතුර එකතු කිරීමට.",
   "provider.connect.oauth.code.visit.prefix": "පිවිසෙන්න",
   "provider.connect.oauth.code.visit.link": "මෙම සබැඳිය",
   "provider.connect.oauth.code.visit.suffix":

@@ -193,8 +193,6 @@ export const dict = {
   "dialog.provider.group.other": "အခြား",
   "dialog.provider.custom.label": "စိတ်ကြိုက် OpenAI-သဟဇာတ ပံ့ပိုးပေးသူ",
   "dialog.provider.tag.recommended": "အကြံပြုထားသည်။",
-  "dialog.provider.opencode.note": "Claude၊ GPT၊ Gemini နှင့် အခြားအရာများ အပါအဝင် ရွေးချယ်ထားသော မော်ဒယ်များ",
-  "dialog.provider.opencode.tagline": "ယုံကြည်စိတ်ချရသော အကောင်းဆုံးပြင်ဆင်ထားသော မော်ဒယ်များ",
   "dialog.provider.opencodeGo.tagline": "လူတိုင်းအတွက် ကုန်ကျစရိတ်သက်သာသော စာရင်းသွင်းမှု",
   "dialog.provider.anthropic.note": "Pro နှင့် Max အပါအဝင် Claude မော်ဒယ်များသို့ တိုက်ရိုက်ဝင်ရောက်ခွင့်",
   "dialog.provider.copilot.note": "GitHub Copilot မှတစ်ဆင့် ကုဒ်ရေးနည်းအကူအညီအတွက် AI မော်ဒယ်များ",
@@ -226,13 +224,6 @@ export const dict = {
   "provider.connect.apiKey.label": "{{provider}} API သော့",
   "provider.connect.apiKey.placeholder": "API သော့",
   "provider.connect.apiKey.required": "API ကီး လိုအပ်သည်။",
-  "provider.connect.opencodeZen.line1":
-    "OpenCode Zen သည် သင့်အား coding အေးဂျင့်များအတွက် ယုံကြည်စိတ်ချရသော အကောင်းဆုံးပုံစံများဖြင့် စုစည်းထားသော မော်ဒယ်များကို ဝင်ရောက်ခွင့်ပေးသည်။",
-  "provider.connect.opencodeZen.line2":
-    "API သော့တစ်ခုတည်းဖြင့် သင်သည် Claude၊ GPT၊ Gemini၊ GLM နှင့် အခြားအရာများကဲ့သို့သော မော်ဒယ်များသို့ ဝင်ရောက်ခွင့်ရရှိမည်ဖြစ်သည်။",
-  "provider.connect.opencodeZen.visit.prefix": "လည်ပတ်ပါ။ \nသင်၏ API သော့ကိုစုဆောင်းရန်",
-  "provider.connect.opencodeZen.visit.link": "opencode.ai/zen",
-  "provider.connect.opencodeZen.visit.suffix": " သို့သွား၍ သင်၏ API key ကို ရယူပါ။",
   "provider.connect.oauth.code.visit.prefix": "လည်ပတ်ပါ။",
   "provider.connect.oauth.code.visit.link": "ဤလင့်ခ်",
   "provider.connect.oauth.code.visit.suffix":

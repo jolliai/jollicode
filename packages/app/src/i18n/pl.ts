@@ -199,8 +199,6 @@ export const dict = {
   "dialog.provider.group.other": "Inne",
   "dialog.provider.custom.label": "Niestandardowy dostawca zgodny z OpenAI",
   "dialog.provider.tag.recommended": "Zalecane",
-  "dialog.provider.opencode.note": "Starannie dobrane modele, w tym Claude, GPT, Gemini i inne",
-  "dialog.provider.opencode.tagline": "Niezawodne, zoptymalizowane modele",
   "dialog.provider.opencodeGo.tagline": "Niedroga subskrypcja dla każdego",
   "dialog.provider.anthropic.note": "Bezpośredni dostęp do modeli Claude, w tym Pro i Max",
   "dialog.provider.copilot.note": "Modele AI do pomocy w kodowaniu przez GitHub Copilot",
@@ -232,13 +230,6 @@ export const dict = {
   "provider.connect.apiKey.label": "Klucz API {{provider}}",
   "provider.connect.apiKey.placeholder": "Klucz API",
   "provider.connect.apiKey.required": "Klucz API jest wymagany",
-  "provider.connect.opencodeZen.line1":
-    "OpenCode Zen daje dostęp do wybranego zestawu niezawodnych, zoptymalizowanych modeli dla agentów programistycznych.",
-  "provider.connect.opencodeZen.line2":
-    "Za pomocą jednego klucza API uzyskasz dostęp do modeli takich jak Claude, GPT, Gemini i GLM, a także wielu innych.",
-  "provider.connect.opencodeZen.visit.prefix": "Odwiedź ",
-  "provider.connect.opencodeZen.visit.link": "opencode.ai/zen",
-  "provider.connect.opencodeZen.visit.suffix": ", aby odebrać swój klucz API.",
   "provider.connect.oauth.code.visit.prefix": "Odwiedź ",
   "provider.connect.oauth.code.visit.link": "ten link",
   "provider.connect.oauth.code.visit.suffix":

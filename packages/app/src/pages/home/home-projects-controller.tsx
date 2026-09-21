@@ -1,4 +1,5 @@
 import { useDirectoryPicker } from "@/components/directory-picker"
+import { Brand } from "@/brand"
 import { useServerManagementController } from "@/components/dialog-select-server"
 import { useSettingsCommand } from "@/components/settings-dialog"
 import { DialogServerV2 } from "@/components/settings-v2/dialog-server-v2"
@@ -120,7 +121,7 @@ export function createHomeProjectsController(home: HomeController) {
     },
     utility: {
       settings: openSettings,
-      help: () => platform.openExternal("https://opencode.ai/desktop-feedback"),
+      help: () => platform.openExternal(`${Brand.url}/desktop-feedback`),
     },
   }
 }

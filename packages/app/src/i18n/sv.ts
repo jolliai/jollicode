@@ -193,8 +193,6 @@ export const dict = {
   "dialog.provider.group.other": "Andra",
   "dialog.provider.custom.label": "Anpassad OpenAI-kompatibel leverantör",
   "dialog.provider.tag.recommended": "Rekommenderad",
-  "dialog.provider.opencode.note": "Kurerade modeller inklusive Claude, GPT, Gemini och mer",
-  "dialog.provider.opencode.tagline": "Pålitliga optimerade modeller",
   "dialog.provider.opencodeGo.tagline": "Lågprisprenumeration för alla",
   "dialog.provider.anthropic.note": "Direkt tillgång till Claude-modeller, inklusive Pro och Max",
   "dialog.provider.copilot.note": "AI-modeller för kodningshjälp via GitHub Copilot",
@@ -226,13 +224,6 @@ export const dict = {
   "provider.connect.apiKey.label": "{{provider}}-API-nyckel",
   "provider.connect.apiKey.placeholder": "API-nyckel",
   "provider.connect.apiKey.required": "API-nyckel krävs",
-  "provider.connect.opencodeZen.line1":
-    "OpenCode Zen ger dig tillgång till en utvald uppsättning pålitliga optimerade modeller för kodningsagenter.",
-  "provider.connect.opencodeZen.line2":
-    "Med en enda API-nyckel får du tillgång till modeller som Claude, GPT, Gemini, GLM och mer.",
-  "provider.connect.opencodeZen.visit.prefix": "Besök ",
-  "provider.connect.opencodeZen.visit.link": "opencode.ai/zen",
-  "provider.connect.opencodeZen.visit.suffix": " för att hämta din API-nyckel.",
   "provider.connect.oauth.code.visit.prefix": "Besök ",
   "provider.connect.oauth.code.visit.link": "denna länk",
   "provider.connect.oauth.code.visit.suffix":
