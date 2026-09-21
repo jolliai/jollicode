@@ -38,14 +38,9 @@ await prepareReleaseFiles()
 console.log("\n=== cli ===\n")
 await $`bun ./packages/opencode/script/publish.ts`
 
-console.log("\n=== sdk ===\n")
-await $`bun ./packages/sdk/js/script/publish.ts`
-
-console.log("\n=== plugin ===\n")
-await $`bun ./packages/plugin/script/publish.ts`
-
-console.log("\n=== ui ===\n")
-await $`bun ./packages/ui/script/publish.ts`
+// sdk, plugin, and ui are internal-only packages and are intentionally not
+// published to the public npm registry. They keep their @opencode-ai/*
+// workspace names as an internal contract; only the CLI is distributed.
 
 if (Script.release) {
   await $`bun ./packages/desktop/scripts/finalize-latest-json.ts`
