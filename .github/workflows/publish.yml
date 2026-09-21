@@ -45,8 +45,8 @@ jobs:
         id: committer
         uses: ./.github/actions/setup-git-committer
         with:
-          opencode-app-id: ${{ vars.OPENCODE_APP_ID }}
-          opencode-app-secret: ${{ secrets.OPENCODE_APP_SECRET }}
+          jollicode-app-id: ${{ vars.JOLLICODE_APP_ID }}
+          jollicode-app-secret: ${{ secrets.JOLLICODE_APP_SECRET }}
 
       - id: version
         run: |
@@ -77,8 +77,8 @@ jobs:
         id: committer
         uses: ./.github/actions/setup-git-committer
         with:
-          opencode-app-id: ${{ vars.OPENCODE_APP_ID }}
-          opencode-app-secret: ${{ secrets.OPENCODE_APP_SECRET }}
+          jollicode-app-id: ${{ vars.JOLLICODE_APP_ID }}
+          jollicode-app-secret: ${{ secrets.JOLLICODE_APP_SECRET }}
 
       - name: Build
         id: build
@@ -136,8 +136,8 @@ jobs:
         id: committer
         uses: ./.github/actions/setup-git-committer
         with:
-          opencode-app-id: ${{ vars.OPENCODE_APP_ID }}
-          opencode-app-secret: ${{ secrets.OPENCODE_APP_SECRET }}
+          jollicode-app-id: ${{ vars.JOLLICODE_APP_ID }}
+          jollicode-app-secret: ${{ secrets.JOLLICODE_APP_SECRET }}
 
       - name: Azure login
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
@@ -300,8 +300,8 @@ jobs:
         id: committer
         uses: ./.github/actions/setup-git-committer
         with:
-          opencode-app-id: ${{ vars.OPENCODE_APP_ID }}
-          opencode-app-secret: ${{ secrets.OPENCODE_APP_SECRET }}
+          jollicode-app-id: ${{ vars.JOLLICODE_APP_ID }}
+          jollicode-app-secret: ${{ secrets.JOLLICODE_APP_SECRET }}
 
       - name: Prepare
         run: bun ./scripts/prepare.ts
@@ -450,8 +450,8 @@ jobs:
         id: committer
         uses: ./.github/actions/setup-git-committer
         with:
-          opencode-app-id: ${{ vars.OPENCODE_APP_ID }}
-          opencode-app-secret: ${{ secrets.OPENCODE_APP_SECRET }}
+          jollicode-app-id: ${{ vars.JOLLICODE_APP_ID }}
+          jollicode-app-secret: ${{ secrets.JOLLICODE_APP_SECRET }}
 
       - name: Cache apt packages (AUR)
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
