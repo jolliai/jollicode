@@ -258,4 +258,19 @@ describe("layer node", () => {
       dependencies: [],
     })
   })
+
+  // A circular import can hand `make`/`group` an undefined dependency (the dep module had not
+  // finished initializing). It must fail loudly at construction, naming the node and slot, rather
+  // than crashing deep in the tree walk. See JOLLI-2474.
+  test("rejects an undefined dependency in make", () => {
+    expect(() =>
+      LayerNode.make({ service: Greeting, layer: greetingLayer, deps: [undefined as unknown as typeof value] }),
+    ).toThrow(/test\/LayerNodeGreeting.*undefined dependency at index 0/)
+  })
+
+  test("rejects an undefined dependency in group", () => {
+    expect(() => LayerNode.group([undefined as unknown as typeof value])).toThrow(
+      /group.*undefined dependency at index 0/,
+    )
+  })
 })
