@@ -132,7 +132,11 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
     })
 
     onCleanup(() => {
-      abort.abort()
+      // Only abort the long-lived SSE stream. Aborting the shared client `abort`
+      // signal here would reject any in-flight one-shot request whose awaiting
+      // reactive owner is being disposed, surfacing a benign AbortError as an
+      // unhandled rejection at exit. The process exits right after cleanup, so
+      // those requests are dropped with the process instead.
       sse?.abort()
       if (timer) clearTimeout(timer)
       handlers.clear()
