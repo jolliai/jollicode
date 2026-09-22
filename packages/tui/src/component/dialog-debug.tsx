@@ -22,14 +22,20 @@ export function DialogDebug() {
   dialog.setSize("large")
 
   const entries = createMemo(() => {
-    const model = local.model.current()
+    // Mirror the chat footer: show the readable model name (and variant) instead of the
+    // raw registry key, which for the Jolli provider is an opaque UUID.
+    const parsed = local.model.parsed()
+    const variant = local.model.variant.current()
     return [
       { label: "Version", value: `${InstallationVersion} (${InstallationChannel})` },
       { label: "Date", value: new Date().toISOString() },
       { label: "OS", value: describeOS() },
       { label: "Terminal", value: describeTerminal() },
       { label: "Session ID", value: route.data.type === "session" ? route.data.sessionID : "n/a" },
-      { label: "Model", value: model ? `${model.providerID}/${model.modelID}` : "n/a" },
+      {
+        label: "Model",
+        value: local.model.current() ? `${parsed.model}${variant ? ` (${variant})` : ""}` : "n/a",
+      },
     ]
   })
 
