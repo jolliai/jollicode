@@ -40,6 +40,13 @@ export function fromRow(row: typeof SessionTable.$inferSelect): SessionSchema.In
       workspaceID: row.workspace_id ? WorkspaceV2.ID.make(row.workspace_id) : undefined,
     }),
     subpath: row.path ? RelativePath.make(row.path) : undefined,
+    /**
+     * ⚠ `undefined` RATHER THAN `{}` FOR A SESSION THAT HAS NONE, which is what keeps the field
+     * optional all the way out to the wire instead of putting an empty object on every row. Readers
+     * treat absent and empty the same — `courseBindingOf` returns undefined for both — so the
+     * cheaper encoding is the right one.
+     */
+    metadata: row.metadata ?? undefined,
     revert: row.revert ? { ...row.revert, messageID: SessionMessage.ID.make(row.revert.messageID) } : undefined,
     time: {
       created: DateTime.makeUnsafe(row.time_created),

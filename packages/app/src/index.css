@@ -192,6 +192,13 @@
     }
   }
 
+  /**
+   * ⚠ NAMED FOR A SCROLLER THAT NO LONGER EXISTS, AND KEPT THAT WAY ON PURPOSE. The home page's
+   * projects column was the first user of these two and is gone — its rows moved into the sidebar,
+   * which is the outermost scroller on its side and needs no edge fades. The model selector and the
+   * manage-models panel below still animate against them, so the keyframes stay; renaming them would
+   * be a diff across two unrelated surfaces that says nothing.
+   */
   @keyframes home-projects-fade-top {
     from {
       visibility: hidden;
@@ -210,10 +217,6 @@
     }
   }
 
-  [data-slot="home-projects-scroll"] {
-    timeline-scope: --home-projects-scroll;
-  }
-
   [data-slot="model-selector-scroll"] {
     timeline-scope: --model-selector-scroll;
   }
@@ -222,8 +225,6 @@
     timeline-scope: --manage-models-scroll;
   }
 
-  [data-slot="home-projects-scroll"]::before,
-  [data-slot="home-projects-scroll"]::after,
   [data-slot="model-selector-scroll"]::before,
   [data-slot="model-selector-scroll"]::after,
   [data-slot="manage-models-scroll"]::before {
@@ -235,11 +236,6 @@
     height: 16px;
     pointer-events: none;
     visibility: hidden;
-  }
-
-  [data-slot="home-projects-scroll"]::before {
-    top: 0;
-    background: linear-gradient(to bottom, var(--v2-background-bg-base), transparent);
   }
 
   [data-slot="model-selector-scroll"]::before {
@@ -271,11 +267,6 @@
     background: linear-gradient(to bottom, var(--v2-background-bg-base), transparent);
   }
 
-  [data-slot="home-projects-scroll"]::after {
-    bottom: 0;
-    background: linear-gradient(to top, var(--v2-background-bg-base), transparent);
-  }
-
   [data-slot="model-selector-scroll"]::after {
     bottom: 0;
     height: 12px;
@@ -298,24 +289,6 @@
       color-mix(in srgb, var(--v2-background-bg-layer-01) 11.373%, transparent) 85.97%,
       color-mix(in srgb, var(--v2-background-bg-layer-01) 0%, transparent) 100%
     );
-  }
-
-  @supports (animation-timeline: --home-projects-scroll) and (timeline-scope: --home-projects-scroll) {
-    [data-slot="home-projects-scroll"] .scroll-view__viewport {
-      scroll-timeline: --home-projects-scroll y;
-    }
-
-    [data-slot="home-projects-scroll"]::before {
-      animation: home-projects-fade-top linear both;
-      animation-timeline: --home-projects-scroll;
-      animation-range: 0 0.1px;
-    }
-
-    [data-slot="home-projects-scroll"]::after {
-      animation: home-projects-fade-bottom linear both;
-      animation-timeline: --home-projects-scroll;
-      animation-range: calc(100% - 1.1px) calc(100% - 1px);
-    }
   }
 
   @supports (animation-timeline: --model-selector-scroll) and (timeline-scope: --model-selector-scroll) {

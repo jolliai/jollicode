@@ -6,9 +6,10 @@ import { Icon } from "@opencode-ai/ui/v2/icon"
 import { KeybindV2 } from "@opencode-ai/ui/v2/keybind-v2"
 import { TooltipV2 } from "@opencode-ai/ui/v2/tooltip-v2"
 import type { ReferenceInfo } from "@opencode-ai/sdk/v2/client"
-import { createEffect, createMemo, on, Show } from "solid-js"
+import { createEffect, createMemo, on, Show, type JSX } from "solid-js"
 import { ModelSelectorPopoverV2 } from "@/components/dialog-select-model"
 import { PromptPrivacyControl } from "@/components/prompt-privacy-control"
+import { SessionCourseBar } from "@/components/session/session-course-bar"
 import { groupSlashCommands } from "@/jolli/slash-groups"
 import { useCourseSession } from "@/jolli/session-binding"
 import { ModelGrant } from "@/jolli/model-grant"
@@ -40,6 +41,14 @@ export type PromptInputV2ComposerProps = {
   class?: string
   controller: PromptInputV2ComposerController
   borderUnderlay?: boolean
+  /**
+   * APPENDED TO THE COURSE ROW ABOVE THE BOX, AFTER THE ASSISTANT — see `SessionCourseBar`.
+   *
+   * ⚠ A SLOT BECAUSE ONLY ONE SCREEN HAS ANYTHING TO PUT IN IT. The project and workspace selectors
+   * are the draft screen's, and their controllers live on that route; a live session has no project
+   * control at all and passes nothing.
+   */
+  courseBarTrailing?: JSX.Element
 }
 
 export type PromptInputV2ControllerProps = Omit<PromptInputProps, "class" | "submission">
@@ -80,6 +89,23 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
           </ButtonV2>
         </div>
       </Show>
+      {/*
+       * WHICH COURSE AND ASSISTANT, DIRECTLY ABOVE THE BOX.
+       *
+       * ⚠ HERE RATHER THAN ON EITHER SCREEN, BECAUSE BOTH SCREENS RENDER THIS COMPONENT. The draft
+       * route and a live session mount `PromptInputV2Composer` from completely different frames, so
+       * this is the only place the bar can sit and be in the same position on both — and the only
+       * one that cannot go stale when one of those frames is next rewritten.
+       *
+       * ⚠ AND IT IS THE LAST THING BEFORE THE INPUT, BELOW THE NO-COURSE NOTICE ABOVE. Everything
+       * the composer region stacks over the box — question, permission, todo, revert, followup
+       * docks — is transient; the binding is a fact about the session, so it stays glued to the
+       * input at a fixed distance whatever else appears.
+       *
+       * ⚠ IT ALSO CARRIES WHATEVER THE SCREEN PUT IN `courseBarTrailing` — on the draft route, the
+       * project and workspace selectors that used to sit under the box.
+       */}
+      <SessionCourseBar onDone={props.controller.restoreFocus} trailing={props.courseBarTrailing} />
       <PromptInputV2
         controller={props.controller}
         borderUnderlay={props.borderUnderlay}

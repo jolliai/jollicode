@@ -1,15 +1,4 @@
-import {
-  createEffect,
-  createMemo,
-  createResource,
-  createSignal,
-  Match,
-  on,
-  onMount,
-  Show,
-  Switch,
-  untrack,
-} from "solid-js"
+import { createEffect, createMemo, createSignal, Match, on, onMount, Show, Switch, untrack } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLocation, useNavigate, useParams } from "@solidjs/router"
 import { IconButton } from "@opencode-ai/ui/icon-button"
@@ -21,24 +10,16 @@ import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
 import { KeybindV2 } from "@opencode-ai/ui/v2/keybind-v2"
 import { TooltipV2 } from "@opencode-ai/ui/v2/tooltip-v2"
 
-import { LayoutRoute, useLayout } from "@/context/layout"
+import { useLayout } from "@/context/layout"
 import { usePlatform } from "@/context/platform"
 import { useCommand } from "@/context/command"
 import { useLanguage } from "@/context/language"
 import { useSettings } from "@/context/settings"
 import { WindowsAppMenu } from "./windows-app-menu"
 import { applyPath, backPath, forwardPath } from "./titlebar-history"
-import { TitlebarTabStrip } from "@/components/titlebar-tab-strip"
-import { makeEventListener } from "@solid-primitives/event-listener"
 import { createMediaQuery } from "@solid-primitives/media"
-import { readSessionTabsRemovedDetail, SESSION_TABS_REMOVED_EVENT } from "@/components/titlebar-session-events"
-import { useGlobal } from "@/context/global"
-import { ServerConnection, useServer } from "@/context/server"
-import { tabKey, useTabs } from "@/context/tabs"
-import type { PromptSession } from "@/context/prompt"
+import { useServer } from "@/context/server"
 import "./titlebar.css"
-import { newTabTooltipKeybind } from "./command-tooltip-keybind"
-import { normalizeSessionInfo } from "@/utils/session"
 
 const legacyTitlebarHeight = 40
 const v2TitlebarHeight = 36
@@ -192,171 +173,28 @@ export function Titlebar(props: { update?: TitlebarUpdate; debugTools?: { visibl
         <Match when={useV2Titlebar()}>
           {(_) => {
             const layout = useLayout()
-            const global = useGlobal()
 
-            const tabs = useTabs()
-            const tabsStore = tabs.store
-            const tabsStoreActions = tabs
-            const [session] = createResource(
-              () => {
-                const route = layout.route()
-                if (route.type !== "session") return undefined
-                const conn = global.servers
-                  .list()
-                  .find((item) => ServerConnection.key(item) === (route.server ?? server.key))
-                return conn ? { route, sdk: global.ensureServerCtx(conn).sdk } : undefined
-              },
-              ({ route, sdk }) =>
-                sdk.api.session
-                  .get({ sessionID: route.sessionId })
-                  .then(normalizeSessionInfo)
-                  .catch(() => {}),
-            )
-
-            const matchRoute = (route: LayoutRoute) => {
-              if (route.type === "home") return
-              if (route.type === "draft") {
-                return tabsStore.find((item) => item.type === "draft" && item.draftID === route.draftID)
-              }
-              if (route.type === "session") {
-                const main = tabsStore.find(
-                  (item) =>
-                    item.type === "session" && item.server === route.server && item.sessionId === route.sessionId,
-                )
-                if (main) return main
-                const s = session()
-                if (s?.parentID) {
-                  const parentID = s.parentID
-                  const parent = tabsStore.find(
-                    (item) => item.type === "session" && item.server === route.server && item.sessionId === parentID,
-                  )
-                  if (parent) return parent
-                }
-              }
-            }
-
-            const currentTab = () => matchRoute(layout.route())
-
-            createEffect(() => {
-              const route = layout.route()
-              if (!tabs.ready()) return
-              const tab = currentTab()
-              if (tab) {
-                tabs.remember(tab)
-                return
-              }
-
-              if (route.type === "session") {
-                const s = session()
-                if (!s) return
-                const sessionId = s.parentID ?? s.id
-                const next = { server: route.server ?? server.key, sessionId }
-                tabsStoreActions.addSessionTab(next)
-              }
-            })
-
-            makeEventListener(window, SESSION_TABS_REMOVED_EVENT, (event) => {
-              const detail = readSessionTabsRemovedDetail(event)
-              if (!detail) return
-              tabsStoreActions.removeSessions(detail)
-            })
-
-            const openNewTab = () => {
-              const route = layout.route()
-              const activeSession = session()
-              if (route.type === "session" && activeSession) {
-                const sessionTab = {
-                  type: "session" as const,
-                  server: route.server ?? server.key,
-                  sessionId: activeSession.id,
-                }
-                const model = tabs.stateValue<PromptSession>(sessionTab, "prompt")?.model.current()
-                tabs.newDraft({ server: sessionTab.server, directory: activeSession.directory }, "", model)
-                return
-              }
-
-              const activeTab = currentTab()
-              if (activeTab?.type === "draft") {
-                const model = tabs.stateValue<PromptSession>(activeTab, "prompt")?.model.current()
-                tabs.newDraft({ server: activeTab.server, directory: activeTab.directory }, "", model)
-                return
-              }
-
-              if (route.type === "home") {
-                const selection = layout.home.selection()
-                const conn = global.servers.list().find((item) => ServerConnection.key(item) === selection.server)
-                const project = conn
-                  ? global
-                      .ensureServerCtx(conn)
-                      .projects.list()
-                      .find((item) => item.worktree === selection.directory)
-                  : undefined
-                if (conn && project) {
-                  tabs.newDraft({ server: ServerConnection.key(conn), directory: project.worktree }, "")
-                  return
-                }
-              }
-
-              const current = layout.projects.list()[0]
-              if (current) {
-                tabs.newDraft({ server: server.key, directory: current.worktree }, "")
-                return
-              }
-
-              const fallback = global.servers.list().flatMap((conn) => {
-                const project = global.ensureServerCtx(conn).projects.list()[0]
-                return project ? [{ server: ServerConnection.key(conn), project }] : []
-              })[0]
-              if (!fallback) return
-
-              tabs.newDraft({ server: fallback.server, directory: fallback.project.worktree }, "")
-            }
-            const toggleHome = () => tabs.toggleHome({ home: layout.route().type === "home", current: currentTab() })
-
-            command.register("titlebar-home", () => [
-              {
-                id: "home.toggle",
-                title: language.t("home.title"),
-                category: language.t("command.category.view"),
-                keybind: "mod+b",
-                hidden: true,
-                onSelect: toggleHome,
-              },
-            ])
-
-            command.register("tabs", () => {
-              const current = currentTab()
-
-              return [
-                {
-                  id: "tab.new",
-                  category: "tab",
-                  title: language.t("command.session.new"),
-                  keybind: "mod+t,mod+n",
-                  hidden: true,
-                  onSelect: openNewTab,
-                },
-                current && {
-                  id: "tab.close",
-                  category: "tab",
-                  title: language.t("command.tab.close"),
-                  keybind: "mod+w",
-                  hidden: true,
-                  onSelect: () => {
-                    tabsStoreActions.closeTab(tabsStore.findIndex((tab) => current === tab))
-                  },
-                },
-                {
-                  id: "tab.reopenClosed",
-                  category: language.t("command.category.file"),
-                  title: language.t("command.tab.reopenClosed"),
-                  keybind: "mod+shift+t",
-                  onSelect: () => tabsStoreActions.reopenClosedTab(),
-                },
-              ].filter((v) => v !== undefined)
-            })
-
-            const [tabsAreOverflowing, setTabsAreOverflowing] = createSignal(false)
+            /**
+             * ⚠ WHAT USED TO BE HERE WAS THE TAB STRIP AND EVERYTHING THAT SERVED IT: a session
+             * resource fetched only to find a parent tab, a route-to-tab matcher, a `remember`
+             * effect, an archive listener, a five-branch directory guesser behind the `+` button,
+             * and three tab commands. The sidebar is the navigation now, so the strip is gone and
+             * its two non-drawing jobs moved to `components/app-sidebar/session-tabs-sync.tsx`,
+             * which explains why they could not simply be deleted.
+             *
+             * ⚠ THE `+` BUTTON WENT WITH IT, TO THE SIDEBAR'S SESSIONS HEADER. Its old handler
+             * existed to guess a directory out of tab state; the sidebar always has a focused
+             * project or honestly has none, so `home.project.openNewSession` answers directly.
+             *
+             * ⚠ AND THE HOME BUTTON IS NOW THE SIDEBAR TOGGLE, ON THE SAME `mod+b`. Home stopped
+             * being a destination worth toggling to once the lists it held became permanent; what
+             * a left-edge button on that keybind should do is show and hide the left edge.
+             *
+             * ⚠ THE COMMAND ITSELF IS REGISTERED BY `AppSidebar`, NOT HERE. Registering it in both
+             * places would put one id behind two registration keys, which is the duplicate the
+             * command context can only warn about. This reads the keybind for its tooltip and calls
+             * the layout directly.
+             */
 
             return (
               <div
@@ -369,15 +207,19 @@ export function Titlebar(props: { update?: TitlebarUpdate; debugTools?: { visibl
                 }}
               >
                 <ChannelIndicator debugTools={props.debugTools} />
-                <Show when={windows() || linux()}>
-                  <WindowsAppMenu command={command} platform={platform} variant="v2" />
-                </Show>
+                {/*
+                 * ⚠ THE LEFT EDGE READS TOGGLE, PREVIOUS CHAT, NEXT CHAT, MENUS — the order every
+                 * desktop application on this platform uses, and the order the controls are reached
+                 * in: show the column, move within what it opened, and only then the menus, which
+                 * are the rarest of the four. The app menu used to sit first, as a `≡` before the
+                 * toggle; see `windows-app-menu.tsx` for why it is now spelled out and last.
+                 */}
                 <TooltipV2
                   placement="bottom"
                   value={
                     <>
-                      {language.t("home.title")}
-                      <KeybindV2 keys={command.keybindParts("home.toggle")} variant="neutral" />
+                      {language.t("command.sidebar.toggle")}
+                      <KeybindV2 keys={command.keybindParts("sidebar.toggle")} variant="neutral" />
                     </>
                   }
                   class="shrink-0"
@@ -387,48 +229,81 @@ export function Titlebar(props: { update?: TitlebarUpdate; debugTools?: { visibl
                     variant="ghost-muted"
                     size="large"
                     class="!w-9 shrink-0"
-                    icon={<IconV2 name="grid-plus" />}
-                    state={layout.route().type === "home" ? "pressed" : undefined}
-                    onClick={toggleHome}
-                    aria-label={language.t("home.title")}
-                    aria-pressed={layout.route().type === "home"}
+                    icon={<IconV2 name="sidebar-left" />}
+                    state={layout.sidebar.opened() ? "pressed" : undefined}
+                    onClick={() => layout.sidebar.toggle()}
+                    aria-label={language.t("command.sidebar.toggle")}
+                    aria-expanded={layout.sidebar.opened()}
                   />
                 </TooltipV2>
-
-                <TitlebarTabStrip
-                  tabs={tabsStore}
-                  currentTab={currentTab}
-                  forceTruncate={tabsAreOverflowing()}
-                  onOverflowChange={setTabsAreOverflowing}
-                  onNavigate={(tab, el) => {
-                    tabs.select(tab)
-                    el?.scrollIntoView({ behavior: "instant" })
-                  }}
-                  onClose={(tab) => {
-                    const index = tabsStore.findIndex((item) => tabKey(item) === tabKey(tab))
-                    if (index !== -1) tabsStoreActions.closeTab(index)
-                  }}
-                  onReorder={(keys) => tabsStoreActions.reorder(keys)}
-                />
-                <TooltipV2
-                  placement="bottom"
-                  value={
-                    <>
-                      {language.t("command.session.new")}
-                      <KeybindV2 keys={newTabTooltipKeybind(command)} variant="neutral" />
-                    </>
-                  }
-                >
-                  <IconButtonV2
-                    type="button"
-                    variant="ghost-muted"
-                    size="large"
-                    class="shrink-0"
-                    icon={<IconV2 name="plus" />}
-                    onClick={openNewTab}
-                    aria-label={language.t("command.session.new")}
-                  />
-                </TooltipV2>
+                {/*
+                 * ⚠ THE PAIR STEPS THROUGH CHATS, NOT THROUGH PAGE HISTORY. It was briefly
+                 * `common.goBack` / `common.goForward` — the legacy titlebar's `history` store, on
+                 * `mod+[` and `mod+]` — which is the right pair for an application whose main view
+                 * is a document you navigate away from and come back to. This one's main view is a
+                 * chat, and the thing a student wants from two arrows beside the chat list is the
+                 * chat either side of the open one. Page history stays on its keybinds and in the
+                 * command palette; only these two buttons changed hands.
+                 *
+                 * ⚠ ALWAYS ON, WHERE THE OLD PAIR HID BEHIND `showNavigation`. That setting reads
+                 * "Show the back and forward buttons in the desktop title bar" and is about page
+                 * history; with the `Go` menu gone from this platform's menu bar (see
+                 * `desktop-menu.ts`) these buttons are the only pointer-reachable way between
+                 * chats, so they are not a preference. `nav()` still gates the legacy titlebar.
+                 *
+                 * ⚠ NEITHER BUTTON EVER DISABLES, because `navigateSessionByOffset` wraps: at the
+                 * last chat, "next" is the first one. Greying them out would claim an end the
+                 * navigation does not have.
+                 *
+                 * ⚠ `Icon` FROM THE LEGACY SET, NOT `IconV2`. The v2 set has no left/right glyph —
+                 * `sidebar-left` and `chevron-down` are the whole of its directional vocabulary —
+                 * and inventing two more to avoid one import would be the worse trade. This file
+                 * already mixes the two sets. `arrow-left`/`arrow-right` are `data-directional`, so
+                 * they flip with the writing direction on their own.
+                 */}
+                <div class="flex shrink-0 items-center gap-0">
+                  <TooltipV2
+                    placement="bottom"
+                    value={
+                      <>
+                        {language.t("command.session.previous")}
+                        <KeybindV2 keys={command.keybindParts("session.previous")} variant="neutral" />
+                      </>
+                    }
+                  >
+                    <IconButtonV2
+                      type="button"
+                      variant="ghost-muted"
+                      size="large"
+                      class="!w-9 shrink-0"
+                      icon={<Icon name="arrow-left" size="small" />}
+                      onClick={() => command.trigger("session.previous")}
+                      aria-label={language.t("command.session.previous")}
+                    />
+                  </TooltipV2>
+                  <TooltipV2
+                    placement="bottom"
+                    value={
+                      <>
+                        {language.t("command.session.next")}
+                        <KeybindV2 keys={command.keybindParts("session.next")} variant="neutral" />
+                      </>
+                    }
+                  >
+                    <IconButtonV2
+                      type="button"
+                      variant="ghost-muted"
+                      size="large"
+                      class="!w-9 shrink-0"
+                      icon={<Icon name="arrow-right" size="small" />}
+                      onClick={() => command.trigger("session.next")}
+                      aria-label={language.t("command.session.next")}
+                    />
+                  </TooltipV2>
+                </div>
+                <Show when={windows() || linux()}>
+                  <WindowsAppMenu command={command} platform={platform} variant="v2" />
+                </Show>
                 <div class="flex-1" />
                 <TitlebarV2Right state={v2RightState()} />
               </div>

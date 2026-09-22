@@ -116,6 +116,22 @@ type PlatformBase = {
   /** Export collected diagnostic logs (desktop only) */
   exportDebugLogs?(): Promise<string>
 
+  /**
+   * FORGET THE STORED JOLLI CREDENTIAL AND RETURN THE STUDENT TO THE SIGN-IN GATE (desktop only).
+   *
+   * ⚠ ITS ABSENCE ON WEB IS THE CORRECT ANSWER, NOT A GAP. A hosted session belongs to the browser;
+   * a "sign out" that only cleared the local server's `auth.json` entry would be a lie about what
+   * happened. The account row checks for this member the way everything else here checks for
+   * `openPath` and omits the item.
+   *
+   * ⚠ AND THERE IS DELIBERATELY NO `jolliSignIn` BESIDE IT. The whole sign-in choreography — reset
+   * the catalogue, re-check the course gate, handle a sidecar that is not ready, handle an account
+   * with no courses, tell the reader their browser has opened — already lives in
+   * `DesktopFirstLaunchOnboarding`. A second copy behind a menu item would be a bug farm; this one
+   * raises that gate instead.
+   */
+  jolliSignOut?(): Promise<void>
+
   /** Force focus styles on interactive elements through desktop devtools (desktop only) */
   setForceFocus?(enabled: boolean): Promise<void>
 

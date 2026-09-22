@@ -1,7 +1,8 @@
 import { createEffect, Suspense, type ParentProps } from "solid-js"
 import { createStore } from "solid-js/store"
+import { AppSidebar } from "@/components/app-sidebar/app-sidebar"
+import { SessionTabsSync } from "@/components/app-sidebar/session-tabs-sync"
 import { DebugBar } from "@/components/debug-bar"
-import { TabsInfoPopup } from "@/components/help-button"
 import { Titlebar, type TitlebarUpdate } from "@/components/titlebar"
 import { usePlatform } from "@/context/platform"
 import { setV2Toast, ToastRegion } from "@/utils/toast"
@@ -53,11 +54,39 @@ export default function NewLayout(props: ParentProps) {
             : undefined
         }
       />
-      <main class="flex-1 min-h-0 min-w-0 overflow-x-hidden flex flex-col items-start contain-strict">
-        <Suspense>{props.children}</Suspense>
-      </main>
+      {/*
+       * ⚠ A ROW BETWEEN THE TITLEBAR AND THE DEBUG BAR, AND `<main>`'s OWN CLASSES DO NOT CHANGE.
+       * `home.tsx` stretches itself with `self-stretch` and `session.tsx` with `size-full`, both
+       * measured against the `items-start` and `contain-strict` that are already on this element;
+       * rewriting them to suit the new axis would break both pages.
+       *
+       * ⚠ `contain-strict` IS `contain: size layout style paint`, so size containment makes
+       * `<main>` contribute nothing intrinsic. In a row that means `flex-1` (for the `flex-basis:
+       * 0%` it implies) and `min-w-0` are load-bearing rather than decorative: drop either and a
+       * non-shrinking sidebar produces horizontal overflow instead of a narrower main pane.
+       *
+       * ⚠ THE SAFE-AREA INSETS ARE ON THE CHILDREN, NOT ON THE CONTAINER ABOVE. The titlebar is
+       * that container's sibling and computes its own left padding for the macOS traffic lights and
+       * its own width for the Windows caption buttons, both against the window edge.
+       */}
+      <div class="flex min-h-0 min-w-0 flex-1 flex-row">
+        <AppSidebar />
+        <main
+          class="flex-1 min-h-0 min-w-0 overflow-x-hidden flex flex-col items-start contain-strict"
+          style={{ "padding-inline-end": "env(safe-area-inset-right, 0px)" }}
+        >
+          <Suspense>{props.children}</Suspense>
+        </main>
+      </div>
       {DEBUG_CHROME && state.debugTools && <DebugBar inline />}
-      <TabsInfoPopup />
+      {/*
+       * ⚠ RENDERS NOTHING, AND MUST NOT BE REMOVED. It carries the two behaviours that used to live
+       * inside the titlebar's tab strip and have nothing to do with drawing tabs: keeping
+       * `recentKey` current so `mod+w` lands somewhere sensible, and the only listener for the
+       * archive event — without which archiving the session you are reading leaves you on a dead
+       * route. See the file for the full argument.
+       */}
+      <SessionTabsSync />
       <ToastRegion v2 />
     </div>
   )

@@ -1,3 +1,4 @@
+import { openSidebarSession } from "../../utils/nav"
 import { expectSessionTitle } from "../../utils/waits"
 import { benchmark, expect } from "../benchmark"
 import { measureFirstNavigation } from "./first-navigation-probe"
@@ -25,7 +26,7 @@ benchmark.describe("performance: first navigation paint", () => {
       destinationSelector: messageSelector(fixture.expected.targetMessageIDs.at(-1)!),
       contentSelector,
       navigate: async () => {
-        await page.locator(`[data-slot="titlebar-tabs"] a[href="${href}"]`).first().click()
+        await openSidebarSession(page, { id: fixture.targetID })
         await expectSessionTitle(page, fixture.expected.targetTitle)
       },
     })
@@ -44,7 +45,14 @@ benchmark.describe("performance: first navigation paint", () => {
       destinationSelector: '[data-component="prompt-input"]',
       contentSelector,
       navigate: async () => {
-        await page.locator(`[data-slot="titlebar-tabs"] a[href="${href}"]`).first().click()
+        /**
+         * ⚠ STILL A URL NAVIGATION, BECAUSE A DRAFT HAS NO ROW TO CLICK. The sidebar lists
+         * sessions; drafts live in the same registry (`context/tabs.tsx`) but nothing renders them,
+         * so the tab strip was the only way back to one. Going through the address the strip's link
+         * carried keeps this benchmark measuring what it always measured — first paint of the
+         * composer — rather than a navigation path the product no longer has.
+         */
+        await page.goto(href)
         await expect(page.locator('[data-component="prompt-input"]')).toBeVisible()
       },
     })

@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "ចូលដោយប្រើ Jolli",
   "desktop.jolli.signIn.waiting": "កំពុងរង់ចាំកម្មវិធីរុករករបស់អ្នក…",
   "desktop.jolli.signIn.hint": "បញ្ចប់ការចូលនៅក្នុងផ្ទាំងកម្មវិធីរុករកដែលទើបបើក បន្ទាប់មកត្រឡប់មកទីនេះវិញ។",
+  "desktop.jolli.signIn.cancel": "បោះបង់",
   "desktop.jolli.signIn.serverUnavailable":
     "អ្នកបានចូលរួចហើយ ប៉ុន្តែ Jolli Code មិនអាចចាប់ផ្ដើមម៉ាស៊ីនមេមូលដ្ឋានឡើងវិញបានទេ។ សូមចាប់ផ្ដើមកម្មវិធីឡើងវិញដើម្បីបញ្ចប់។",
 

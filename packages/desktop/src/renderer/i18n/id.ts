@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Masuk dengan Jolli",
   "desktop.jolli.signIn.waiting": "Menunggu browser Anda…",
   "desktop.jolli.signIn.hint": "Selesaikan proses masuk di tab browser yang baru saja terbuka, lalu kembali ke sini.",
+  "desktop.jolli.signIn.cancel": "Batal",
   "desktop.jolli.signIn.serverUnavailable":
     "Anda sudah masuk, tetapi Jolli Code tidak dapat memulai ulang server lokalnya. Mulai ulang aplikasi untuk menyelesaikan.",
 

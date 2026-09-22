@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Entrar com a Jolli",
   "desktop.jolli.signIn.waiting": "Aguardando seu navegador…",
   "desktop.jolli.signIn.hint": "Conclua o login na aba do navegador que acabou de abrir e volte para cá.",
+  "desktop.jolli.signIn.cancel": "Cancelar",
   "desktop.jolli.signIn.serverUnavailable":
     "Kevreet oc'h, met n'eus ket bet gallet Jolli Code adloc'hañ e servijer lec'hel. Adloc'hit an arload evit echuiñ.",
 

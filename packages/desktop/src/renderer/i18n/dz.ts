@@ -9,6 +9,7 @@ export const dict: Record<string, string> = {
   "desktop.jolli.signIn.action": "Jolli གི་ཐོག་ལས་ཐོ་བཀོད་འབད།",
   "desktop.jolli.signIn.waiting": "ཁྱོད་ཀྱི་བརའུ་ཛར་ལུ་བསྒུག་དོ་…",
   "desktop.jolli.signIn.hint": "ད་ལྟོ་ཁ་ཕྱེ་ཡོད་པའི་བརའུ་ཛར་ཊེབ་ནང་ ཐོ་བཀོད་མཇུག་བསྡུ་ཞིནམ་ལས་ ནཱ་ལོག་སྟེ་ཤོག།",
+  "desktop.jolli.signIn.cancel": "ཆ་མེད་བཏང་པ་",
   "desktop.jolli.signIn.serverUnavailable":
     "ཁྱོད་ནང་བསྐྱོད་ཚར་ཡོད། འོན་ཀྱང་ Jolli Code གིས་རང་གི་ས་གནས་སར་བར་ཡང་བསྐྱར་འགོ་བཙུགས་མ་ཐུབ། མཇུག་བསྒྲིལ་བར་གློག་རིམ་ཡང་བསྐྱར་འགོ་བཙུགས་གནང་།",
 

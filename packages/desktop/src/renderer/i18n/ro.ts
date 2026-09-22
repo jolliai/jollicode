@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Conectare cu Jolli",
   "desktop.jolli.signIn.waiting": "Se așteaptă browserul…",
   "desktop.jolli.signIn.hint": "Finalizați conectarea în fila de browser care tocmai s-a deschis, apoi reveniți aici.",
+  "desktop.jolli.signIn.cancel": "Anulează",
   "desktop.jolli.signIn.serverUnavailable":
     "V-ați conectat, dar Jolli Code nu a putut reporni serverul local. Reporniți aplicația pentru a finaliza.",
 

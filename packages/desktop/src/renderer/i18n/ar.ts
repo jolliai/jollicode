@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "تسجيل الدخول باستخدام Jolli",
   "desktop.jolli.signIn.waiting": "في انتظار متصفحك…",
   "desktop.jolli.signIn.hint": "أكمل تسجيل الدخول في علامة تبويب المتصفح التي فُتحت للتو، ثم عد إلى هنا.",
+  "desktop.jolli.signIn.cancel": "إلغاء",
   "desktop.jolli.signIn.serverUnavailable":
     "تم تسجيل دخولك، لكن تعذّر على Jolli Code إعادة تشغيل خادمه المحلي. أعد تشغيل التطبيق لإكمال العملية.",
 

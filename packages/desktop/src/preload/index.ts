@@ -63,6 +63,7 @@ const api: ElectronAPI = {
   jolliCourseGate: () => ipcRenderer.invoke("jolli-course-gate"),
   jolliSignOut: () => ipcRenderer.invoke("jolli-sign-out"),
   jolliSignIn: () => ipcRenderer.invoke("jolli-sign-in"),
+  jolliSignInCancel: () => ipcRenderer.invoke("jolli-sign-in-cancel"),
   isFirstLaunchOnboardingPending: () => ipcRenderer.invoke("is-first-launch-onboarding-pending"),
   finishFirstLaunchOnboarding: (createDefaultProject) =>
     ipcRenderer.invoke("finish-first-launch-onboarding", createDefaultProject),

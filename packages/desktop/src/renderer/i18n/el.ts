@@ -10,6 +10,7 @@ export const dict = {
   "desktop.jolli.signIn.waiting": "Αναμονή για το πρόγραμμα περιήγησης…",
   "desktop.jolli.signIn.hint":
     "Ολοκληρώστε τη σύνδεση στην καρτέλα του προγράμματος περιήγησης που μόλις άνοιξε και επιστρέψτε εδώ.",
+  "desktop.jolli.signIn.cancel": "Ακύρωση",
   "desktop.jolli.signIn.serverUnavailable":
     "Έχετε συνδεθεί, αλλά το Jolli Code δεν μπόρεσε να επανεκκινήσει τον τοπικό διακομιστή. Επανεκκινήστε την εφαρμογή για να ολοκληρώσετε.",
 

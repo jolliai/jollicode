@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Skrá inn með Jolli",
   "desktop.jolli.signIn.waiting": "Bíð eftir vafranum…",
   "desktop.jolli.signIn.hint": "Ljúktu innskráningunni í vafraflipanum sem var að opnast og komdu svo aftur hingað.",
+  "desktop.jolli.signIn.cancel": "Hætta við",
   "desktop.jolli.signIn.serverUnavailable":
     "Þú ert skráður inn, en Jolli Code gat ekki endurræst staðbundna þjóninn. Endurræstu forritið til að ljúka.",
 

@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Kirjaudu sisään Jolli-tunnuksella",
   "desktop.jolli.signIn.waiting": "Odotetaan selainta…",
   "desktop.jolli.signIn.hint": "Viimeistele kirjautuminen juuri avautuneessa selainvälilehdessä ja palaa sitten tänne.",
+  "desktop.jolli.signIn.cancel": "Peruuta",
   "desktop.jolli.signIn.serverUnavailable":
     "Olet kirjautunut sisään, mutta Jolli Code ei voinut käynnistää paikallista palvelinta uudelleen. Viimeistele käynnistämällä sovellus uudelleen.",
 

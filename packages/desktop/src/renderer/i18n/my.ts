@@ -10,6 +10,7 @@ export const dict = {
   "desktop.jolli.signIn.waiting": "သင့်ဘရောက်ဇာကို စောင့်ဆိုင်းနေသည်…",
   "desktop.jolli.signIn.hint":
     "ယခုပွင့်လာသော ဘရောက်ဇာတက်ဘ်တွင် ဝင်ရောက်မှုကို ပြီးမြောက်အောင်လုပ်ပြီး ဤနေရာသို့ ပြန်လာပါ။",
+  "desktop.jolli.signIn.cancel": "မလုပ်တော့",
   "desktop.jolli.signIn.serverUnavailable":
     "သင်ဝင်ရောက်ပြီးပါပြီ၊ သို့သော် Jolli Code သည် ၎င်း၏ဒေသတွင်းဆာဗာကို ပြန်လည်စတင်၍မရပါ။ ပြီးမြောက်ရန် အက်ပ်ကို ပြန်လည်စတင်ပါ။",
 

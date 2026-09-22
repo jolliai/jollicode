@@ -31,7 +31,7 @@ export async function loadHomeSessionIndex(
   eventSequence = 0,
   signal?: AbortSignal,
 ) {
-  const data: SessionV2Info[] = []
+  const data: SessionV2InfoWithMetadata[] = []
   let cursor: string | undefined
 
   for (;;) {
@@ -118,6 +118,35 @@ export function createHomeSessionIndexCache(queryClient: QueryClient, server: st
       }
       queryClient.setQueryData<HomeSessionEvents>(eventsKey, { sequence: next.sequence, entries: [] })
     },
+    /**
+     * PUT A SESSION INTO THE INDEX AS SOON AS THE CLIENT CREATES IT, RATHER THAN WHEN THE SERVER
+     * SAYS SO.
+     *
+     * ⚠ THIS IS THE COUNTERPART OF `remove`, AND IT EXISTS FOR THE SAME REASON: the sidebar's list
+     * and its search read this index and nothing else, so a session that has only been written to
+     * the per-directory store — which is all `submit.ts`'s `seed` used to do — exists on the session
+     * route and nowhere a reader can find it. Waiting for `session.created` to come back over the
+     * event stream is not good enough for a list the reader is looking at while they create one.
+     *
+     * ⚠ IT HOLDS THE INDEX'S INVARIANT: roots that are not archived, the same set
+     * `parseHomeSessionIndex` and `applyHomeSessionEvent` keep. A child session belongs to its
+     * parent's transcript, and an archived one has already been taken out of this list on purpose.
+     *
+     * ⚠ AND IT CLEARS THE `removed` TOMBSTONE, because ids are not reused but a session CAN be
+     * re-added by a later event after a failed delete — leaving the tombstone would filter the row
+     * out of the list for the rest of the session.
+     */
+    add(session: Session) {
+      if (session.parentID || typeof session.time.archived === "number") return
+      removed.delete(session.id)
+      if (!queryClient.getQueryState(indexKey)) return
+      queryClient.setQueryData<HomeSessionIndex>(indexKey, (index) => {
+        if (!index) return index
+        const at = index.sessions.findIndex((item) => item.id === session.id)
+        if (at === -1) return { ...index, sessions: [...index.sessions, session] }
+        return { ...index, sessions: index.sessions.with(at, session) }
+      })
+    },
     remove(sessionID: string) {
       removed.add(sessionID)
       if (!queryClient.getQueryState(indexKey)) return
@@ -142,7 +171,7 @@ export function createHomeSessionIndexCache(queryClient: QueryClient, server: st
 // multiple directories. A bounded page could omit an old session updated today.
 // Once released, use client.v2.project.list() and client.v2.session.list({
 // parentID: null, order: "desc" }), then remove this adapter and its V1 fields.
-export function parseHomeSessionIndex(sessions: SessionV2Info[]): Session[] {
+export function parseHomeSessionIndex(sessions: SessionV2InfoWithMetadata[]): Session[] {
   return sessions.flatMap((item) => {
     if (item.parentID || typeof item.time.archived === "number") return []
     return [toLegacySummary(item)]
@@ -166,8 +195,25 @@ export function applyHomeSessionEvent(sessions: Session[], event: HomeSessionEve
   return sessions.with(index, info)
 }
 
-function toLegacySummary(session: SessionV2Info): Session {
+/**
+ * ⚠ `metadata` IS DECLARED BY HAND BECAUSE THE GENERATED `SessionV2Info` PREDATES IT — the same
+ * stale-codegen workaround `normalizeSessionInfo` documents in `utils/session.ts`. The field is on
+ * the wire: `SessionV2.Info` lists it (`schema/src/session.ts`) and `fromRow` fills it from the
+ * session table (`core/src/session/info.ts`).
+ */
+type SessionV2InfoWithMetadata = SessionV2Info & { metadata?: Record<string, unknown> }
+
+/**
+ * ⚠ THIS REBUILDS THE OBJECT FIELD BY FIELD, SO A FIELD LEFT OUT IS DELETED RATHER THAN IGNORED —
+ * the trap `normalizeSessionInfo` was fixed for, in the one projection that did not go through it.
+ * The sidebar reads its whole list out of this index, so dropping `metadata` dropped Jolli's course
+ * binding (`core/jolli/binding.ts`) off every row: `buildHomeSessionRecords` resolved `course` to
+ * undefined for all of them, and selecting a course in the sidebar then filtered the list to
+ * nothing, because no record could ever match the selected id.
+ */
+function toLegacySummary(session: SessionV2InfoWithMetadata): Session {
   return {
+    metadata: session.metadata,
     id: session.id,
     slug: session.id,
     projectID: session.projectID,

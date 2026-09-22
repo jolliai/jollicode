@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "使用 Jolli 登录",
   "desktop.jolli.signIn.waiting": "正在等待浏览器…",
   "desktop.jolli.signIn.hint": "在刚刚打开的浏览器标签页中完成登录，然后返回这里。",
+  "desktop.jolli.signIn.cancel": "取消",
   "desktop.jolli.signIn.serverUnavailable": "你已登录，但 Jolli Code 无法重启本地服务。请重启应用以完成。",
 
   "desktop.jolli.courseGate.noCourses.title": "没有 Jolli Code 课程",

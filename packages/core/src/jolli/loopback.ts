@@ -38,11 +38,46 @@ const CALLBACK_PATH = "/callback"
  */
 const LOGIN_TIMEOUT_MS = 5 * 60_000
 
+/**
+ * The rejection a cancelled attempt produces.
+ *
+ * ⚠ ITS OWN TYPE SO CALLERS CAN TELL "THE STUDENT GAVE UP" FROM "SIGN-IN FAILED". Every other
+ * rejection here is something to show them; this one is the thing they just asked for, and
+ * reporting it back as an error would put "Sign-in was cancelled" on a screen they cancelled to
+ * get away from.
+ */
+export class CancelledSignInError extends Error {
+  readonly cancelled = true
+  constructor() {
+    super("Sign-in was cancelled.")
+    this.name = "CancelledSignInError"
+  }
+}
+
+export function isCancelledSignIn(error: unknown) {
+  return error instanceof CancelledSignInError
+}
+
 export interface JolliLoginAttempt {
   /** The Jolli sign-in page to open. How it gets opened is the caller's business. */
   readonly url: string
   /** Resolves once the browser has come back and the one-time code has been redeemed. */
   wait(): Promise<JolliCredentials>
+  /**
+   * Give up on this attempt now: close the loopback server and reject {@link wait}.
+   *
+   * ⚠ IT EXISTS BECAUSE CLOSING THE BROWSER TAB IS INVISIBLE FROM HERE. Nothing reaches this
+   * server when a student abandons the page, so without an explicit cancel the only thing that
+   * ends the attempt is {@link LOGIN_TIMEOUT_MS} — five minutes of a bound port and a UI that
+   * cannot be dismissed.
+   *
+   * ⚠ AND IT MATTERS THAT THE SERVER ACTUALLY CLOSES, not just that the caller stops awaiting. A
+   * still-listening callback would redeem the code and hand back credentials for a sign-in the
+   * student has already walked away from.
+   *
+   * Idempotent: rejecting a settled promise is a no-op, and closing a closed server is harmless.
+   */
+  cancel(): void
 }
 
 /**
@@ -116,7 +151,14 @@ export async function startJolliLogin(input: { clientVersion: string }): Promise
     client_version: input.clientVersion,
   })
 
-  return { url: `${origin}/login?${query}`, wait: () => settled }
+  return {
+    url: `${origin}/login?${query}`,
+    wait: () => settled,
+    cancel() {
+      close(server)
+      reject(new CancelledSignInError())
+    },
+  }
 
   /** Credentials, or the reason this callback cannot produce any. Never throws. */
   async function readCallback(url: URL): Promise<JolliCredentials | Error> {

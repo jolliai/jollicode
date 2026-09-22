@@ -10,6 +10,7 @@ export const dict = {
   "desktop.jolli.signIn.waiting": "Tarayıcınız bekleniyor…",
   "desktop.jolli.signIn.hint":
     "Az önce açılan tarayıcı sekmesinde oturum açmayı tamamlayın, ardından buraya geri dönün.",
+  "desktop.jolli.signIn.cancel": "İptal",
   "desktop.jolli.signIn.serverUnavailable":
     "Oturum açtınız, ancak Jolli Code yerel sunucusunu yeniden başlatamadı. Tamamlamak için uygulamayı yeniden başlatın.",
 

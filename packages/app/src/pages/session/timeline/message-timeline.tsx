@@ -60,7 +60,6 @@ import { normalize } from "@opencode-ai/session-ui/session-diff"
 import { useFileComponent } from "@opencode-ai/ui/context/file"
 import { shouldMarkBoundaryGesture, normalizeWheelDelta } from "@/pages/session/message-gesture"
 import { SessionContextUsage } from "@/components/session-context-usage"
-import { SessionCourseLabel } from "@/components/session-course-label"
 import { useCourseSession } from "@/jolli/session-binding"
 import { coachTurn, type CoachTrigger } from "@/jolli/coaching"
 import { CoachBadge, coachTurnInputFor, exchangeTextFor } from "./coach-nudge"
@@ -73,6 +72,7 @@ import { usePlatform } from "@/context/platform"
 import { useSettings } from "@/context/settings"
 import { legacySessionHref, requireServerKey, sessionHref } from "@/utils/session-route"
 import { useSDK } from "@/context/sdk"
+import { useServerSync } from "@/context/server-sync"
 import { useSync } from "@/context/sync"
 import { notifySessionTabsRemoved } from "@/components/titlebar-session-events"
 import { sessionTitle } from "@/utils/session-title"
@@ -266,6 +266,7 @@ export function MessageTimeline(props: {
   const serverSDK = useServerSDK()
   const sdk = useSDK()
   const sync = useSync()
+  const serverSync = useServerSync()
   const settings = useSettings()
   const dialog = useDialog()
   const sessionArchive = useSessionArchive()
@@ -935,6 +936,14 @@ export function MessageTimeline(props: {
 
     for (const id of removed) {
       sync().session.evict(id)
+      /**
+       * ⚠ THE HOME INDEX IS A SEPARATE CACHE AND DELETE WAS THE ONE REMOVAL PATH THAT SKIPPED IT.
+       * `archive` takes a session out of both (see `session-archive.ts` and the Home controller),
+       * but this only ever touched the per-directory store — so a deleted session stayed in the
+       * sidebar's list and in its search until the next full reload, and clicking that row opened a
+       * tab for a session the server no longer has.
+       */
+      serverSync().homeSessions.remove(id)
     }
     notifySessionTabsRemoved({ directory: sdk().directory, sessionIDs: [...removed] })
     return true
@@ -1454,8 +1463,14 @@ export function MessageTimeline(props: {
                   "pr-3": !settings.general.newLayoutDesigns(),
                 }}
               >
+                {/*
+                 * ⚠ THE COURSE AND ASSISTANT ARE DELIBERATELY NOT REPEATED HERE. They are stated
+                 * directly above the input by `SessionCourseBar`, which covers the draft screen and
+                 * a live session from one mount point; naming them again in the title made the
+                 * header read as `CS 201 · cs201-as / New session`, where two thirds of the
+                 * breadcrumb is scope the student never typed and cannot change.
+                 */}
                 <div class="flex items-center min-w-0 flex-1 w-full">
-                  <SessionCourseLabel />
                   <Show when={parentID()}>
                     <button
                       type="button"

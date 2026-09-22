@@ -232,8 +232,20 @@ export const DESKTOP_MENU: DesktopMenu[] = [
     ],
   },
   {
+    /**
+     * ⚠ macOS ONLY, ALONG WITH `window` BELOW — the Windows/Linux menu bar is `File · Edit · View ·
+     * Help` and nothing else. Both menus are conventions of the native macOS bar, where every
+     * application has them and removing them would be the thing that looked broken. On a titlebar
+     * the menus share with the chat, they were two words of the four this product is actually about.
+     *
+     * ⚠ AND `Go` HAD A REPLACEMENT BEFORE IT WAS TAKEN AWAY: its two session entries are the arrow
+     * pair beside the sidebar toggle now (`components/titlebar.tsx`), which is where a chat
+     * application puts them. Its other four entries — page history, project stepping — keep their
+     * keybinds and their place in the command palette.
+     */
     id: "go",
     labelKey: "desktop.menu.go",
+    platforms: ["macos"],
     items: [
       { type: "item", labelKey: "desktop.menu.back", command: "common.goBack", accelerator: { macos: "Cmd+[" } },
       { type: "item", labelKey: "desktop.menu.forward", command: "common.goForward", accelerator: { macos: "Cmd+]" } },
@@ -269,6 +281,8 @@ export const DESKTOP_MENU: DesktopMenu[] = [
     id: "window",
     labelKey: "desktop.menu.window",
     role: "windowMenu",
+    /** See the note on `go` above. Minimize/maximize/close are the native caption buttons here. */
+    platforms: ["macos"],
     items: [
       { type: "item", labelKey: "desktop.menu.minimize", action: "window.minimize" },
       { type: "item", labelKey: "desktop.menu.maximize", action: "window.toggleMaximize" },

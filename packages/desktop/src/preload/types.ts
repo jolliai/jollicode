@@ -97,6 +97,17 @@ export type ElectronAPI = {
    * credential, because those two can fail independently and only one of them is worth a retry.
    */
   jolliSignIn: () => Promise<JolliSignInResult>
+  /**
+   * Calls off a sign-in that is still waiting on the browser, closing its loopback callback server.
+   *
+   * ⚠ NEEDED BECAUSE A CLOSED BROWSER TAB IS INVISIBLE TO THAT SERVER. Nothing arrives when a
+   * student abandons the page, so the attempt would otherwise sit there until its five-minute
+   * timeout — port bound, callback live, and a `jolliSignIn` promise the screen cannot get out of.
+   *
+   * The `jolliSignIn` call it cancels rejects; the sign-in screen ignores that, since the student
+   * asked for it. Safe to call with nothing pending.
+   */
+  jolliSignInCancel: () => Promise<void>
   isFirstLaunchOnboardingPending: () => Promise<boolean>
   finishFirstLaunchOnboarding: (createDefaultProject: boolean) => Promise<string | null>
   isOldLayoutEligible: () => Promise<boolean>

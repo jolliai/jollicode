@@ -14,7 +14,7 @@
     "dev:storybook": "bun --cwd packages/storybook storybook",
     "dev:deploy": "bun run script/dev-deploy.ts",
     "lint": "oxlint",
-    "typecheck": "bun turbo typecheck",
+    "typecheck": "bun turbo typecheck --concurrency=2",
     "upgrade-opentui": "bun run script/upgrade-opentui.ts",
     "postinstall": "bun run --cwd packages/core fix-node-pty",
     "prepare": "husky",

@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Jolli سے سائن ان کریں",
   "desktop.jolli.signIn.waiting": "آپ کے براؤزر کا انتظار ہے…",
   "desktop.jolli.signIn.hint": "ابھی کھلنے والے براؤزر ٹیب میں سائن ان مکمل کریں، پھر یہاں واپس آئیں۔",
+  "desktop.jolli.signIn.cancel": "منسوخ کریں۔",
   "desktop.jolli.signIn.serverUnavailable":
     "آپ سائن اِن ہیں، لیکن Jolli Code اپنا مقامی سرور دوبارہ شروع نہیں کر سکا۔ مکمل کرنے کے لیے ایپ دوبارہ شروع کریں۔",
 

@@ -4,7 +4,6 @@ import { Show, type Accessor } from "solid-js"
 import { Portal } from "solid-js/web"
 import { PromptInputV2Composer } from "@/components/prompt-input-v2"
 import { PromptGitStatus, PromptWorkspaceSelector } from "@/components/prompt-workspace-selector"
-import { PromptAssistantSelector, PromptCourseSelector } from "@/components/prompt-course-selector"
 import {
   PromptProjectAddButton,
   PromptProjectSelector,
@@ -36,48 +35,66 @@ export function NewSessionView(props: {
              * introducing it. Half the column reads as a hero.
              */}
             <WordmarkV2 class="mx-auto h-auto w-[58%] max-w-[420px] text-v2-background-bg-inverse" />
-            <div class="mt-8 flex flex-col gap-8">
-              <PromptInputV2Composer controller={props.input} />
+            {/*
+             * ⚠ NOTHING SITS UNDER THE BOX ANY MORE, AND THE COLUMN THAT HELD IT WENT WITH IT. The
+             * course and assistant row moved above the input (into `PromptInputV2Composer`, so a
+             * live session gets it too); the project, workspace and branch row has now joined it
+             * there as `courseBarTrailing`. What is left is a single child, so the `flex flex-col
+             * gap-8` that spaced three of them is a claim about structure that is no longer true.
+             */}
+            <div class="mt-8">
               {/*
-               * ⚠ THE TWO SELECTOR ROWS ARE ONE BLOCK, TIGHTLY SPACED, AND THEY USED TO SIT A FULL
-               * `gap-8` APART LIKE THE COMPOSER ABOVE THEM. At that distance they read as two
-               * unrelated settings floating under the box; they are two halves of one answer to
-               * "where does this session happen", so they belong closer to each other than either
-               * is to the composer.
+               * WHERE THIS SESSION HAPPENS, AS ONE LINE ABOVE THE BOX: course / assistant / project
+               * / workspace / branch, coarse to fine.
+               *
+               * ⚠ IT IS PASSED IN RATHER THAN IMPORTED BY THE BAR, because these three controls are
+               * this route's — `props.project` and `props.workspace` are controllers the draft page
+               * owns, and a live session has neither. See the `trailing` note in
+               * `session-course-bar.tsx`.
+               *
+               * ⚠ AND THE FRAGMENT OPENS WITH A DIVIDER, because every control in this row owns the
+               * `/` BEFORE it (`PromptAssistantSelector`, `PromptWorkspaceSelector`,
+               * `PromptGitStatus` all do). Without one the project chip would butt straight against
+               * the assistant's name.
                */}
-              <div class="flex flex-col gap-2">
-                {/* ⚠ ABOVE THE PROJECT ROW, BECAUSE IT IS THE PRIOR DECISION. Which course this is
-                    for determines who may answer, on what models, and who may read it; which folder
-                    it runs in is a detail settled afterwards. Reading top to bottom gives a student
-                    the two in the order they actually make them. */}
-                <div class="flex min-h-7 min-w-0 flex-col items-center justify-center gap-0 text-v2-text-text-faint sm:flex-row">
-                  <PromptCourseSelector onDone={props.input.restoreFocus} />
-                  <PromptAssistantSelector onDone={props.input.restoreFocus} />
-                </div>
-                <Show when={props.project.empty()}>
-                  <PromptProjectAddButton controller={props.project} />
-                </Show>
-                <Show when={props.project.selected()}>
-                  <div class="flex min-h-7 min-w-0 flex-col items-center justify-center gap-0 text-v2-text-text-faint sm:flex-row">
-                    <PromptProjectSelector controller={props.project} placement="bottom" />
+              <PromptInputV2Composer
+                controller={props.input}
+                courseBarTrailing={
+                  <>
+                    <span class="mx-1 hidden select-none opacity-50 sm:inline">/</span>
+                    {/*
+                     * ⚠ ONE `Show` WITH A FALLBACK RATHER THAN TWO, WHICH IS ALSO A CORRECTNESS
+                     * POINT AND NOT ONLY BREVITY. `selected()` is `current() ?? available[0]`, so it
+                     * is defined exactly when `empty()` is false — the two branches were already
+                     * mutually exclusive, and saying so keeps a single divider correct for both.
+                     */}
                     <Show
-                      when={props.workspace.bar.visible()}
-                      fallback={
-                        <PromptGitStatus branch={props.workspace.bar.branch()} noGit={!props.workspace.project.git()} />
-                      }
+                      when={props.project.selected()}
+                      fallback={<PromptProjectAddButton controller={props.project} />}
                     >
-                      <PromptWorkspaceSelector
-                        value={props.workspace.selection.value()}
-                        projectRoot={props.workspace.project.root()}
-                        workspaces={props.workspace.project.workspaces()}
-                        branch={props.workspace.bar.branch()}
-                        onChange={props.workspace.selection.set}
-                        onDone={props.input.restoreFocus}
-                      />
+                      <PromptProjectSelector controller={props.project} placement="bottom" />
+                      <Show
+                        when={props.workspace.bar.visible()}
+                        fallback={
+                          <PromptGitStatus
+                            branch={props.workspace.bar.branch()}
+                            noGit={!props.workspace.project.git()}
+                          />
+                        }
+                      >
+                        <PromptWorkspaceSelector
+                          value={props.workspace.selection.value()}
+                          projectRoot={props.workspace.project.root()}
+                          workspaces={props.workspace.project.workspaces()}
+                          branch={props.workspace.bar.branch()}
+                          onChange={props.workspace.selection.set}
+                          onDone={props.input.restoreFocus}
+                        />
+                      </Show>
                     </Show>
-                  </div>
-                </Show>
-              </div>
+                  </>
+                }
+              />
             </div>
           </div>
         </div>

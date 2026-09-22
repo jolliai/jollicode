@@ -10,6 +10,7 @@ export const dict = {
   "desktop.jolli.signIn.waiting": "Се чека вашиот прелистувач…",
   "desktop.jolli.signIn.hint":
     "Завршете ја најавата во картичката на прелистувачот што штотуку се отвори, а потоа вратете се тука.",
+  "desktop.jolli.signIn.cancel": "Откажи",
   "desktop.jolli.signIn.serverUnavailable":
     "Најавени сте, но Jolli Code не можеше да го рестартира локалниот сервер. Рестартирајте ја апликацијата за да завршите.",
 

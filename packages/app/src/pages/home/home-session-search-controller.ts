@@ -1,5 +1,6 @@
 import { useCommand } from "@/context/command"
 import { useLanguage } from "@/context/language"
+import { useLayout } from "@/context/layout"
 import { serverName } from "@/context/server"
 import { displayName } from "@/pages/layout/helpers"
 import { makeEventListener } from "@solid-primitives/event-listener"
@@ -13,6 +14,7 @@ type HomeSessionSearchSource = Pick<HomeSessionsController, "data" | "session">
 export function createHomeSessionSearchController(home: HomeController, sessions: HomeSessionSearchSource) {
   const command = useCommand()
   const language = useLanguage()
+  const layout = useLayout()
   const [state, setState] = createStore({ value: "", focused: false, highlighted: "" })
   let root: HTMLDivElement | undefined
   let input: HTMLInputElement | undefined
@@ -41,11 +43,19 @@ export function createHomeSessionSearchController(home: HomeController, sessions
     return language.t("home.sessions.search.placeholder")
   })
 
+  /**
+   * ⚠ NO ROOT MEANS NO OUTSIDE, SO THIS DOES NOTHING RATHER THAN CLOSING ON EVERY CLICK. This rule
+   * belongs to a combobox: the home page hung a floating result panel off the input and `root`
+   * wrapped both, so "pointer landed outside root" genuinely meant "you are done with the panel".
+   * The sidebar filters its list in place and never sets `root` — and `root?.contains(...)` on an
+   * undefined ref is falsy, which made the FIRST click anywhere wipe a query the student had just
+   * typed. An inline filter ends on Escape or on its own clear button, not on the next click.
+   */
   onCleanup(
     makeEventListener(document, "pointerdown", (event) => {
-      if (!open()) return
+      if (!root || !open()) return
       const target = event.target
-      if (!(target instanceof Node) || root?.contains(target)) return
+      if (!(target instanceof Node) || root.contains(target)) return
       close()
     }),
   )
@@ -60,9 +70,21 @@ export function createHomeSessionSearchController(home: HomeController, sessions
     },
   ])
 
+  /**
+   * ⚠ IT OPENS THE SIDEBAR FIRST, BECAUSE THAT IS WHERE THE INPUT LIVES NOW. A closed sidebar is
+   * `width: 0` and `inert`, and `HTMLElement.focus()` on an inert subtree is a silent no-op — so
+   * without this `mod+f` would appear to do nothing for anyone who had closed the column.
+   */
   function focus() {
-    input?.focus()
+    layout.sidebar.open()
     setState("focused", true)
+    /**
+     * ⚠ ONE TICK LATER, SO THE COLUMN HAS STOPPED BEING `inert` BY THE TIME WE ASK. Outside a batch
+     * Solid has already written the attribute by the line above; inside one it has not, and a
+     * `focus()` against an inert subtree is a silent no-op with no second chance. A microtask is
+     * ahead of paint either way, so nothing is visibly deferred.
+     */
+    queueMicrotask(() => input?.focus())
   }
 
   function close() {

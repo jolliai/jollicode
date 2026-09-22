@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Jolli ilə daxil olun",
   "desktop.jolli.signIn.waiting": "Brauzeriniz gözlənilir…",
   "desktop.jolli.signIn.hint": "İndicə açılan brauzer tabında daxil olmağı tamamlayın, sonra buraya qayıdın.",
+  "desktop.jolli.signIn.cancel": "Ləğv et",
   "desktop.jolli.signIn.serverUnavailable":
     "Daxil olmusunuz, lakin Jolli Code yerli serverini yenidən başlada bilmədi. Tamamlamaq üçün tətbiqi yenidən başladın.",
 

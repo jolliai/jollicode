@@ -10,6 +10,7 @@ export const dict = {
   "desktop.jolli.signIn.waiting": "Warten auf Ihren Browser…",
   "desktop.jolli.signIn.hint":
     "Schließen Sie die Anmeldung im soeben geöffneten Browser-Tab ab und kehren Sie dann hierher zurück.",
+  "desktop.jolli.signIn.cancel": "Abbrechen",
   "desktop.jolli.signIn.serverUnavailable":
     "Sie sind angemeldet, aber Jolli Code konnte seinen lokalen Server nicht neu starten. Starten Sie die App neu, um fortzufahren.",
 

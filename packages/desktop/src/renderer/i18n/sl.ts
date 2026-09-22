@@ -10,6 +10,7 @@ export const dict = {
   "desktop.jolli.signIn.waiting": "Čakanje na brskalnik…",
   "desktop.jolli.signIn.hint":
     "Dokončajte prijavo v zavihku brskalnika, ki se je pravkar odprl, in se nato vrnite sem.",
+  "desktop.jolli.signIn.cancel": "Prekliči",
   "desktop.jolli.signIn.serverUnavailable":
     "Prijavljeni ste, vendar Jolli Code ni mogel znova zagnati lokalnega strežnika. Za dokončanje znova zaženite aplikacijo.",
 

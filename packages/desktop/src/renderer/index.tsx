@@ -10,6 +10,7 @@ import {
   type Platform,
   PlatformProvider,
   createDraftStore,
+  resetJolliCatalog,
   ServerConnection,
   useCommand,
   useWslServers,
@@ -25,7 +26,7 @@ import { render } from "solid-js/web"
 import pkg from "../../package.json"
 import { t } from "./i18n"
 import { initializationData } from "./initialization"
-import { DesktopFirstLaunchOnboarding } from "./onboarding"
+import { DesktopFirstLaunchOnboarding, reopenJolliSignIn } from "./onboarding"
 import { resetZoom, setPinchZoomEnabled, webviewZoom, zoomIn, zoomOut } from "./webview-zoom"
 import { windowFullscreen } from "./window-fullscreen"
 import { availableStartupServer, readyWslConnections } from "./wsl/connections"
@@ -242,6 +243,23 @@ const createPlatform = (windowState: DesktopWindowState): Platform => {
     },
 
     exportDebugLogs: () => window.api.exportDebugLogs(),
+
+    /**
+     * SIGNING OUT IS THREE STEPS, AND LEAVING ANY OF THEM OUT LEAVES THE APP IN A WORSE STATE THAN
+     * BEFORE. The IPC call forgets the credential, clears the catalogue cache and restarts the
+     * sidecar — the token is baked into the sidecar's environment at fork time, so nothing short of
+     * a restart un-signs-in the server. `resetJolliCatalog` drops the renderer's copy, which would
+     * otherwise keep naming the previous student. Re-raising the gate is what gives them a way back
+     * in; without it the app stays up with no courses and a permanently disabled send button.
+     *
+     * ⚠ COMPOSED HERE RATHER THAN IN THE MAIN PROCESS, because two of the three steps are renderer
+     * state that the main process cannot see.
+     */
+    jolliSignOut: async () => {
+      await window.api.jolliSignOut()
+      resetJolliCatalog()
+      reopenJolliSignIn()
+    },
 
     setForceFocus: (enabled) => window.api.setForceFocus(enabled),
 

@@ -3913,6 +3913,11 @@ export type JolliAssistant = {
 
 export type JolliModelTier = "premium" | "economy"
 
+export type JolliViewer = {
+  name?: string
+  email?: string
+}
+
 export type JolliCatalog = {
   status: JolliCatalogStatus
   courses: Array<JolliCourse>
@@ -3920,6 +3925,7 @@ export type JolliCatalog = {
   modelTiers: {
     [key: string]: JolliModelTier
   }
+  viewer?: JolliViewer
 }
 
 export type ProjectDirectories = Array<{

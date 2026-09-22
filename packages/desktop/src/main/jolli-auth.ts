@@ -29,17 +29,52 @@ export interface JolliSession {
  */
 let session: JolliSession | undefined
 
+/**
+ * The sign-in currently waiting on a browser, so it can be called off.
+ *
+ * ⚠ ONE AT A TIME, AND STARTING A SECOND CANCELS THE FIRST. Each attempt binds its own loopback
+ * port and carries its own CSRF nonce, so two in flight would mean two live callbacks and a student
+ * who could complete the wrong one. Holding the current attempt here is what makes "cancel" and
+ * "start over" mean the same thing to the ports as they do on screen.
+ */
+let pending: { cancel(): void } | undefined
+
 /** Runs the browser sign-in end to end and persists the result. Throws with a readable message. */
 export async function signIn(): Promise<JolliSession> {
+  cancelSignIn()
   const attempt = await startJolliLogin({ clientVersion: app.getVersion() })
+  pending = attempt
   writeLog("jolli-auth", "sign-in started")
   openExternalURL(attempt.url)
 
-  const credentials = await attempt.wait()
-  store(credentials)
-  raiseWindow()
-  writeLog("jolli-auth", "sign-in completed", { hasBaseUrl: !!credentials.baseUrl })
-  return credentials
+  try {
+    const credentials = await attempt.wait()
+    store(credentials)
+    raiseWindow()
+    writeLog("jolli-auth", "sign-in completed", { hasBaseUrl: !!credentials.baseUrl })
+    return credentials
+  } finally {
+    // ⚠ ONLY IF IT IS STILL OURS: a newer attempt has already replaced it, and clearing that one's
+    // handle would leave it un-cancellable.
+    if (pending === attempt) pending = undefined
+  }
+}
+
+/**
+ * Call off a sign-in that is still waiting on the browser.
+ *
+ * ⚠ THIS CLOSES THE LOOPBACK SERVER, WHICH IS THE POINT. Abandoning the promise in the renderer
+ * would leave the callback listening for up to five minutes, still able to redeem the code and
+ * store a credential for a student who has already given up — and still holding the port.
+ *
+ * Safe to call when nothing is pending; that is the common case on a fresh sign-in.
+ */
+export function cancelSignIn() {
+  if (!pending) return
+  writeLog("jolli-auth", "sign-in cancelled")
+  const attempt = pending
+  pending = undefined
+  attempt.cancel()
 }
 
 /** The stored session, or undefined when signed out or the stored token can't be read back. */

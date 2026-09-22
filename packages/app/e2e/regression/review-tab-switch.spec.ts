@@ -1,6 +1,7 @@
 import { base64Encode } from "@opencode-ai/core/util/encode"
 import { expect, test, type Page } from "@playwright/test"
 import { mockOpenCodeServer } from "../utils/mock-server"
+import { openSidebarSession } from "../utils/nav"
 import { expectAppVisible, expectSessionTitle } from "../utils/waits"
 
 const directory = "C:/OpenCode/ReviewTabSwitch"
@@ -61,7 +62,7 @@ test("keeps the v2 review pane mounted when switching session tabs in a workspac
 type Probed = HTMLElement & { __e2eProbe?: string }
 
 async function switchTab(page: Page, title: string) {
-  await page.locator("[data-titlebar-tab-slot]", { hasText: title }).click()
+  await openSidebarSession(page, { title })
 }
 
 async function writeProbe(page: Page) {
