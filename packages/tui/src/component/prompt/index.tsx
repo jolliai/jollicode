@@ -216,16 +216,16 @@ export function Prompt(props: PromptProps) {
    * WHAT SITS AFTER THE MODEL NAME, AND IT IS NOT THE PROVIDER.
    *
    * ⚠ THIS PRODUCT HAS EXACTLY ONE PROVIDER, SO NAMING IT SAYS NOTHING. "Jolli" after every model
-   * is a word a student can neither act on nor change — while the course and assistant in that
-   * same slot are the two things that actually decide what the model may be and how it answers.
+   * is a word a student can neither act on nor change. The course and assistant — the two things
+   * that actually decide what the model may be and how it answers — now sit on their own labeled
+   * row above the composer (see the `Course:` / `Assistant:` line below), where a narrow VS Code
+   * sidebar has room for them; this slot no longer carries them.
    *
    * ⚠ IT STILL FALLS BACK TO THE PROVIDER WHERE THE PROVIDER IS A REAL CHOICE. A build without
    * lockdown can have several connected, and there the name is the useful thing; under lockdown
-   * with nothing bound yet it is better to say nothing than to name the only option there is.
+   * it is better to say nothing than to name the only option there is.
    */
   const currentProviderLabel = createMemo(() => {
-    const course = jolli.course()
-    if (course) return jolli.assistant() ? `${course.code}/${jolli.assistant()?.name}` : course.code
     return Flag.JOLLICODE_LOCKDOWN ? "" : local.model.parsed().provider
   })
   const hasRightContent = createMemo(() => Boolean(props.right))
@@ -1407,6 +1407,41 @@ export function Prompt(props: PromptProps) {
             flexGrow={1}
             width="100%"
           >
+            <Show when={jolli.course()}>
+              {(course) => {
+                // The header is one non-wrapping row, so budget its cells against the
+                // composer content width: terminal width minus the left border (1) and
+                // horizontal padding (2 + 2). Course always wins the row; the assistant
+                // takes whatever width is left and is dropped when nothing usable remains.
+                const header = createMemo(() => {
+                  const available = dimensions().width - 5
+                  const code = Locale.truncate(course().code, Math.max(6, Math.min(24, Math.floor(available / 3))))
+                  const assistant = jolli.assistant()
+                  if (!assistant) return { code, assistant: undefined as string | undefined }
+                  const budget = available - ("Course:".length + 1 + code.length + 2 + "Assistant:".length + 1)
+                  return {
+                    code,
+                    assistant: budget >= 8 ? Locale.truncateMiddle(assistant.name, Math.min(40, budget)) : undefined,
+                  }
+                })
+                return (
+                  <box flexDirection="row" flexShrink={0} gap={2} paddingBottom={1}>
+                    <box flexDirection="row" gap={1}>
+                      <text fg={theme.textMuted}>Course:</text>
+                      <text fg={theme.text}>{header().code}</text>
+                    </box>
+                    <Show when={header().assistant}>
+                      {(name) => (
+                        <box flexDirection="row" gap={1}>
+                          <text fg={theme.textMuted}>Assistant:</text>
+                          <text fg={theme.text}>{name()}</text>
+                        </box>
+                      )}
+                    </Show>
+                  </box>
+                )
+              }}
+            </Show>
             <textarea
               width="100%"
               placeholder={placeholderText()}
