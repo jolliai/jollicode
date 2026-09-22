@@ -23,11 +23,12 @@ import { APP_SIDEBAR_ROW_LABEL, AppSidebarRow } from "@/components/app-sidebar/a
 
 /**
  * ⚠ THE ROW PRIMITIVE NOW LIVES IN `components/app-sidebar/app-sidebar-row.tsx`, because the
- * sidebar is where it is used most. These two aliases keep the old names working for the call sites
- * in this file and in `home-courses.tsx` rather than spreading a rename across them.
+ * sidebar is where it is used most. These two aliases keep the old names working for this file's
+ * own call sites rather than spreading a rename across them, and they are local for the same
+ * reason: the one other caller they were exported for was `home-courses.tsx`, which the sidebar
+ * replaced.
  */
 const HOME_PROJECT_NAV_LABEL = APP_SIDEBAR_ROW_LABEL
-export { AppSidebarRow as HomeProjectNavButton }
 const HomeProjectNavButton = AppSidebarRow
 
 const serverContextMenuID = (server: ServerConnection.Any) => `server:${ServerConnection.key(server)}`

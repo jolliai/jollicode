@@ -24,6 +24,7 @@ import { CerebrasPlugin } from "./cerebras"
 import { JolliAuthPlugin } from "./jolli"
 import { SnowflakeCortexAuthPlugin } from "./snowflake-cortex"
 import { Effect, Layer, Context } from "effect"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { EffectBridge } from "@/effect/bridge"
 import { InstanceState } from "@/effect/instance-state"
 import { errorMessage } from "@/util/error"
@@ -65,11 +66,16 @@ export function experimentalWebSocketsEnabled(input: { enabled: boolean; channel
 }
 
 // Built-in plugins that are directly imported (not installed from npm)
-function internalPlugins(flags: RuntimeFlags.Info): PluginInstance[] {
+function internalPlugins(flags: RuntimeFlags.Info, bridge: EffectBridge.Shape): PluginInstance[] {
   return [
     // The only provider a Jolli Code install is allowed to connect; `enabled_providers` prunes the
     // rest, and this is what gives the survivor a way to sign in.
-    JolliAuthPlugin,
+    //
+    // ⚠ IT TAKES THE BRIDGE BECAUSE ITS CREDENTIAL IS NOT IN `auth.json`. Signing in writes the
+    // shared database and every model request resolves a fresh token from it, both of which are
+    // Effects — and the plugin API is Promise-shaped. `CodexAuthPlugin` below is wrapped the same
+    // way for its own reasons.
+    (input) => JolliAuthPlugin(input, { bridge }),
     // Temporary rollout: pre-release builds use WebSockets by default; releases require explicit opt-in.
     (input) =>
       CodexAuthPlugin(input, {
@@ -171,7 +177,7 @@ const layer = Layer.effect(
           $: typeof Bun === "undefined" ? undefined : Bun.$,
         }
 
-        for (const plugin of flags.disableDefaultPlugins ? [] : internalPlugins(flags)) {
+        for (const plugin of flags.disableDefaultPlugins ? [] : internalPlugins(flags, bridge)) {
           const init = yield* Effect.tryPromise({
             try: () => plugin(input),
             catch: errorMessage,
@@ -316,7 +322,12 @@ const layer = Layer.effect(
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [EventV2Bridge.node, Config.node, RuntimeFlags.node],
+  /**
+   * ⚠ `JolliSession` IS HERE BECAUSE THE BRIDGE CAPTURES THIS LAYER'S RUNTIME. The Jolli plugin
+   * resolves its credential through `bridge.promise(...)`, and a bridge can only run effects whose
+   * services this layer already has — without it every model request dies on a missing service.
+   */
+  deps: [EventV2Bridge.node, Config.node, RuntimeFlags.node, JolliSession.node],
 })
 
 export * as Plugin from "."

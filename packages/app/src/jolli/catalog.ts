@@ -53,6 +53,14 @@ export const catalogGeneration = generation
  * for the same reason in a different shape: "signed out" and "not asked yet" are both an absent
  * viewer, and the row says something different for each. Everything else renders an empty list as an
  * empty list and corrects itself when the data lands, which is what a store is for.
+ *
+ * ⚠ IT MEANS "THE SERVER REPLIED", NOT "THE GATEWAY DID", AND THE ACCOUNT ROW IS WHY. An
+ * `unreachable` answer is still a reply, and it settles the question that row is asking: the viewer
+ * is read off the stored token before anything is fetched (`handlers/jolli.ts`), so a reply with no
+ * viewer in it means there is no credential. Holding this false until the gateway answers left a
+ * signed-out student on a bad network looking at "Account" for the life of the process, waiting on
+ * a request that was never going to come back. The COURSES stay unknown in that state, which is why
+ * {@link ensureCatalog} writes none of them.
  */
 export const ready = loaded
 
@@ -71,11 +79,20 @@ export function viewer(): Viewer | undefined {
  * Called once the server has answered.
  *
  * ⚠ THE ARGUMENT IS TYPED `Catalog` AND IS NOT ONE — IT IS WHATEVER CAME BACK OVER HTTP. The single
- * caller reaches this through `response.data as Catalog`, an assertion with nothing behind it, so
- * every field here is untrusted until proven otherwise.
+ * caller reaches this through `response.data as Catalog`, an assertion with nothing behind it.
  *
- * ⚠ AND A MISSING `courses` USED TO TAKE THE WHOLE APPLICATION DOWN, which is why this coerces
- * rather than trusts. `enrolledCourses()` spreads this array; assigning `undefined` to it made that
+ * ⚠ WHAT IS COERCED BELOW IS WHAT WOULD CRASH IF IT WERE ABSENT, WHICH IS NARROWER THAN VALIDATING
+ * THE SHAPE, AND THAT IS THE RULE RATHER THAN AN OVERSIGHT. A field can go missing here for a
+ * reason that happens in the field: the app talks to whichever server it is pointed at, and one
+ * older than the field simply does not send it. A field cannot arrive with the WRONG TYPE for that
+ * reason — a server that has it encodes it through `Jolli.Catalog` — so guarding against that would
+ * mean distrusting a server's own published schema, which is a whole-shape decode rather than two
+ * `Array.isArray` calls. So `courses` and `assistants` are coerced because they are spread, while
+ * `viewer` and `modelTiers` are written through `?.` and `??` instead, where absent is already a
+ * no-op.
+ *
+ * ⚠ AND A MISSING `courses` USED TO TAKE THE WHOLE APPLICATION DOWN, which is what taught us that
+ * rule. `enrolledCourses()` spreads this array; assigning `undefined` to it made that
  * `[...undefined]`, a `TypeError` thrown from a render — and since the sidebar reads it at the top
  * of a layout that is mounted on every route, the result was the error screen rather than a missing
  * section. That was survivable while only the home page read courses and only two routes fetched
@@ -84,6 +101,10 @@ export function viewer(): Viewer | undefined {
  * ⚠ AN UNPARSEABLE ANSWER IS STILL AN ANSWER, so `loaded` is set either way. It means "the server
  * has replied", and the callers that need it — the account row, the course pre-selection — are
  * asking whether to keep waiting, not whether the reply was any good.
+ *
+ * ⚠ AND IT IS ONLY EVER REACHED WITH AN `ok` ANSWER — see {@link ensureCatalog}, which takes an
+ * `unreachable` one apart rather than passing it here: it keeps the identity that answer carries
+ * and drops its empty collections, so nothing overwrites a catalogue with a failure.
  */
 export function setCatalog(catalog: Catalog) {
   const payload = catalog as Partial<Catalog> | undefined
@@ -168,13 +189,14 @@ export const UNRESTRICTED: string[] = []
 /**
  * LOAD THE CATALOGUE ONCE PER SERVER, HOWEVER MANY SCREENS ASK FOR IT.
  *
- * ⚠ `CourseSessionProvider` MOUNTS TWICE — once on the new-session route and once inside the
- * directory layout — so a fetch in its `init` would run twice on every launch. Keyed on the server
- * so switching servers does re-ask, and an in-flight promise is shared rather than raced.
+ * ⚠ THERE ARE THREE ASKERS AND THEY OVERLAP ON EVERY LAUNCH — `CourseSessionProvider` mounts once
+ * on the new-session route and once inside the directory layout, and `ServerScopedProviders` asks
+ * from above both so the home route has the answer too (see `catalog-fetch.ts`). Keyed on the
+ * server so switching servers does re-ask, and an in-flight promise is shared rather than raced.
  *
- * ⚠ A FAILURE IS NOT CACHED. The catalogue is what the course picker is made of; if the first
- * attempt lost a race with the sidecar coming up, the next screen to ask should get a real attempt
- * rather than a remembered empty list.
+ * ⚠ A FAILURE IS NOT CACHED, AND AN `unreachable` ANSWER COUNTS AS ONE. The catalogue is what the
+ * course picker is made of; if the first attempt lost a race with the sidecar coming up, the next
+ * screen to ask should get a real attempt rather than a remembered empty list.
  *
  * ⚠ THE SERVER URL IS NOT A SUFFICIENT KEY ON ITS OWN, AND SIGNING IN IS WHY. The app mounts before
  * the student has signed in — `AppInterface` renders its children without waiting on the onboarding
@@ -198,6 +220,28 @@ export function ensureCatalog(key: string, load: () => Promise<Catalog>): Promis
        * what makes that counter protect the write as well as the fetch.
        */
       if (inFlight?.key !== key) return
+      /**
+       * ⚠ `unreachable` IS A FAILURE WEARING A 200, AND ITS COURSES MUST NOT BE CACHED AS AN EMPTY
+       * LIST. `/jolli/course` answers a whole catalogue shape whether or not it reached the gateway
+       * — no credential, no tenant, a gateway that did not reply — and says which of the two
+       * happened in `status`. Handing it to `setCatalog` would leave `inFlight` resolved, so one
+       * lost race with the network would give the student an empty course picker for the life of
+       * the process. So the collections are dropped and nothing is cached, exactly as the `catch`
+       * below leaves a thrown error, and `status` is settled before `setCatalog` ever sees it.
+       *
+       * ⚠ THE IDENTITY ON IT IS NOT A FAILURE, THOUGH, AND DISCARDING IT WAS ONE. The server
+       * resolves the viewer from the stored token BEFORE it asks whether the gateway is reachable,
+       * and spreads it into every `unreachable` answer precisely so that a name on screen never
+       * depends on the network. Throwing the whole reply away undid that at the last step: it blanked
+       * the student's own name from the sidebar on every offline launch, and — because `loaded` never
+       * flipped — left somebody who is signed OUT reading "Account" rather than "Not signed in".
+       */
+      if (catalog.status !== "ok") {
+        setStore("viewer", catalog.viewer)
+        setLoaded(true)
+        inFlight = undefined
+        return
+      }
       setCatalog(catalog)
     })
     .catch(() => {

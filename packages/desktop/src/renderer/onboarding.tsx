@@ -1,8 +1,9 @@
-import { resetJolliCatalog, ServerConnection, useServer, useSettings, useTabs } from "@opencode-ai/app"
+import { resetJolliCatalog, ServerConnection, useServer, useServerSync, useSettings, useTabs } from "@opencode-ai/app"
 import { Button } from "@opencode-ai/ui/button"
 import { Splash } from "@opencode-ai/ui/logo"
 import { createEffect, createSignal, on, onMount, Show } from "solid-js"
 import { shouldOpenDefaultProject } from "./first-launch"
+import { watchJolliCredential } from "./jolli-credential"
 import { t } from "./i18n"
 import type { CourseGateResult } from "../preload/types"
 
@@ -31,6 +32,7 @@ export function DesktopFirstLaunchOnboarding(props: { initialUrl: string; onLoad
   const server = useServer()
   const settings = useSettings()
   const tabs = useTabs()
+  const serverSync = useServerSync()
 
   /**
    * ⚠ THIS GATE RENDERS ABOVE THE STARTUP SPLASH, NOT INSTEAD OF IT. `AppInterface` keeps its own
@@ -61,6 +63,26 @@ export function DesktopFirstLaunchOnboarding(props: { initialUrl: string; onLoad
   onMount(() => {
     void start()
   })
+
+  /**
+   * ⚠ RAISED AGAIN WHEN THE CREDENTIAL GOES AWAY SOMEWHERE ELSE, WHICH IS A CASE THE GATE COULD NOT
+   * SEE BEFORE. `start()` runs `onMount` and nothing revisited it, so a student who signed out in
+   * the TUI kept a desktop window that looked signed in: the sidebar named them, the composer
+   * offered models, and the first message came back "Not signed in to Jolli." from
+   * `core/jolli/session.ts` with nothing on screen to act on. The two steps are the same two
+   * `jolliSignOut` composes below — minus forgetting a credential that is already gone.
+   */
+  watchJolliCredential(
+    () => ({
+      ready: serverSync().ready,
+      connected: serverSync().data.provider.connected,
+      refresh: () => serverSync().refreshProviders(),
+    }),
+    () => {
+      resetJolliCatalog()
+      reopenJolliSignIn()
+    },
+  )
 
   /**
    * ⚠ `defer` SO THIS DOES NOT DOUBLE UP WITH `onMount`. Without it the effect would run once on
@@ -101,27 +123,24 @@ export function DesktopFirstLaunchOnboarding(props: { initialUrl: string; onLoad
   }
 
   /**
-   * CALL OFF A SIGN-IN THAT IS WAITING ON A BROWSER TAB THE STUDENT HAS GIVEN UP ON.
+   * LET GO OF A SIGN-IN THAT IS WAITING ON A BROWSER TAB THE STUDENT HAS GIVEN UP ON.
    *
-   * ⚠ IT REALLY ENDS THE ATTEMPT: `jolliSignInCancel` closes the loopback callback server in the
-   * main process, so the code can no longer be redeemed and the port is freed immediately rather
-   * than after the five-minute timeout in `core/jolli/loopback.ts`.
+   * ⚠ IT ABANDONS THE ATTEMPT, IT DOES NOT TEAR IT DOWN — and the difference is the sidecar. The
+   * loopback callback now lives in the sidecar rather than the main process, so nothing this
+   * renderer or the main process can call will close it; it runs until its own five-minute timeout
+   * in `core/jolli/loopback.ts`. What this button buys is the screen: without it a student who
+   * closed the tab by accident sits on a disabled button for those five minutes, because
+   * re-clicking is blocked by `signingIn()`.
    *
-   * ⚠ THE COUNTER IS STILL NEEDED, AND THAT IS NOT BELT-AND-BRACES. Cancelling makes the in-flight
-   * `jolliSignIn()` invoke REJECT, and that rejection lands in this component's `catch` — which
-   * would put "Sign-in was cancelled" on a screen the student cancelled to get away from. There is
-   * also a genuine race: the browser may have completed a millisecond before the click, in which
-   * case the promise resolves with real credentials. Gating every write on still being the current
-   * attempt is what makes both outcomes silent.
-   *
-   * ⚠ AND IT DOES NOT AWAIT THE IPC BEFORE CLEARING THE UI. The button should stop saying "waiting"
-   * on click, not one round-trip later; the teardown has nothing the screen needs to hear back.
+   * ⚠ WHICH MAKES THE COUNTER THE WHOLE MECHANISM, NOT BELT-AND-BRACES. The in-flight
+   * `jolliSignIn()` invoke is still running and may still resolve with real credentials — the
+   * browser may have completed a millisecond before the click. Gating every write on still being
+   * the current attempt is what keeps that from painting over the screen the student is looking at.
    */
-  async function cancelSignIn() {
+  function cancelSignIn() {
     setAttempt((value) => value + 1)
     setSigningIn(false)
     setError(undefined)
-    await window.api.jolliSignInCancel().catch(() => undefined)
   }
 
   async function signIn() {
@@ -326,11 +345,10 @@ export function DesktopFirstLaunchOnboarding(props: { initialUrl: string; onLoad
                * Without this button a student who closed the tab by accident sat on a disabled
                * button for five minutes, because re-clicking is blocked by `signingIn()`.
                *
-               * ⚠ IT REALLY TEARS THE ATTEMPT DOWN, rather than only looking away from it. The
-               * loopback server is closed and the pending promise rejected in the main process —
-               * see `jolli-auth.ts` — so a cancelled sign-in cannot come back and store a
-               * credential for a student who has given up on it, and the port is freed at once
-               * instead of five minutes later.
+               * ⚠ IT LOOKS AWAY FROM THE ATTEMPT RATHER THAN TEARING IT DOWN — see `cancelSignIn`.
+               * The loopback server belongs to the sidecar now, so a cancelled sign-in can still
+               * complete in the background and store a credential; closing it from here needs a
+               * cancel endpoint on the sidecar that does not exist yet.
                */}
               <Button variant="ghost" size="small" onClick={() => void cancelSignIn()}>
                 {t("desktop.jolli.signIn.cancel")}

@@ -13,8 +13,8 @@ import contextMenu from "electron-context-menu"
 
 import { Brand } from "@opencode-ai/app/brand"
 import type { ServerReadyData } from "../preload/types"
-import { cancelSignIn, currentSession, signIn, signOut } from "./jolli-auth"
-import { clearCatalogCache } from "@opencode-ai/core/jolli/cache"
+import { isSignedIn, refreshInstance, signIn, signOut } from "./jolli-auth"
+import { sidecarCall } from "./jolli-sidecar"
 import { checkCourseGate } from "./jolli-course-gate"
 import { checkAppExists, resolveAppPath } from "./apps"
 import { CHANNEL } from "./constants"
@@ -32,6 +32,7 @@ import {
   getDefaultServerUrl,
   preferAppEnv,
   setDefaultServerUrl,
+  setSidecarDatabase,
   spawnLocalServer,
   type SidecarListener,
 } from "./server"
@@ -74,6 +75,9 @@ const jsCallStackFeature = "DocumentPolicyIncludeJSCallStacksInCrashReports"
 let logger: ReturnType<typeof initLogging>
 let server: SidecarListener | null = null
 let sidecarAddress: { hostname: string; port: number; password: string } | null = null
+
+/** Authenticated access to our own sidecar, or undefined before it has started. */
+const jolliSidecar = () => (sidecarAddress ? sidecarCall(sidecarAddress) : undefined)
 
 const pendingDeepLinks: string[] = []
 
@@ -178,7 +182,17 @@ const main = Effect.gen(function* () {
     ;["data", "config", "cache", "state", "desktop", "session"].forEach((dir) =>
       mkdirSync(join(root, dir), { recursive: true }),
     )
-    process.env.OPENCODE_DB = ":memory:"
+    /**
+     * ⚠ A FILE, NOT `:memory:`, AND THE CREDENTIAL IS WHY. Two processes each opening `:memory:`
+     * get two different databases — which was harmless while the credential travelled separately
+     * and is not any more: the onboarding harness would sign in on one side and read nothing on
+     * the other.
+     *
+     * ⚠ AND IT IS HANDED OVER RATHER THAN EXPORTED. `createSidecarEnv()` deletes every `*_DB` it
+     * inherits, because the database is the credential store and a student's login shell must not
+     * get to pick it; setting `process.env` here would simply be scrubbed back out.
+     */
+    setSidecarDatabase(join(root, "data", "onboarding.db"))
     process.env.XDG_DATA_HOME = join(root, "data")
     process.env.XDG_CONFIG_HOME = join(root, "config")
     process.env.XDG_CACHE_HOME = join(root, "cache")
@@ -347,45 +361,54 @@ const main = Effect.gen(function* () {
     consumeInitialDeepLinks: () => pendingDeepLinks.splice(0),
     getDefaultServerUrl: () => getDefaultServerUrl(),
     setDefaultServerUrl: (url) => setDefaultServerUrl(url),
-    isJolliSignedIn: () => !!currentSession(),
     /**
-     * ⚠ THE SIDECAR IS RESTARTED AFTER A SIGN-IN, NOT BEFORE IT. `JOLLICODE_CONFIG_CONTENT` is read
-     * once when the sidecar forks, so a server that started signed out keeps a config with no
-     * provider in it until it is replaced. First launch signs in before the server starts and this
-     * is a no-op; a later sign-in from the app is what needs it.
+     * ⚠ EVERY JOLLI ANSWER COMES FROM THE SIDECAR NOW, AND THIS IS WHERE THAT STARTS. The main
+     * process holds no credential, so there is nothing here it could answer from — and opening the
+     * shared database from Electron would not even reach the same file, because
+     * `InstallationChannel` reads a bare global the main bundle does not define.
+     *
+     * ⚠ NO SERVER YET IS "NO ANSWER", NOT "NO". The renderer is gated on `awaitInitialization`, so
+     * in practice the sidecar is up before any of these are called; answering false rather than
+     * undefined here would only matter if that gate ever stopped holding, and a signed-in student
+     * shown a sign-in screen is the failure that would look like.
+     */
+    isJolliSignedIn: async () => {
+      const call = jolliSidecar()
+      if (!call) return false
+      return isSignedIn(call).catch(() => false)
+    },
+    /**
+     * ⚠ THE ORDER IS LOAD-BEARING AND MIRRORS THE TUI'S `completeLogin` STEP FOR STEP. Warming the
+     * catalogue before disposing the instance is what stops the next config assembly from paying
+     * the full `STARTUP_DEADLINE` on a cold cache — the desktop used to warm it before forking the
+     * sidecar, and deleting that without replacing it would have been a regression nobody would
+     * have noticed until a student watched a splash screen.
      */
     jolliSignIn: async () => {
-      const session = await signIn()
+      const call = jolliSidecar()
+      if (!call) return { serverReady: false, courses: "unreachable" as const }
+      await signIn(call)
+      const courses = (await checkCourseGate(call)).kind
+      await refreshInstance(call)
       /**
-       * ⚠ THE COURSES ARE CHECKED BEFORE THE SIDECAR IS REPLACED, AND THE ORDER IS THE POINT. This
-       * fetch is what fills the catalogue cache, and the sidecar bakes its model list out of that
-       * cache as it forks — running it the other way round would start a server with no models and
-       * then discover the student had courses after all.
+       * ⚠ THE SERVER WAS NEVER REPLACED, SO IT IS READY BY CONSTRUCTION. This used to report
+       * whether a restarted sidecar came back healthy; the credential no longer travels in its
+       * environment, so what needed refreshing was the instance config, not the process.
        */
-      const courses = (await checkCourseGate(session)).kind
-      if (!server) return { serverReady: true, courses }
-      return { serverReady: await restartSidecar(), courses }
+      return { serverReady: true, courses }
     },
-    jolliCourseGate: () => checkCourseGate(currentSession()),
-    jolliSignInCancel: () => cancelSignIn(),
+    jolliCourseGate: () => checkCourseGate(jolliSidecar()),
     /**
-     * ⚠ THE SIDECAR HAS TO BE REPLACED, NOT JUST THE STORED CREDENTIAL. The token reaches the
-     * server in its environment and is read once, at fork — so a sidecar started by the previous
-     * student keeps answering `/jolli/course` as them, and keeps their key on every model call,
-     * until something restarts it. Signing out without this leaves the account live in a process
-     * the next student is about to use.
+     * ⚠ THE SERVER DROPS THE CATALOGUE SNAPSHOT WITH THE CREDENTIAL. Its filename is keyed to the
+     * credential, so nothing will ever read this student's snapshot again — but it is still their
+     * course list sitting in a directory the next person to sign in on this machine can read, and
+     * the button that reaches here is literally "use a different account".
      */
     jolliSignOut: async () => {
-      signOut()
-      /**
-       * ⚠ THE CACHED CATALOGUE GOES WITH THE CREDENTIAL. Its filename is a hash of the token, so
-       * nothing will ever read this student's snapshot again — but it is still their course list
-       * sitting in a directory the next person to sign in on this machine can read, and the button
-       * that reaches here is literally "use a different account". Keyed storage stops a stale
-       * snapshot being SERVED to the wrong student; only deleting it stops one being FOUND.
-       */
-      await Effect.runPromise(clearCatalogCache()).catch(() => undefined)
-      if (server) await restartSidecar()
+      const call = jolliSidecar()
+      if (!call) return
+      await signOut(call)
+      await refreshInstance(call)
     },
     isFirstLaunchOnboardingPending,
     finishFirstLaunchOnboarding,

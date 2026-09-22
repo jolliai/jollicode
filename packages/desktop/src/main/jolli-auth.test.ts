@@ -1,176 +1,167 @@
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from "bun:test"
-import { mkdtempSync, readFileSync, rmSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { JOLLI_AUTH_TOKEN_KEY, JOLLI_BASE_URL_KEY, SETTINGS_STORE } from "./store-keys"
+import { describe, expect, mock, test } from "bun:test"
+import { Brand } from "@opencode-ai/app/brand"
+import { JOLLI_PROVIDER_IDS } from "@opencode-ai/core/jolli/gateway-config"
 
 /**
- * ⚠ ONLY ELECTRON'S OWN SURFACE IS FAKED, AND AS LITTLE OF IT AS POSSIBLE. Everything this module
- * is worth testing — that the token is ciphertext on disk, that an unencryptable machine keeps it
- * in memory instead, that unreadable ciphertext reads as signed out — is about what really lands in
- * the real `electron-store` file, so that store is left alone and pointed at a temp `userData`.
- * The loopback sign-in it drives is the real one too; only Jolli's exchange endpoint is stubbed.
+ * ⚠ WHAT IS WORTH TESTING HERE CHANGED COMPLETELY, AND THE ABSENCES ARE THE POINT. This module used
+ * to hold a credential: the old tests asserted that the token was ciphertext on disk and that an
+ * unencryptable machine kept it in memory instead. It holds nothing now — the sidecar owns the
+ * sign-in and the shared database owns the credential — so what is left to pin is the sequence of
+ * calls it makes, and that the browser URL comes from the server rather than from here.
  */
-const userData = mkdtempSync(join(tmpdir(), "jolli-auth-"))
-const storeFile = join(userData, SETTINGS_STORE)
-
-/** Stands in for the OS keychain: reversible here, and unreadable by any other "install". */
-const keychain = { available: true, prefix: "keychain:" }
-
-let opened = Promise.withResolvers<string>()
-const raised = { minimized: true, restored: 0, shown: 0, focused: 0 }
-
-const app = {
-  getPath: () => userData,
-  getVersion: () => "9.9.9",
-  setPath: () => {},
-  focus: () => {},
-}
-
-mock.module("electron", () => ({
-  // `store.ts` reaches for the default export, `jolli-auth.ts` for the named ones, and `logging.ts`
-  // — loaded for real, and inert until `initLogging()` — names three more it never calls here.
-  default: { app },
-  app,
-  crashReporter: {},
-  netLog: {},
-  shell: {},
-  safeStorage: {
-    isEncryptionAvailable: () => keychain.available,
-    encryptString: (value: string) => Buffer.from(keychain.prefix + value),
-    decryptString: (value: Buffer) => {
-      const text = value.toString()
-      if (!text.startsWith(keychain.prefix)) throw new Error("ciphertext from another keychain")
-      return text.slice(keychain.prefix.length)
-    },
-  },
-}))
+const opened: string[] = []
+const raised = { restored: 0, shown: 0, focused: 0 }
 
 mock.module("./windows", () => ({
-  openExternalURL: (url: string) => opened.resolve(url),
+  openExternalURL: (url: string) => opened.push(url),
   getLastFocusedWindow: () => ({
-    isMinimized: () => raised.minimized,
+    isMinimized: () => true,
     restore: () => raised.restored++,
     show: () => raised.shown++,
     focus: () => raised.focused++,
   }),
 }))
 
-const { currentSession, signIn, signOut } = await import("./jolli-auth")
-const { getStore } = await import("./store")
+/**
+ * ⚠ THE ELECTRON MOCK IS A SUPERSET OF WHAT THIS FILE NEEDS, AND DELIBERATELY IDENTICAL TO THE ONE
+ * IN THE OTHER MAIN-PROCESS TEST. `mock.module` is process-wide in bun and last-writer-wins, so two
+ * partial mocks of the same module break whichever file loads second.
+ */
+const app = { getPath: () => "/tmp", setPath: () => {}, getVersion: () => "9.9.9", focus: () => {} }
 
-const originalFetch = globalThis.fetch
+mock.module("electron", () => ({ default: { app }, app, utilityProcess: {}, crashReporter: {}, netLog: {}, shell: {} }))
 
-beforeEach(() => {
-  keychain.available = true
-  raised.minimized = true
-  raised.restored = 0
-  raised.shown = 0
-  raised.focused = 0
-})
+// Only `write` is reached from here, but the real module is inert until `initLogging()` runs, so
+// replacing it wholesale is what would break the files that import the rest of it.
+mock.module("./logging", () => ({
+  write: () => {},
+  getLogger: () => ({ warn: () => {}, error: () => {}, log: () => {} }),
+}))
 
-afterEach(() => {
-  globalThis.fetch = originalFetch
-  signOut()
-})
+const { isSignedIn, refreshInstance, signIn, signOut } = await import("./jolli-auth")
 
-afterAll(() => {
-  rmSync(userData, { recursive: true, force: true })
-})
+type Seen = { path: string; method: string; body?: unknown; timeoutMs?: number }
 
-describe("jolli-auth", () => {
-  test("persists the token as ciphertext and raises the window", async () => {
-    const credentials = await runSignIn({ token: "student-jwt", baseUrl: "https://acme.jolli.ai" })
-
-    expect(credentials).toEqual({ token: "student-jwt", baseUrl: "https://acme.jolli.ai" })
-    // ⚠ The store file is plaintext JSON, so the bearer token must never appear in it verbatim.
-    const raw = readFileSync(storeFile, "utf8")
-    expect(raw).not.toContain("student-jwt")
-    expect(Buffer.from(JSON.parse(raw)[JOLLI_AUTH_TOKEN_KEY], "base64").toString()).toBe("keychain:student-jwt")
-    // The tenant is not a secret and stays readable.
-    expect(JSON.parse(raw)[JOLLI_BASE_URL_KEY]).toBe("https://acme.jolli.ai")
-
-    expect(currentSession()).toEqual({ token: "student-jwt", baseUrl: "https://acme.jolli.ai" })
-    expect(raised).toMatchObject({ restored: 1, shown: 1, focused: 1 })
-  })
-
-  test("reads a stored session back without a sign-in", async () => {
-    await runSignIn({ token: "student-jwt", baseUrl: "https://acme.jolli.ai" })
-    // Drop this run's cache the way a restart would, leaving only what is on disk.
-    resetSessionCache()
-
-    expect(currentSession()).toEqual({ token: "student-jwt", baseUrl: "https://acme.jolli.ai" })
-  })
-
-  test("keeps the session in memory rather than writing a token it cannot encrypt", async () => {
-    keychain.available = false
-    const credentials = await runSignIn({ token: "student-jwt" })
-
-    // ⚠ Refusing to persist beats a world-readable bearer token: this run still works, and the
-    // next launch asks them to sign in again.
-    expect(JSON.parse(readFileSync(storeFile, "utf8"))[JOLLI_AUTH_TOKEN_KEY]).toBe("")
-    expect(credentials).toEqual({ token: "student-jwt" })
-    expect(currentSession()).toEqual({ token: "student-jwt" })
-
-    // And nothing is left behind for the next launch to half-read.
-    resetSessionCache()
-    expect(currentSession()).toBeUndefined()
-  })
-
-  test("forgets the tenant when a later sign-in does not report one", async () => {
-    await runSignIn({ token: "first", baseUrl: "https://acme.jolli.ai" })
-    await runSignIn({ token: "second" })
-
-    // A stale tenant would point the gateway at an account this token does not belong to.
-    expect(getStore().get(JOLLI_BASE_URL_KEY)).toBeUndefined()
-    expect(currentSession()).toEqual({ token: "second" })
-  })
-
-  test("treats ciphertext this install cannot open as signed out", () => {
-    // A keychain the user reset, or a store copied between machines. Not a crash.
-    getStore().set(JOLLI_AUTH_TOKEN_KEY, Buffer.from("someone else's ciphertext").toString("base64"))
-    expect(currentSession()).toBeUndefined()
-
-    keychain.available = false
-    expect(currentSession()).toBeUndefined()
-  })
-
-  test("signs out by clearing both keys", async () => {
-    await runSignIn({ token: "student-jwt", baseUrl: "https://acme.jolli.ai" })
-
-    signOut()
-
-    expect(currentSession()).toBeUndefined()
-    expect(getStore().get(JOLLI_AUTH_TOKEN_KEY)).toBeUndefined()
-    expect(getStore().get(JOLLI_BASE_URL_KEY)).toBeUndefined()
-  })
-})
-
-/** Runs the real loopback sign-in, answering Jolli's exchange with `payload`. */
-async function runSignIn(payload: { token: string; baseUrl?: string }) {
-  // One per attempt: a test that signs in twice must wait for its own browser launch.
-  opened = Promise.withResolvers<string>()
-  // Asserted because `typeof fetch` carries `preconnect`, which a stub has no business having.
-  globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
-    const request = new Request(input instanceof Request ? input.url : input.toString(), init)
-    if (new URL(request.url).hostname === "127.0.0.1") return originalFetch(input, init)
-    return Response.json(payload)
-  }) as typeof fetch
-
-  const session = signIn()
-  const url = new URL(await opened.promise)
-  const callback = new URL(url.searchParams.get("cli_callback") ?? "")
-  callback.searchParams.set("code", "one-time")
-  callback.searchParams.set("state", url.searchParams.get("state") ?? "")
-  await originalFetch(callback)
-  return session
+/** Records what the main process asked the sidecar for, and answers each route in turn. */
+function stubSidecar(answers: Record<string, unknown> = {}) {
+  const seen: Seen[] = []
+  // Asserted because a stub has no business carrying the real signature's overloads.
+  // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
+  const call = (async (path: string, init?: RequestInit & { timeoutMs?: number }) => {
+    seen.push({
+      path,
+      method: init?.method ?? "GET",
+      body: typeof init?.body === "string" ? JSON.parse(init.body) : undefined,
+      ...(init?.timeoutMs !== undefined ? { timeoutMs: init.timeoutMs } : {}),
+    })
+    return answers[path]
+  }) as unknown as Parameters<typeof signIn>[0]
+  return { call, seen }
 }
 
-/** What a restart does: the in-memory session goes, whatever reached the store stays. */
-function resetSessionCache() {
-  const token = getStore().get(JOLLI_AUTH_TOKEN_KEY)
-  const baseUrl = getStore().get(JOLLI_BASE_URL_KEY)
-  signOut()
-  if (typeof token === "string" && token) getStore().set(JOLLI_AUTH_TOKEN_KEY, token)
-  if (typeof baseUrl === "string" && baseUrl) getStore().set(JOLLI_BASE_URL_KEY, baseUrl)
-}
+describe("signIn", () => {
+  test("asks the server to start the flow, opens what it hands back, then waits for the callback", async () => {
+    const { call, seen } = stubSidecar({ "/provider/jolli/oauth/authorize": { url: "https://auth.jolli.ai/cli?x=1" } })
+
+    await signIn(call)
+
+    expect(seen.map((s) => `${s.method} ${s.path}`)).toEqual([
+      "POST /provider/jolli/oauth/authorize",
+      "POST /provider/jolli/oauth/callback",
+    ])
+    /**
+     * ⚠ THE URL COMES FROM THE SERVER, NOT FROM HERE, and the plugin deliberately does not open it
+     * itself — `authorize` runs inside a server that is not always the machine the user is at.
+     */
+    expect(opened).toContain("https://auth.jolli.ai/cli?x=1")
+    // The callback waits on a human in a browser, so it cannot share the ten-second default.
+    expect(seen.at(1)?.timeoutMs).toBeGreaterThan(60_000)
+  })
+
+  test("names both calls with the same method index the plugin registered", async () => {
+    const { call, seen } = stubSidecar({ "/provider/jolli/oauth/authorize": { url: "https://auth.jolli.ai/cli" } })
+
+    await signIn(call)
+
+    expect(seen.at(0)?.body).toEqual({ method: 0 })
+    expect(seen.at(1)?.body).toEqual({ method: 0 })
+  })
+
+  test("raises the window once the browser hands control back", async () => {
+    const before = raised.focused
+    const { call } = stubSidecar({ "/provider/jolli/oauth/authorize": { url: "https://auth.jolli.ai/cli" } })
+
+    await signIn(call)
+
+    expect(raised.focused).toBe(before + 1)
+  })
+
+  test("fails with something readable when the server will not start a flow", async () => {
+    const { call } = stubSidecar({ "/provider/jolli/oauth/authorize": null })
+    // A rejection mid-flow surfaces as a crash rather than "try again", so the message matters.
+    expect(signIn(call)).rejects.toThrow(/could not be started/)
+  })
+})
+
+describe("isSignedIn", () => {
+  test("reads the same signal the TUI reads", async () => {
+    const { call, seen } = stubSidecar({ "/provider": { connected: [JOLLI_PROVIDER_IDS[0]] } })
+    expect(await isSignedIn(call)).toBe(true)
+    expect(seen.at(0)?.path).toBe("/provider")
+  })
+
+  /**
+   * ⚠ THE SPELLING IS THE WHOLE TEST. `/provider` reports one id per wire protocol and never the
+   * bare auth slug — `httpapi-provider.test.ts` asserts `not.toContain(Brand.short)` — so a check
+   * written against the slug answers "signed out" to everybody, and the sign-in gate comes up on
+   * every launch for a student who is already signed in.
+   */
+  test("is false when the answer carries only the bare auth slug", async () => {
+    const { call } = stubSidecar({ "/provider": { connected: [Brand.short] } })
+    expect(await isSignedIn(call)).toBe(false)
+  })
+
+  /**
+   * ⚠ THE TEN-SECOND DEFAULT IS NOT ENOUGH FOR THIS ONE ROUTE, AND THE CONSEQUENCE IS NOT "SLOW".
+   * `/provider` assembles the instance config, which resolves the Jolli floor — a token renewal
+   * when the stored one is near expiry, then the tenant's catalogue, bounded together by
+   * `STARTUP_DEADLINE`. `onboarding.tsx` calls this before the course gate, so nothing has warmed
+   * either; quitting first makes the main process answer false, which puts the sign-in gate in
+   * front of a student who is already signed in.
+   */
+  test("waits longer than the default, because this call pays for a cold config", async () => {
+    const { call, seen } = stubSidecar({ "/provider": { connected: [JOLLI_PROVIDER_IDS[0]] } })
+    await isSignedIn(call)
+    expect(seen.at(0)?.timeoutMs).toBeGreaterThan(20_000)
+  })
+
+  test("is false when the server lists no Jolli credential", async () => {
+    const { call } = stubSidecar({ "/provider": { connected: ["anthropic"] } })
+    expect(await isSignedIn(call)).toBe(false)
+  })
+
+  test("is false rather than a crash when the answer has no shape at all", async () => {
+    const { call } = stubSidecar({ "/provider": undefined })
+    expect(await isSignedIn(call)).toBe(false)
+  })
+})
+
+describe("signOut and refreshInstance", () => {
+  test("removes the credential through the server that owns it", async () => {
+    const { call, seen } = stubSidecar()
+    await signOut(call)
+    expect(seen.at(0)).toMatchObject({ method: "DELETE", path: "/auth/jolli" })
+  })
+
+  test("disposes every instance rather than restarting the process", async () => {
+    /**
+     * The credential no longer travels in the sidecar's environment, so what goes stale after a
+     * sign-in is the instance config. It has to be every instance, not the default one: this app
+     * can already have a project open when the student signs in, and the restart it replaced
+     * refreshed all of them by construction.
+     */
+    const { call, seen } = stubSidecar()
+    await refreshInstance(call)
+    expect(seen.at(0)).toMatchObject({ method: "POST", path: "/global/dispose" })
+  })
+})

@@ -1612,18 +1612,43 @@ const layer = Layer.effect(
           if (disabled.has(providerID)) continue
 
           const stored = yield* auth.get(providerID).pipe(Effect.orDie)
-          if (!stored) continue
+          /**
+           * ⚠ THE GUARD STAYS FOR EVERY PLUGIN THAT DOES NOT OPT OUT. Several loaders dereference
+           * the credential straight away (`(await getAuth()).type`), so running them with nothing
+           * stored would throw. `loadWithoutCredential` is for a plugin that keeps its credential
+           * somewhere other than `auth.json` — it must expect `getAuth()` to return undefined.
+           */
+          if (!stored && !plugin.auth.loadWithoutCredential) continue
           if (!plugin.auth.loader) continue
 
+          /**
+           * ⚠ NOT EVERY AUTH PLUGIN NAMES A PROVIDER models.dev HAS HEARD OF. `jolli` is declared by
+           * config alone, so this lookup is undefined for it and `toPublicInfo` would dereference
+           * `.models` on nothing. It only became reachable with `loadWithoutCredential`, because
+           * until then a provider with no `auth.json` entry never got this far.
+           */
+          const known = database[plugin.auth.provider]
           const options = yield* Effect.promise(() =>
             plugin.auth!.loader!(
               () => bridge.promise(auth.get(providerID).pipe(Effect.orDie)) as any,
-              toPublicInfo(database[plugin.auth!.provider]),
+              known ? toPublicInfo(known) : undefined,
             ),
           )
           const opts = options ?? {}
-          const patch: Partial<Info> = providers[providerID] ? { options: opts } : { source: "custom", options: opts }
-          mergeProvider(providerID, patch)
+          /**
+           * ⚠ THE OPTIONS GO TO EVERY ID THE PLUGIN CLAIMS, NOT JUST THE ONE IT SIGNED IN UNDER.
+           * Jolli's gateway speaks three wire protocols and so declares three provider ids, while
+           * the sign-in — and the `auth.json` row, when a plugin keeps one — stays under the single
+           * `provider`. Merging only there left the protocol providers resolved but credential-less:
+           * reported as connected, 401 on the first message.
+           */
+          for (const id of new Set([
+            providerID,
+            ...(plugin.auth.providers ?? []).map((one) => ProviderV2.ID.make(one)),
+          ])) {
+            if (disabled.has(id)) continue
+            mergeProvider(id, providers[id] ? { options: opts } : { source: "custom", options: opts })
+          }
         }
 
         for (const [id, fn] of Object.entries(custom(dep))) {

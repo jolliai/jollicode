@@ -213,7 +213,15 @@ and `context/local.tsx`'s `validModel` (the selection) — and refused for real 
 ⚠ **A server you start by hand has none of this.** `bun run dev:web` against a plain
 `opencode serve` will show whatever that machine has connected. Give the server the student's
 credential instead and let it fetch its own catalogue — the config is no longer something you can
-bake in one line, because the model list now comes from the gateway:
+bake in one line, because the model list now comes from the gateway.
+
+⚠ **These two variables are a development affordance and nothing else.** The credential lives in the
+shared database (`jolli_credential`), written by whichever surface the student signed in on, and
+`packages/core/src/jolli/session.ts` reads it from there. The env override exists so you can point a
+hand-started server at a real account without signing in; it outranks the database when set, which
+is exactly why `createSidecarEnv()` scrubs both spellings before forking the desktop's sidecar. That
+scrub is permanent, not transitional: without it an inherited `JOLLICODE_JOLLI_TOKEN` from a login
+shell would decide which account the app acts as.
 
 ```bash
 JOLLICODE_JOLLI_TOKEN="<CLI JWT>" JOLLICODE_JOLLI_BASE_URL="<tenant base url>" \

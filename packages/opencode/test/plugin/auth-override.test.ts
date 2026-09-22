@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import path from "path"
 import { pathToFileURL } from "url"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
 import { FSUtil } from "@opencode-ai/core/fs-util"
 import { provideInstance, TestInstance, tmpdirScoped } from "../fixture/fixture"
 import { ProviderAuth } from "@/provider/auth"
@@ -13,6 +13,7 @@ import { testEffect } from "../lib/effect"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { Config } from "@/config/config"
+import { Auth } from "@/auth"
 
 const it = testEffect(LayerNode.compile(LayerNode.group([CrossSpawnSpawner.node, FSUtil.node])))
 
@@ -79,6 +80,92 @@ describe("plugin.auth-override", () => {
         expect(copilot.length).toBe(1)
         expect(copilot[0].label).toBe("Test Override Auth")
         expect(plainMethods[ProviderV2.ID.make("github-copilot")][0].label).not.toBe("Test Override Auth")
+      }),
+    { git: true },
+    30000,
+  )
+})
+
+describe("plugin.auth-managed", () => {
+  it.instance(
+    "a managed callback clears whatever auth.json still holds for that provider",
+    () =>
+      Effect.gen(function* () {
+        /**
+         * ⚠ `managed` IS A CLAIM ABOUT WHERE THE CREDENTIAL IS NOT, AND WRITING NOTHING DOES NOT
+         * MAKE IT TRUE. Jolli's credential moved out of `auth.json` into the shared database, and
+         * every install that signed in beforehand still has an entry here that nothing reads — a
+         * bearer token with no owner, which `connected` also used to read as "signed in".
+         */
+        const tmp = yield* TestInstance
+        const fs = yield* FSUtil.Service
+        const pluginFile = path.join(tmp.directory, ".opencode", "plugin", "managed-auth.ts")
+
+        yield* fs.writeWithDirs(
+          pluginFile,
+          [
+            "export default {",
+            '  id: "demo.managed-auth",',
+            "  server: async () => ({",
+            "    auth: {",
+            '      provider: "demo-managed",',
+            "      methods: [",
+            "        {",
+            '          type: "oauth",',
+            '          label: "Sign in",',
+            "          authorize: async () => ({",
+            '            url: "https://example.com/oauth",',
+            '            method: "auto",',
+            "            callback: async () => ({ type: 'success', provider: 'demo-managed', managed: true }),",
+            "          }),",
+            "        },",
+            "      ],",
+            "    },",
+            "  }),",
+            "}",
+            "",
+          ].join("\n"),
+        )
+
+        const removed: string[] = []
+        const layer = LayerNode.compile(ProviderAuth.node, [
+          [
+            Config.node,
+            TestConfig.layer({
+              get: () =>
+                Effect.succeed({
+                  plugin: [pathToFileURL(pluginFile).href],
+                  plugin_origins: [
+                    {
+                      spec: pathToFileURL(pluginFile).href,
+                      source: path.join(tmp.directory, "opencode.json"),
+                      scope: "local" as const,
+                    },
+                  ],
+                }),
+              directories: () => Effect.succeed([tmp.directory]),
+            }),
+          ],
+          [RuntimeFlags.node, RuntimeFlags.layer()],
+          [
+            Auth.node,
+            Layer.mock(Auth.Service)({
+              all: () => Effect.succeed({}),
+              get: () => Effect.succeed({ type: "api" as const, key: "stale-from-before-the-move" }),
+              set: () => Effect.void,
+              remove: (key: string) => Effect.sync(() => void removed.push(key)),
+            }),
+          ],
+        ])
+
+        const providerID = ProviderV2.ID.make("demo-managed")
+        yield* Effect.gen(function* () {
+          const auth = yield* ProviderAuth.Service
+          yield* auth.authorize({ providerID, method: 0 })
+          yield* auth.callback({ providerID, method: 0 })
+        }).pipe(Effect.provide(layer))
+
+        expect(removed).toEqual(["demo-managed"])
       }),
     { git: true },
     30000,

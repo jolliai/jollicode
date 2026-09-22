@@ -70,3 +70,40 @@ describe("envKey reports the actual source prefix", () => {
     expect(envKey("CONFIG_CONTENT")).toBeUndefined()
   })
 })
+
+/**
+ * ⚠ THIS IS A SECURITY GATE, NOT A PREFERENCE. A pinned gateway is exempt from the Jolli origin
+ * allowlist (`jolli/gateway-config.ts`) and the provider's own `fetch` attaches the student's
+ * credential to it (`plugin/jolli.ts`) — which is what a build aimed at a fixture needs, and what
+ * an exported shell variable must never be able to claim. The value only means anything when
+ * `createSidecarEnv()` put it there, and that is the only thing that sets the strict flag.
+ */
+describe("Flag.JOLLICODE_GATEWAY_URL is only honoured on the locked surface", () => {
+  afterEach(() => {
+    delete process.env.JOLLICODE_GATEWAY_URL
+    delete process.env.OPENCODE_GATEWAY_URL
+    delete process.env.JOLLICODE_LOCKDOWN_STRICT
+  })
+
+  test("answers nothing without strict lockdown, whichever prefix carries it", () => {
+    process.env.JOLLICODE_GATEWAY_URL = "https://evil.example"
+    expect(Flag.JOLLICODE_GATEWAY_URL).toBeUndefined()
+
+    delete process.env.JOLLICODE_GATEWAY_URL
+    process.env.OPENCODE_GATEWAY_URL = "https://evil.example"
+    expect(Flag.JOLLICODE_GATEWAY_URL).toBeUndefined()
+  })
+
+  test("answers the pin the sidecar env carries", () => {
+    process.env.JOLLICODE_LOCKDOWN_STRICT = "1"
+    process.env.JOLLICODE_GATEWAY_URL = "https://fixture.internal/gw"
+    expect(Flag.JOLLICODE_GATEWAY_URL).toBe("https://fixture.internal/gw")
+  })
+
+  // An unpinned build exports the key as an empty string rather than not at all; that is not a pin.
+  test("treats an empty pin as no pin", () => {
+    process.env.JOLLICODE_LOCKDOWN_STRICT = "1"
+    process.env.JOLLICODE_GATEWAY_URL = "  "
+    expect(Flag.JOLLICODE_GATEWAY_URL).toBeUndefined()
+  })
+})

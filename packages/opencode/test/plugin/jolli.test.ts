@@ -1,23 +1,69 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import type { PluginInput } from "@opencode-ai/plugin"
 import { Brand } from "@opencode-ai/core/brand"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
+import type { JolliStore } from "@opencode-ai/core/jolli/store"
+import { Effect, Layer } from "effect"
 import { JolliAuthPlugin } from "@/plugin/jolli"
+
+const signedInRow: JolliStore.Row = {
+  id: "usr_1",
+  subject: "usr_1",
+  email: null,
+  base_url: "https://acme.jolli.ai",
+  access_token: "access-1",
+  refresh_token: "refresh-1",
+  token_expiry: null,
+  cache_key: "cache-key",
+  time_created: 0,
+  time_updated: 0,
+}
+
+/**
+ * The plugin API is Promise-shaped and the credential lives behind an Effect service, so the real
+ * plugin is handed a bridge. This is the smallest thing that is still that bridge.
+ */
+function harness(session: Partial<JolliSession.Interface> = {}) {
+  const unused = () => {
+    throw new Error("the Jolli plugin should not need this")
+  }
+  return {
+    promise: <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+      Effect.runPromise(
+        // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
+        effect.pipe(Effect.provide(Layer.mock(JolliSession.Service)(session))) as Effect.Effect<A, E>,
+      ),
+    fork: unused,
+    run: unused,
+    bind: unused,
+    // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
+  } as unknown as Parameters<typeof JolliAuthPlugin>[1]["bridge"]
+}
 
 const originalFetch = globalThis.fetch
 afterEach(() => {
   globalThis.fetch = originalFetch
+  delete process.env["JOLLICODE_LOCKDOWN_STRICT"]
+  delete process.env["JOLLICODE_GATEWAY_URL"]
 })
 
 /**
  * The plugin is the bare CLI/TUI's only way in, and everything it returns is consumed by code that
- * cannot ask it again: the client opens `url` itself, and `callback()` is what lands in `auth.json`.
+ * cannot ask it again: the client opens `url` itself, and `callback()` is what stores the
+ * credential — in the shared database, not in `auth.json`.
  */
 describe("plugin.jolli", () => {
   test("offers one oauth method, for the one provider this install may reach", async () => {
-    const hooks = await JolliAuthPlugin({} as PluginInput)
+    const hooks = await JolliAuthPlugin({} as PluginInput, { bridge: harness() })
     expect(hooks.auth?.provider).toBe(Brand.short)
+    /**
+     * ⚠ THIS FLAG AND "THE LOADER IGNORES `auth()`" ARE THE SAME FACT. `provider.ts` skips a loader
+     * whose provider has no `auth.json` entry, and Jolli never has one — remove either and the
+     * other stops meaning anything.
+     */
+    expect(hooks.auth?.loadWithoutCredential).toBe(true)
     expect(hooks.auth?.methods).toHaveLength(1)
-    expect(hooks.auth?.methods[0]).toMatchObject({ type: "oauth", label: `Sign in to ${Brand.name}` })
+    expect(hooks.auth?.methods[0]).toMatchObject({ type: "oauth", label: `Sign in to ${Brand.platform}` })
   })
 
   test("hands the sign-in URL back rather than opening a browser on the server", async () => {
@@ -31,30 +77,22 @@ describe("plugin.jolli", () => {
     await callbackWith(started, { error: "user_denied" })
   })
 
-  test("stores the JWT as an api credential naming the tenant it belongs to", async () => {
-    stubJolli(async () => Response.json({ token: "jwt", baseUrl: "https://acme.jolli.ai" }))
-    const started = await authorize()
+  test("stores the credential itself and reports a managed success", async () => {
+    stubJolli(async () => Response.json({ access_token: "access-1", refresh_token: "refresh-1", expires_in: 28_800 }))
+    const stored: unknown[] = []
+    const started = await authorize({ signIn: (credentials) => Effect.sync(() => stored.push(credentials)) as never })
 
-    // `{type:"api"}` is the shape opencode fills a provider's apiKey from; the config layer reads
-    // `metadata.baseUrl` back to point the provider at `<baseUrl>/api`.
+    /**
+     * ⚠ NOTHING FOR `ProviderAuth` TO WRITE, WHICH IS THE POINT OF THE `managed` SHAPE. The other
+     * two result shapes put a credential into `auth.json`; this one says it is already somewhere
+     * better — the database the desktop sidecar and the bare CLI both read.
+     */
     expect(await callbackWith(started, { code: "one-time", state: stateOf(started) })).toEqual({
       type: "success",
       provider: Brand.short,
-      key: "jwt",
-      metadata: { baseUrl: "https://acme.jolli.ai" },
+      managed: true,
     })
-  })
-
-  test("omits the metadata entirely when the backend reported no tenant", async () => {
-    stubJolli(async () => Response.json({ token: "jwt" }))
-    const started = await authorize()
-
-    // Absent rather than empty: the config layer falls back to `Brand.gatewayUrl` on undefined.
-    expect(await callbackWith(started, { code: "one-time", state: stateOf(started) })).toEqual({
-      type: "success",
-      provider: Brand.short,
-      key: "jwt",
-    })
+    expect(stored).toEqual([{ token: "access-1", refreshToken: "refresh-1", expiresIn: 28_800 }])
   })
 
   test("reports a failed sign-in instead of throwing out of the callback", async () => {
@@ -66,8 +104,314 @@ describe("plugin.jolli", () => {
   })
 })
 
-async function authorize() {
-  const hooks = await JolliAuthPlugin({} as PluginInput)
+/**
+ * THE LOADER IS HOW A REFRESHED TOKEN REACHES A MODEL CALL, AND THE `fetch` IS THE WHOLE MECHANISM.
+ *
+ * ⚠ PROVIDER OPTIONS ARE RESOLVED ONCE AND CACHED FOR THE LIFE OF THE PROCESS. Anything written to
+ * `apiKey` here is frozen at that moment, so with an eight-hour access token a desktop left open
+ * overnight would 401 on every message after hour eight. `provider.ts` calls this `fetch` per
+ * request instead, which is why the credential is resolved inside it.
+ */
+describe("plugin.jolli — the loader", () => {
+  const loaderOf = async (session: Partial<JolliSession.Interface>) => {
+    const hooks = await JolliAuthPlugin({} as PluginInput, { bridge: harness(session) })
+    return hooks.auth!.loader!(async () => undefined as never, {} as never)
+  }
+
+  test("declares nothing at all while signed out", async () => {
+    // A `fetch` with no credential behind it can only fail; declaring none is the honest answer.
+    expect(await loaderOf({ current: () => Effect.succeed(undefined) })).toEqual({})
+  })
+
+  test("resolves the credential on every request rather than once", async () => {
+    let issued = 0
+    const options = await loaderOf({
+      current: () => Effect.succeed(signedInRow),
+      token: () => Effect.succeed(`access-${++issued}`),
+    })
+
+    const seen: Request[] = []
+    stubJolli(async (request) => {
+      seen.push(request)
+      return Response.json({})
+    })
+
+    await options["fetch"]("https://acme.jolli.ai/api/v1/messages")
+    await options["fetch"]("https://acme.jolli.ai/api/v1/messages")
+
+    expect(seen.map((request) => request.headers.get("x-api-key"))).toEqual(["access-1", "access-2"])
+    // The placeholder never travels — it exists only so the SDK will build a request at all.
+    expect(options["apiKey"]).toBeTruthy()
+  })
+
+  test("removes whatever the SDK or a config layer put in the credential headers", async () => {
+    const options = await loaderOf({
+      current: () => Effect.succeed(signedInRow),
+      token: () => Effect.succeed("access-1"),
+    })
+
+    const seen: Request[] = []
+    stubJolli(async (request) => {
+      seen.push(request)
+      return Response.json({})
+    })
+
+    await options["fetch"]("https://acme.jolli.ai/api/v1/messages", {
+      headers: { "x-api-key": "ANOTHER_STUDENTS_JWT", authorization: "Bearer ANOTHER_STUDENTS_JWT" },
+    })
+
+    // Otherwise a coursework repo's `options.apiKey` reaches the gateway as that student.
+    expect(seen.at(0)?.headers.get("x-api-key")).toBe("access-1")
+    expect(seen.at(0)?.headers.get("authorization")).toBeNull()
+  })
+
+  test("renews and retries once when the gateway refuses the token", async () => {
+    /**
+     * ⚠ THE ONLY PLACE A 401 REACHES THE REFRESH PATH. A revoked token is refused long before it
+     * expires, and expiry is what normally triggers a renewal — so without this retry a password
+     * change leaves every message failing for the rest of the token's life while the app still
+     * believes it is signed in.
+     */
+    const options = await loaderOf({
+      current: () => Effect.succeed(signedInRow),
+      token: () => Effect.succeed("access-1"),
+      refused: () => Effect.succeed("access-2"),
+    })
+
+    const seen: Request[] = []
+    stubJolli(async (request) => {
+      seen.push(request)
+      return seen.length === 1 ? new Response("", { status: 401 }) : Response.json({})
+    })
+
+    const answer = await options["fetch"]("https://acme.jolli.ai/api/v1/messages")
+
+    expect(seen.map((request) => request.headers.get("x-api-key"))).toEqual(["access-1", "access-2"])
+    // The student's message goes through on the renewed token rather than surfacing the refusal.
+    expect(answer.status).toBe(200)
+  })
+
+  test("does not retry when the renewal could not replace the token", async () => {
+    // `refused` answers with the token it was given when Jolli could not be reached — an outage
+    // must not end a session. Re-sending it would be a second identical failure.
+    const options = await loaderOf({
+      current: () => Effect.succeed(signedInRow),
+      token: () => Effect.succeed("access-1"),
+      refused: (token) => Effect.succeed(token),
+    })
+
+    const seen: Request[] = []
+    stubJolli(async (request) => {
+      seen.push(request)
+      return new Response("", { status: 401 })
+    })
+
+    const answer = await options["fetch"]("https://acme.jolli.ai/api/v1/messages")
+
+    expect(seen.length).toBe(1)
+    expect(answer.status).toBe(401)
+  })
+
+  /**
+   * ⚠ A RETRY THAT DROPS THE BODY IS WORSE THAN NO RETRY, AND NOTHING ELSE HERE WOULD CATCH IT. The
+   * test above retries a request with no body, so it passes whether or not the student's message
+   * survives — and a renewed token carrying an empty body reaches the gateway as a well-formed
+   * request with nothing in it. Both shapes are covered because `provider.ts` hands some calls a
+   * `Request` and others a URL plus `init`, and the two travel different lines of the retry.
+   */
+  test.each([
+    ["a url and an init body", (body: string) => ["https://acme.jolli.ai/api/v1/messages", { method: "POST", body }]],
+    [
+      "a Request that owns its body",
+      (body: string) => [new Request("https://acme.jolli.ai/api/v1/messages", { method: "POST", body })],
+    ],
+  ] as const)("replays the student's message on the renewed token — %s", async (_name, call) => {
+    const options = await loaderOf({
+      current: () => Effect.succeed(signedInRow),
+      token: () => Effect.succeed("access-1"),
+      refused: () => Effect.succeed("access-2"),
+    })
+
+    const body = JSON.stringify({ messages: [{ role: "user", content: "hello" }] })
+    const sent: { key: string | null; body: string }[] = []
+    stubJolliPreservingBody(async (request) => {
+      sent.push({ key: request.headers.get("x-api-key"), body: await request.text() })
+      return sent.length === 1 ? new Response("", { status: 401 }) : Response.json({})
+    })
+
+    // oxlint-disable-next-line typescript-eslint/no-unsafe-argument
+    const answer = await options["fetch"](...(call(body) as Parameters<typeof fetch>))
+
+    expect(answer.status).toBe(200)
+    expect(sent).toEqual([
+      { key: "access-1", body },
+      { key: "access-2", body },
+    ])
+  })
+
+  /**
+   * ⚠ THE RETRY MUST NOT BE THE REQUEST THAT WAS ALREADY SENT, AND THIS RUNTIME CANNOT SHOW YOU WHY.
+   * Sending a `Request` disturbs its body: node/undici marks it read, so re-sending the same object
+   * throws `Body is unusable` and the student's message is lost on the one path that was supposed
+   * to rescue it. That is the runtime the desktop sidecar runs on (`dist/node`, an Electron utility
+   * process). Bun — which runs this suite and the bare CLI — does NOT disturb, so the assertion
+   * above passes with or without the clone and proves nothing about it.
+   *
+   * ⚠ SO THIS ASSERTS THE INVARIANT RATHER THAN THE SYMPTOM. "The second send is a different object
+   * from the first" is what the clone exists to guarantee, and it is true on every runtime.
+   */
+  test("retries with a copy rather than the request it already sent", async () => {
+    const options = await loaderOf({
+      current: () => Effect.succeed(signedInRow),
+      token: () => Effect.succeed("access-1"),
+      refused: () => Effect.succeed("access-2"),
+    })
+
+    const sent: unknown[] = []
+    globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+      sent.push(input)
+      return sent.length === 1 ? new Response("", { status: 401 }) : Response.json({})
+    }) as typeof fetch
+
+    const request = new Request("https://acme.jolli.ai/api/v1/messages", { method: "POST", body: "{}" })
+    await options["fetch"](request)
+
+    expect(sent).toHaveLength(2)
+    expect(sent[0]).toBe(request)
+    expect(sent[1]).not.toBe(request)
+  })
+
+  /**
+   * ⚠ THE ONE BODY THAT CANNOT BE REPLAYED, WHICH IS WHY THE RETRY IS CONDITIONAL RATHER THAN
+   * UNCONDITIONAL. A stream is spent by the first send and cloning it buys nothing, so the renewal
+   * still has to run — it is what ends a finished credential — but the request itself is lost.
+   * Sending the stream again would either throw or send nothing at all.
+   */
+  test("renews but does not replay a streamed body", async () => {
+    const options = await loaderOf({
+      current: () => Effect.succeed(signedInRow),
+      token: () => Effect.succeed("access-1"),
+      refused: () => Effect.succeed("access-2"),
+    })
+
+    let renewed = false
+    const sent: string[] = []
+    stubJolliPreservingBody(async (request) => {
+      sent.push(request.headers.get("x-api-key") ?? "")
+      return new Response("", { status: 401 })
+    })
+
+    const answer = await options["fetch"]("https://acme.jolli.ai/api/v1/messages", {
+      method: "POST",
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("{}"))
+          controller.close()
+        },
+      }),
+      ...({ duplex: "half" } as RequestInit),
+    })
+    renewed = sent.length === 1
+
+    expect(renewed).toBe(true)
+    expect(answer.status).toBe(401)
+  })
+
+  test("surfaces the refusal rather than throwing once the credential is finished", async () => {
+    // The revocation case: the renewal is refused too, so `refused` deletes the row and fails
+    // signed-out. The row being gone is what turns the next screen into "sign in again"; this
+    // request is already lost either way, and throwing out of `fetch` would lose it louder.
+    const options = await loaderOf({
+      current: () => Effect.succeed(signedInRow),
+      token: () => Effect.succeed("access-1"),
+      refused: () => Effect.fail(new JolliSession.JolliSignedOut({ message: "finished" })),
+    })
+
+    const seen: Request[] = []
+    stubJolli(async (request) => {
+      seen.push(request)
+      return new Response("", { status: 401 })
+    })
+
+    const answer = await options["fetch"]("https://acme.jolli.ai/api/v1/messages")
+
+    expect(seen.length).toBe(1)
+    expect(answer.status).toBe(401)
+  })
+
+  test("never attaches the credential to an origin outside the allowlist", async () => {
+    const options = await loaderOf({
+      current: () => Effect.succeed(signedInRow),
+      token: () => Effect.succeed("access-1"),
+    })
+
+    const seen: Request[] = []
+    stubJolli(async (request) => {
+      seen.push(request)
+      return Response.json({})
+    })
+
+    // A config layer can set `options.baseURL`, so without this check a repository would choose
+    // where the student's token gets sent. Unauthenticated is the correct failure.
+    await options["fetch"]("https://evil.example/v1/messages", { headers: { "x-api-key": "leaked" } })
+
+    expect(seen.at(0)?.headers.get("x-api-key")).toBeNull()
+    expect(seen.at(0)?.headers.get("authorization")).toBeNull()
+  })
+
+  /**
+   * ⚠ THE ALLOWLIST IS NOT THE WHOLE ANSWER, BECAUSE A BUILD MAY PIN A GATEWAY IT CANNOT NAME. That
+   * exemption is the stated point of `JOLLICODE_GATEWAY_URL` — a demo or fixture build — and it
+   * held for the config's `baseURL` while this check refused the same address, so such a build put
+   * every model call on the wire with no credential and 401ed on the first message. Worse, it
+   * returned before the 401 handling below, so the refusal never reached `refused()` either.
+   */
+  test("attaches the credential to the gateway this build was pinned to", async () => {
+    process.env["JOLLICODE_LOCKDOWN_STRICT"] = "1"
+    process.env["JOLLICODE_GATEWAY_URL"] = "https://fixture.internal/gw"
+    const options = await loaderOf({
+      current: () => Effect.succeed(signedInRow),
+      token: () => Effect.succeed("access-1"),
+    })
+
+    const seen: Request[] = []
+    stubJolli(async (request) => {
+      seen.push(request)
+      return Response.json({})
+    })
+
+    await options["fetch"]("https://fixture.internal/gw/v1/messages")
+
+    expect(seen.at(0)?.headers.get("x-api-key")).toBe("access-1")
+  })
+
+  /**
+   * ⚠ THE PIN IS TRUSTED BECAUSE OF WHERE IT CAME FROM, NOT BECAUSE IT IS SET. `createSidecarEnv()`
+   * scrubs the key and writes the build's own value, and it is the only thing that sets the strict
+   * flag — so on any other surface this is just an exported variable, and honouring it would make
+   * one line in `~/.zshrc` a place to send the student's credential.
+   */
+  test("ignores a pin on a surface the desktop did not lock", async () => {
+    process.env["JOLLICODE_GATEWAY_URL"] = "https://evil.example"
+    const options = await loaderOf({
+      current: () => Effect.succeed(signedInRow),
+      token: () => Effect.succeed("access-1"),
+    })
+
+    const seen: Request[] = []
+    stubJolli(async (request) => {
+      seen.push(request)
+      return Response.json({})
+    })
+
+    await options["fetch"]("https://evil.example/v1/messages")
+
+    expect(seen.at(0)?.headers.get("x-api-key")).toBeNull()
+  })
+})
+
+async function authorize(session: Partial<JolliSession.Interface> = {}) {
+  const hooks = await JolliAuthPlugin({} as PluginInput, { bridge: harness(session) })
   const method = hooks.auth?.methods[0]
   if (method?.type !== "oauth") throw new Error("expected an oauth method")
   const started = await method.authorize()
@@ -87,6 +431,28 @@ async function callbackWith(started: { url: string; callback(): Promise<unknown>
   const reported = started.callback()
   await originalFetch(target)
   return reported
+}
+
+/**
+ * Like {@link stubJolli}, but resolves `input` and `init` the way a real `fetch` does.
+ *
+ * ⚠ `stubJolli` REBUILDS FROM `input.url` AND `init`, SO IT DROPS THE BODY OF A `Request` — which
+ * is exactly the shape the retry has to get right. This one composes the two instead, which is the
+ * whole contract the plugin leans on: the body comes from the `Request` it was handed and the
+ * `x-api-key` from the `init` beside it, and a stub that reads only one of them is measuring
+ * itself.
+ *
+ * ⚠ AND IT SPENDS THE CALLER'S BODY, WHICH IS THE PART THAT MAKES THE CLONE TEST MEAN ANYTHING.
+ * `new Request(aRequest, init)` disturbs `aRequest` exactly as a real send does, so a retry that
+ * re-sent the original instead of a clone fails here the way it would in production. A stub that
+ * clones defensively passes whether the plugin clones or not, and tests nothing.
+ */
+function stubJolliPreservingBody(handler: (request: Request) => Promise<Response>) {
+  globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    if (new URL(input instanceof Request ? input.url : input.toString()).hostname === "127.0.0.1")
+      return originalFetch(input, init)
+    return handler(new Request(input, init))
+  }) as typeof fetch
 }
 
 /** Answers Jolli's exchange endpoint, leaving the loopback callback server to a real socket. */

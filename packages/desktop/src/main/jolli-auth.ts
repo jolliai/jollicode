@@ -1,138 +1,119 @@
 /**
- * SIGNING THE STUDENT IN TO JOLLI FROM THE MAIN PROCESS.
+ * SIGNING THE STUDENT IN TO JOLLI — BY DRIVING THE SIDECAR, NOT BY DOING IT HERE.
  *
- * ⚠ IT IS THE SAME FLOW THE BARE CLI RUNS. `startJolliLogin` binds the loopback callback and
- * redeems the one-time code; the main process is Node, so nothing here needs a second
- * implementation. What is desktop-specific is opening the browser, pulling the window back to the
- * front afterwards, and where the credentials are kept.
+ * ⚠ THE MAIN PROCESS IS NOT A WRITER OF THE CREDENTIAL STORE, AND THAT IS THE CONTRACT THIS FILE
+ * EXISTS TO STATE. The sidecar owns the sign-in: it runs the loopback callback, it writes the
+ * shared database, and it refreshes the token when it ages. One writer means the write/refresh race
+ * between two processes does not need locking — it cannot happen.
  *
- * ⚠ NO CUSTOM-SCHEME CALLBACK. `jollicode://` is registered as a deep link for opening projects,
- * but Jolli's callback allowlist admits only the loopback URL — a custom scheme is claimable by any
- * application on the machine. Routing sign-in through the deep link would need that allowlist
- * changed first.
+ * ⚠ IT ALSO MEANS THE DESKTOP AND THE TUI NOW SHARE ONE SIGN-IN IMPLEMENTATION, which was the point
+ * of the exercise. Both call `POST /provider/:id/oauth/authorize`, open the URL themselves, and
+ * then call `POST /provider/:id/oauth/callback`. The plugin deliberately does not open a browser —
+ * `authorize` runs inside a server that is not always the machine the user is sitting at.
+ *
+ * ⚠ AND THE OS KEYCHAIN IS GONE FROM THIS PATH. `safeStorage` bought encryption at rest that no
+ * other surface could read, which is precisely why signing in on the desktop left the TUI signed
+ * out. The credential is in the shared database at 0600 now, the way gcloud and the AWS CLI keep
+ * theirs.
  */
-import { app, safeStorage } from "electron"
-import { startJolliLogin } from "@opencode-ai/core/jolli/loopback"
-import { getStore } from "./store"
-import { JOLLI_AUTH_TOKEN_KEY, JOLLI_BASE_URL_KEY } from "./store-keys"
+import { app } from "electron"
+import { Brand } from "@opencode-ai/app/brand"
+import { isJolliConnected } from "@opencode-ai/core/jolli/gateway-config"
 import { write as writeLog } from "./logging"
+import type { SidecarCall } from "./jolli-sidecar"
 import { getLastFocusedWindow, openExternalURL } from "./windows"
 
-export interface JolliSession {
-  readonly token: string
-  readonly baseUrl?: string
-}
+/** The one method the Jolli plugin registers. */
+const METHOD = 0
+
+const AUTHORIZE = `/provider/${Brand.short}/oauth/authorize`
+const CALLBACK = `/provider/${Brand.short}/oauth/callback`
 
 /**
- * This run's session, held so a machine that cannot encrypt still works until it quits. On every
- * other machine this is just a cache of what the store already holds.
+ * ⚠ THE CALLBACK CALL WAITS ON A HUMAN IN A BROWSER, so it gets a bound measured in minutes rather
+ * than the ten seconds every other call here uses. Shorter than the plugin's own loopback lifetime,
+ * because a timeout the client owns produces a message; one the server owns produces a hang.
  */
-let session: JolliSession | undefined
+const CALLBACK_TIMEOUT_MS = 5 * 60_000
 
 /**
- * The sign-in currently waiting on a browser, so it can be called off.
+ * ⚠ LONGER THAN THE TEN-SECOND DEFAULT, BECAUSE THIS IS THE FIRST CALL OF THE LAUNCH AND IT PAYS
+ * FOR THE WHOLE CONFIG. `/provider` reads the instance config, and assembling one resolves the
+ * Jolli floor: a token renewal when the stored one is near expiry, then the tenant's catalogue,
+ * bounded together by `STARTUP_DEADLINE` — 20 seconds in `core/src/jolli/cache.ts`. Nothing has
+ * warmed either at this point; `onboarding.tsx` calls this BEFORE the course gate, which is the
+ * call that was given its own 60-second bound for the same reason.
  *
- * ⚠ ONE AT A TIME, AND STARTING A SECOND CANCELS THE FIRST. Each attempt binds its own loopback
- * port and carries its own CSRF nonce, so two in flight would mean two live callbacks and a student
- * who could complete the wrong one. Holding the current attempt here is what makes "cancel" and
- * "start over" mean the same thing to the ports as they do on screen.
+ * ⚠ AND QUITTING EARLY HERE DOES NOT READ AS "SLOW", IT READS AS "SIGNED OUT". The main process
+ * answers false on any failure, so the cost of a bound that is too short is the sign-in gate coming
+ * up in front of a student who is already signed in — the same symptom the spelling bug below
+ * produced, arrived at from the other direction.
  */
-let pending: { cancel(): void } | undefined
+const PROVIDER_TIMEOUT_MS = 30_000
 
-/** Runs the browser sign-in end to end and persists the result. Throws with a readable message. */
-export async function signIn(): Promise<JolliSession> {
-  cancelSignIn()
-  const attempt = await startJolliLogin({ clientVersion: app.getVersion() })
-  pending = attempt
+/** Runs the browser sign-in end to end, inside the sidecar. Throws with a readable message. */
+export async function signIn(call: SidecarCall) {
+  const started = await call<{ url: string } | null>(AUTHORIZE, {
+    method: "POST",
+    body: JSON.stringify({ method: METHOD }),
+  })
+  if (!started?.url) throw new Error("Jolli sign-in could not be started.")
+
   writeLog("jolli-auth", "sign-in started")
-  openExternalURL(attempt.url)
+  openExternalURL(started.url)
 
-  try {
-    const credentials = await attempt.wait()
-    store(credentials)
-    raiseWindow()
-    writeLog("jolli-auth", "sign-in completed", { hasBaseUrl: !!credentials.baseUrl })
-    return credentials
-  } finally {
-    // ⚠ ONLY IF IT IS STILL OURS: a newer attempt has already replaced it, and clearing that one's
-    // handle would leave it un-cancellable.
-    if (pending === attempt) pending = undefined
-  }
+  await call(CALLBACK, {
+    method: "POST",
+    body: JSON.stringify({ method: METHOD }),
+    timeoutMs: CALLBACK_TIMEOUT_MS,
+  })
+  writeLog("jolli-auth", "sign-in completed")
+  raiseWindow()
 }
 
 /**
- * Call off a sign-in that is still waiting on the browser.
+ * ⚠ THE SAME SIGNAL THE TUI USES, deliberately. `connected` is the server's answer to "is there a
+ * usable credential", and it counts a stored one even when the catalogue could not be fetched and
+ * the provider therefore resolved to nothing — which is exactly the case a signed-in student on a
+ * bad network lands in. Anything this process computed for itself would disagree with the TUI on
+ * the same machine.
  *
- * ⚠ THIS CLOSES THE LOOPBACK SERVER, WHICH IS THE POINT. Abandoning the promise in the renderer
- * would leave the callback listening for up to five minutes, still able to redeem the code and
- * store a credential for a student who has already given up — and still holding the port.
- *
- * Safe to call when nothing is pending; that is the common case on a fresh sign-in.
+ * ⚠ AND IT ASKS THROUGH `isJolliConnected` RATHER THAN LOOKING FOR THE BARE `jolli` SLUG, which is
+ * the one spelling the answer never contains. The gateway config declares one provider per wire
+ * protocol (`jolli-anthropic`, `jolli-openai`, `jolli-google`) and the bare slug is only the AUTH
+ * id, so `/provider` deliberately reports the three and not it — `httpapi-provider.test.ts` pins
+ * that with `expect(body.connected).not.toContain(Brand.short)`. Matching the slug here therefore
+ * answered "signed out" to every student on every launch, which is the sign-in gate coming up for
+ * somebody who already holds a credential. `dialog-logout.tsx` reads the same helper, which is
+ * what "the same signal the TUI uses" was always supposed to mean.
  */
-export function cancelSignIn() {
-  if (!pending) return
-  writeLog("jolli-auth", "sign-in cancelled")
-  const attempt = pending
-  pending = undefined
-  attempt.cancel()
+export async function isSignedIn(call: SidecarCall) {
+  const providers = await call<{ connected?: string[] }>("/provider", { timeoutMs: PROVIDER_TIMEOUT_MS })
+  return isJolliConnected(providers?.connected ?? [])
 }
 
-/** The stored session, or undefined when signed out or the stored token can't be read back. */
-export function currentSession(): JolliSession | undefined {
-  if (session) return session
-
-  const stored = getStore().get(JOLLI_AUTH_TOKEN_KEY)
-  if (typeof stored !== "string" || stored.length === 0) return undefined
-
-  const token = decrypt(stored)
-  if (!token) return undefined
-
-  const baseUrl = getStore().get(JOLLI_BASE_URL_KEY)
-  session = { token, ...(typeof baseUrl === "string" && baseUrl ? { baseUrl } : {}) }
-  return session
-}
-
-export function signOut() {
-  session = undefined
-  getStore().delete(JOLLI_AUTH_TOKEN_KEY)
-  getStore().delete(JOLLI_BASE_URL_KEY)
-}
-
-function store(credentials: JolliSession) {
-  session = credentials
-  getStore().set(JOLLI_AUTH_TOKEN_KEY, encrypt(credentials.token))
-  if (credentials.baseUrl) getStore().set(JOLLI_BASE_URL_KEY, credentials.baseUrl)
-  else getStore().delete(JOLLI_BASE_URL_KEY)
+/** Forgets the credential and the catalogue snapshot that belongs to it. */
+export async function signOut(call: SidecarCall) {
+  await call(`/auth/${Brand.short}`, { method: "DELETE" })
+  writeLog("jolli-auth", "signed out")
 }
 
 /**
- * ⚠ THE STORE FILE IS PLAINTEXT JSON, SO THE TOKEN IS ENCRYPTED BEFORE IT GOES IN. `safeStorage`
- * binds the ciphertext to the OS keychain (Keychain, DPAPI, libsecret), which is the only at-rest
- * protection this app has — nothing else it persists is a credential.
+ * Make the server reassemble its config against the credential that just changed.
  *
- * ⚠ WHEN THE OS CANNOT ENCRYPT, WE REFUSE TO PERSIST RATHER THAN FALL BACK TO PLAINTEXT. Some Linux
- * desktops ship no keyring, and `safeStorage` reports that honestly. Writing the student's bearer
- * token to a world-readable JSON file there would trade a visible failure for an invisible one; the
- * session stays in memory instead and the next launch asks them to sign in again.
+ * ⚠ IT IS NOT A RESTART, AND IT USED TO HAVE TO BE. The credential travelled in the sidecar's
+ * environment, which is read once at fork, so the only way to change it was to replace the process.
+ * Now the server reads the database; what is stale after a sign-in is the instance config, and
+ * disposing it is what the TUI already does for the same reason.
+ *
+ * ⚠ ALL OF THEM, NOT THE DEFAULT ONE — WHICH IS WHERE THE DESKTOP PARTS COMPANY WITH THE TUI. The
+ * TUI is one directory, so `/instance/dispose` is every instance it has. This app can already have
+ * a project open when the student signs in, and that instance keeps the config it was assembled
+ * with: no Jolli provider, no models, until a restart. The old sidecar replacement refreshed
+ * everything by construction, and `/global/dispose` is what still does.
  */
-function encrypt(token: string) {
-  if (!safeStorage.isEncryptionAvailable()) {
-    writeLog("jolli-auth", "OS encryption unavailable; not persisting the Jolli token", {}, "warn")
-    return ""
-  }
-  return safeStorage.encryptString(token).toString("base64")
-}
-
-function decrypt(stored: string) {
-  if (!safeStorage.isEncryptionAvailable()) return undefined
-  // A keychain the user reset, or a store copied between machines, yields ciphertext this install
-  // cannot open. That is a signed-out state, not a crash.
-  try {
-    return safeStorage.decryptString(Buffer.from(stored, "base64"))
-  } catch (error) {
-    writeLog("jolli-auth", "stored Jolli token could not be decrypted; treating as signed out", { error }, "warn")
-    return undefined
-  }
+export async function refreshInstance(call: SidecarCall) {
+  await call("/global/dispose", { method: "POST" })
 }
 
 /**

@@ -370,7 +370,7 @@ export function DialogProvider(props: { confirm?: boolean } = {}) {
       </Show>
       <Show when={confirming()}>
         <DialogAlert
-          title={`Sign in to ${Brand.name}`}
+          title={`Sign in to ${Brand.platform}`}
           message="Press enter to open your browser, or esc to skip and run /login later."
           onConfirm={() => void startLogin(Brand.short)}
         />

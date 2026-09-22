@@ -4,8 +4,7 @@ import path from "node:path"
 import { Effect, Layer } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 import { Global } from "../src/global"
-import { Hash } from "../src/util/hash"
-import { clearCatalogCache, loadCatalog, refreshCatalog } from "../src/jolli/cache"
+import { CATALOG_SCHEMA, catalogCachePath, clearCatalogCache, loadCatalog, refreshCatalog } from "../src/jolli/cache"
 
 /**
  * ⚠ THESE DRIVE THE REAL CACHE FILE. `Global.Path.cache` is resolved when the module is imported,
@@ -13,9 +12,26 @@ import { clearCatalogCache, loadCatalog, refreshCatalog } from "../src/jolli/cac
  * fetching. Every tenant below exists only here, so its cache key collides with nothing.
  */
 const written: string[] = []
-/** Mirrors `cachePath`: one file per tenant AND credential, so two students never share one. */
-const cacheFile = (origin: string, token = "jwt", slug = "") =>
-  path.join(Global.Path.cache, `jolli-catalog-${Hash.fast(`${origin}|${slug}|${token}`)}.json`)
+/**
+ * One file per tenant AND credential, so two students never share one.
+ *
+ * ⚠ THE REAL FUNCTION RATHER THAN A MIRROR OF IT. A test that recomputed the key would keep
+ * passing while agreeing with nothing — it would assert against the file IT chose, not the one the
+ * product writes.
+ */
+/**
+ * ⚠ `identity` IS WHAT FILES A SNAPSHOT; `token` IS ONLY WHAT AUTHENTICATES A FETCH. The two used to
+ * be the same value, which meant every token rotation orphaned the file — see `catalogCachePath`.
+ */
+const req = (origin: string, over: { identity?: string; token?: string; slug?: string } = {}) => ({
+  origin,
+  token: over.token ?? "jwt",
+  identity: over.identity ?? "student-a",
+  ...(over.slug ? { tenantSlug: over.slug } : {}),
+})
+
+const cacheFile = (origin: string, identity = "student-a", slug = "") =>
+  catalogCachePath(req(origin, { identity, ...(slug ? { slug } : {}) }))
 
 /**
  * ⚠ THE SCHEMA STAMP IS ADDED HERE, because a snapshot without one is deliberately unreadable —
@@ -26,7 +42,9 @@ async function seed(origin: string, snapshot: unknown, ageMs = 0) {
   const file = cacheFile(origin)
   await mkdir(Global.Path.cache, { recursive: true })
   const stamped =
-    snapshot && typeof snapshot === "object" && !Array.isArray(snapshot) ? { schema: 2, ...snapshot } : snapshot
+    snapshot && typeof snapshot === "object" && !Array.isArray(snapshot)
+      ? { schema: CATALOG_SCHEMA, ...snapshot }
+      : snapshot
   await writeFile(file, JSON.stringify(stamped))
   if (ageMs) {
     const when = new Date(Date.now() - ageMs)
@@ -110,7 +128,7 @@ describe("refreshCatalog", () => {
           ? json(providers)
           : json([choice(12)]),
     )
-    const snapshot = await Effect.runPromise(refreshCatalog({ origin, token: "jwt" }).pipe(Effect.provide(http.layer)))
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(http.layer)))
     written.push(cacheFile(origin))
 
     expect(snapshot.courses.map((c) => c.id)).toEqual([7])
@@ -133,7 +151,7 @@ describe("refreshCatalog", () => {
             ? json({ message: "not found" }, 404)
             : json([choice(12)]),
     )
-    const snapshot = await Effect.runPromise(refreshCatalog({ origin, token: "jwt" }).pipe(Effect.provide(http.layer)))
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(http.layer)))
     written.push(cacheFile(origin))
 
     expect(snapshot.courses.map((c) => c.id)).toEqual([7, 8])
@@ -149,10 +167,10 @@ describe("refreshCatalog", () => {
     const http = stub((url) =>
       url.endsWith("/api/courses") ? json([course()]) : url.endsWith("/api/agent/models") ? json(providers) : json([]),
     )
-    await Effect.runPromise(refreshCatalog({ origin, token: "jwt" }).pipe(Effect.provide(http.layer)))
+    await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(http.layer)))
     written.push(cacheFile(origin))
 
-    const loaded = await Effect.runPromise(loadCatalog({ origin, token: "jwt" }))
+    const loaded = await Effect.runPromise(loadCatalog(req(origin)))
     expect(loaded.kind).toBe("ok")
     if (loaded.kind !== "ok") return
     expect(loaded.stale).toBe(false)
@@ -176,7 +194,7 @@ describe("loadCatalog when the gateway cannot be reached", () => {
   test("serves an expired snapshot rather than failing, and says it is stale", async () => {
     const origin = "https://cache-stale.invalid"
     await seed(origin, snapshot, 10 * 60_000)
-    const loaded = await Effect.runPromise(loadCatalog({ origin, token: "jwt" }))
+    const loaded = await Effect.runPromise(loadCatalog(req(origin)))
     expect(loaded.kind).toBe("ok")
     if (loaded.kind !== "ok") return
     expect(loaded.stale).toBe(true)
@@ -187,7 +205,7 @@ describe("loadCatalog when the gateway cannot be reached", () => {
   test("refuses to serve a snapshot it cannot recognise", async () => {
     const origin = "https://cache-broken.invalid"
     await seed(origin, { courses: [course()] })
-    const loaded = await Effect.runPromise(loadCatalog({ origin, token: "jwt" }))
+    const loaded = await Effect.runPromise(loadCatalog(req(origin)))
     expect(loaded.kind).toBe("unreachable")
   }, 30_000)
 
@@ -199,13 +217,32 @@ describe("loadCatalog when the gateway cannot be reached", () => {
   test("does not serve one student's snapshot to the next", async () => {
     const origin = "https://cache-shared.invalid"
     await seed(origin, snapshot)
-    const loaded = await Effect.runPromise(loadCatalog({ origin, token: "someone-else" }))
+    // A different student, i.e. a different sign-in: a different identity, not merely a new token.
+    const loaded = await Effect.runPromise(loadCatalog(req(origin, { identity: "student-b" })))
     expect(loaded.kind).toBe("unreachable")
   }, 30_000)
 
+  /**
+   * ⚠ THE REASON THE KEY IS NOT THE TOKEN. With an eight-hour access token and a rotation on every
+   * renewal, keying on the token meant a student paid a cold three-request reload on the startup
+   * path every few hours — and left the previous snapshot behind as an orphan each time.
+   */
+  test("a rotated token still reads the same student's snapshot", async () => {
+    const origin = "https://cache-rotation.invalid"
+    await seed(origin, snapshot)
+    const loaded = await Effect.runPromise(loadCatalog(req(origin, { token: "rotated-access-token" })))
+    expect(loaded.kind).toBe("ok")
+  }, 30_000)
+
+  test("the filename follows the identity and ignores the token", () => {
+    const origin = "https://cache-key.invalid"
+    expect(catalogCachePath(req(origin, { token: "one" }))).toBe(catalogCachePath(req(origin, { token: "two" })))
+    expect(catalogCachePath(req(origin, { identity: "a" }))).not.toBe(catalogCachePath(req(origin, { identity: "b" })))
+  })
+
   // Nothing cached and nobody to ask is the one case that must not read as "you have no courses".
   test("reports unreachable when there is nothing to fall back on", async () => {
-    const loaded = await Effect.runPromise(loadCatalog({ origin: "https://cache-empty.invalid", token: "jwt" }))
+    const loaded = await Effect.runPromise(loadCatalog(req("https://cache-empty.invalid")))
     expect(loaded.kind).toBe("unreachable")
   }, 30_000)
 })
@@ -222,7 +259,7 @@ describe("loadCatalog's refresh deadline", () => {
     const origin = "https://cache-slow.invalid"
     await seed(origin, snapshot, 10 * 60_000)
     const started = Date.now()
-    const loaded = await Effect.runPromise(loadCatalog({ origin, token: "jwt" }, { timeout: "250 millis" }))
+    const loaded = await Effect.runPromise(loadCatalog(req(origin), { timeout: "250 millis" }))
     expect(Date.now() - started).toBeLessThan(5_000)
     expect(loaded.kind).toBe("ok")
     if (loaded.kind === "ok") expect(loaded.stale).toBe(true)
@@ -231,7 +268,7 @@ describe("loadCatalog's refresh deadline", () => {
   // Running out of time with nothing behind it is still "could not ask", never "you have no courses".
   test("reports unreachable when it times out with no snapshot", async () => {
     const loaded = await Effect.runPromise(
-      loadCatalog({ origin: "https://cache-slow-empty.invalid", token: "jwt" }, { timeout: "250 millis" }),
+      loadCatalog(req("https://cache-slow-empty.invalid"), { timeout: "250 millis" }),
     )
     expect(loaded.kind).toBe("unreachable")
   }, 30_000)
@@ -259,5 +296,81 @@ describe("clearCatalogCache", () => {
 
   test("is quiet when there is nothing cached", async () => {
     await expect(Effect.runPromise(clearCatalogCache())).resolves.toBeUndefined()
+  })
+})
+
+/**
+ * ⚠ EVERY TOKEN ROTATION ORPHANS A SNAPSHOT, and nothing else collects them: `clearCatalogCache`
+ * runs on sign-out, which a student who simply keeps using the product never reaches. Each orphan
+ * is their course codes and model grants left where the next account on the machine can read them.
+ */
+describe("refreshCatalog sweeps orphaned snapshots", () => {
+  const origin = "https://cache-sweep.jolli.ai"
+  const http = () =>
+    stub((url) =>
+      url.endsWith("/api/courses") ? json([course()]) : url.endsWith("/api/agent/models") ? json(providers) : json([]),
+    )
+
+  const refresh = async () => {
+    await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(http().layer)))
+    written.push(cacheFile(origin))
+  }
+
+  /** An age past the retention window, which is a week. */
+  const aged = async (name: string) => {
+    const file = path.join(Global.Path.cache, name)
+    await mkdir(Global.Path.cache, { recursive: true })
+    await writeFile(file, "{}")
+    const when = new Date(Date.now() - 8 * 24 * 60 * 60_000)
+    await utimes(file, when, when)
+    written.push(file)
+    return file
+  }
+
+  test("drops the snapshots of credentials nobody is refreshing any more", async () => {
+    const orphan = await aged(`jolli-catalog-${"a".repeat(40)}.json`)
+    await refresh()
+    expect(await Bun.file(orphan).exists()).toBe(false)
+  })
+
+  /** A crashed write leaves one of these behind, and it carries the same prefix. */
+  test("collects the temp files a crashed write left behind", async () => {
+    const temp = await aged(`jolli-catalog-${"b".repeat(40)}.json.999.1.tmp`)
+    await refresh()
+    expect(await Bun.file(temp).exists()).toBe(false)
+  })
+
+  /**
+   * ⚠ THE OTHER LIVE CREDENTIAL ON THIS MACHINE SURVIVES. The desktop keeps its token in the
+   * keychain and a bare CLI keeps its own in `auth.json`; a sweep that kept only the caller's would
+   * have the two deleting each other's snapshot on every refresh.
+   */
+  test("leaves a recent snapshot belonging to another credential alone", async () => {
+    const other = await seed("https://cache-sweep-other.invalid", {
+      courses: [course()],
+      assistants: {},
+      models: [],
+    })
+    await refresh()
+    expect(await Bun.file(other).exists()).toBe(true)
+  })
+
+  test("leaves cache files that are not catalogues alone, however old", async () => {
+    const theirs = path.join(Global.Path.cache, "models.json")
+    await mkdir(Global.Path.cache, { recursive: true })
+    await writeFile(theirs, "{}")
+    const when = new Date(Date.now() - 400 * 24 * 60 * 60_000)
+    await utimes(theirs, when, when)
+
+    await refresh()
+
+    expect(await Bun.file(theirs).exists()).toBe(true)
+    await rm(theirs, { force: true })
+  })
+
+  // The file this very refresh just wrote is the one thing the sweep must never touch.
+  test("keeps the snapshot it has just written", async () => {
+    await refresh()
+    expect(await Bun.file(cacheFile(origin)).exists()).toBe(true)
   })
 })

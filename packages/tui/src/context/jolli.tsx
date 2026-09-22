@@ -311,17 +311,12 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
       /** Ask the server again. The catalogue is the only thing "check again" can change. */
       refresh: () => setGeneration((value) => value + 1),
       /**
-       * SIGNED IN AND ENROLLED IN NOTHING THIS PRODUCT RUNS.
+       * SIGNED IN AND ENROLLED IN NOTHING THIS PRODUCT CAN START.
        *
        * ⚠ IT REQUIRES A CREDENTIAL, because signed out produces the same empty list and the answer
        * there is "sign in", not "your instructor has not set one up". {@link submissionBlocker}
        * makes the same distinction for the same reason.
        *
-       * ⚠ AND IT COUNTS COURSES, NOT STARTABLE ONES — the desktop gate draws the line in exactly
-       * this place and says why: a student whose only course is still a draft is let IN, because
-       * the picker can say "your instructor hasn't published this yet" and a gate cannot.
-       */
-      /**
        * ⚠ IT COUNTS STARTABLE COURSES, NOT COURSES, AND THAT IS THE OTHER HALF OF HIDING THE REST.
        * Once a draft is not listed, a student whose only course is a draft would meet an EMPTY
        * picker and no gate — stuck between two screens, neither of which can say why. Keying the
@@ -393,6 +388,7 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
       blocked: () =>
         submissionBlocker({
           lockdown: Flag.JOLLICODE_LOCKDOWN,
+          signedIn: signedIn(),
           started: !!sessionID(),
           bound: !!current(),
           loaded: store.loaded,
@@ -424,12 +420,22 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
        * ⚠ IT WRITES NOTHING ANYWHERE — `submit()` sends the binding as part of `session.create` so
        * that the session never exists unbound. All this covers is the frame between that call and
        * the new session arriving over sync.
+       *
+       * ⚠ AND IT LEAVES THE DRAFT ALONE, WHICH IS NOT AN OVERSIGHT. `handoff` is keyed by the new
+       * session id, and {@link current} can only reach it once `sessionID()` reports that id — which
+       * is route state, and `prompt/index.tsx` defers the navigation by 50ms behind a `setTimeout`.
+       * Clearing the draft here opened a window in which the route still says "composing" while the
+       * draft is already gone: `started` and `bound` both false, `needsChoice()` flips true, and
+       * `app.tsx` puts the course picker back in front of a student who had just chosen one and
+       * pressed enter. Fifty milliseconds is an age to a reactive graph.
+       *
+       * Keeping it costs nothing: the draft is only ever read while there is no session id, and the
+       * remembered course would restore the same value on the next new session anyway.
        */
       promote(session: string) {
         const next = store.draft
         if (!next) return
         handoff.set(session, { ...next })
-        setStore("draft", undefined)
       },
     }
   },
@@ -458,6 +464,7 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
  */
 export function submissionBlocker(input: {
   lockdown: boolean
+  signedIn: boolean
   started: boolean
   bound: boolean
   loaded: boolean
@@ -465,6 +472,19 @@ export function submissionBlocker(input: {
   startable: number
 }) {
   if (!input.lockdown) return undefined
+  /**
+   * ⚠ AHEAD OF `started`, AND THAT ORDER IS THE WHOLE POINT OF THIS CHECK. Every case below is
+   * about which course a prompt belongs to, and a session that already ran is exempt from those
+   * because the server will not bind one to it any more. A missing credential is a different kind
+   * of fact: the request cannot succeed at all. Checked after `started`, a session whose credential
+   * was revoked mid-conversation would keep sending and keep failing at the gateway with a 401 the
+   * student cannot act on — which is exactly what this surface looked like before.
+   *
+   * ⚠ IT BECAME REACHABLE WHEN RENEWAL DID. A credential used to be a 34-day JWT that nothing
+   * could retire, so "signed in at launch" and "signed in now" were the same claim. They are not
+   * any more: `jolli/session.ts` deletes the row when the backend refuses a renewal.
+   */
+  if (!input.signedIn) return "Signed out. Press /login to sign in again."
   if (input.started) return undefined
   if (input.bound) return undefined
   if (!input.loaded) return "Still loading your courses — try again in a moment."

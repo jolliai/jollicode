@@ -118,9 +118,17 @@ describe("isOwnCourse / isVisibleCourse", () => {
     expect(isOwnCourse(course({ viewerRole: "space-owner" }))).toBe(true)
   })
 
+  // jolliedu's COURSE_STUDENT_ROLES: an enrolment predating the course vocabulary, one made through
+  // the add-member UI, or one seated by a course whose defaultMemberRole names either of these is a
+  // student taking the course. Refusing them showed the course to its staff and to none of its class.
+  test("keeps the legacy enrolment roles a student can hold", () => {
+    expect(isOwnCourse(course({ viewerRole: "space-contributor" }))).toBe(true)
+    expect(isOwnCourse(course({ viewerRole: "space-viewer" }))).toBe(true)
+  })
+
   // An institution administrator sees every course in the org with an implicit space-manager role.
   test("drops the implicit sight an administrator has", () => {
-    for (const role of ["space-manager", "space-contributor", "space-viewer", null] as const) {
+    for (const role of ["space-manager", null] as const) {
       expect(isOwnCourse(course({ viewerRole: role }))).toBe(false)
     }
   })

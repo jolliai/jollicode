@@ -15,6 +15,7 @@
  * the course filter — see `context/home-data.tsx`.
  */
 
+import { createMemo } from "solid-js"
 import { ResizeHandle } from "@opencode-ai/ui/resize-handle"
 import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
 import { IconButtonV2 } from "@opencode-ai/ui/v2/icon-button-v2"
@@ -56,6 +57,41 @@ export function AppSidebar() {
   const sizing = createSizing()
   const opened = () => layout.sidebar.opened()
 
+  /**
+   * PREVIOUS AND NEXT CHAT — THE TITLEBAR'S TWO ARROWS, AND `alt+↑`/`alt+↓`.
+   *
+   * ⚠ THEY ARE REGISTERED HERE BECAUSE THE NEW SHELL NEVER MOUNTS THE LAYOUT THAT USED TO OWN
+   * THEM. `pages/layout.tsx` still defines `session.previous`/`session.next` over its own
+   * project-scoped session list, but `NewAppLayout` renders `layout-new.tsx` instead and the
+   * `/:dir/session/:id` route those commands came with is no longer the one the application uses.
+   * So both ids resolved to no command at all: `command.trigger` found nothing and the two buttons
+   * did nothing, with a tooltip still promising a keybind that was equally dead.
+   *
+   * ⚠ THEY STEP THROUGH WHAT THIS COLUMN IS SHOWING, SEARCH RESULTS INCLUDED. Stepping through
+   * any other list — the old project-scoped one, or the unfiltered records behind a query — would
+   * let the arrows and the rows disagree about which chat comes next, which is worse than the
+   * buttons being inert.
+   *
+   * ⚠ AND IT WRAPS, which is the behaviour the titlebar's note assumes when it explains why
+   * neither button ever disables.
+   */
+  const visibleSessions = createMemo(() =>
+    search.query.value().trim() ? search.result.list() : (sessions.data.groups()[0]?.sessions ?? []),
+  )
+
+  const stepSession = (offset: number) => {
+    const list = visibleSessions()
+    if (list.length === 0) return
+
+    const route = layout.route()
+    const index = route.type === "session" ? list.findIndex((item) => item.session.id === route.sessionId) : -1
+    const target =
+      index === -1 ? list[offset > 0 ? 0 : list.length - 1] : list[(index + offset + list.length) % list.length]
+    if (!target) return
+
+    sessions.session.open(target.session)
+  }
+
   command.register("sidebar", () => [
     {
       id: "sidebar.toggle",
@@ -63,6 +99,20 @@ export function AppSidebar() {
       category: language.t("command.category.view"),
       keybind: "mod+b",
       onSelect: () => layout.sidebar.toggle(),
+    },
+    {
+      id: "session.previous",
+      title: language.t("command.session.previous"),
+      category: language.t("command.category.session"),
+      keybind: "alt+arrowup",
+      onSelect: () => stepSession(-1),
+    },
+    {
+      id: "session.next",
+      title: language.t("command.session.next"),
+      category: language.t("command.category.session"),
+      keybind: "alt+arrowdown",
+      onSelect: () => stepSession(1),
     },
   ])
 

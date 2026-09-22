@@ -376,6 +376,16 @@ export type TuiState = {
   readonly ready: boolean
   readonly config: SdkConfig
   readonly provider: ReadonlyArray<Provider>
+  /**
+   * The providers a credential is held for.
+   *
+   * ⚠ NOT THE SAME QUESTION AS `provider`, WHICH IS WHY IT IS A SEPARATE FIELD. `provider` lists
+   * what RESOLVED — a provider whose model list came back empty is dropped from it — while this
+   * answers "is there a credential", which is what a sign-in prompt keys off. Under Jolli's
+   * single-provider lockdown the two disagree in exactly the case that matters: signed in with a
+   * catalogue that could not be fetched.
+   */
+  readonly connected: ReadonlyArray<string>
   readonly path: {
     state: string
     config: string

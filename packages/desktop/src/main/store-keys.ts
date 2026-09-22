@@ -5,13 +5,3 @@ export const OLD_LAYOUT_ELIGIBLE_KEY = "oldLayoutEligible"
 export const WSL_SERVERS_KEY = "wslServers"
 export const PINCH_ZOOM_ENABLED_KEY = "pinchZoomEnabled"
 export const WINDOW_IDS_KEY = "windowIds"
-
-/**
- * The signed-in student's Jolli credentials.
- *
- * ⚠ THE TOKEN IS STORED ENCRYPTED, THE TENANT IS NOT. `safeStorage` ciphertext is the token's; the
- * base URL is not a secret and staying plaintext keeps it readable when encryption is unavailable
- * and the token has to be discarded. See `jolli-auth.ts`.
- */
-export const JOLLI_AUTH_TOKEN_KEY = "jolliAuthToken"
-export const JOLLI_BASE_URL_KEY = "jolliBaseUrl"

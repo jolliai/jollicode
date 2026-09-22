@@ -38,7 +38,8 @@ describe("providerOptions", () => {
 })
 
 describe("connectAction", () => {
-  const methods = [{ type: "oauth" as const, label: "Sign in to Jolli Code" }]
+  const methods = [{ type: "oauth" as const, label: "Sign in to Jolli" }]
+  // A sign-in reports as connected under the protocol provider ids, never the bare auth id.
   const connected = [providerIdFor("anthropic")]
 
   test("signs the student in when Jolli is the only provider and nothing is connected yet", () => {

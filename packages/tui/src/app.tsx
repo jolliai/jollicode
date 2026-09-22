@@ -391,6 +391,14 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
   const themeState = useTheme()
   const { theme, mode, setMode, locked, lock, unlock } = themeState
   const sync = useSync()
+  /**
+   * ⚠ READ WITH THE REST OF THE CONTEXTS RATHER THAN BESIDE THE EFFECTS THAT USE IT. The first of
+   * those is declared above the others, so a `const` next to them left every earlier effect
+   * referencing this through the temporal dead zone — safe today only because Solid defers
+   * `createEffect` past this function's body, and a `createRenderEffect` or a memo away from a
+   * ReferenceError at startup.
+   */
+  const jolli = useJolli()
   const project = useProject()
   const exit = useExit()
   const promptRef = usePromptRef()
@@ -568,7 +576,17 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
          * follows something the student did; this fires on its own when sync settles with no
          * provider, which under this fork's single-provider lockdown resolves straight to "log in"
          * and would otherwise launch a browser before they had touched the keyboard.
+         *
+         * ⚠ AND ONCE PER MACHINE, NOT ONCE PER LAUNCH — WHICH IS WHY THE FLAG IS SET BEFORE THE
+         * DIALOG OPENS RATHER THAN WHEN A SIGN-IN SUCCEEDS. First run is the only time an
+         * unprompted sign-in is help; after it, "no provider" is a state the student arrived at
+         * deliberately — by escaping this dialog, or through `/logout` — and re-opening it on every
+         * launch and immediately after every sign-out reads as a prompt that cannot be dismissed.
+         * `/login` is still one keystroke away, and `suggested` keeps it at the top of the command
+         * list for as long as there is no credential.
          */
+        if (kv.get("jolli_sign_in_prompted", false)) return
+        kv.set("jolli_sign_in_prompted", true)
         dialog.replace(() => <DialogProviderList confirm />)
       },
     ),
@@ -591,7 +609,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
    * who escapes the picker meets it again on the next store write, which reads as a dialog that
    * cannot be dismissed.
    */
-  const jolli = useJolli()
   createEffect(
     on(
       () => jolli.noCourses() || jolli.unreachable(),
@@ -852,7 +869,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
          * spellings survive as aliases instead, and cost nothing.
          */
         name: "provider.connect",
-        title: `Sign in to ${Brand.name}`,
+        title: `Sign in to ${Brand.platform}`,
         suggested: !connected(),
         slashName: "login",
         slashAliases: ["signin", "connect"],
@@ -867,7 +884,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
          * who cannot sign in cannot do anything; signing out is something you go looking for.
          */
         name: "provider.logout",
-        title: `Sign out of ${Brand.name}`,
+        title: `Sign out of ${Brand.platform}`,
         slashName: "logout",
         slashAliases: ["signout"],
         run: () => {

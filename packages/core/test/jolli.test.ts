@@ -10,7 +10,7 @@ import {
   SUPPORTED_PROTOCOLS,
 } from "../src/jolli/gateway-config"
 import { startJolliLogin } from "../src/jolli/loopback"
-import { exchangeCliCode } from "../src/jolli/exchange"
+import { exchangeCliCode, JolliRefreshError, refreshCliToken } from "../src/jolli/exchange"
 import { isJolliOriginAllowed, jolliAuthOrigin, parseJolliUrl } from "../src/jolli/origin"
 
 /**
@@ -161,16 +161,21 @@ describe("jolliBaseConfig", () => {
     expect(options).not.toHaveProperty("headers")
   })
 
-  test("carries the credential only when the caller has nowhere else to keep it", () => {
+  test("never writes a credential into the config, on either surface", () => {
     const options = jolliBaseConfig({
       signedIn: true,
       models: MODELS,
       baseUrl: "https://acme.jolli.ai",
-      authToken: "jwt",
     }).provider?.[JOLLI_ANTHROPIC]?.options
-    // The desktop sidecar has no `auth.json` entry to resolve one from, so the JWT travels here —
-    // as `apiKey`, which is the schema's name for the field, not a claim about what the value is.
-    expect(options?.apiKey).toBe("jwt")
+    /**
+     * ⚠ THIS ASSERTION IS THE INVERSE OF THE ONE IT REPLACED, AND THE INVERSION IS THE POINT. The
+     * desktop used to pass its JWT through here because its sidecar had no `auth.json` entry to
+     * read. Both surfaces now resolve the credential from the shared database per request — through
+     * the `fetch` `plugin/jolli.ts` installs on every Jolli provider id — so a token frozen into a
+     * config object would go stale within one token lifetime, and would be a value a coursework
+     * repo could overwrite, which is an identity swap rather than a nuisance.
+     */
+    expect(options).not.toHaveProperty("apiKey")
     expect(options?.baseURL).toBe("https://acme.jolli.ai/api/v1")
   })
 
@@ -213,6 +218,22 @@ describe("jolliBaseConfig", () => {
       models: { "future-protocol": [{ id: "future-id", name: "Future" }] },
     })
     expect(config.provider).toEqual({})
+  })
+
+  test("omits the models key entirely when the server is the one who knows them", () => {
+    const config = jolliBaseConfig({ signedIn: true })
+    /**
+     * ⚠ EVERY PROTOCOL STILL GETS A BLOCK, WHICH IS WHAT SEPARATES "ABSENT" FROM "EMPTY". An empty
+     * record means the catalogue is known and holds nothing, and emits no blocks at all; omitting
+     * the key means the caller is not the one who knows — the desktop — and each block must still
+     * exist to pin `npm` and `baseURL` past a coursework repository.
+     */
+    expect(Object.keys(config.provider ?? {})).toEqual(JOLLI_PROVIDER_IDS)
+    // Absent, not empty: the desktop's copy is the TOP config layer, and a key it does not set is a
+    // key the server's own floor still gets to supply.
+    for (const id of JOLLI_PROVIDER_IDS) expect(config.provider?.[id]).not.toHaveProperty("models")
+    // The ceiling itself is unconditional.
+    expect(config.enabled_providers).toEqual(JOLLI_PROVIDER_IDS)
   })
 
   test("keys models by id and sends upstreamId on the wire", () => {
@@ -486,6 +507,121 @@ async function finish(attempt: { url: string; wait(): Promise<unknown> }, params
  * Answers Jolli's exchange endpoint and records what was sent to it, leaving the loopback callback
  * server alone so the sign-in tests still drive a real socket. Restored in `afterEach`.
  */
+describe("exchangeCliCode, on a backend that issues the triple", () => {
+  test("carries the access/refresh/expiry triple and the identity through", async () => {
+    stubJolli(async () =>
+      Response.json({
+        access_token: "access",
+        refresh_token: "refresh",
+        expires_in: 28_800,
+        token_type: "Bearer",
+        baseUrl: "https://acme.jolli.ai",
+        sub: "usr_1",
+        email: "student@acme.edu",
+      }),
+    )
+
+    expect(await exchangeCliCode("https://auth.jolli.ai", "code")).toEqual({
+      token: "access",
+      refreshToken: "refresh",
+      // Seconds, not an absolute time: the service layer resolves it against a controllable clock.
+      expiresIn: 28_800,
+      subject: "usr_1",
+      email: "student@acme.edu",
+      baseUrl: "https://acme.jolli.ai",
+    })
+  })
+
+  test("prefers access_token when a backend sends both spellings", async () => {
+    stubJolli(async () => Response.json({ token: "legacy", access_token: "current" }))
+    expect(await exchangeCliCode("https://auth.jolli.ai", "code")).toEqual({ token: "current" })
+  })
+
+  test("an unusable expires_in is dropped rather than failing the sign-in", async () => {
+    // Same tolerance the baseUrl case has: an auxiliary field must never cost a valid token.
+    stubJolli(async () => Response.json({ access_token: "access", expires_in: "soon", refresh_token: "refresh" }))
+    expect(await exchangeCliCode("https://auth.jolli.ai", "code")).toEqual({
+      token: "access",
+      refreshToken: "refresh",
+    })
+  })
+})
+
+describe("refreshCliToken", () => {
+  test("posts the refresh grant to the origin and returns the new triple", async () => {
+    const seen = stubJolli(async () =>
+      Response.json({ access_token: "access-2", refresh_token: "refresh-2", expires_in: 28_800 }),
+    )
+
+    expect(await refreshCliToken("https://jolli-local.me/dev", "refresh-1")).toEqual({
+      token: "access-2",
+      refreshToken: "refresh-2",
+      expiresIn: 28_800,
+    })
+
+    const request = seen.at(0)
+    expect(request?.url).toBe("https://jolli-local.me/api/auth/cli-refresh")
+    expect(request?.headers.get("x-tenant-slug")).toBe("dev")
+    expect(await request?.json()).toEqual({ grant_type: "refresh_token", refresh_token: "refresh-1" })
+  })
+
+  test("keeps working against a backend that does not rotate", async () => {
+    stubJolli(async () => Response.json({ access_token: "access-2", expires_in: 60 }))
+    // No refresh_token back means the caller keeps the one it already had.
+    expect(await refreshCliToken("https://auth.jolli.ai", "refresh-1")).toEqual({
+      token: "access-2",
+      expiresIn: 60,
+    })
+  })
+
+  test("treats a rejected credential as a sign-out", async () => {
+    for (const status of [400, 401, 403]) {
+      stubJolli(async () => new Response("", { status }))
+      const error = await refreshCliToken("https://auth.jolli.ai", "spent").catch((cause) => cause)
+      expect(error).toBeInstanceOf(JolliRefreshError)
+      expect((error as JolliRefreshError).kind).toBe("signed-out")
+    }
+  })
+
+  test("treats rate limiting and server faults as unavailable, never a sign-out", async () => {
+    // The whole point: a student mid-assignment must not be logged out by a bad minute upstream.
+    for (const status of [429, 500, 503]) {
+      stubJolli(async () => new Response("", { status }))
+      const error = await refreshCliToken("https://auth.jolli.ai", "refresh").catch((cause) => cause)
+      expect((error as JolliRefreshError).kind).toBe("unavailable")
+    }
+  })
+
+  test("treats an unreachable Jolli as unavailable", async () => {
+    stubJolli(async () => {
+      throw new TypeError("connect ECONNREFUSED")
+    })
+    const error = await refreshCliToken("https://auth.jolli.ai", "refresh").catch((cause) => cause)
+    expect((error as JolliRefreshError).kind).toBe("unavailable")
+    expect((error as Error).message).toMatch(/Couldn't reach Jolli to refresh/)
+  })
+
+  test("names the timeout as a timeout", async () => {
+    stubJolli(async () => {
+      throw new DOMException("The operation timed out.", "TimeoutError")
+    })
+    const error = await refreshCliToken("https://auth.jolli.ai", "refresh").catch((cause) => cause)
+    expect((error as JolliRefreshError).kind).toBe("unavailable")
+    expect((error as Error).message).toMatch(/timed out after 20s/)
+  })
+
+  test("keeps the credential when a 200 carries no token", async () => {
+    // A backend bug, not a revoked credential — deleting the sign-in over it is the worse mistake.
+    stubJolli(async () => Response.json({ token_type: "Bearer" }))
+    const error = await refreshCliToken("https://auth.jolli.ai", "refresh").catch((cause) => cause)
+    expect((error as JolliRefreshError).kind).toBe("unavailable")
+  })
+
+  test("refuses to send a refresh token to an origin outside the allowlist", async () => {
+    expect(refreshCliToken("https://evil.com", "refresh")).rejects.toThrow(/Refusing to exchange/)
+  })
+})
+
 function stubJolli(handler: (request: Request) => Promise<Response>) {
   const seen: Request[] = []
   // Asserted because `typeof fetch` carries `preconnect`, which a stub has no business having.

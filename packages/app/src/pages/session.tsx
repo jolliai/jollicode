@@ -201,46 +201,69 @@ export function SessionRouteErrorBoundary(
 }
 
 function SessionErrorFallback(props: { error: unknown; sessionID?: string; serverKey?: ServerConnection.Key }) {
-  const language = useLanguage()
   const server = useServer()
   const tabs = useTabs()
-  const displayServer = createMemo(() => {
-    const key = props.serverKey ?? server.key
-    const conn = server.list.find((item) => ServerConnection.key(item) === key)
-    return conn ? serverName(conn) : key
-  })
-  const closeTab = () => {
-    if (!props.sessionID) return
-    tabs.removeSessionTab({ server: props.serverKey ?? server.key, sessionId: props.sessionID })
-  }
-  if (isCurrentSessionNotFoundError(props.error, props.sessionID)) {
+  const sessionID = props.sessionID
+  if (sessionID && isCurrentSessionNotFoundError(props.error, sessionID)) {
+    // Gated on the persisted tab store so the recovery below can tell an open tab from
+    // a URL opened straight to a session; until it loads there is nothing to decide on.
     return (
-      <div class="flex-1 min-h-0 overflow-hidden">
-        <div class="h-full px-6 pb-42 -mt-4 flex flex-col items-center justify-center text-center gap-4">
-          <div class="flex flex-col items-center gap-2">
-            <div class="text-16-medium text-text max-w-md">{language.t("session.error.notFound")}</div>
-            <div class="text-13-regular text-text-weak max-w-md">
-              {language.t("session.error.notFound.description")}
-            </div>
-          </div>
-          <Show when={props.sessionID}>
-            {(sessionID) => (
-              <div class="max-w-full flex flex-col items-center gap-1">
-                <div class="max-w-full text-11-regular text-text-faint break-all">{displayServer()}</div>
-                <code class="max-w-full rounded-[4px] px-1 py-0.5 font-mono text-xs font-medium leading-4 text-text-base break-all bg-[color-mix(in_oklch,var(--v2-text-text-base)_8%,transparent)]">
-                  {sessionID()}
-                </code>
-              </div>
-            )}
-          </Show>
-          <ButtonV2 variant="neutral" size="normal" icon="xmark-small" onClick={closeTab}>
-            {language.t("session.error.notFound.closeTab")}
-          </ButtonV2>
-        </div>
-      </div>
+      <Show when={tabs.ready()}>
+        <SessionNotFoundRecovery sessionID={sessionID} serverKey={props.serverKey ?? server.key} />
+      </Show>
     )
   }
   return <ErrorPage error={props.error} />
+}
+
+// A tab that was already open is not a request for that session — it is where the user
+// happened to be — so when its session goes away the tab quietly becomes a new chat in
+// the project it was being viewed under, which the session route keeps as this server's
+// last project. A URL typed or pasted straight to a session asks for that one session,
+// and has no tab of its own, so it still reports the miss; so does an open tab on a
+// server with no project to start a chat in.
+function SessionNotFoundRecovery(props: { sessionID: string; serverKey: ServerConnection.Key }) {
+  const language = useLanguage()
+  const server = useServer()
+  const tabs = useTabs()
+  const projects = server.projects.forServer(props.serverKey)
+  const open = tabs.store.some(
+    (tab) => tab.type === "session" && tab.server === props.serverKey && tab.sessionId === props.sessionID,
+  )
+  const directory = open ? (projects.last() ?? projects.list()[0]?.worktree) : undefined
+
+  if (directory) {
+    onMount(() => tabs.replaceSessionTabWithDraft({ server: props.serverKey, sessionId: props.sessionID }, directory))
+    return null
+  }
+
+  const conn = server.list.find((item) => ServerConnection.key(item) === props.serverKey)
+  return (
+    <div class="flex-1 min-h-0 overflow-hidden">
+      <div class="h-full px-6 pb-42 -mt-4 flex flex-col items-center justify-center text-center gap-4">
+        <div class="flex flex-col items-center gap-2">
+          <div class="text-16-medium text-text max-w-md">{language.t("session.error.notFound")}</div>
+          <div class="text-13-regular text-text-weak max-w-md">{language.t("session.error.notFound.description")}</div>
+        </div>
+        <div class="max-w-full flex flex-col items-center gap-1">
+          <div class="max-w-full text-11-regular text-text-faint break-all">
+            {conn ? serverName(conn) : props.serverKey}
+          </div>
+          <code class="max-w-full rounded-[4px] px-1 py-0.5 font-mono text-xs font-medium leading-4 text-text-base break-all bg-[color-mix(in_oklch,var(--v2-text-text-base)_8%,transparent)]">
+            {props.sessionID}
+          </code>
+        </div>
+        <ButtonV2
+          variant="neutral"
+          size="normal"
+          icon="xmark-small"
+          onClick={() => tabs.removeSessionTab({ server: props.serverKey, sessionId: props.sessionID })}
+        >
+          {language.t("session.error.notFound.closeTab")}
+        </ButtonV2>
+      </div>
+    </div>
+  )
 }
 
 function ResolvedTargetSessionRoute() {

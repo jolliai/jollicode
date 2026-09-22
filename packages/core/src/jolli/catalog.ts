@@ -102,20 +102,36 @@ export function courseEntryState(
  *
  * What the filter is actually for still holds, because the implicit role is `space-manager`
  * specifically (jolliedu's `IMPLICIT_COURSE_STAFF_ROLE`): an institution administrator with no
- * membership in a course resolves to that and is still dropped here. The one over-admission left is
- * a hand-written `spaces.admin` super-admin, whom `decideRoleBeforeMember` resolves to `space-owner`
- * on every space — rare, deliberate, and a far smaller error than locking professors out.
+ * membership in a course resolves to that and is still dropped here — which is why it is the ONE
+ * role below that is not on the list. The cost is a genuine `space-manager` co-teacher, who is
+ * dropped with them; the over-admission left is a hand-written `spaces.admin` super-admin, whom
+ * `decideRoleBeforeMember` resolves to `space-owner` on every space. Both are rare, deliberate, and
+ * far smaller errors than locking a whole class out.
+ *
+ * ⚠ A STUDENT IS NOT ALWAYS SEATED AS `course-student`, AND ASSUMING SO EMPTIED EVERY STUDENT'S
+ * LIST WHILE THE SAME COURSE RENDERED FINE FOR ITS STAFF. jolliedu's own `COURSE_STUDENT_ROLES`
+ * (`common/src/roles/SpaceRoleLadder.ts`) names THREE slugs: every enrolment predating the course
+ * vocabulary was seated as `space-viewer` or `space-contributor`, the add-member UI still offers
+ * both, and a course whose `metadata.defaultMemberRole` names one seats each new student that way
+ * (`backend/src/services/CourseRoles.ts`). Matching `course-student` alone showed the course to its
+ * instructors and to the professor who made it, and to nobody taking it.
  *
  * ⚠ THE REAL FIX IS A FIELD, NOT THIS LIST. `viewerRole` conflates "my membership row says X" with
  * "I can see this because of who I am", and no amount of role-matching here can separate them. When
  * the gateway can say whether the viewer is a MEMBER, this collapses to that.
  */
+const OWN_COURSE_ROLES = [
+  // Staff, minus the implicit administrator rung above.
+  "space-owner",
+  "course-instructor",
+  // jolliedu's `COURSE_STUDENT_ROLES`, all three of them.
+  "course-student",
+  "space-contributor",
+  "space-viewer",
+]
+
 export function isOwnCourse(course: Pick<CourseListItem, "viewerRole">): boolean {
-  return (
-    course.viewerRole === "course-student" ||
-    course.viewerRole === "course-instructor" ||
-    course.viewerRole === "space-owner"
-  )
+  return course.viewerRole !== null && OWN_COURSE_ROLES.includes(course.viewerRole)
 }
 
 /**

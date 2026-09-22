@@ -1,5 +1,5 @@
 /**
- * THE JOLLI CONFIG THE SIDECAR SERVER IS STARTED WITH.
+ * THE JOLLI CONFIG THE SIDECAR SERVER IS STARTED WITH — WHICH IS NOW A CEILING AND NOTHING ELSE.
  *
  * ⚠ THE SHAPE ITSELF LIVES IN `@opencode-ai/core/jolli/gateway-config`, SHARED WITH THE BARE CLI.
  * Both surfaces must lock to the same provider and point at the same gateway, and an earlier
@@ -9,13 +9,20 @@
  * ⚠ IT ARRIVES AS `JOLLICODE_CONFIG_CONTENT`, WHICH IS THE STRONGEST LAYER SHORT OF MDM. Config
  * merges well-known → global → custom → project → this (`config/config.ts`), so a student who
  * writes an `opencode.json` into their coursework repository cannot widen the list.
+ *
+ * ⚠ IT NO LONGER CARRIES A CREDENTIAL OR A MODEL LIST, AND BOTH ABSENCES ARE DELIBERATE. The
+ * sidecar resolves the signed-in student from the database it shares with the bare CLI, and builds
+ * the catalogue from that — so this process does not need a token, does not need to know whether
+ * one is fresh, and can produce this config before anyone has signed in at all. What is left is the
+ * part a student must not be able to change: one provider, one gateway.
+ *
+ * ⚠ AND IT IS SYNCHRONOUS AGAIN, WHICH IS WORTH MORE THAN IT LOOKS. It used to fetch the tenant's
+ * whole catalogue before returning, and the sidecar could not fork until it did — every second
+ * spent here was a second the app had no server at all. The server warms that cache itself now,
+ * from `/jolli/course`.
  */
 import { rmSync } from "node:fs"
 import { join } from "node:path"
-import { Effect } from "effect"
-import { gatewayRequest } from "@opencode-ai/core/jolli/api"
-import { loadCatalog, STARTUP_DEADLINE } from "@opencode-ai/core/jolli/cache"
-import { toProviderModels } from "@opencode-ai/core/jolli/catalog"
 import { jolliBaseConfig } from "@opencode-ai/core/jolli/gateway-config"
 
 /**
@@ -25,81 +32,37 @@ import { jolliBaseConfig } from "@opencode-ai/core/jolli/gateway-config"
  * lockdown, and a runtime var would be inherited from the student's shell (`preferAppEnv`) and let
  * them repoint it — see the scrub in `server.ts`.
  *
- * ⚠ THERE IS NO LONGER A BUILD-TIME KEY. Requests authenticate as the signed-in student, with the
- * credential sign-in stored; the old static `"public"` key authenticated as nobody in particular.
- *
  * ⚠ IT IS A GATEWAY ROOT, NOT A TENANT, AND `jolliBaseConfig` KEEPS THOSE APART. It is handed over
  * as `gatewayUrl` so its path is preserved and only the protocol version suffix is appended;
  * passing it as `baseUrl` would add `/api` to an endpoint that is already the gateway and drop any
  * path it carries.
+ *
+ * ⚠ EXPORTED BECAUSE THE SIDECAR HAS TO BE TOLD, AND THE CONFIG BELOW IS NOT ENOUGH TO TELL IT. The
+ * server rebuilds the Jolli provider block after every config layer has merged (`config.ts`,
+ * strict lockdown) and writes the result over what arrived here — so a pin the server cannot name
+ * for itself is erased by the very pass that is supposed to be protecting it. `createSidecarEnv()`
+ * hands it over as `JOLLICODE_GATEWAY_URL`, scrubbing the inherited key first so this build's value
+ * is the only one that can be there.
  */
-const GATEWAY_URL = import.meta.env.JOLLICODE_GATEWAY_URL || undefined
+export const GATEWAY_URL = import.meta.env.JOLLICODE_GATEWAY_URL || undefined
 
 /**
- * The config the sidecar server is started with, as JSON.
+ * The ceiling the sidecar server is started with, as JSON.
  *
- * ⚠ THE TOKEN IS PART OF IT, WHICH IS NOT TRUE OF THE BARE CLI. The sidecar has no `auth.json`
- * entry for this provider — the student signed in through the Electron main process, not through
- * the provider plugin — so the credential has to arrive with the config or every model call goes
- * out unauthenticated while the app still reports as connected. `JolliConfigInput.authToken` spells the
- * split out; `server.ts` keeps this string in the sidecar's environment rather than on disk.
+ * ⚠ `signedIn: true` HERE IS NOT A CLAIM ABOUT ANYONE. It is what makes `jolliBaseConfig` emit the
+ * provider block at all, and that block is the part that pins `baseURL` and `npm` beyond a
+ * coursework repository's reach. Whether a student is actually signed in — and which tenant they
+ * belong to — is the server's answer, arrived at from the shared database; its own floor supplies
+ * the models, and its post-merge pass removes this block entirely when nobody is signed in.
  */
-export async function jolliGatewayConfig(input: {
-  signedIn: boolean
-  authToken?: string
-  baseUrl?: string
-  skillsDir?: string
-}): Promise<string> {
+export function jolliGatewayConfig(): string {
   return JSON.stringify(
     jolliBaseConfig({
-      signedIn: input.signedIn,
-      models: await tenantModels(input),
+      signedIn: true,
       // A build-pinned gateway wins over the tenant, so a demo build can be aimed at a fixture.
       ...(GATEWAY_URL ? { gatewayUrl: GATEWAY_URL } : {}),
-      ...(input.baseUrl ? { baseUrl: input.baseUrl } : {}),
-      ...(input.authToken ? { authToken: input.authToken } : {}),
-      ...(input.skillsDir ? { skillsDir: input.skillsDir } : {}),
     }),
   )
-}
-
-/**
- * EVERY MODEL THE SIGNED-IN TENANT OFFERS — the whole catalogue, not the courses' union.
- *
- * ⚠ THE COURSE GRANT NARROWS THIS IN THE RENDERER, NOT HERE. Declaring only what some course
- * currently grants would mean a professor adding a model could not take effect until the app was
- * restarted, since this config is frozen when the sidecar forks. The catalogue is the candidate
- * pool; `ModelGrant` decides what a student may see, and the gateway is what refuses a model a
- * course did not grant.
- *
- * ⚠ AND IT FALLS BACK TO NOTHING RATHER THAN TO A LOCAL LIST. The old fallback named models by name
- * (`claude-opus-4-8`) while a course grants them by Registry UUID, so mixing the two produced a
- * provider whose every model failed the grant — an empty picker with no error to explain it. An
- * empty `models` block is the same emptiness, honestly arrived at, and the sign-in gate is already
- * saying why.
- */
-async function tenantModels(input: { signedIn: boolean; authToken?: string; baseUrl?: string }) {
-  if (!input.signedIn || !input.authToken || !input.baseUrl) return {}
-  const request = gatewayRequest(input.baseUrl, input.authToken)
-  if (!request) return {}
-  /**
-   * ⚠ IT CANNOT BE ALLOWED TO REJECT. This runs inside `createSidecarEnv()`, so anything thrown
-   * here stops the sidecar forking and the app has no server at all — a catalogue that could not
-   * be fetched is worth an empty model list, never that.
-   *
-   * ⚠ NOR TO TAKE ITS TIME, WHICH IS THE HALF THAT IS EASY TO MISS. Not rejecting is no comfort to
-   * a student watching a splash screen: the sidecar does not fork until this returns, so every
-   * second here is a second the app has no server. `STARTUP_DEADLINE` is what bounds it, and
-   * running out lands on the stale snapshot rather than on an error.
-   *
-   * ⚠ RETURNS A `Record<protocol, JolliModel[]>` GROUPING RATHER THAN A FLAT ARRAY, so
-   * `jolliBaseConfig` can emit one opencode provider block per protocol. Empty record when the
-   * catalogue is unreachable — every provider block goes empty, and the sign-in gate keys off
-   * that state.
-   */
-  const loaded = await Effect.runPromise(loadCatalog(request, { timeout: STARTUP_DEADLINE })).catch(() => undefined)
-  if (!loaded || loaded.kind !== "ok") return {}
-  return toProviderModels(new Map(loaded.snapshot.models.map((model) => [model.id, model])))
 }
 
 /**

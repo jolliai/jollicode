@@ -5,8 +5,7 @@ import type { Details } from "electron"
 import { getLogger } from "./logging"
 import { getUserShell, loadShellEnv } from "./shell-env"
 import { getStore } from "./store"
-import { clearCourseSkills, jolliGatewayConfig } from "./jolli-gateway"
-import { currentSession } from "./jolli-auth"
+import { clearCourseSkills, GATEWAY_URL, jolliGatewayConfig } from "./jolli-gateway"
 import { DEFAULT_SERVER_URL_KEY } from "./store-keys"
 import { Brand } from "@opencode-ai/app/brand"
 
@@ -211,7 +210,32 @@ export async function checkHealth(url: string, password?: string | null): Promis
   return false
 }
 
-async function createSidecarEnv(): Promise<Record<string, string>> {
+/**
+ * The database the sidecar must open, when this process has chosen one. Undefined in every shipped
+ * configuration; only the onboarding harness sets it. See {@link setSidecarDatabase}.
+ */
+let sidecarDatabase: string | undefined
+
+/**
+ * NAME THE DATABASE THE SIDECAR OPENS, AS THIS PROCESS RATHER THAN AS THE ENVIRONMENT.
+ *
+ * ⚠ IT IS A CALL RATHER THAN AN ENV VAR BECAUSE THE SCRUB BELOW DELETES EVERY `*_DB` IT IS HANDED,
+ * and that scrub is load-bearing: the database is the credential store, so an inherited
+ * `JOLLICODE_DB` would let a student's `~/.zshrc` choose which one this app trusts. The onboarding
+ * harness needs both processes on one file and cannot get there through the environment any more,
+ * so it says so here, where "the desktop app is the only writer of this environment" still holds.
+ */
+export function setSidecarDatabase(file: string) {
+  sidecarDatabase = file
+}
+
+/**
+ * ⚠ EXPORTED FOR ONE TEST, AND THAT TEST EARNS IT. Two of the lines below are invisible
+ * dependencies of the whole Jolli design — the lockdown flags that turn the server's own config
+ * floor on, and the scrub list that keeps a student's login shell from deciding which account this
+ * app acts as. Nothing else would notice either of them being removed.
+ */
+export async function createSidecarEnv(): Promise<Record<string, string>> {
   const env = Object.fromEntries(
     Object.entries(process.env).flatMap(([key, value]) => (value === undefined ? [] : [[key, String(value)]])),
   )
@@ -239,11 +263,30 @@ async function createSidecarEnv(): Promise<Record<string, string>> {
     "MODELS_PATH",
     "PLUGIN_META_FILE",
     /**
-     * ⚠ THE CREDENTIAL KEYS ARE SCRUBBED LIKE ANY OTHER CONFIG SURFACE, AND FOR A SHARPER REASON.
-     * The sidecar reads its Jolli token out of the environment because the desktop keeps it in the
-     * OS keychain rather than in `auth.json`; an inherited `JOLLICODE_JOLLI_TOKEN` from the
-     * student's own shell would therefore be the account the server acts as. Deleting both spellings
-     * first is what makes this process the only writer of them.
+     * ⚠ THE DATABASE IS NOW THE CREDENTIAL STORE AND THE LOCKDOWN'S SOURCE OF TRUTH, SO ITS
+     * LOCATION IS A CONFIG SURFACE TOO. An inherited `JOLLICODE_DB=/tmp/mine.db` would point the
+     * sidecar at a database the student wrote — with whatever credential and whatever tenant they
+     * chose. `AUTH_CONTENT` is the same hole one layer up: raw JSON credentials, read before the
+     * file is.
+     */
+    "DB",
+    "AUTH_CONTENT",
+    /**
+     * ⚠ THE GATEWAY IS THE MODEL LOCKDOWN, SO ITS ADDRESS IS A CONFIG SURFACE TOO — AND A SHARPER
+     * ONE THAN THE REST. The server exempts a pinned gateway from the origin allowlist and sends
+     * the student's credential to it (`plugin/jolli.ts`), which is exactly what a build aimed at a
+     * fixture needs and exactly what an inherited `JOLLICODE_GATEWAY_URL` from `~/.zshrc` must not
+     * be able to claim. Deleted here and written below from the value baked into this build.
+     */
+    "GATEWAY_URL",
+    /**
+     * ⚠ THE CREDENTIAL KEYS ARE SCRUBBED PERMANENTLY, NOT TRANSITIONALLY, AND THE REASON INVERTED.
+     * This process used to SET them, so an inherited value had to lose. It no longer sets them —
+     * the sidecar reads the credential from the shared database — but `jolli/session.ts` still
+     * honours them as the development override `jolli/DEV.md` documents. So an inherited
+     * `JOLLICODE_JOLLI_TOKEN` from the student's own `~/.zshrc` would decide which account this
+     * server acts as. Deleting both spellings is what keeps that a developer's tool rather than a
+     * student's lever; it is not leftover cleanup waiting to be removed.
      */
     "JOLLI_TOKEN",
     "JOLLI_BASE_URL",
@@ -251,6 +294,16 @@ async function createSidecarEnv(): Promise<Record<string, string>> {
     delete env["JOLLICODE_" + suffix]
     delete env["OPENCODE_" + suffix]
   }
+  // After the scrub, not before: an inherited value loses and this process's own choice wins.
+  if (sidecarDatabase) env["JOLLICODE_DB"] = sidecarDatabase
+  /**
+   * ⚠ THE BUILD'S GATEWAY, HANDED TO THE PROCESS THAT ACTUALLY DIALS IT. `jolliGatewayConfig()`
+   * below already puts it in the config, but the server's strict pass rebuilds that provider block
+   * from the credential and overwrites it — so this is what lets that pass rebuild it correctly,
+   * and what lets the provider's own `fetch` recognise the pinned address as one the credential
+   * belongs at. Unset when this build pinned nothing, which leaves the signed-in tenant deciding.
+   */
+  if (GATEWAY_URL) env["JOLLICODE_GATEWAY_URL"] = GATEWAY_URL
   /**
    * ⚠ THE COURSE'S MODEL CATALOGUE, HANDED TO THE SERVER THAT OWNS PROVIDERS. See
    * `jolli-gateway.ts` for what it declares and why it is the strongest config layer.
@@ -272,35 +325,32 @@ async function createSidecarEnv(): Promise<Record<string, string>> {
     getLogger().warn("failed to clear course skills", { error: serializeError(error).message })
   }
   /**
-   * ⚠ THE SIGNED-IN STUDENT IS READ HERE, AT SPAWN, AND NOWHERE ELSE. The sidecar reads this env
-   * once when it forks, so a sign-in that happens afterwards does not reach a running server — the
-   * onboarding flow signs in before the server starts, and a later sign-in restarts it.
+   * ⚠ THIS IS THE LINE THAT TURNS THE SERVER'S OWN JOLLI FLOOR ON, AND WITHOUT IT NOTHING BELOW
+   * WORKS. `packages/opencode/src/config/config.ts` gates that floor on `JOLLICODE_LOCKDOWN`, and
+   * the flag is set by the CLI entry point — which the sidecar does not go through, because it
+   * imports the server module directly. So until this was written the sidecar's bottom config layer
+   * was `{}` and `JOLLICODE_CONFIG_CONTENT` was the only thing enforcing anything. Now that the
+   * models and the credential come from the server itself, the floor is where they come from.
+   *
+   * ⚠ THE STRICT FLAG IS THE OTHER HALF, AND ONLY THIS SURFACE SETS IT. It runs a pass after every
+   * config layer has merged: no config-supplied `apiKey`, the tenant's own `baseURL`, and no Jolli
+   * provider at all while signed out. Layering cannot express any of that, because remeda's
+   * `mergeDeep` has no way to remove a key a lower layer set. The bare CLI deliberately keeps its
+   * steppable floor, which is why this is a separate flag rather than a stronger `LOCKDOWN`.
+   *
+   * Both are written under the canonical `JOLLICODE_` prefix — the one the flag reader prefers — so
+   * nothing inherited from the student's shell can out-rank them.
    */
-  const session = currentSession()
-  // Write the canonical JOLLICODE_ key — the one the flag reader prefers — so nothing inherited can
-  // out-rank it (the OPENCODE_ alias was scrubbed above).
-  //
-  // ⚠ THE TOKEN GOES IN HERE, AND THIS ENVIRONMENT IS THE ONLY PLACE THE SIDECAR CAN GET IT. The
-  // sidecar resolves a provider's credential from `auth.json`, which has no Jolli entry on this
-  // surface — sign-in happened in the main process and the token is kept in the OS keychain. Without
-  // it the provider resolves with no key, the app still reports as connected, and the first message
-  // comes back 401. `jolli-gateway.ts` says why the config content rather than a file on disk.
-  env.JOLLICODE_CONFIG_CONTENT = await jolliGatewayConfig({
-    signedIn: !!session,
-    ...(session ? { authToken: session.token } : {}),
-    ...(session?.baseUrl ? { baseUrl: session.baseUrl } : {}),
-  })
+  env.JOLLICODE_LOCKDOWN = "1"
+  env.JOLLICODE_LOCKDOWN_STRICT = "1"
   /**
-   * ⚠ THE CREDENTIAL TRAVELS SEPARATELY FROM THE CONFIG, BECAUSE THE SERVER NEEDS IT FOR MORE THAN
-   * MODEL CALLS. `JOLLICODE_CONFIG_CONTENT` carries it as the provider's key, which is enough to
-   * answer a prompt; but the server also answers `/jolli/course`, and refreshing that catalogue is
-   * an authenticated call to Jolli in its own right. Mining the token back out of the config JSON
-   * would work and would be a trap — `credential.ts` reads these two keys instead.
+   * ⚠ NO CREDENTIAL CROSSES THIS BOUNDARY ANY MORE, AND THAT IS THE POINT OF THE WHOLE CHANGE. The
+   * sidecar reads the signed-in student from the database it already shares with the bare CLI, so
+   * this process no longer needs to hold a token, no longer needs to decide whether one is fresh,
+   * and can build this config before anyone has signed in. What is left here is the ceiling: one
+   * provider, one gateway.
    */
-  if (session) {
-    env.JOLLICODE_JOLLI_TOKEN = session.token
-    if (session.baseUrl) env.JOLLICODE_JOLLI_BASE_URL = session.baseUrl
-  }
+  env.JOLLICODE_CONFIG_CONTENT = jolliGatewayConfig()
   return env
 }
 

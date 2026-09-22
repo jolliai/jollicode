@@ -28,10 +28,20 @@ import { useTuiStartup } from "./runtime"
 import { createSimpleContext } from "./helper"
 import { useExit } from "./exit"
 import { useArgs } from "./args"
-import { batch, onMount } from "solid-js"
+import { batch, onCleanup, onMount } from "solid-js"
 import path from "path"
 import { useKV } from "./kv"
 import { usePermission } from "./permission"
+
+/**
+ * How often to re-ask whether a credential is still held — see `refreshConnected`.
+ *
+ * Matched to the stream's own keepalive interval rather than chosen independently: it is the
+ * cadence this connection already proves itself alive on, and the answer costs one local read.
+ * Long enough that it is not a busy loop, short enough that a student who was signed out elsewhere
+ * does not keep typing into a composer that cannot send.
+ */
+const CONNECTED_POLL_MS = 10_000
 
 const emptyConsoleState: ConsoleState = {
   consoleManagedProviders: [],
@@ -172,6 +182,48 @@ export const {
         .list({ start: Date.now() - 30 * 24 * 60 * 60 * 1000, ...sessionListQuery() })
         .then((x) => (x.data ?? []).toSorted((a, b) => a.id.localeCompare(b.id)))
     }
+
+    /**
+     * RE-ASK WHETHER A CREDENTIAL IS STILL HELD.
+     *
+     * ⚠ NOTHING ELSE EVER REVISITS THIS. `provider_next` is written by `bootstrap()` and by
+     * nothing else, so a credential that disappears while the TUI is running is invisible to it:
+     * the composer goes on offering models and the refusal arrives as a gateway 401 on the next
+     * prompt. Two things remove one — another surface signing out, which cannot reach us because
+     * the desktop app shares the database but forks its OWN server, and the backend retiring the
+     * token, which `jolli/session.ts` turns into a deleted row.
+     *
+     * ⚠ POLLING IS ONLY ACCEPTABLE BECAUSE THE ANSWER IS LOCAL. `GET /provider` reports
+     * `connected` straight from the credential store and never touches the network — its handler
+     * says so in as many words — so each poll costs one indexed read.
+     *
+     * ⚠ AND IT DELIBERATELY DOES NOT REBUILD ANYTHING. Signing out needs no rebuild: every surface
+     * that renders "signed out" keys off `connected`. Disposing the instance to deliver one bit
+     * would tear down config, LSP, watchers and project state, and would have to wait for a
+     * streaming session to end first — leaving the screen stale for exactly as long as the student
+     * is still working. Signing IN is the direction that needs the models rebuilt, and that is not
+     * this.
+     *
+     * ⚠ A TIMER OF OUR OWN RATHER THAN THE STREAM'S HEARTBEAT, THOUGH THAT ARRIVES ON THE SAME
+     * CADENCE. `server.heartbeat` is an SSE keepalive built inline by the two stream handlers; every
+     * event the protocol actually declares has a Schema in `server/event.ts` and it does not. Acting
+     * on it would mean either promoting a transport detail into the public event contract or
+     * asserting it into the union behind the type system's back.
+     */
+    function refreshConnected(workspace: string | undefined) {
+      // Nothing to keep fresh until the first bootstrap has settled, and racing it would only
+      // write a value it is about to write itself.
+      if (store.status !== "complete") return Promise.resolve()
+      return sdk.client.provider
+        .list({ workspace })
+        .then((response) => {
+          if (response.data) setStore("provider_next", reconcile(response.data))
+        })
+        .catch(() => {})
+    }
+
+    const connectedPoll = setInterval(() => void refreshConnected(project.workspace.current()), CONNECTED_POLL_MS)
+    onCleanup(() => clearInterval(connectedPoll))
 
     event.subscribe((event, { directory, workspace }) => {
       switch (event.type) {

@@ -52,6 +52,7 @@ import { BackgroundJob } from "@/background/job"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { AppNodeBuilderV1 } from "./app-node-builder-v1"
 import { SessionProjector } from "@opencode-ai/core/session/projector"
 
@@ -62,6 +63,9 @@ export const AppLayer = AppNodeBuilderV1.build(
     Database.node,
     Auth.node,
     Account.node,
+    // The Jolli credential store and its refresh machinery; `Config.node` resolves the signed-in
+    // student through it, and `providers logout` needs it to remove one.
+    JolliSession.node,
     Config.node,
     Git.node,
     Storage.node,

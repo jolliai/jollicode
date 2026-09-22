@@ -4,7 +4,7 @@ export const dict = {
   "desktop.menu.reloadWebview": "Reload Webview",
   "desktop.menu.restart": "Restart",
 
-  "desktop.jolli.signIn.title": "Sign in to Jolli Code",
+  "desktop.jolli.signIn.title": "Sign in to Jolli",
   "desktop.jolli.signIn.body": "Signing in opens your browser.",
   "desktop.jolli.signIn.action": "Sign in with Jolli",
   "desktop.jolli.signIn.waiting": "Waiting for your browser\u2026",

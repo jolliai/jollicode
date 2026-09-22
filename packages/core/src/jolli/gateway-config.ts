@@ -18,8 +18,12 @@
  * `packages/opencode/src/config/config.ts`, so it is a default rather than a ceiling: because
  * `mergeConfigConcatArrays` lets remeda's `mergeDeep` REPLACE arrays, a single `enabled_providers`
  * in a global or project `opencode.json` replaces it outright, and a `provider.jolli` block there
- * keeps whatever `options.apiKey` and `options.baseURL` it declares. On the CLI this is a floor a
- * config can step over, and the tests in `test/config/jolli-lockdown.test.ts` pin it that way.
+ * keeps whatever `options.baseURL` it declares. On the CLI this is a floor a config can step over,
+ * and the tests in `test/config/jolli-lockdown.test.ts` pin it that way.
+ *
+ * ⚠ THE DESKTOP'S COPY NO LONGER DEPENDS ON WHO IS SIGNED IN. It declares the ceiling — one
+ * provider, one gateway — and the server's own floor declares the models and resolves the
+ * credential. That is what lets the Electron main process build this without ever holding a token.
  */
 import { Brand } from "../brand"
 import { isJolliOriginAllowed, parseJolliUrl } from "./origin"
@@ -108,25 +112,6 @@ export interface JolliConfigInput {
   /** Whether a Jolli credential exists. Separate from `baseUrl`, which an older backend may omit. */
   readonly signedIn: boolean
   /**
-   * The signed-in student's CLI JWT, for a surface that has no `auth.json` entry to read it back
-   * from.
-   *
-   * ⚠ IT IS A JWT AND NOT AN API KEY, WHICH IS WHY IT IS NOT CALLED ONE HERE. It does leave as
-   * `options.apiKey`, because that is the field opencode's provider schema fills a bearer
-   * credential from and the Jolli gateway normalises the resulting `x-api-key` into
-   * `Authorization: Bearer` — `plugin/jolli.ts` makes the same note about `auth.json`. Nothing about
-   * it resembles the build-time `"public"` key this replaced, which authenticated as nobody.
-   *
-   * ⚠ ONLY THE DESKTOP APP PASSES IT, AND ONLY BECAUSE ITS SIGN-IN DOES NOT GO THROUGH THE PROVIDER
-   * PLUGIN. The bare CLI signs in through `plugin/jolli.ts`, which stores the token in `auth.json`
-   * under this provider id, and the provider resolver fills the key in from there. The desktop
-   * signs in from the Electron main process and keeps the token encrypted in the OS keychain
-   * instead, so the sidecar would otherwise resolve a provider with no credential and fail on the
-   * first message while still reporting as connected. It travels inside `JOLLICODE_CONFIG_CONTENT`,
-   * which is an environment variable rather than a file on disk.
-   */
-  readonly authToken?: string
-  /**
    * The models this install may run, grouped by the wire protocol that answers them.
    *
    * ⚠ PASSED IN RATHER THAN KNOWN HERE, BECAUSE THE ANSWER IS THE SERVER'S. Which models a student
@@ -135,10 +120,15 @@ export interface JolliConfigInput {
    *
    * ⚠ GROUPED BY PROTOCOL SO THIS FILE CAN GENERATE ONE PROVIDER BLOCK PER `@ai-sdk/*` PACKAGE.
    * An opencode provider maps one-to-one to an SDK, and each SDK owns a specific HTTP shape, so
-   * a model can only live inside the provider block whose npm serves its protocol. An empty
-   * record produces no provider blocks at all — the sign-in gate keys off that state.
+   * a model can only live inside the provider block whose npm serves its protocol.
+   *
+   * ⚠ ABSENT AND EMPTY ARE DIFFERENT ANSWERS, AND THE DESKTOP DEPENDS ON THE DIFFERENCE. An empty
+   * record is "signed in, catalogue known, and it holds nothing": no provider blocks at all, which
+   * is the state the sign-in gate keys off. Omitting the key entirely is "the catalogue is not
+   * mine to declare" — every protocol still gets a block pinning `npm` and `baseURL`, with no
+   * `models` key, so the server's own floor supplies the catalogue beneath the desktop's ceiling.
    */
-  readonly models: Readonly<Record<string, ReadonlyArray<JolliModel>>>
+  readonly models?: Readonly<Record<string, ReadonlyArray<JolliModel>>>
   /** Directory of generated course skills, when there are any. */
   readonly skillsDir?: string
 }
@@ -179,24 +169,23 @@ export function jolliBaseConfig(input: JolliConfigInput) {
 }
 
 /**
- * One block per wire protocol that carries at least one model.
+ * One block per wire protocol that carries at least one model — or one per protocol full stop when
+ * the caller declares no catalogue at all (see {@link JolliConfigInput.models}).
  *
  * ⚠ AN EMPTY BLOCK SET IS THE SIGNED-IN-BUT-NO-CATALOG POSTURE, AND IT MUST NOT COLLAPSE INTO THE
  * SIGNED-OUT ONE. `jolliBaseConfig` still emits `enabled_providers` in that case, so the resolver
  * finds three declared providers with no model rows — every list stays empty rather than the
  * BYO screens coming back.
  */
-function providerBlocks(input: JolliConfigInput): Record<string, ReturnType<typeof providerBlock>> {
-  const out: Record<string, ReturnType<typeof providerBlock>> = {}
-  for (const protocol of SUPPORTED_PROTOCOLS) {
-    const models = input.models[protocol] ?? []
-    if (models.length === 0) continue
-    out[providerIdFor(protocol)] = providerBlock(input, protocol, models)
-  }
-  return out
+function providerBlocks(input: JolliConfigInput) {
+  return Object.fromEntries(
+    SUPPORTED_PROTOCOLS.filter((protocol) => !input.models || (input.models[protocol]?.length ?? 0) > 0).map(
+      (protocol) => [providerIdFor(protocol), providerBlock(input, protocol, input.models?.[protocol])],
+    ),
+  )
 }
 
-function providerBlock(input: JolliConfigInput, protocol: SupportedProtocol, models: ReadonlyArray<JolliModel>) {
+function providerBlock(input: JolliConfigInput, protocol: SupportedProtocol, models?: ReadonlyArray<JolliModel>) {
   return {
     /**
      * ⚠ EVERY PROVIDER READS AS "JOLLI" ON THE SURFACE, EVEN THOUGH THERE ARE UP TO THREE OF THEM.
@@ -231,20 +220,31 @@ function providerBlock(input: JolliConfigInput, protocol: SupportedProtocol, mod
      * with the routes `PassThroughRouter.ts` mounts (`/v1/messages`, `/v1/responses`,
      * `/v1/chat/completions`, `/v1beta/models/:modelAction`).
      *
-     * ⚠ `apiKey` IS THE STUDENT'S JWT, NOT AN API KEY. Both CLI and desktop now embed it in the
-     * config: the CLI has an `auth.json` entry only under the legacy `"jolli"` slug, which none of
-     * the new per-protocol provider ids match, so the opencode resolver would find nothing to fill
-     * in from the auth store. Embedding it here keeps the three provider blocks in sync with one
-     * sign-in and lets the desktop keep the same path it already had (the token lives in the OS
-     * keychain there, so `JolliConfigInput.authToken` is already set).
+     * ⚠ NO `apiKey` IS EVER WRITTEN HERE, ON EITHER SURFACE, AND THAT IS TRUE OF ALL THREE BLOCKS.
+     * The credential lives in the shared database and reaches the model call through the provider's
+     * own `fetch` — `plugin/jolli.ts` declares every Jolli provider id so the loader's options land
+     * on each protocol block, and resolves the token per request. A token frozen into a config
+     * object would be stale within one token lifetime and would also be a value a coursework repo
+     * could overwrite. The desktop used to pass one because its sidecar had no `auth.json` entry to
+     * read; it now reads the same database the CLI does.
      */
-    options: {
-      ...gatewayOptions(input, protocol),
-      ...(input.authToken ? { apiKey: input.authToken } : {}),
-    },
-    models: Object.fromEntries(
-      models.map((model) => [model.id, { name: model.name, ...(model.upstreamId ? { id: model.upstreamId } : {}) }]),
-    ),
+    options: gatewayOptions(input, protocol),
+    /**
+     * ⚠ OMITTED ENTIRELY WHEN ABSENT, RATHER THAN DECLARED EMPTY. The desktop hands this object to
+     * the sidecar as the TOP config layer, and the merge keeps a key the top layer does not set —
+     * so leaving `models` out is what lets the server's own floor supply the catalogue. Writing an
+     * empty object here would replace nothing but would say the wrong thing about intent.
+     */
+    ...(models
+      ? {
+          models: Object.fromEntries(
+            models.map((model) => [
+              model.id,
+              { name: model.name, ...(model.upstreamId ? { id: model.upstreamId } : {}) },
+            ]),
+          ),
+        }
+      : {}),
   }
 }
 
@@ -291,10 +291,10 @@ function gatewayOptions(input: JolliConfigInput, protocol: SupportedProtocol) {
   /**
    * ⚠ THE SAME ALLOWLIST THE CATALOGUE FETCH APPLIES, FOR A SHARPER REASON. `gatewayRequest` in
    * `api.ts` re-checks a stored tenant before sending the student's token to it, and this value is
-   * held to that too: it becomes the LLM provider's `baseURL`, and on the desktop the JWT travels
-   * beside it as `options.apiKey`. Refusing an origin for the catalogue while handing it the same
-   * credential on every model call would be the wrong half to guard. Falling back to the default
-   * gateway keeps a garbled value from reaching the SDK at all.
+   * held to that too: it becomes the LLM provider's `baseURL`, and the provider's `fetch` attaches
+   * the student's credential to whatever that URL turns out to be. Refusing an origin for the
+   * catalogue while handing it the same credential on every model call would be the wrong half to
+   * guard. Falling back to the default gateway keeps a garbled value from reaching the SDK at all.
    */
   if (!input.baseUrl || !isJolliOriginAllowed(input.baseUrl)) {
     return { baseURL: appendPathSuffix(Brand.gatewayUrl, suffix) }

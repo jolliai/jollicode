@@ -88,6 +88,7 @@ import { controlPlaneHandlers } from "./handlers/control-plane"
 import { experimentalHandlers } from "./handlers/experimental"
 import { fileHandlers } from "./handlers/file"
 import { globalHandlers } from "./handlers/global"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { jolliHandlers } from "./handlers/jolli"
 import { instanceHandlers } from "./handlers/instance"
 import { mcpHandlers } from "./handlers/mcp"
@@ -216,6 +217,9 @@ const app = LayerNode.group([
   Database.node,
   Auth.node,
   Account.node,
+  // The Jolli credential store and its refresh machinery. `Config.node` and the `/jolli/course`
+  // handler both resolve the signed-in student through it.
+  JolliSession.node,
   Config.node,
   Env.node,
   Git.node,

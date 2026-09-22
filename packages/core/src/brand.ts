@@ -6,6 +6,14 @@
 export const Brand = {
   /** User-facing product/app name. */
   name: "Jolli Code",
+  /**
+   * The platform an account belongs to, as every sign-in surface names it.
+   *
+   * ⚠ DELIBERATELY NOT `name`. A student signs in to Jolli — the courses, the tenant, the model
+   * grant all live there — and Jolli Code is only the app they signed in from. "Sign in to Jolli
+   * Code" names the wrong thing, and names something that needs no sign-in.
+   */
+  platform: "Jolli",
   /** Command / executable name. */
   bin: "jollicode",
   /** Published npm package. */

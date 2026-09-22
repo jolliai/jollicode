@@ -87,7 +87,32 @@ type Rule = {
 
 export type AuthHook = {
   provider: string
-  loader?: (auth: () => Promise<Auth>, provider: Provider) => Promise<Record<string, any>>
+  /**
+   * Further provider ids the `loader`'s options apply to, beyond `provider` itself.
+   *
+   * ⚠ ONE SIGN-IN CAN BACK SEVERAL OPENCODE PROVIDERS, AND WITHOUT THIS ONLY ONE OF THEM GETS THE
+   * CREDENTIAL. An opencode provider is one npm SDK plus one URL shape, so a gateway that speaks
+   * three wire protocols must declare three provider ids — but there is still only one credential
+   * and one auth method behind them. `provider` stays the id the sign-in is recorded under; these
+   * are the ids the resolved options are merged into as well.
+   */
+  providers?: string[]
+  /**
+   * Run `loader` even when `auth.json` holds nothing for this provider.
+   *
+   * ⚠ THE DEFAULT IS THE RIGHT ONE FOR EVERY OTHER PLUGIN, WHICH IS WHY THIS IS OPT-IN. A loader is
+   * normally handed the stored credential through `auth()`, and several of them dereference it
+   * without a guard — running those with nothing stored would throw. Set this only when the plugin
+   * resolves its credential from somewhere other than `auth.json`, and expect `auth()` to return
+   * undefined when it does.
+   */
+  loadWithoutCredential?: boolean
+  /**
+   * ⚠ `provider` IS THE models.dev ENTRY AND MAY GENUINELY BE ABSENT. A provider declared by config
+   * alone — `jolli` is one — has no entry there, so this is `undefined` for it. No loader in this
+   * repo reads the argument; the type says so rather than making the caller assert one into being.
+   */
+  loader?: (auth: () => Promise<Auth>, provider: Provider | undefined) => Promise<Record<string, any>>
   methods: (
     | {
         type: "oauth"
@@ -178,6 +203,12 @@ export type AuthOAuthResult = { url: string; instructions: string } & (
                 enterpriseUrl?: string
               }
             | { key: string; metadata?: Record<string, string> }
+            /**
+             * ⚠ THE PLUGIN ALREADY PERSISTED IT, SO THERE IS NOTHING HERE TO WRITE. `ProviderAuth`
+             * puts the other two shapes into `auth.json`; a plugin whose credential lives elsewhere
+             * has to be able to report success without asking for that.
+             */
+            | { managed: true }
           ))
         | {
             type: "failed"

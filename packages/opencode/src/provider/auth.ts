@@ -200,6 +200,15 @@ const layer: Layer.Layer<Service, never, Auth.Service | Plugin.Service> = Layer.
       )
       if (!result || result.type !== "success") return yield* new OauthCallbackFailed({})
 
+      /**
+       * ⚠ `managed` MEANS THE PLUGIN STORED THE CREDENTIAL ITSELF, SO THIS FILE MUST NOT KEEP ONE.
+       * Writing nothing is not enough when something was written before: Jolli's credential moved
+       * out of `auth.json` into the shared database, and every install that signed in beforehand
+       * still has a `jolli` key here that nothing reads — a bearer token with no owner, which
+       * `connected` also used to read as "signed in". Removing it is what makes the claim true.
+       */
+      if ("managed" in result) yield* auth.remove(input.providerID)
+
       if ("key" in result) {
         yield* auth.set(input.providerID, {
           type: "api",

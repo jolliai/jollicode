@@ -8,6 +8,9 @@ import { providerIdFor, SUPPORTED_PROTOCOLS } from "@opencode-ai/core/jolli/gate
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { Effect, Layer } from "effect"
 import { HttpClient } from "effect/unstable/http"
+import { gatewayRequest } from "@opencode-ai/core/jolli/api"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
+import type { JolliStore } from "@opencode-ai/core/jolli/store"
 import { Account } from "@/account/account"
 import { Auth } from "@/auth"
 import { Config } from "@/config/config"
@@ -32,31 +35,57 @@ import path from "path"
  * `JOLLICODE_CONFIG_CONTENT`, which is merged near the top; `jolli/gateway-config.ts` explains the
  * split. Asserting the opposite here would pin a guarantee the CLI does not make.
  */
-const signedOut = Layer.mock(Auth.Service)({ all: () => Effect.succeed({}) })
 const enabledJolliProviders = SUPPORTED_PROTOCOLS.map(providerIdFor)
 
-const signedIn = Layer.mock(Auth.Service)({
-  all: () =>
-    Effect.succeed({
-      [Brand.short]: { type: "api" as const, key: "jwt", metadata: { baseUrl: "https://acme.jolli.ai" } },
-    }),
-})
+/**
+ * ⚠ THE CREDENTIAL COMES FROM THE SHARED DATABASE NOW, NOT `auth.json`, so what these mock is the
+ * session service rather than the auth store. `request()` is built with the real `gatewayRequest`
+ * so the tenant-to-endpoint mapping under test is the product's.
+ */
+function sessionLayer(credential?: { baseUrl?: string }) {
+  const row: JolliStore.Row | undefined = credential
+    ? {
+        id: "usr_1",
+        subject: null,
+        email: null,
+        base_url: credential.baseUrl ?? null,
+        access_token: "jwt",
+        refresh_token: null,
+        token_expiry: null,
+        cache_key: "cache-key",
+        time_created: 0,
+        time_updated: 0,
+      }
+    : undefined
+  return Layer.mock(JolliSession.Service)({
+    current: () => Effect.succeed(row),
+    request: () =>
+      Effect.succeed(
+        row?.base_url ? gatewayRequest(row.base_url, { token: row.access_token, identity: row.cache_key }) : undefined,
+      ),
+  })
+}
+
+const signedOut = sessionLayer()
+
+const signedIn = sessionLayer({ baseUrl: "https://acme.jolli.ai" })
 
 /** An older sign-in, from before the backend reported which tenant the token belongs to. */
-const signedInWithoutTenant = Layer.mock(Auth.Service)({
-  all: () => Effect.succeed({ [Brand.short]: { type: "api" as const, key: "jwt" } }),
-})
+const signedInWithoutTenant = sessionLayer({})
 
 /**
- * Some other provider's credential sitting in the same `auth.json`. It is not a Jolli sign-in, and
+ * Some other provider's credential sitting in `auth.json`. It is not a Jolli sign-in, and
  * `enabled_providers` has already pruned the provider it belongs to.
  */
-const otherProviderOnly = Layer.mock(Auth.Service)({
+const otherProviderAuth = Layer.mock(Auth.Service)({
   all: () => Effect.succeed({ anthropic: { type: "api" as const, key: "sk-ant" } }),
 })
 
-function layerWith(auth: Layer.Layer<Auth.Service>) {
+const emptyAuth = Layer.mock(Auth.Service)({ all: () => Effect.succeed({}) })
+
+function layerWith(session: Layer.Layer<JolliSession.Service>, auth: Layer.Layer<Auth.Service>) {
   return LayerNode.compile(LayerNode.group([Config.node, FSUtil.node, Env.node, CrossSpawnSpawner.node]), [
+    [JolliSession.node, session],
     [Auth.node, auth],
     [Account.node, AccountTest.empty],
     [Npm.node, NpmTest.noop],
@@ -70,8 +99,12 @@ function layerWith(auth: Layer.Layer<Auth.Service>) {
   ])
 }
 
-async function loadConfig(auth: Layer.Layer<Auth.Service>, projectConfig?: Record<string, unknown>) {
-  const layer = layerWith(auth)
+async function loadConfig(
+  session: Layer.Layer<JolliSession.Service>,
+  projectConfig?: Record<string, unknown>,
+  auth: Layer.Layer<Auth.Service> = emptyAuth,
+) {
+  const layer = layerWith(session, auth)
   const directory = path.join(os.tmpdir(), "jolli-lockdown-test-" + Math.random().toString(36).slice(2))
   await fs.mkdir(directory, { recursive: true })
   if (projectConfig) await fs.writeFile(path.join(directory, "opencode.json"), JSON.stringify(projectConfig))
@@ -89,6 +122,8 @@ async function loadConfig(auth: Layer.Layer<Auth.Service>, projectConfig?: Recor
 
 afterEach(() => {
   delete process.env["JOLLICODE_LOCKDOWN"]
+  delete process.env["JOLLICODE_LOCKDOWN_STRICT"]
+  delete process.env["JOLLICODE_GATEWAY_URL"]
 })
 
 describe("Jolli lockdown", () => {
@@ -112,6 +147,13 @@ describe("Jolli lockdown", () => {
     process.env["JOLLICODE_LOCKDOWN"] = "1"
     const config = await loadConfig(signedIn)
     expect(config.enabled_providers).toEqual(enabledJolliProviders)
+    /**
+     * ⚠ EMPTY, NOT ABSENT, AND THAT IS THE SIGNED-IN-WITHOUT-A-CATALOGUE POSTURE. `providerBlocks`
+     * emits one block per protocol that carries models, and an unreachable gateway carries none —
+     * so every picker stays empty rather than the BYO screens coming back. A credential is never
+     * written into a block on either surface anyway; the provider's own `fetch` resolves it from
+     * the shared database per request.
+     */
     expect(config.provider).toEqual({})
   })
 
@@ -124,7 +166,7 @@ describe("Jolli lockdown", () => {
 
   test("does not treat another provider's credential as a Jolli sign-in", async () => {
     process.env["JOLLICODE_LOCKDOWN"] = "1"
-    const config = await loadConfig(otherProviderOnly)
+    const config = await loadConfig(signedOut, undefined, otherProviderAuth)
     expect(config.enabled_providers).toEqual(enabledJolliProviders)
     // Declaring the provider block here would make the app believe this student is connected, and
     // the first message would fail with no credential instead of prompting for sign-in.
@@ -177,5 +219,99 @@ describe("Jolli lockdown", () => {
     const config = await loadConfig(signedIn)
     expect(config.provider).toEqual({})
     expect(config.enabled_providers).toEqual(enabledJolliProviders)
+  })
+})
+
+/**
+ * THE CEILING, WHICH ONLY THE DESKTOP SIDECAR TURNS ON.
+ *
+ * ⚠ EVERY CASE HERE IS ONE LAYERING CANNOT REACH. `mergeDeep` has no way to remove a key another
+ * layer set, so a coursework repo's `provider.jolli` survives every config layer above it. These
+ * are the two things that costs, and they are closed after the merge rather than during it.
+ */
+describe("Jolli lockdown — strict, as the desktop runs it", () => {
+  const strict = () => {
+    process.env["JOLLICODE_LOCKDOWN"] = "1"
+    process.env["JOLLICODE_LOCKDOWN_STRICT"] = "1"
+  }
+
+  const anthropic = providerIdFor("anthropic")
+
+  test("refuses a credential a coursework repo tried to supply", async () => {
+    strict()
+    const config = await loadConfig(signedIn, {
+      provider: { [anthropic]: { options: { apiKey: "ANOTHER_STUDENTS_JWT" } } },
+    })
+    /**
+     * ⚠ THIS IS AN IDENTITY SWAP, NOT A NUISANCE. `provider.ts` only falls back to the stored
+     * credential when `options.apiKey` is undefined, so a repo that sets one would run this locked
+     * surface as whichever account it named — their course grants, their model tiers, their usage.
+     */
+    expect(config.provider?.[anthropic]?.options).not.toHaveProperty("apiKey")
+  })
+
+  test("pins the endpoint back to the tenant the credential belongs to", async () => {
+    strict()
+    const config = await loadConfig(signedIn, {
+      provider: { [anthropic]: { options: { baseURL: "https://evil.example" } } },
+    })
+    // Otherwise the repo chooses where the student's token gets sent.
+    expect(config.provider?.[anthropic]?.options?.["baseURL"]).toBe("https://acme.jolli.ai/api/v1")
+  })
+
+  /**
+   * ⚠ THE PASS REBUILDS THE BLOCK, SO A FIELD IT CANNOT NAME IS NOT LEFT ALONE — IT IS REPLACED.
+   * The desktop hands the build's pinned gateway down in `JOLLICODE_CONFIG_CONTENT`; rebuilt from
+   * the credential alone, this pass wrote the tenant's address over it, and a demo or fixture build
+   * sent every model call to production with the student's credential on it. Both flags are the
+   * desktop's, so the two were always on together and the pin never survived a single launch.
+   */
+  test("keeps the gateway this build was pinned to, over the tenant and over a repo", async () => {
+    strict()
+    process.env["JOLLICODE_GATEWAY_URL"] = "https://fixture.internal/gw"
+    const config = await loadConfig(signedIn, {
+      provider: { [anthropic]: { options: { baseURL: "https://evil.example" } } },
+    })
+    // A gateway root keeps its own path; only the SDK's protocol suffix is appended to it.
+    expect(config.provider?.[anthropic]?.options?.["baseURL"]).toBe("https://fixture.internal/gw/v1")
+  })
+
+  test("removes the bare auth id, which is a provider nothing runs against", async () => {
+    strict()
+    const config = await loadConfig(signedIn, {
+      provider: { [Brand.short]: { npm: "@ai-sdk/openai-compatible", options: { baseURL: "https://evil.example" } } },
+    })
+    /**
+     * ⚠ NOTHING BELOW PINS THIS KEY, WHICH IS WHY IT GOES RATHER THAN GETS SANITISED. `jolli` is
+     * where the sign-in is recorded, not a protocol the gateway answers, so `jolliBaseConfig` emits
+     * no block for it and there is no `npm` or `baseURL` to pin one back to.
+     */
+    expect(config.provider?.[Brand.short]).toBeUndefined()
+  })
+
+  test("removes a provider block declared while signed out", async () => {
+    strict()
+    const config = await loadConfig(signedOut, {
+      provider: { [anthropic]: { models: { "uuid-x": { name: "x" } }, options: { apiKey: "sk-mine" } } },
+    })
+    /**
+     * ⚠ `connected` COUNTS EVERY PROVIDER THAT RESOLVED. Leaving this block in place would make the
+     * app believe a signed-out student is already signed in, and the first-run sign-in would never
+     * trigger — `gateway-config.ts` documents that failure at length.
+     */
+    expect(config.provider?.[anthropic]).toBeUndefined()
+  })
+
+  test("still lets the ceiling stand on the provider list itself", async () => {
+    strict()
+    const config = await loadConfig(signedIn, { enabled_providers: ["anthropic", "openai"] })
+    /**
+     * ⚠ THIS ONE IS THE MERGE'S OWN DOING, NOT THE SANITIZER'S. Arrays are replaced rather than
+     * merged, so on the desktop the top layer's list wins — here, with no top layer, the repo's
+     * does. The assertion records which mechanism owns which guarantee.
+     */
+    expect(config.enabled_providers).toEqual(["anthropic", "openai"])
+    // The credential rule holds regardless of what the list says.
+    expect(config.provider?.[Brand.short]?.options).not.toHaveProperty("apiKey")
   })
 })

@@ -15,7 +15,9 @@ import { Plugin } from "../../plugin"
 import type { Hooks } from "@opencode-ai/plugin"
 import { Process } from "@/util/process"
 import { errorMessage } from "@/util/error"
-import { forgetJolliCatalog } from "@/jolli/credential"
+import { Brand } from "@opencode-ai/core/brand"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
+import { JOLLI_AUTH_KEY } from "@/jolli/credential"
 import { text } from "node:stream/consumers"
 import { Effect, Option } from "effect"
 
@@ -501,20 +503,32 @@ export const ProvidersLogoutCommand = effectCmd({
   instance: false,
   handler: Effect.fn("Cli.providers.logout")(function* (args) {
     const authSvc = yield* Auth.Service
+    const jolliSvc = yield* JolliSession.Service
     const modelsDev = yield* ModelsDev.Service
 
     UI.empty()
     const credentials: Array<[string, Auth.Info]> = Object.entries(yield* Effect.orDie(authSvc.all()))
+    /**
+     * ⚠ JOLLI IS NOT IN `auth.json`, SO IT HAS TO BE ADDED TO THE LIST BY HAND. Its credential lives
+     * in the shared database; without this the one provider a Jolli Code install can actually reach
+     * is the one this command cannot log out of.
+     */
+    const jolliCredential = yield* jolliSvc.current()
     yield* Prompt.intro("Remove credential")
-    if (credentials.length === 0) {
+    if (credentials.length === 0 && !jolliCredential) {
       yield* Prompt.log.error("No credentials found")
       return
     }
     const database = yield* modelsDev.get()
-    const options = credentials.map(([key, value]) => ({
-      label: (database[key]?.name || key) + UI.Style.TEXT_DIM + " (" + value.type + ")",
-      value: key,
-    }))
+    const options = [
+      ...credentials.map(([key, value]) => ({
+        label: (database[key]?.name || key) + UI.Style.TEXT_DIM + " (" + value.type + ")",
+        value: key,
+      })),
+      ...(jolliCredential
+        ? [{ label: Brand.platform + UI.Style.TEXT_DIM + " (oauth)", value: JOLLI_AUTH_KEY as string }]
+        : []),
+    ]
     const provider = args.provider
       ? options.find(
           (option) =>
@@ -529,9 +543,15 @@ export const ProvidersLogoutCommand = effectCmd({
           }),
         )
     if (!provider) return yield* fail(`Unknown configured provider "${args.provider}"`)
+    // Removes the row and the course catalogue snapshot that belongs to it.
+    if (provider === JOLLI_AUTH_KEY) yield* jolliSvc.signOut()
+    /**
+     * ⚠ BOTH STORES, AND JOLLI IS NOT AN EXCEPTION TO THAT. Its credential lives in the database
+     * now, but an install that signed in before it moved still has a `jolli` entry in `auth.json`
+     * — and a logout that leaves a bearer token on disk is not a logout. `control.ts` does both
+     * for the same reason; the two paths must not disagree about what "logged out" means.
+     */
     yield* Effect.orDie(authSvc.remove(provider))
-    // The student's cached course catalogue belongs to the credential — see `forgetJolliCatalog`.
-    yield* forgetJolliCatalog(provider)
     yield* Prompt.outro("Logout successful")
   }),
 })

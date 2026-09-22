@@ -14,6 +14,9 @@ import { useTheme } from "./theme"
 import { useToast } from "../ui/toast"
 import { useRoute } from "./route"
 import { usePermission } from "./permission"
+import { Brand } from "@opencode-ai/core/brand"
+import { isJolliConnected } from "@opencode-ai/core/jolli/gateway-config"
+import { Flag } from "@opencode-ai/core/flag/flag"
 
 export type LocalTheme = {
   secondary: RGBA
@@ -281,6 +284,33 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         parsed: createMemo(() => {
           const value = currentModel()
           if (!value) {
+            /**
+             * ⚠ SIGNED OUT IS A DIFFERENT STATE FROM "CONNECTED BUT NOTHING PICKED", AND UPSTREAM'S
+             * LABEL ONLY DESCRIBES THE SECOND. With one provider that nobody chooses, "No provider
+             * selected" tells a student who has not signed in that they failed at a decision they
+             * were never offered — and under lockdown the provider half of this chip is blank
+             * (`prompt/index.tsx`), so that sentence is the whole thing they see.
+             *
+             * ⚠ THE PROVIDER IS KNOWN EVEN HERE, AND THE MODEL IS THE ONLY THING THAT IS NOT. There
+             * is one provider and signing in does not change which — what a signed-out student
+             * lacks is a model. So the model reads empty rather than apologising for itself, and
+             * `prompt/index.tsx` drops the separator that would otherwise be left hanging.
+             *
+             * ⚠ `provider_next.connected` IS THE SIGNAL, not the provider list: it is what
+             * `dialog-provider.tsx` and `jolli.tsx` read for "a credential is held", so all three
+             * agree about which state this is rather than each deciding for itself.
+             *
+             * ⚠ AND IT IS ASKED THROUGH `isJolliConnected`, BECAUSE THE BARE `jolli` SLUG IS THE
+             * ONE SPELLING THAT ANSWER NEVER CARRIES. `/provider` reports one id per wire protocol
+             * (`jolli-anthropic`, `jolli-openai`, `jolli-google`) and deliberately not the auth id
+             * — `httpapi-provider.test.ts` pins that with `not.toContain(Brand.short)`. Matching
+             * the slug made this branch unconditional under lockdown, which collapsed the two
+             * states the comment above distinguishes: a signed-in student who had not picked a
+             * model yet got the signed-out chip.
+             */
+            if (Flag.JOLLICODE_LOCKDOWN && !isJolliConnected(sync.data.provider_next.connected)) {
+              return { provider: Brand.platform, model: "", reasoning: false }
+            }
             return {
               provider: "Connect a provider",
               model: "No provider selected",

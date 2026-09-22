@@ -167,7 +167,7 @@ export function DialogModel(props: { providerID?: string }) {
       actions={[
         {
           command: "model.dialog.provider",
-          title: `Sign in to ${Brand.name}`,
+          title: `Sign in to ${Brand.platform}`,
           /**
            * ⚠ THERE IS NOTHING TO CONNECT ONCE THE ONE PROVIDER IS CONNECTED. Upstream offers
            * "Connect provider" here forever because it has seventy-five of them; this fork has

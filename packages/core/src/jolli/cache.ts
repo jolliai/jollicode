@@ -82,8 +82,11 @@ export const STARTUP_DEADLINE = Duration.seconds(20)
  * FALLBACK_PROTOCOL bucket — treating them as `anthropic` and silently making the openai/google
  * providers unreachable until the next successful refresh. `readSnapshot` returns undefined on a
  * mismatch, which is exactly the "refetch rather than guess" posture we want here.
+ *
+ * ⚠ EXPORTED so `script/seed-jolli-catalog.ts` stamps the fixture it drops with the same version
+ * this reader demands; a second copy of the number there would silently write unreadable files.
  */
-const SCHEMA = 2
+export const CATALOG_SCHEMA = 2
 
 /** What one tenant's snapshot holds. Raw gateway fields only — nothing derived. */
 export interface CatalogSnapshot {
@@ -96,25 +99,73 @@ export interface CatalogSnapshot {
 }
 
 export type CatalogLoad =
-  | { readonly kind: "ok"; readonly snapshot: CatalogSnapshot; readonly stale: boolean }
+  | {
+      readonly kind: "ok"
+      readonly snapshot: CatalogSnapshot
+      readonly stale: boolean
+      /**
+       * What the refresh that would have replaced this snapshot failed with. Only ever set
+       * alongside `stale`, because a fresh answer had nothing to fail.
+       *
+       * ⚠ IT EXISTS BECAUSE `stale-if-error` HIDES THE ERROR FROM THE ONE CALLER ENTITLED TO ACT ON
+       * IT. Serving the old copy is right for every caller — that is the whole posture of this file
+       * — but a 401 is not an outage, it is the backend saying the sign-in is over, and
+       * `/jolli/course` renews on exactly that. Reported only through the `unreachable` branch, the
+       * renewal ran for a student with nothing cached and never for one with a snapshot on disk:
+       * the student who has actually been using the product is the one whose revoked credential
+       * went unnoticed, behind a course list that looked perfectly normal.
+       */
+      readonly error?: JolliApiError
+    }
   /** Nothing cached and the gateway could not be reached. Distinct from "you have no courses". */
   | { readonly kind: "unreachable"; readonly error: JolliApiError }
 
+/** What every snapshot file is named with, and therefore what a sweep of them matches on. */
+const PREFIX = "jolli-catalog-"
+
 /**
- * ⚠ THE TOKEN IS PART OF THE KEY, AND LEAVING IT OUT LEAKED ONE STUDENT'S COURSES TO THE NEXT. Two
- * students share a machine far more often here than in most products — a lab bench, a loaner
- * laptop — and the gate's own "use a different account" button makes the swap a supported flow.
- * Keyed by tenant alone, B signing in within the TTL was served A's snapshot: A's courses in the
- * picker, A's model catalogue baked into B's sidecar.
+ * ⚠ THE CREDENTIAL'S IDENTITY IS PART OF THE KEY, AND LEAVING IT OUT LEAKED ONE STUDENT'S COURSES
+ * TO THE NEXT. Two students share a machine far more often here than in most products — a lab
+ * bench, a loaner laptop — and the gate's own "use a different account" button makes the swap a
+ * supported flow. Keyed by tenant alone, B signing in within the TTL was served A's snapshot: A's
+ * courses in the picker, A's model catalogue baked into B's sidecar.
+ *
+ * ⚠ THE IDENTITY RATHER THAN THE TOKEN, AND THAT DISTINCTION IS WHAT MAKES REFRESH AFFORDABLE. The
+ * access token rotates; keying on it meant every renewal produced a filename nothing had written,
+ * so the student paid a cold three-request reload on the startup path and the previous snapshot was
+ * left behind as an orphan. The identity is minted once per sign-in and never re-minted, so it
+ * separates students exactly as the token did and survives every rotation.
  *
  * ⚠ IT IS HASHED, NEVER WRITTEN. The filename is derived from the credential but cannot be turned
  * back into it, so a cache directory listing discloses nothing usable.
+ *
+ * ⚠ AND IT IS EXPORTED SO THAT NOTHING HAS TO MIRROR IT. `script/seed-jolli-catalog.ts` drops a
+ * fixture at the key this computes; a second copy of the formula there would go on writing files
+ * nobody reads the day either half of it moved.
  */
-const cachePath = (request: GatewayRequest) =>
+export const catalogCachePath = (request: GatewayRequest) =>
   path.join(
     Global.Path.cache,
-    `jolli-catalog-${Hash.fast(`${request.origin}|${request.tenantSlug ?? ""}|${request.token}`)}.json`,
+    `${PREFIX}${Hash.fast(`${request.origin}|${request.tenantSlug ?? ""}|${request.identity}`)}.json`,
   )
+
+/**
+ * HOW LONG A SNAPSHOT NOBODY IS REFRESHING ANY MORE IS KEPT.
+ *
+ * ⚠ ROTATION NO LONGER ORPHANS ONE — {@link catalogCachePath} keys on the credential's identity
+ * rather than its token — BUT SIGNING IN AS SOMEBODY ELSE STILL DOES, and that was always the case
+ * this window was sized for. {@link clearCatalogCache} runs on sign-out, which is exactly the path
+ * a student who simply stops using a machine never takes. Each orphan is that student's course
+ * codes, their instructors' assistant names and their model grants, left in a directory the next
+ * account can read — the thing the key prevents being SERVED, still sitting there to be FOUND.
+ *
+ * ⚠ AN AGE RATHER THAN "EVERYTHING BUT MINE", BECAUSE TWO LIVE IDENTITIES ON ONE MACHINE IS REAL.
+ * The development override (`JOLLICODE_JOLLI_TOKEN`) files under its own identity alongside the
+ * signed-in student's, and a sweep that kept only the caller's would have the two deleting each
+ * other's snapshot on every refresh. A window this long cannot be reached by anything still in use
+ * — the TTL is five minutes.
+ */
+const RETENTION = Duration.days(7)
 
 const readSnapshot = Effect.fn("Jolli.readSnapshot")(function* (file: string) {
   const raw = yield* Effect.promise(() =>
@@ -125,7 +176,7 @@ const readSnapshot = Effect.fn("Jolli.readSnapshot")(function* (file: string) {
   if (!raw || typeof raw !== "object") return undefined
   const value = raw as Partial<CatalogSnapshot>
   // A shape we no longer understand is the same as no cache: refetch rather than guess.
-  if (value.schema !== SCHEMA) return undefined
+  if (value.schema !== CATALOG_SCHEMA) return undefined
   if (!Array.isArray(value.courses) || !Array.isArray(value.models) || !value.assistants) return undefined
   return value as CatalogSnapshot
 })
@@ -166,13 +217,13 @@ export const refreshCatalog = Effect.fn("Jolli.refreshCatalog")(function* (reque
     { concurrency: 6 },
   )
   const snapshot: CatalogSnapshot = {
-    schema: SCHEMA,
+    schema: CATALOG_SCHEMA,
     courses,
     assistants: Object.fromEntries(pairs),
     models: Array.from(models.values()),
   }
 
-  const file = cachePath(request)
+  const file = catalogCachePath(request)
   const temp = `${file}.${process.pid}.${Date.now()}.tmp`
   /**
    * Written to a sibling and renamed, so a reader never meets a half-written snapshot.
@@ -195,8 +246,40 @@ export const refreshCatalog = Effect.fn("Jolli.refreshCatalog")(function* (reque
     }
   })
   if (written) yield* Effect.logWarning("Jolli: could not write the catalogue snapshot", { file, cause: written })
+  yield* sweepOrphans(file)
   return snapshot
 })
+
+/**
+ * DROP THE SNAPSHOTS OF CREDENTIALS NOBODY IS USING ANY MORE. See {@link RETENTION}.
+ *
+ * ⚠ IT RIDES ON A REFRESH RATHER THAN ON A TIMER, because a refresh is the only moment this module
+ * is reliably awake and already holding the lock — one sweep per TTL per tenant, against a
+ * directory that holds a handful of files. A sweep of its own would need a schedule, an owner and
+ * a reason not to run in every process at once.
+ *
+ * ⚠ AND IT NEVER FAILS OR RAISES. It is housekeeping attached to a fetch that succeeded; a cache
+ * directory that will not list or will not delete is not a reason to throw away the catalogue the
+ * caller asked for. The `.tmp` siblings a crashed write leaves behind carry the same prefix and
+ * are collected by the same pass.
+ */
+const sweepOrphans = (keep: string) =>
+  Effect.promise(async () => {
+    const dir = path.dirname(keep)
+    const cutoff = Date.now() - Duration.toMillis(RETENTION)
+    const entries = await readdir(dir).catch(() => [] as string[])
+    await Promise.all(
+      entries
+        .filter((entry) => entry.startsWith(PREFIX))
+        .map((entry) => path.join(dir, entry))
+        .filter((target) => target !== keep)
+        .map(async (target) => {
+          const info = await stat(target).catch(() => undefined)
+          if (!info || info.mtimeMs > cutoff) return
+          await rm(target, { force: true }).catch(() => {})
+        }),
+    )
+  })
 
 /**
  * The catalogue, however it can be had.
@@ -216,7 +299,7 @@ export interface LoadOptions {
 }
 
 const loadCatalogEffect = Effect.fn("Jolli.loadCatalog")(function* (request: GatewayRequest, options?: LoadOptions) {
-  const file = cachePath(request)
+  const file = catalogCachePath(request)
   if (yield* isFresh(file)) {
     const cached = yield* readSnapshot(file)
     if (cached) return { kind: "ok", snapshot: cached, stale: false } satisfies CatalogLoad
@@ -258,7 +341,8 @@ const loadCatalogEffect = Effect.fn("Jolli.loadCatalog")(function* (request: Gat
   const stale = yield* readSnapshot(file)
   if (stale) {
     yield* Effect.logDebug("Jolli: serving a stale catalogue", { error: refreshed.error })
-    return { kind: "ok", snapshot: stale, stale: true } satisfies CatalogLoad
+    // The error travels with the answer rather than only into the log — see `CatalogLoad`.
+    return { kind: "ok", snapshot: stale, stale: true, error: refreshed.error } satisfies CatalogLoad
   }
   return { kind: "unreachable", error: refreshed.error } satisfies CatalogLoad
 })
@@ -282,7 +366,7 @@ export const clearCatalogCache = Effect.fn("Jolli.clearCatalogCache")(function* 
     const entries = await readdir(Global.Path.cache).catch(() => [] as string[])
     await Promise.all(
       entries
-        .filter((entry) => entry.startsWith("jolli-catalog-"))
+        .filter((entry) => entry.startsWith(PREFIX))
         .map((entry) => rm(path.join(Global.Path.cache, entry), { force: true }).catch(() => {})),
     )
   })

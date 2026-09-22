@@ -1,3 +1,20 @@
+/**
+ * THE OPENCODE CONSOLE ACCOUNT — UPSTREAM'S, AND NO LONGER REACHABLE FROM THIS PRODUCT.
+ *
+ * ⚠ `ConsoleCommand` IS EXPORTED BUT DELIBERATELY NOT REGISTERED. `packages/opencode/src/index.ts`
+ * used to add it; it signs in to OpenCode Zen (`opencode.ai/console`), which is a different
+ * product's account, and Jolli Code has exactly one sign-in. It was only ever `describe: false`,
+ * which hides a command from `--help` without making it unavailable — `jollicode console login`
+ * still worked and still wrote the `account` table.
+ *
+ * ⚠ IT COULD NOT BE MADE CONDITIONAL, WHICH IS WHY IT IS SIMPLY GONE FROM THE ENTRY POINT.
+ * `JOLLICODE_LOCKDOWN` is set unconditionally inside a yargs middleware, and middleware runs at
+ * parse time — long after the `.command()` chain has been built. There is no moment at which a
+ * registration could read it, and no "non-lockdown mode" for it to read.
+ *
+ * The file stays because it is upstream's, and every line this fork deletes from upstream code is a
+ * line that conflicts on the next merge.
+ */
 import { cmd } from "./cmd"
 import { Duration, Effect, Match, Option } from "effect"
 import { UI } from "../ui"
