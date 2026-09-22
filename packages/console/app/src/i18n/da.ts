@@ -8,7 +8,6 @@ export const dict = {
   "nav.github": "GitHub",
   "nav.docs": "Dokumentation",
   "nav.changelog": "Changelog",
-  "nav.discord": "Discord",
   "nav.x": "X",
   "nav.enterprise": "Enterprise",
   "nav.zen": "Zen",
@@ -26,7 +25,6 @@ export const dict = {
   "footer.github": "GitHub",
   "footer.docs": "Dokumentation",
   "footer.changelog": "Changelog",
-  "footer.discord": "Discord",
   "footer.x": "X",
 
   "legal.brand": "Brand",
@@ -44,7 +42,6 @@ export const dict = {
   "notFound.home": "Hjem",
   "notFound.docs": "Dokumentation",
   "notFound.github": "GitHub",
-  "notFound.discord": "Discord",
   "notFound.logoLightAlt": "opencode logo light",
   "notFound.logoDarkAlt": "opencode logo dark",
 

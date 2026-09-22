@@ -10,7 +10,7 @@ export const Brand = {
   bin: "jollicode",
   /** Published npm package. */
   npm: "@jolli.ai/jollicode",
-  /** Short slug: XDG data-dir segment, provider id. */
+  /** Short slug: provider id, sidecar auth username, worktree branch prefix. Not the on-disk dir segment (that is `bin`). */
   short: "jolli",
   tagline: "AI coding agent for learning",
   /**

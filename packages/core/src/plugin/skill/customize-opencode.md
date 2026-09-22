@@ -39,14 +39,14 @@ already-loaded config until then.
 
 | Scope                         | Path                                                                                                                      |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Project config                | `./opencode.json`, `./opencode.jsonc`, or `.opencode/opencode.json` (opencode walks up from the cwd to the worktree root) |
-| Global config                 | `~/.config/opencode/opencode.json` or `~/.config/opencode/opencode.jsonc` (NOT `~/.opencode/`)                            |
-| Project agents                | `.opencode/agent/<name>.md` or `.opencode/agents/<name>.md`                                                               |
-| Global agents                 | `~/.config/opencode/agent(s)/<name>.md`                                                                                   |
-| Project commands              | `.opencode/command/<name>.md` or `.opencode/commands/<name>.md`                                                           |
-| Global commands               | `~/.config/opencode/command(s)/<name>.md`                                                                                 |
-| Project skills                | `.opencode/skill(s)/<name>/SKILL.md`                                                                                      |
-| Global skills                 | `~/.config/opencode/skill(s)/<name>/SKILL.md`                                                                             |
+| Project config                | `./opencode.json`, `./opencode.jsonc`, or `.jollicode/opencode.json` (opencode walks up from the cwd to the worktree root) |
+| Global config                 | `~/.config/jollicode/opencode.json` or `~/.config/jollicode/opencode.jsonc` (NOT `~/.jollicode/`)                            |
+| Project agents                | `.jollicode/agent/<name>.md` or `.jollicode/agents/<name>.md`                                                               |
+| Global agents                 | `~/.config/jollicode/agent(s)/<name>.md`                                                                                   |
+| Project commands              | `.jollicode/command/<name>.md` or `.jollicode/commands/<name>.md`                                                           |
+| Global commands               | `~/.config/jollicode/command(s)/<name>.md`                                                                                 |
+| Project skills                | `.jollicode/skill(s)/<name>/SKILL.md`                                                                                      |
+| Global skills                 | `~/.config/jollicode/skill(s)/<name>/SKILL.md`                                                                             |
 | External skills (auto-loaded) | `~/.claude/skills/<name>/SKILL.md`, `~/.agents/skills/<name>/SKILL.md`                                                    |
 
 Configs from each scope are deep-merged. Project overrides global. Unknown
@@ -71,7 +71,7 @@ Every field is optional.
   "instructions": ["AGENTS.md", "docs/style.md"],
 
   "skills": {
-    "paths": [".opencode/skills", "/abs/path/to/skills"],
+    "paths": [".jollicode/skills", "/abs/path/to/skills"],
     "urls": ["https://example.com/.well-known/skills/"]
   },
 
@@ -165,7 +165,7 @@ file is named `SKILL.md` exactly, and lives in its own folder named after the
 skill:
 
 ```
-.opencode/skills/my-skill/SKILL.md
+.jollicode/skills/my-skill/SKILL.md
 ```
 
 Frontmatter:
@@ -244,7 +244,7 @@ Two ways to define an agent. Use the file form for anything non-trivial.
 ### File
 
 ```
-.opencode/agent/my-reviewer.md      OR     .opencode/agents/my-reviewer.md
+.jollicode/agent/my-reviewer.md      OR     .jollicode/agents/my-reviewer.md
 ```
 
 ```markdown
@@ -286,7 +286,7 @@ opencode's command loader scans for `**/*.md` inside command directories. The
 file is named after the command, and lives directly inside the `command` folder:
 
 ```
-.opencode/command/deploy.md
+.jollicode/command/deploy.md
 ```
 
 Frontmatter:
@@ -320,7 +320,7 @@ model: anthropic/claude-sonnet-4-6
 ```
 
 Auto-discovered plugins (no config entry needed): any `*.ts` or `*.js` file in
-`.opencode/plugin/` or `.opencode/plugins/`.
+`.jollicode/plugin/` or `.jollicode/plugins/`.
 
 A plugin module exports `default` (or any named export) of type
 `Plugin = (input: PluginInput, options?) => Promise<Hooks>`. The export is a

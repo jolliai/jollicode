@@ -43,16 +43,16 @@ Wenn Ihre globale Konfiguration beispielsweise `theme: "opencode"` und `autoupda
 Konfigurationsquellen werden in dieser Reihenfolge geladen (spätere Quellen überschreiben frühere):
 
 1. **Remote-Konfiguration** (von `.well-known/opencode`) – Organisationsstandards
-2. **Globale Konfiguration** (`~/.config/opencode/opencode.json`) – Benutzereinstellungen
+2. **Globale Konfiguration** (`~/.config/jollicode/opencode.json`) – Benutzereinstellungen
 3. **Benutzerdefinierte Konfiguration** (`OPENCODE_CONFIG` env var) – benutzerdefinierte Überschreibungen
 4. **Projektkonfiguration** (`opencode.json` im Projekt) – projektspezifische Einstellungen
-5. **`.opencode` Verzeichnisse** – Agenten, Befehle, Plugins
+5. **`.jollicode` Verzeichnisse** – Agenten, Befehle, Plugins
 6. **Inline-Konfiguration** (`OPENCODE_CONFIG_CONTENT` env var) – Laufzeitüberschreibungen
 
 Dies bedeutet, dass Projektkonfigurationen globale Standardeinstellungen überschreiben können und globale Konfigurationen Remote-Organisationsstandards überschreiben können.
 
 :::note
-Die Verzeichnisse `.opencode` und `~/.config/opencode` verwenden **Pluralnamen** für Unterverzeichnisse: `agents/`, `commands/`, `modes/`, `plugins/`, `skills/`, `tools/` und `themes/`. Aus Gründen der Abwärtskompatibilität werden auch einzelne Namen (z. B. `agent/`) unterstützt.
+Die Verzeichnisse `.jollicode` und `~/.config/jollicode` verwenden **Pluralnamen** für Unterverzeichnisse: `agents/`, `commands/`, `modes/`, `plugins/`, `skills/`, `tools/` und `themes/`. Aus Gründen der Abwärtskompatibilität werden auch einzelne Namen (z. B. `agent/`) unterstützt.
 :::
 
 ---
@@ -95,7 +95,7 @@ Sie können bestimmte Server in Ihrer lokalen Konfiguration aktivieren:
 
 ### Global
 
-Platzieren Sie Ihre globale OpenCode-Konfiguration in `~/.config/opencode/opencode.json`. Verwenden Sie die globale Konfiguration für benutzerweite Einstellungen wie Themen, Anbieter oder Tastenkombinationen.
+Platzieren Sie Ihre globale OpenCode-Konfiguration in `~/.config/jollicode/opencode.json`. Verwenden Sie die globale Konfiguration für benutzerweite Einstellungen wie Themen, Anbieter oder Tastenkombinationen.
 
 Die globale Konfiguration überschreibt die Standardeinstellungen der Remote-Organisation.
 
@@ -132,7 +132,7 @@ Die benutzerdefinierte Konfiguration wird in der Rangfolge zwischen globalen und
 
 Geben Sie mit `OPENCODE_CONFIG_DIR` ein benutzerdefiniertes Konfigurationsverzeichnis an.
 Umgebungsvariable. Dieses Verzeichnis wird nach Agenten, Befehlen,
-Modi und Plugins genau wie das Standardverzeichnis `.opencode` und sollten
+Modi und Plugins genau wie das Standardverzeichnis `.jollicode` und sollten
 folgen der gleichen Struktur.
 
 ```bash
@@ -140,7 +140,7 @@ export OPENCODE_CONFIG_DIR=/path/to/my/config-directory
 opencode run "Hello world"
 ```
 
-Das benutzerdefinierte Verzeichnis wird nach den Verzeichnissen global config und `.opencode` geladen, sodass es deren Einstellungen **überschreiben** kann.
+Das benutzerdefinierte Verzeichnis wird nach den Verzeichnissen global config und `.jollicode` geladen, sodass es deren Einstellungen **überschreiben** kann.
 
 ---
 
@@ -336,7 +336,7 @@ Sie können das Thema, das Sie in Ihrer OpenCode-Konfiguration verwenden möchte
 }
 ```
 
-Sie können Agenten auch mithilfe von Markdown-Dateien in `~/.config/opencode/agents/` oder `.opencode/agents/` definieren. [Mehr erfahren](/docs/agents).
+Sie können Agenten auch mithilfe von Markdown-Dateien in `~/.config/jollicode/agents/` oder `.jollicode/agents/` definieren. [Mehr erfahren](/docs/agents).
 
 ---
 
@@ -400,7 +400,7 @@ Sie können benutzerdefinierte Befehle für sich wiederholende Aufgaben über di
 }
 ```
 
-Sie können Befehle auch mithilfe von Markdown-Dateien in `~/.config/opencode/commands/` oder `.opencode/commands/` definieren. [Mehr erfahren](/docs/commands).
+Sie können Befehle auch mithilfe von Markdown-Dateien in `~/.config/jollicode/commands/` oder `.jollicode/commands/` definieren. [Mehr erfahren](/docs/commands).
 
 ---
 
@@ -536,7 +536,7 @@ Sie können den MCP-Server, den Sie verwenden möchten, über die Option `mcp` k
 
 [Plugins](/docs/plugins) erweitert OpenCode mit benutzerdefinierten Tools, Hooks und Integrationen.
 
-Platzieren Sie Ihre Plugin-Dateien in `.opencode/plugins/` oder `~/.config/opencode/plugins/`. Sie können Plugins auch über die Option `plugin` von npm laden.
+Platzieren Sie Ihre Plugin-Dateien in `.jollicode/plugins/` oder `~/.config/jollicode/plugins/`. Sie können Plugins auch über die Option `plugin` von npm laden.
 
 ```json title="opencode.json"
 {

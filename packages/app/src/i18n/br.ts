@@ -40,7 +40,6 @@ export const dict = {
   "desktop.menu.minimize": "Minimizar",
   "desktop.menu.maximize": "Maximizar",
   "desktop.menu.documentation": "Documentação do Jolli Code",
-  "desktop.menu.supportForum": "Fórum de suporte",
   "desktop.menu.shareFeedback": "Enviar comentários",
   "desktop.menu.reportBug": "Relatar um bug",
   "desktop.menu.ariaLabel": "Menu do Jolli Code",

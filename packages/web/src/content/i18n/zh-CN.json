@@ -3,7 +3,6 @@
   "app.header.home": "首页",
   "app.header.docs": "文档",
   "app.footer.issueLink": "发现问题？提交 issue",
-  "app.footer.discordLink": "加入我们的 Discord 社区",
   "app.lander.hero.title": "为终端打造的 AI 编码代理。",
   "app.lander.cta.getStarted": "开始使用",
   "app.lander.features.native_tui.title": "原生 TUI",

@@ -40,7 +40,6 @@ export const dict = {
   "desktop.menu.minimize": "ຫຍໍ້ລົງ",
   "desktop.menu.maximize": "ສູງສຸດ",
   "desktop.menu.documentation": "ເອກະສານ Jolli Code",
-  "desktop.menu.supportForum": "ກະດານສະຫນັບສະຫນູນ",
   "desktop.menu.shareFeedback": "ແບ່ງປັນຄວາມຄິດເຫັນ",
   "desktop.menu.reportBug": "ລາຍງານຂໍ້ຜິດພາດ",
   "desktop.menu.ariaLabel": "ເມນູ Jolli Code",

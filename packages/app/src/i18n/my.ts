@@ -40,7 +40,6 @@ export const dict = {
   "desktop.menu.minimize": "လျှော့ပါ။",
   "desktop.menu.maximize": "အကြီးချဲ့ပါ။",
   "desktop.menu.documentation": "Jolli Code စာရွက်စာတမ်း",
-  "desktop.menu.supportForum": "ပံ့ပိုးမှုဖိုရမ်",
   "desktop.menu.shareFeedback": "အကြံပြုချက်ကို မျှဝေပါ။",
   "desktop.menu.reportBug": "ချွတ်ယွင်းချက်တစ်ခုကို သတင်းပို့ပါ။",
   "desktop.menu.ariaLabel": "Jolli Code မီနူး",

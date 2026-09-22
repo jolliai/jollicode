@@ -175,10 +175,10 @@ Konfigurieren Sie Agenten in Ihrer `opencode.json`-Konfigurationsdatei:
 
 Sie können Agenten auch mithilfe von Markdown-Dateien definieren. Platzieren Sie sie in:
 
-- Global: `~/.config/opencode/agents/`
-- Pro Projekt: `.opencode/agents/`
+- Global: `~/.config/jollicode/agents/`
+- Pro Projekt: `.jollicode/agents/`
 
-```markdown title="~/.config/opencode/agents/review.md"
+```markdown title="~/.config/jollicode/agents/review.md"
 ---
 description: Reviews code for quality and best practices
 mode: subagent
@@ -441,7 +441,7 @@ Sie können diese Berechtigungen pro Agent überschreiben.
 
 Sie können Berechtigungen auch in Markdown-Agenten festlegen.
 
-```markdown title="~/.config/opencode/agents/review.md"
+```markdown title="~/.config/jollicode/agents/review.md"
 ---
 description: Code review without edits
 mode: subagent
@@ -698,7 +698,7 @@ Haben Sie einen Agenten, den Sie gerne teilen möchten? [Reichen Sie einen PR ei
 
 ### Dokumentationsagent
 
-```markdown title="~/.config/opencode/agents/docs-writer.md"
+```markdown title="~/.config/jollicode/agents/docs-writer.md"
 ---
 description: Writes and maintains project documentation
 mode: subagent
@@ -720,7 +720,7 @@ Focus on:
 
 ### Sicherheitsprüfer
 
-```markdown title="~/.config/opencode/agents/security-auditor.md"
+```markdown title="~/.config/jollicode/agents/security-auditor.md"
 ---
 description: Performs security audits and identifies vulnerabilities
 mode: subagent

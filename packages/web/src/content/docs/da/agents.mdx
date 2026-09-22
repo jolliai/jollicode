@@ -189,10 +189,10 @@ Konfigurer agent i din `opencode.json`-konfigurationsfil:
 
 Du kan også definere agenter ved hjælp af markdown-filer. Placer dem i:
 
-- Globalt: `~/.config/opencode/agents/`
-- Pr. projekt: `.opencode/agents/`
+- Globalt: `~/.config/jollicode/agents/`
+- Pr. projekt: `.jollicode/agents/`
 
-```markdown title="~/.config/opencode/agents/review.md"
+```markdown title="~/.config/jollicode/agents/review.md"
 ---
 description: Reviews code for quality and best practices
 mode: subagent
@@ -455,7 +455,7 @@ Du kan tilsidesætte disse tilladelser pr. agent.
 
 Du kan også angive tilladelser i Markdown-agenter.
 
-```markdown title="~/.config/opencode/agents/review.md"
+```markdown title="~/.config/jollicode/agents/review.md"
 ---
 description: Code review without edits
 mode: subagent
@@ -712,7 +712,7 @@ Har du en agent, du gerne vil dele? [Send en PR](https://github.com/anomalyco/op
 
 ### Dokumentations-agent
 
-```markdown title="~/.config/opencode/agents/docs-writer.md"
+```markdown title="~/.config/jollicode/agents/docs-writer.md"
 ---
 description: Writes and maintains project documentation
 mode: subagent
@@ -734,7 +734,7 @@ Focus on:
 
 ### Sikkerheds-agent
 
-```markdown title="~/.config/opencode/agents/security-auditor.md"
+```markdown title="~/.config/jollicode/agents/security-auditor.md"
 ---
 description: Performs security audits and identifies vulnerabilities
 mode: subagent

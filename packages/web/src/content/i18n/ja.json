@@ -3,7 +3,6 @@
   "app.header.home": "ホーム",
   "app.header.docs": "ドキュメント",
   "app.footer.issueLink": "バグを見つけたらIssueを作成",
-  "app.footer.discordLink": "Discordコミュニティに参加",
   "app.lander.hero.title": "ターミナル向けのAIコーディングエージェント",
   "app.lander.cta.getStarted": "始める",
   "app.lander.features.native_tui.title": "ネイティブ TUI",

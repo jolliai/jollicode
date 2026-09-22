@@ -42,7 +42,6 @@ const desktop = [
   "Minimiziraj",
   "Maksimiziraj",
   "Dokumentacija za Jolli Code",
-  "Forum za podršku",
   "Pošalji povratne informacije",
   "Prijavi pogrešku",
   "Izbornik Jolli Code",

@@ -1088,7 +1088,6 @@ export const dict = {
   "desktop.menu.minimize": "Pienennä",
   "desktop.menu.maximize": "Suurenna",
   "desktop.menu.documentation": "Jolli Code-dokumentaatio",
-  "desktop.menu.supportForum": "Tukifoorumi",
   "desktop.menu.shareFeedback": "Anna palautetta",
   "desktop.menu.reportBug": "Ilmoita ohjelmavirheestä",
   "desktop.menu.ariaLabel": "Jolli Code-valikko",

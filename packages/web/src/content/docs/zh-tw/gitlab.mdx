@@ -91,9 +91,9 @@ OpenCode 在您的 GitLab CI/CD 管線中執行，以下是設定所需的步驟
       - echo "Configuring glab"
       - echo $GITLAB_HOST
       - echo "Creating OpenCode auth configuration"
-      - mkdir --parents ~/.local/share/opencode
+      - mkdir --parents ~/.local/share/jollicode
       - |
-        cat > ~/.local/share/opencode/auth.json << EOF
+        cat > ~/.local/share/jollicode/auth.json << EOF
         {
           "anthropic": {
             "type": "api",

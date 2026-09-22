@@ -40,7 +40,6 @@ export const dict = {
   "desktop.menu.minimize": "አሳንስ",
   "desktop.menu.maximize": "ከፍተኛ",
   "desktop.menu.documentation": "የJolli Code ሰነድ",
-  "desktop.menu.supportForum": "የድጋፍ መድረክ",
   "desktop.menu.shareFeedback": "አጋራ ግብረመልስ",
   "desktop.menu.reportBug": "ስህተትን ሪፖርት አድርግ",
   "desktop.menu.ariaLabel": "Jolli Codeምናሌ",

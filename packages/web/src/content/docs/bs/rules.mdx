@@ -62,7 +62,7 @@ Stavite `AGENTS.md` u korijen projekta za pravila specificna za taj projekat. Pr
 
 ### Globalno
 
-Mozete imati i globalna pravila u `~/.config/opencode/AGENTS.md`. Ona se primjenjuju u svim opencode sesijama.
+Mozete imati i globalna pravila u `~/.config/jollicode/AGENTS.md`. Ona se primjenjuju u svim opencode sesijama.
 
 Posto se ovo ne commituje u Git niti dijeli s timom, najbolje je da ovdje cuvate licna pravila koja LLM treba pratiti.
 
@@ -71,7 +71,7 @@ Posto se ovo ne commituje u Git niti dijeli s timom, najbolje je da ovdje cuvate
 Za korisnike koji prelaze sa Claude Code, OpenCode podrzava i Claude konvencije datoteka kao rezervu:
 
 - **Pravila projekta**: `CLAUDE.md` u direktoriju projekta (koristi se ako ne postoji `AGENTS.md`)
-- **Globalna pravila**: `~/.claude/CLAUDE.md` (koristi se ako ne postoji `~/.config/opencode/AGENTS.md`)
+- **Globalna pravila**: `~/.claude/CLAUDE.md` (koristi se ako ne postoji `~/.config/jollicode/AGENTS.md`)
 - **Skills**: `~/.claude/skills/` — pogledajte [Agent Skills](/docs/skills/) za detalje
 
 Da iskljucite kompatibilnost sa Claude Code, postavite jednu od ovih varijabli okruzenja:
@@ -89,16 +89,16 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 Kada se opencode pokrene, trazi datoteke pravila ovim redoslijedom:
 
 1. **Lokalne datoteke** pretrazivanjem prema gore od trenutnog direktorija (`AGENTS.md`, `CLAUDE.md`)
-2. **Globalna datoteka** na `~/.config/opencode/AGENTS.md`
+2. **Globalna datoteka** na `~/.config/jollicode/AGENTS.md`
 3. **Claude Code datoteka** na `~/.claude/CLAUDE.md` (osim ako je iskljucena)
 
-Prva pronadena datoteka pobjeduje u svakoj kategoriji. Na primjer, ako imate i `AGENTS.md` i `CLAUDE.md`, koristi se samo `AGENTS.md`. Isto tako, `~/.config/opencode/AGENTS.md` ima prednost nad `~/.claude/CLAUDE.md`.
+Prva pronadena datoteka pobjeduje u svakoj kategoriji. Na primjer, ako imate i `AGENTS.md` i `CLAUDE.md`, koristi se samo `AGENTS.md`. Isto tako, `~/.config/jollicode/AGENTS.md` ima prednost nad `~/.claude/CLAUDE.md`.
 
 ---
 
 ## Prilagođena uputstva
 
-Mozete navesti prilagodene datoteke uputstava u `opencode.json` ili globalnom `~/.config/opencode/opencode.json`. Tako vi i tim ponovo koristite postojeca pravila bez dupliranja u AGENTS.md.
+Mozete navesti prilagodene datoteke uputstava u `opencode.json` ili globalnom `~/.config/jollicode/opencode.json`. Tako vi i tim ponovo koristite postojeca pravila bez dupliranja u AGENTS.md.
 
 Primjer:
 

@@ -40,7 +40,6 @@ export const dict = {
   "desktop.menu.minimize": "Ελαχιστοποίηση",
   "desktop.menu.maximize": "Μεγιστοποίηση",
   "desktop.menu.documentation": "Jolli Code Τεκμηρίωση",
-  "desktop.menu.supportForum": "Φόρουμ υποστήριξης",
   "desktop.menu.shareFeedback": "Κοινή χρήση σχολίων",
   "desktop.menu.reportBug": "Αναφορά σφάλματος",
   "desktop.menu.ariaLabel": "Jolli Code μενού",

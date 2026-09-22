@@ -3,7 +3,6 @@
   "app.header.home": "หน้าหลัก",
   "app.header.docs": "เอกสาร",
   "app.footer.issueLink": "พบข้อผิดพลาดหรือไม่? เปิด issue",
-  "app.footer.discordLink": "เข้าร่วมชุมชน Discord ของเรา",
   "app.lander.hero.title": "เอเจนต์เขียนโค้ด AI ที่สร้างมาเพื่อ terminal",
   "app.lander.cta.getStarted": "เริ่มต้นใช้งาน",
   "app.lander.features.native_tui.title": "TUI แบบเนทีฟ",

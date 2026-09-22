@@ -42,7 +42,6 @@ const desktop = [
   "Lágmarka",
   "Hámarka",
   "Jolli Code skjölun",
-  "Aðstoðarspjallborð",
   "Deila ábendingu",
   "Tilkynna villu",
   "Jolli Code-valmynd",

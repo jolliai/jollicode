@@ -188,10 +188,10 @@ _Режим_: `primary`
 
 Вы также можете определить агентов, используя файлы Markdown. Поместите их в:
 
-- Глобальный: `~/.config/opencode/agents/`
-- Для каждого проекта: `.opencode/agents/`
+- Глобальный: `~/.config/jollicode/agents/`
+- Для каждого проекта: `.jollicode/agents/`
 
-```markdown title="~/.config/opencode/agents/review.md"
+```markdown title="~/.config/jollicode/agents/review.md"
 ---
 description: Reviews code for quality and best practices
 mode: subagent
@@ -454,7 +454,7 @@ Provide constructive feedback without making direct changes.
 
 Вы также можете установить разрешения в агентах Markdown.
 
-```markdown title="~/.config/opencode/agents/review.md"
+```markdown title="~/.config/jollicode/agents/review.md"
 ---
 description: Code review without edits
 mode: subagent
@@ -711,7 +711,7 @@ opencode agent create
 
 ### Агент документации
 
-```markdown title="~/.config/opencode/agents/docs-writer.md"
+```markdown title="~/.config/jollicode/agents/docs-writer.md"
 ---
 description: Writes and maintains project documentation
 mode: subagent
@@ -733,7 +733,7 @@ Focus on:
 
 ### Аудитор безопасности
 
-```markdown title="~/.config/opencode/agents/security-auditor.md"
+```markdown title="~/.config/jollicode/agents/security-auditor.md"
 ---
 description: Performs security audits and identifies vulnerabilities
 mode: subagent

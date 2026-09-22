@@ -40,7 +40,6 @@ export const dict = {
   "desktop.menu.minimize": "Kiçilt",
   "desktop.menu.maximize": "Böyüt",
   "desktop.menu.documentation": "Jolli Code sənədləri",
-  "desktop.menu.supportForum": "Dəstək forumu",
   "desktop.menu.shareFeedback": "Rəy bildir",
   "desktop.menu.reportBug": "Xəta bildir",
   "desktop.menu.ariaLabel": "Jolli Code menyusu",

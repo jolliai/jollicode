@@ -43,16 +43,16 @@ OpenCode 支援 **JSON** 和 **JSONC**（帶註解的 JSON）格式。
 設定來源按以下順序載入（後面的來源覆寫前面的來源）：
 
 1. **遠端設定**（來自 `.well-known/opencode`）- 組織預設值
-2. **全域設定**（`~/.config/opencode/opencode.json`）- 使用者偏好
+2. **全域設定**（`~/.config/jollicode/opencode.json`）- 使用者偏好
 3. **自訂設定**（`OPENCODE_CONFIG` 環境變數）- 自訂覆寫
 4. **專案設定**（專案中的 `opencode.json`）- 專案特定設定
-5. **`.opencode` 目錄** - 代理、指令、外掛程式
+5. **`.jollicode` 目錄** - 代理、指令、外掛程式
 6. **內嵌設定**（`OPENCODE_CONFIG_CONTENT` 環境變數）- 執行時覆寫
 
 這意味著專案設定可以覆寫全域預設值，全域設定可以覆寫遠端組織預設值。
 
 :::note
-`.opencode` 和 `~/.config/opencode` 目錄的子目錄使用**複數名稱**：`agents/`、`commands/`、`modes/`、`plugins/`、`skills/`、`tools/` 和 `themes/`。為了向後相容，也支援單數名稱（例如 `agent/`）。
+`.jollicode` 和 `~/.config/jollicode` 目錄的子目錄使用**複數名稱**：`agents/`、`commands/`、`modes/`、`plugins/`、`skills/`、`tools/` 和 `themes/`。為了向後相容，也支援單數名稱（例如 `agent/`）。
 :::
 
 ---
@@ -95,7 +95,7 @@ OpenCode 支援 **JSON** 和 **JSONC**（帶註解的 JSON）格式。
 
 ### 全域
 
-將全域 OpenCode 設定放在 `~/.config/opencode/opencode.json` 中。使用全域設定來設定使用者層級的偏好，例如主題、供應商或快捷鍵。
+將全域 OpenCode 設定放在 `~/.config/jollicode/opencode.json` 中。使用全域設定來設定使用者層級的偏好，例如主題、供應商或快捷鍵。
 
 全域設定覆寫遠端組織預設值。
 
@@ -130,14 +130,14 @@ opencode run "Hello world"
 
 ### 自訂目錄
 
-使用 `OPENCODE_CONFIG_DIR` 環境變數指定自訂設定目錄。該目錄會像標準 `.opencode` 目錄一樣被搜尋代理、指令、模式和外掛程式，並且應遵循相同的結構。
+使用 `OPENCODE_CONFIG_DIR` 環境變數指定自訂設定目錄。該目錄會像標準 `.jollicode` 目錄一樣被搜尋代理、指令、模式和外掛程式，並且應遵循相同的結構。
 
 ```bash
 export OPENCODE_CONFIG_DIR=/path/to/my/config-directory
 opencode run "Hello world"
 ```
 
-自訂目錄在全域設定和 `.opencode` 目錄之後載入，因此**可以覆寫**它們的設定。
+自訂目錄在全域設定和 `.jollicode` 目錄之後載入，因此**可以覆寫**它們的設定。
 
 ---
 
@@ -337,7 +337,7 @@ Bearer Token（`AWS_BEARER_TOKEN_BEDROCK` 或 `/connect`）優先於基於設定
 }
 ```
 
-您還可以使用 `~/.config/opencode/agents/` 或 `.opencode/agents/` 中的 Markdown 檔案定義代理。[在此了解更多](/docs/agents)。
+您還可以使用 `~/.config/jollicode/agents/` 或 `.jollicode/agents/` 中的 Markdown 檔案定義代理。[在此了解更多](/docs/agents)。
 
 ---
 
@@ -401,7 +401,7 @@ Bearer Token（`AWS_BEARER_TOKEN_BEDROCK` 或 `/connect`）優先於基於設定
 }
 ```
 
-您還可以使用 `~/.config/opencode/commands/` 或 `.opencode/commands/` 中的 Markdown 檔案定義指令。[在此了解更多](/docs/commands)。
+您還可以使用 `~/.config/jollicode/commands/` 或 `.jollicode/commands/` 中的 Markdown 檔案定義指令。[在此了解更多](/docs/commands)。
 
 ---
 
@@ -539,7 +539,7 @@ OpenCode 啟動時會自動下載新版本。您可以使用 `autoupdate` 選項
 
 [外掛程式](/docs/plugins)透過自訂工具、掛鉤和整合來擴展 OpenCode。
 
-將外掛程式檔案放置在 `.opencode/plugins/` 或 `~/.config/opencode/plugins/` 中。您還可以透過 `plugin` 選項從 npm 載入外掛程式。
+將外掛程式檔案放置在 `.jollicode/plugins/` 或 `~/.config/jollicode/plugins/` 中。您還可以透過 `plugin` 選項從 npm 載入外掛程式。
 
 ```json title="opencode.json"
 {

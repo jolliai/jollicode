@@ -42,7 +42,6 @@ const desktop = [
   "Kis méret",
   "Teljes méret",
   "Jolli Code dokumentáció",
-  "Támogatási fórum",
   "Visszajelzés küldése",
   "Hiba jelentése",
   "Jolli Code menü",

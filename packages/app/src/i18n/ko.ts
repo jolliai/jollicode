@@ -1100,7 +1100,6 @@ export const dict = {
   "desktop.menu.minimize": "최소화",
   "desktop.menu.maximize": "최대화",
   "desktop.menu.documentation": "Jolli Code 문서",
-  "desktop.menu.supportForum": "지원 포럼",
   "desktop.menu.shareFeedback": "피드백 보내기",
   "desktop.menu.reportBug": "버그 신고",
   "desktop.menu.ariaLabel": "Jolli Code 메뉴",

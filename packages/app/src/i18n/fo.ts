@@ -40,7 +40,6 @@ export const dict = {
   "desktop.menu.minimize": "Minka um",
   "desktop.menu.maximize": "Maksimera",
   "desktop.menu.documentation": "Jolli Code Skjøl",
-  "desktop.menu.supportForum": "Stuðulsforum",
   "desktop.menu.shareFeedback": "Deil afturmeldingar",
   "desktop.menu.reportBug": "Melda ein feil",
   "desktop.menu.ariaLabel": "Jolli Code valmynd",
