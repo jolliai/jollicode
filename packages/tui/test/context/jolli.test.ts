@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { needsCourseChoice, submissionBlocker } from "../../src/context/jolli"
 
-const base = { lockdown: true, started: false, bound: false, loaded: true, courses: 2, startable: 2 }
+const base = { lockdown: true, signedIn: true, started: false, bound: false, loaded: true, courses: 2, startable: 2 }
 
 describe("submissionBlocker", () => {
   /**
@@ -54,6 +54,34 @@ describe("submissionBlocker", () => {
     expect(submissionBlocker({ ...base, startable: 0 })).toBe(
       "None of your courses can be started yet — press /course to see why.",
     )
+  })
+  /**
+   * ⚠ A CREDENTIAL CAN GO AWAY WHILE THE APP IS RUNNING, which is new: it used to be a 34-day JWT
+   * nothing could retire. Another surface signing out removes the shared row, and the backend
+   * refusing a renewal makes `jolli/session.ts` delete it. Neither reaches the composer on its own,
+   * so without this the prompt went out and came back a gateway 401 the student cannot act on.
+   */
+  test("refuses while signed out", () => {
+    expect(submissionBlocker({ ...base, signedIn: false })).toBe("Signed out. Press /login to sign in again.")
+  })
+
+  /**
+   * ⚠ AND IT OUTRANKS `started`, WHICH EVERY OTHER REFUSAL YIELDS TO. A session that already ran
+   * is exempt from the course rules because the server will not bind one to it any more — that is
+   * an argument about bindings, and it says nothing about whether the request can be authenticated.
+   * Getting this order wrong is invisible until somebody's session is revoked mid-conversation.
+   */
+  test("refuses while signed out even in a session that already started", () => {
+    expect(submissionBlocker({ ...base, signedIn: false, started: true, bound: true })).toBe(
+      "Signed out. Press /login to sign in again.",
+    )
+  })
+
+  /**
+   * ⚠ A BARE `opencode` BUILD HAS NO JOLLI CREDENTIAL TO HOLD, so the flag still decides first.
+   */
+  test("says nothing about sign-in without lockdown", () => {
+    expect(submissionBlocker({ ...base, lockdown: false, signedIn: false, started: true })).toBeUndefined()
   })
 })
 

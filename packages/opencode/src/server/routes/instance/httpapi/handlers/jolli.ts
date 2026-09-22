@@ -8,14 +8,12 @@
  * session screen, including before the student has signed in; an error there would surface as a
  * failed request on a screen whose own empty state already says the right thing.
  */
-import { gatewayRequest } from "@opencode-ai/core/jolli/api"
 import { loadCatalog } from "@opencode-ai/core/jolli/cache"
 import { projectCatalog, today } from "@opencode-ai/core/jolli/catalog"
 import { viewerFromToken } from "@opencode-ai/core/jolli/identity"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
-import { Auth } from "@/auth"
-import { JOLLI_AUTH_KEY, jolliCredential } from "@/jolli/credential"
 import { RootHttpApi } from "../api"
 
 /**
@@ -28,33 +26,59 @@ const UNREACHABLE = { status: "unreachable" as const, courses: [], assistants: [
 
 export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handlers) =>
   Effect.gen(function* () {
-    const auth = yield* Auth.Service
+    const session = yield* JolliSession.Service
 
     const course = Effect.fn("JolliHttpApi.course")(function* () {
-      const stored = yield* auth.get(JOLLI_AUTH_KEY).pipe(Effect.catch(() => Effect.succeed(undefined)))
-      const credential = jolliCredential(stored)
-
       /**
        * WHO IS SIGNED IN, DECIDED BEFORE WE ASK WHETHER THE GATEWAY IS REACHABLE.
        *
        * ⚠ THAT ORDER IS THE POINT, NOT AN ACCIDENT OF WHERE THE LINE FITS. Identity is derivable
-       * from the token alone, so gating it behind the reachability guards below would blank a
-       * student's own name because their Wi-Fi dropped — or, worse, because their server predates
-       * `baseUrl` and the very next line answers `UNREACHABLE` while holding a perfectly good
-       * token.
+       * from the stored token alone, so gating it behind the reachability guard below would blank a
+       * student's own name because their Wi-Fi dropped — or, worse, because their credential has no
+       * `base_url` and `request()` therefore answers nothing while holding a perfectly good token.
+       *
+       * ⚠ THE POLLED READ, NOT THE REFRESHING ONE, AND THAT IS THE SAME ARGUMENT AGAIN. `current()`
+       * never touches the network, so a name on screen cannot depend on a refresh round trip; the
+       * gateway call below is the only thing entitled to need a fresh token.
        *
        * ⚠ SPREAD INTO EVERY RETURN, NEVER MUTATED INTO `UNREACHABLE`. That constant is shared by
-       * all four branches; writing to it would leak one request's viewer into the next one's answer.
+       * all three branches; writing to it would leak one request's viewer into the next one's answer.
        */
-      const viewer = credential ? viewerFromToken(credential.token) : undefined
+      const credential = yield* session.current()
+      const viewer = credential ? viewerFromToken(credential.access_token) : undefined
       const identity = viewer ? { viewer } : {}
 
-      if (!credential?.baseUrl) return { ...UNREACHABLE, ...identity }
-
-      const request = gatewayRequest(credential.baseUrl, credential.token)
+      /**
+       * ⚠ THE REFRESHING READ, NOT THE POLLED ONE. This is a real gateway call, so it needs a token
+       * that will still be valid when it lands — unlike `connected`, which is polled and must never
+       * touch the network. Signed out, unreachable and rate-limited all answer the same way here:
+       * a question we never got to ask.
+       */
+      const request = yield* session.request().pipe(Effect.catch(() => Effect.succeed(undefined)))
       if (!request) return { ...UNREACHABLE, ...identity }
 
       const loaded = yield* loadCatalog(request)
+      /**
+       * ⚠ A 401 IS NOT AN OUTAGE, AND THIS IS THE STUDENT WHO NEVER SENDS A MESSAGE. The model
+       * path reaches `refused` on its own, but somebody who only opens the app would otherwise
+       * sit in front of a course list they cannot use until their token expired — up to three days
+       * of being told nothing is reachable while the real answer is that the sign-in ended.
+       * Renewing settles it either way: a live credential comes back with a working token on the
+       * next poll, a finished one is deleted here and the app asks them to sign in.
+       *
+       * ⚠ BEFORE THE `ok` CHECK, NOT INSIDE THE FAILURE BRANCH, AND THAT IS THE WHOLE FIX. A
+       * refusal that has a snapshot behind it is answered `ok` with `stale` set (`cache.ts` serves
+       * what it has rather than failing), so a check that only ran on `unreachable` renewed for the
+       * student with an empty cache and never for the one who had been using the product — whose
+       * screen looked entirely normal while the credential behind it was dead.
+       *
+       * The answer is not consulted and the failure is swallowed on purpose. This request is
+       * already decided — either the snapshot serves it or nothing does — and neither outcome
+       * changes what it returns.
+       */
+      if (loaded.error?.status === 401) {
+        yield* session.refused(request.token).pipe(Effect.catch(() => Effect.void))
+      }
       if (loaded.kind !== "ok") {
         yield* Effect.logDebug("Jolli: catalogue unavailable, answering empty", { error: loaded.error })
         return { ...UNREACHABLE, ...identity }

@@ -13,6 +13,7 @@ import * as Client from "effect/unstable/sql/SqlClient"
 import type { Connection } from "effect/unstable/sql/SqlConnection"
 import { classifySqliteError, SqlError } from "effect/unstable/sql/SqlError"
 import * as Statement from "effect/unstable/sql/Statement"
+import { restrictDatabaseFile } from "./permissions"
 import { Sqlite } from "./sqlite"
 
 const ATTR_DB_SYSTEM_NAME = "db.system.name"
@@ -156,6 +157,8 @@ const nativeLayer = (config: Config) =>
         open: true,
       })
       yield* Effect.addFinalizer(() => Effect.sync(() => native.close()))
+      // Before WAL: `-wal` and `-shm` inherit their mode from the main file. See `permissions.ts`.
+      restrictDatabaseFile(config.filename)
       if (config.disableWAL !== true && config.readonly !== true) native.exec("PRAGMA journal_mode = WAL;")
       return native
     }),

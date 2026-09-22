@@ -52,25 +52,25 @@ export function DialogLogout() {
   createEffect(() => {
     if (acted || sync.status !== "complete" || signedIn()) return
     acted = true
-    toast.show({ message: `Not signed in to ${Brand.name}`, variant: "info" })
+    toast.show({ message: `Not signed in to ${Brand.platform}`, variant: "info" })
     dialog.clear()
   })
 
   async function signOut() {
     const removed = await sdk.client.auth.remove({ providerID: Brand.short })
     if (removed.error) {
-      toast.show({ message: `Could not sign out of ${Brand.name}`, variant: "error", duration: 5000 })
+      toast.show({ message: `Could not sign out of ${Brand.platform}`, variant: "error", duration: 5000 })
       return
     }
     await sdk.client.instance.dispose()
     await sync.bootstrap()
-    toast.show({ message: `Signed out of ${Brand.name}`, variant: "info" })
+    toast.show({ message: `Signed out of ${Brand.platform}`, variant: "info" })
   }
 
   return (
     <Show when={signedIn()}>
       <DialogAlert
-        title={`Sign out of ${Brand.name}`}
+        title={`Sign out of ${Brand.platform}`}
         message="This removes your credential and your cached course list from this machine. Press enter to sign out, or esc to stay signed in."
         onConfirm={() => void signOut()}
       />

@@ -20,6 +20,12 @@ const bound = (courseId: string, assistantId: string, sharing = { staff: false, 
 const started = () => Effect.succeed(true)
 const noMessages = () => Effect.succeed(false)
 const unreadable = () => Effect.fail(new Error("storage is down")) as Effect.Effect<boolean, unknown>
+/**
+ * ⚠ THE SHAPE THE REAL CALLER ACTUALLY PRODUCES. `MessageV2.exists` reads the database through
+ * `Effect.orDie`, so a database that will not answer is a DEFECT rather than a typed failure — and
+ * a guard that caught only failures let it past, killing the request instead of refusing the write.
+ */
+const broken = () => Effect.die(new Error("the database is gone")) as Effect.Effect<boolean, unknown>
 
 const run = (
   before: Record<string, unknown> | undefined,
@@ -74,6 +80,16 @@ describe("refuseRebindingAfterFirstMessage", () => {
   // A lock that cannot read its own precondition must refuse, not wave things through.
   test("refuses when the messages cannot be read", async () => {
     expect(await refused(bound("7", "12"), bound("8", "20"), unreadable)).toBe(true)
+  })
+
+  test("refuses with BadRequest when the read DIES rather than fails", async () => {
+    const exit = await run(bound("7", "12"), bound("8", "20"), broken)
+    expect(exit._tag).toBe("Failure")
+    if (exit._tag === "Failure") {
+      // Not merely "did not succeed": an escaping defect is a 500, and the lock's own 400 is gone.
+      expect(String(exit.cause)).toContain(HttpApiError.BadRequest.name ?? "BadRequest")
+      expect(String(exit.cause)).not.toContain("the database is gone")
+    }
   })
 
   /**

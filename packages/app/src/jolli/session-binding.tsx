@@ -52,11 +52,16 @@ const handoff = new Map<string, CourseBinding>()
 /**
  * ⚠ THE HANDOFF IS DROPPED AS SOON AS THE SERVER'S COPY ARRIVES, because it only ever covers the
  * frame between creating a session and syncing it back. Left alone it grows for the life of the
- * renderer — one entry per session created and per visibility toggle — and each stale entry is a
- * binding that would be preferred over nothing if a session were ever read back unbound.
+ * renderer — one entry per session created — and each stale entry is a binding that would be
+ * preferred over nothing if a session were ever read back unbound.
  */
 function forgetHandoff(session: string) {
   handoff.delete(session)
+}
+
+/** Two sets of readers, compared field by field. Used to decide when an optimistic write has landed. */
+function sameSharing(a: SessionSharing, b: SessionSharing) {
+  return a.staff === b.staff && a.everyone === b.everyone
 }
 
 export const { use: useCourseSession, provider: CourseSessionProvider } = createSimpleContext({
@@ -84,7 +89,19 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
     const sdk = useSDK()
     useJolliCatalog()
 
-    const [store, setStore] = createStore<{ draft?: CourseBinding }>({})
+    const [store, setStore] = createStore<{
+      draft?: CourseBinding
+      /**
+       * THE VISIBILITY A LIVE SESSION HAS BEEN ASKED TO TAKE, UNTIL THE SERVER'S COPY SAYS THE SAME.
+       *
+       * ⚠ IT IS IN THE STORE RATHER THAN IN `handoff`, AND THAT IS THE WHOLE REASON IT EXISTS. The
+       * map is not reactive, so the optimistic value written there re-rendered nothing — and
+       * `current()` prefers the server's copy and drops the map entry the moment one arrives, so
+       * even a forced re-read lost it. A switch that does not move until a round trip completes
+       * reads as a control that did not take the click.
+       */
+      pending?: { session: string; sharing: SessionSharing }
+    }>({})
 
     /**
      * THE BINDING IN FORCE RIGHT NOW: the open session's, or the draft being composed.
@@ -102,13 +119,37 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
        * navigates to its route before the new session has been synced back, so for a frame or two
        * there is no row to read — that is what `handoff` covers, and nothing else.
        */
-      const row = sync().data.session.find((item) => item.id === session)
-      const bound = courseBindingOf(row)
-      if (bound) {
-        forgetHandoff(session)
-        return bound
-      }
-      return handoff.get(session)
+      const bound = courseBindingOf(sync().data.session.find((item) => item.id === session))
+      if (bound) forgetHandoff(session)
+      const base = bound ?? handoff.get(session)
+      if (!base) return undefined
+      /**
+       * ⚠ THE PENDING VISIBILITY IS LAID OVER THE AUTHORITY RATHER THAN REPLACING IT. Only the
+       * readers are the student's to change on a live session; the course and the assistant still
+       * come from the row, so an overlay that carried the whole binding could show a course the
+       * server had refused to write.
+       */
+      const pending = store.pending
+      return pending?.session === session ? { ...base, sharing: pending.sharing } : base
+    })
+
+    /**
+     * RETIRE THE OVERLAY ONCE THE SERVER'S COPY SAYS THE SAME THING.
+     *
+     * ⚠ ON AGREEMENT, NOT ON THE REQUEST RESOLVING, because those are two different moments:
+     * `session.update` answers before its `session.updated` event has been reconciled into the sync
+     * store, so clearing at the first would flick the switch back to the old value for the frames
+     * in between — the exact flicker the overlay exists to prevent.
+     *
+     * ⚠ AND IT IS RETIRED AT ALL BECAUSE A STALE OVERLAY MASKS THE TRUTH. Left in place it would
+     * keep asserting this student's last click over a change made anywhere else.
+     */
+    createEffect(() => {
+      const pending = store.pending
+      if (!pending) return
+      const bound = courseBindingOf(sync().data.session.find((item) => item.id === pending.session))
+      if (!bound || !sameSharing(bound.sharing, pending.sharing)) return
+      setStore("pending", undefined)
     })
 
     const course = createMemo<Course | undefined>(() => courseById(current()?.courseId))
@@ -145,14 +186,23 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
        * write that goes back to the server after the session exists. The course and the assistant
        * do not: the server refuses to rewrite those once the conversation has started.
        */
-      handoff.set(session, { ...existing, sharing })
+      setStore("pending", { session, sharing })
       void sdk()
         .client.session.update({
           sessionID: session,
           directory: sdk().directory,
           metadata: { jolli: { ...existing, sharing } },
         })
-        .catch(() => undefined)
+        /**
+         * ⚠ A REFUSED WRITE RETIRES THE OVERLAY, so the switch snaps back to what is actually true
+         * rather than going on claiming a change the server never took. Only this write's own
+         * overlay is dropped — a second toggle made while this one was in flight owns the field by
+         * then, and clearing that would undo a click the student can see.
+         */
+        .catch(() => {
+          const pending = store.pending
+          if (pending?.session === session && sameSharing(pending.sharing, sharing)) setStore("pending", undefined)
+        })
     }
 
     /**

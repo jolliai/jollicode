@@ -76,6 +76,43 @@ export const Flag = {
   get JOLLICODE_LOCKDOWN() {
     return truthyEnv("LOCKDOWN")
   },
+  /**
+   * THE CEILING, AS OPPOSED TO THE FLOOR.
+   *
+   * ⚠ A SEPARATE FLAG FROM `JOLLICODE_LOCKDOWN`, DELIBERATELY. That one seeds the Jolli floor as the
+   * BOTTOM config layer, which a coursework repo is allowed to step over — behaviour
+   * `test/config/jolli-lockdown.test.ts` pins on purpose. This one runs AFTER every layer has
+   * merged and takes things back: no config-supplied `apiKey`, the tenant's own `baseURL`, and no
+   * Jolli provider at all while signed out. Folding the two together would flip those tests, and
+   * those tests failing is the alarm, not a chore.
+   *
+   * ⚠ ONLY `createSidecarEnv()` SETS IT. The desktop is the surface that is genuinely locked; the
+   * bare CLI keeps its steppable floor.
+   */
+  get JOLLICODE_LOCKDOWN_STRICT() {
+    return truthyEnv("LOCKDOWN_STRICT")
+  },
+  /**
+   * THE GATEWAY THIS BUILD IS PINNED TO, WHEN THE SURFACE IS ONE THAT MAY BE PINNED AT ALL.
+   *
+   * ⚠ IT IS A BUILD-TIME VALUE THAT TRAVELS AS AN ENV VAR, WHICH IS WHY IT READS AS A CONTRADICTION
+   * OF `jolli-gateway.ts`. The desktop bakes `JOLLICODE_GATEWAY_URL` into its bundle at build time
+   * precisely so a student cannot repoint the gateway from `~/.zshrc` — but the server that has to
+   * honour it is a different process, and `createSidecarEnv()` is the channel the desktop already
+   * uses to hand that process values a student must not be able to forge. It scrubs this key out of
+   * the inherited environment and writes its own, exactly as it does for `JOLLICODE_CONFIG_CONTENT`.
+   *
+   * ⚠ HENCE THE STRICT GATE, AND IT IS LOAD-BEARING RATHER THAN TIDY. On the bare CLI this is just
+   * an env var, and a pinned gateway is not merely a URL: `gateway-config.ts` exempts it from the
+   * origin allowlist and `plugin/jolli.ts` therefore attaches the student's credential to it. Read
+   * unconditionally, a single exported variable would be somewhere to send that credential. Strict
+   * lockdown is set by `createSidecarEnv()` and nothing else, so this answers `undefined` everywhere
+   * the value would not have come from a build.
+   */
+  get JOLLICODE_GATEWAY_URL() {
+    if (!truthyEnv("LOCKDOWN_STRICT")) return undefined
+    return env("GATEWAY_URL")?.trim() || undefined
+  },
   OPENCODE_ALWAYS_NOTIFY_UPDATE: truthyEnv("ALWAYS_NOTIFY_UPDATE"),
   OPENCODE_DISABLE_PRUNE: truthyEnv("DISABLE_PRUNE"),
   OPENCODE_DISABLE_TERMINAL_TITLE: truthyEnv("DISABLE_TERMINAL_TITLE"),

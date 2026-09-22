@@ -5,11 +5,13 @@ import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { RootHttpApi } from "../api"
 import { LogInput } from "../groups/control"
 import { ProviderV2 } from "@opencode-ai/core/provider"
-import { forgetJolliCatalog } from "@/jolli/credential"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
+import { JOLLI_AUTH_KEY } from "@/jolli/credential"
 
 export const controlHandlers = HttpApiBuilder.group(RootHttpApi, "control", (handlers) =>
   Effect.gen(function* () {
     const auth = yield* Auth.Service
+    const jolliSvc = yield* JolliSession.Service
 
     const authSet = Effect.fn("ControlHttpApi.authSet")(function* (ctx: {
       params: { providerID: ProviderV2.ID }
@@ -23,8 +25,12 @@ export const controlHandlers = HttpApiBuilder.group(RootHttpApi, "control", (han
       params: { providerID: ProviderV2.ID }
     }) {
       yield* auth.remove(ctx.params.providerID).pipe(Effect.orDie)
-      // The student's cached course catalogue belongs to the credential — see `forgetJolliCatalog`.
-      yield* forgetJolliCatalog(ctx.params.providerID)
+      /**
+       * ⚠ JOLLI'S CREDENTIAL IS NOT IN `auth.json`, SO THE LINE ABOVE REMOVES NOTHING FOR IT. It
+       * lives in the shared database; signing out there drops the row and the course catalogue
+       * snapshot that belongs to it, which is the same cleanup for the same reason.
+       */
+      if (ctx.params.providerID === JOLLI_AUTH_KEY) yield* jolliSvc.signOut()
       return true
     })
 

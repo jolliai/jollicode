@@ -3,6 +3,7 @@ import { describe, expect } from "bun:test"
 import { Context, Effect, Layer, Option } from "effect"
 import { HttpBody, HttpClient, HttpClientRequest, HttpRouter } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { Auth } from "../../src/auth"
 import { Config } from "../../src/config/config"
 import { Installation } from "../../src/installation"
@@ -30,6 +31,8 @@ const apiLayer = HttpRouter.serve(
 ).pipe(
   Layer.provideMerge(NodeHttpServer.layerTest),
   Layer.provide(Layer.mock(Auth.Service)({})),
+  // `jolliHandlers` rides along in this router; signed out is the answer every case here wants.
+  Layer.provide(Layer.mock(JolliSession.Service)({ request: () => Effect.succeed(undefined) })),
   Layer.provide(Layer.mock(Config.Service)({})),
   Layer.provide(Layer.mock(MoveSession.Service)({})),
   Layer.provide(

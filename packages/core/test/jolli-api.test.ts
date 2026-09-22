@@ -3,6 +3,9 @@ import { Effect, Layer } from "effect"
 import { HttpClient, HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 import { fetchCourses, fetchModelIndex, gatewayRequest, JolliApiError } from "../src/jolli/api"
 
+/** Something to send, and something to file the snapshot under. See `GatewayRequest.identity`. */
+const CREDENTIAL = { token: "jwt", identity: "student-a" }
+
 /**
  * ⚠ THE CLIENT IS A LAYER, NOT A PATCHED `fetch`. `api.ts` asks the context for an `HttpClient`, so
  * a stub goes in the same way the real one does — which is also what lets these assert the exact
@@ -37,7 +40,7 @@ const course = {
 
 describe("gatewayRequest", () => {
   test("keeps a subdomain tenant in the origin and names no slug", () => {
-    expect(gatewayRequest("https://acme.jolli.ai", "jwt")).toEqual({ origin: "https://acme.jolli.ai", token: "jwt" })
+    expect(gatewayRequest("https://acme.jolli.ai", CREDENTIAL)).toEqual({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" })
   })
 
   /**
@@ -46,19 +49,15 @@ describe("gatewayRequest", () => {
    * leave the URL here and travel as a header instead.
    */
   test("splits a path-addressed tenant into an origin and a slug", () => {
-    expect(gatewayRequest("https://jolli-local.me/dev", "jwt")).toEqual({
-      origin: "https://jolli-local.me",
-      tenantSlug: "dev",
-      token: "jwt",
-    })
+    expect(gatewayRequest("https://jolli-local.me/dev", CREDENTIAL)).toEqual({ origin: "https://jolli-local.me", tenantSlug: "dev", token: "jwt", identity: "student-a" })
   })
 
   // It re-checks rather than trusting whoever stored the URL: this request carries a credential.
   test("refuses a host outside the allowlist and anything that is not a URL", () => {
-    expect(gatewayRequest("https://evil.example", "jwt")).toBeUndefined()
-    expect(gatewayRequest("https://jolli.ai.evil.example", "jwt")).toBeUndefined()
-    expect(gatewayRequest("http://acme.jolli.ai", "jwt")).toBeUndefined()
-    expect(gatewayRequest("not a url", "jwt")).toBeUndefined()
+    expect(gatewayRequest("https://evil.example", CREDENTIAL)).toBeUndefined()
+    expect(gatewayRequest("https://jolli.ai.evil.example", CREDENTIAL)).toBeUndefined()
+    expect(gatewayRequest("http://acme.jolli.ai", CREDENTIAL)).toBeUndefined()
+    expect(gatewayRequest("not a url", CREDENTIAL)).toBeUndefined()
   })
 })
 
@@ -66,7 +65,7 @@ describe("fetchCourses", () => {
   test("authenticates as the student and asks the origin, not the tenant path", async () => {
     const http = stub(() => json([course]))
     const courses = await Effect.runPromise(
-      fetchCourses({ origin: "https://jolli-local.me", tenantSlug: "dev", token: "jwt" }).pipe(
+      fetchCourses({ origin: "https://jolli-local.me", tenantSlug: "dev", token: "jwt", identity: "student-a" }).pipe(
         Effect.provide(http.layer),
       ),
     )
@@ -79,7 +78,7 @@ describe("fetchCourses", () => {
   test("a subdomain tenant sends no slug header, because the host already says who it is", async () => {
     const http = stub(() => json([]))
     await Effect.runPromise(
-      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt" }).pipe(Effect.provide(http.layer)),
+      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(Effect.provide(http.layer)),
     )
     expect(http.seen[0]?.headers["x-tenant-slug"]).toBeUndefined()
   })
@@ -92,7 +91,7 @@ describe("fetchCourses", () => {
   test("carries the status onto the error rather than losing it", async () => {
     const http = stub(() => json({ message: "nope" }, 404))
     const error = await Effect.runPromise(
-      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt" }).pipe(Effect.provide(http.layer), Effect.flip),
+      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(Effect.provide(http.layer), Effect.flip),
     )
     expect(error).toBeInstanceOf(JolliApiError)
     expect(error.status).toBe(404)
@@ -105,7 +104,7 @@ describe("fetchCourses", () => {
   test("refuses a response it cannot decode", async () => {
     const http = stub(() => json([{ id: "seven" }]))
     const error = await Effect.runPromise(
-      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt" }).pipe(Effect.provide(http.layer), Effect.flip),
+      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(Effect.provide(http.layer), Effect.flip),
     )
     expect(error).toBeInstanceOf(JolliApiError)
   })
@@ -115,7 +114,7 @@ describe("fetchCourses", () => {
     let attempt = 0
     const http = stub(() => (++attempt < 3 ? json({ message: "restarting" }, 503) : json([course])))
     const courses = await Effect.runPromise(
-      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt" }).pipe(Effect.provide(http.layer)),
+      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(Effect.provide(http.layer)),
     )
     expect(courses.length).toBe(1)
     expect(http.seen.length).toBe(3)
@@ -163,7 +162,7 @@ describe("fetchModelIndex", () => {
       ]),
     )
     const index = await Effect.runPromise(
-      fetchModelIndex({ origin: "https://acme.jolli.ai", token: "jwt" }).pipe(Effect.provide(http.layer)),
+      fetchModelIndex({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(Effect.provide(http.layer)),
     )
     expect([...index.keys()].sort()).toEqual(["uuid-gpt", "uuid-opus"])
     expect(index.get("uuid-opus")?.name).toBe("claude-opus-4-8")
@@ -189,7 +188,7 @@ describe("fetchModelIndex", () => {
       ),
     )
     const error = await Effect.runPromise(
-      fetchModelIndex({ origin: "https://acme.jolli.ai", token: "jwt" }).pipe(Effect.provide(layer), Effect.flip),
+      fetchModelIndex({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(Effect.provide(layer), Effect.flip),
     )
     expect(error).toBeInstanceOf(JolliApiError)
     expect(error.status).toBeUndefined()

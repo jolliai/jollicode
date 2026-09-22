@@ -41,6 +41,24 @@ export interface GatewayRequest {
   readonly origin: string
   readonly tenantSlug?: string
   readonly token: string
+  /**
+   * WHO THIS REQUEST IS FOR, AS SOMETHING THAT OUTLIVES THE TOKEN.
+   *
+   * ⚠ IT EXISTS BECAUSE THE ACCESS TOKEN ROTATES AND THE CACHE FILENAME MUST NOT. `cache.ts` keys a
+   * student's snapshot on this so two people on one machine never read each other's; keying it on
+   * the token itself orphaned the file on every refresh and dropped the student into a cold
+   * three-request reload on the startup path. Minted once per sign-in and stored on the credential
+   * row — never re-minted by a refresh.
+   *
+   * ⚠ IT IS NOT A SECRET AND MUST NOT BE USED AS ONE. Only `token` authenticates anything.
+   */
+  readonly identity: string
+}
+
+/** What a caller must hold to address the gateway: something to send, and something to file it under. */
+export interface GatewayCredential {
+  readonly token: string
+  readonly identity: string
 }
 
 /**
@@ -51,11 +69,16 @@ export interface GatewayRequest {
  * can be holding a value that was allowlisted when it was read and is not any more, and this
  * request carries the student's credential — same reason `exchange.ts` re-checks.
  */
-export function gatewayRequest(baseUrl: string, token: string): GatewayRequest | undefined {
+export function gatewayRequest(baseUrl: string, credential: GatewayCredential): GatewayRequest | undefined {
   if (!URL.canParse(baseUrl)) return undefined
   if (!isJolliOriginAllowed(baseUrl)) return undefined
   const tenant = parseJolliUrl(baseUrl)
-  return { origin: tenant.origin, ...(tenant.tenantSlug ? { tenantSlug: tenant.tenantSlug } : {}), token }
+  return {
+    origin: tenant.origin,
+    ...(tenant.tenantSlug ? { tenantSlug: tenant.tenantSlug } : {}),
+    token: credential.token,
+    identity: credential.identity,
+  }
 }
 
 // ── The wire shapes ─────────────────────────────────────────────────────────────────────────────

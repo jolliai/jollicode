@@ -1530,7 +1530,11 @@ export function Prompt(props: PromptProps) {
                       </Show>
                       <Show when={store.mode === "normal"}>
                         <box flexDirection="row" gap={1}>
-                          <text fg={fadeColor(theme.textMuted, modelMetaAlpha())}>·</text>
+                          {/* Signed out there is no model and no course, so this would separate
+                              nothing from nothing — see `local.tsx`'s signed-out branch. */}
+                          <Show when={local.model.parsed().model || currentProviderLabel()}>
+                            <text fg={fadeColor(theme.textMuted, modelMetaAlpha())}>·</text>
+                          </Show>
                           <text
                             flexShrink={0}
                             fg={fadeColor(leader() ? theme.textMuted : theme.text, modelMetaAlpha())}

@@ -18,7 +18,7 @@ import { isRecord } from "@/util/record"
 import type { ConsoleState } from "@opencode-ai/core/v1/config/console-state"
 import { FSUtil } from "@opencode-ai/core/fs-util"
 import { InstanceState } from "@/effect/instance-state"
-import { Context, Duration, Effect, Exit, Fiber, Layer, Option, Schema } from "effect"
+import { Clock, Context, Duration, Effect, Exit, Fiber, Layer, Option, Schema } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http"
 import { EffectFlock } from "@opencode-ai/core/util/effect-flock"
 import { containsPath, type InstanceContext } from "../project/instance-context"
@@ -36,11 +36,10 @@ import { ConfigVariable } from "./variable"
 import { ConfigV2Compat } from "./v2-compat"
 import { Npm } from "@opencode-ai/core/npm"
 import { Brand } from "@opencode-ai/core/brand"
-import { jolliBaseConfig } from "@opencode-ai/core/jolli/gateway-config"
-import { gatewayRequest } from "@opencode-ai/core/jolli/api"
+import { JOLLI_PROVIDER_IDS, jolliBaseConfig } from "@opencode-ai/core/jolli/gateway-config"
 import { loadCatalog, STARTUP_DEADLINE } from "@opencode-ai/core/jolli/cache"
 import { toProviderModels } from "@opencode-ai/core/jolli/catalog"
-import { jolliCredential } from "@/jolli/credential"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { withTransientReadRetry } from "@/util/effect-http-client"
 
 // Custom merge function that concatenates array fields instead of replacing them
@@ -68,34 +67,58 @@ function mergeConfigConcatArrays(target: Info, source: Info): Info {
  * provider whose every model failed the course grant — an empty picker with no error to explain it.
  * An empty `models` block is the same emptiness, honestly arrived at.
  */
-const jolliLockdownConfig = Effect.fnUntraced(function* (credential: Auth.Info | undefined) {
-  const jolli = jolliCredential(credential)
-  if (!jolli) return jolliBaseConfig({ signedIn: false, models: {} })
-  const request = jolli.baseUrl ? gatewayRequest(jolli.baseUrl, jolli.token) : undefined
+const jolliLockdownConfig = Effect.fnUntraced(function* (session: JolliSession.Interface) {
+  // When the budget below starts running. Both network waits here are spent against the one deadline.
+  const started = yield* Clock.currentTimeMillis
+  /**
+   * ⚠ RESOLVED BEFORE THE ROW IS READ, AND THAT ORDER IS DELIBERATE. `request()` renews a token
+   * that is near expiry and removes the credential when the backend has retired it, so reading the
+   * row first would let a just-revoked sign-in declare a provider block for one more config load.
+   *
+   * ⚠ IT CANNOT BE ALLOWED TO FAIL EITHER. Signed out, unreachable and rate-limited all arrive here
+   * as typed failures; none of them is worth refusing to produce a config.
+   *
+   * ⚠ AND IT IS BOUNDED, WHICH IT WAS NOT — WHICH MADE THE COMMENT BELOW FALSE. A renewal waits up
+   * to 15 seconds for the cross-process lock and 20 more on the wire (`jolli/session.ts`,
+   * `jolli/exchange.ts`), none of it covered by the catalogue's own deadline, so a student whose
+   * token aged out overnight paid all of that before the bounded wait had even started.
+   */
+  const request = yield* session.request().pipe(
+    Effect.timeout(STARTUP_DEADLINE),
+    Effect.catchCause(() => Effect.succeed(undefined)),
+  )
+  const row = yield* session.current()
+  if (!row) return jolliBaseConfig({ signedIn: false, models: {} })
   /**
    * ⚠ CONFIG LOADING MUST NOT BE ABLE TO FAIL ON THIS, NOR HOLD A LAUNCH OPEN OVER IT. A defect
    * escaping here stops the server starting, and the thing it would die for is a list of models —
    * so the cause is swallowed and the wait is bounded by `STARTUP_DEADLINE` rather than by the
-   * cache's 45-second backstop. The desktop warms this cache before it forks the sidecar; the bare
-   * CLI does not, so a cold cache behind an unreachable gateway is this path's normal worst case.
+   * cache's 45-second backstop. The desktop warms this cache by asking the server for the course
+   * list before it disposes the instance; the bare CLI does not, so a cold cache behind an
+   * unreachable gateway is this path's normal worst case.
+   *
+   * ⚠ WHAT IS LEFT OF THE DEADLINE, NOT A SECOND HELPING OF IT. The two waits are sequential on one
+   * startup path, so giving each the full budget would bound this function at forty seconds while
+   * claiming twenty. A refresh that ate the lot leaves nothing here, which `loadCatalog` answers
+   * from the stale snapshot or reports as unreachable — the posture it already documents for
+   * running out of time.
    */
+  const remaining = Duration.millis(
+    Math.max(0, Duration.toMillis(STARTUP_DEADLINE) - ((yield* Clock.currentTimeMillis) - started)),
+  )
   const loaded = request
-    ? yield* loadCatalog(request, { timeout: STARTUP_DEADLINE }).pipe(
-        Effect.catchCause(() => Effect.succeed(undefined)),
-      )
+    ? yield* loadCatalog(request, { timeout: remaining }).pipe(Effect.catchCause(() => Effect.succeed(undefined)))
     : undefined
   return jolliBaseConfig({
     signedIn: true,
     models: loaded?.kind === "ok" ? toProviderModels(new Map(loaded.snapshot.models.map((m) => [m.id, m]))) : {},
-    ...(jolli.baseUrl ? { baseUrl: jolli.baseUrl } : {}),
     /**
-     * ⚠ EMBEDDED HERE FOR THE SAME REASON THE DESKTOP DOES: PER-PROTOCOL PROVIDER IDS.
-     * The auth-store `jolli` entry only fills the legacy single-provider id, but this config
-     * declares three (`jolli-anthropic`, `jolli-openai`, `jolli-google`), and each one needs
-     * its own apiKey. Embedding the token here keeps all three provider blocks in sync with
-     * one sign-in and lets `plugin/jolli.ts` stay a single-provider auth surface.
+     * ⚠ THE PIN OUTRANKS THE TENANT, AND `gatewayOptions` IS WHERE THAT IS DECIDED. Both are passed
+     * so neither has to be resolved twice; a build that pinned no gateway reaches the same place it
+     * always did. See `Flag.JOLLICODE_GATEWAY_URL` for why the bare CLI never sees one.
      */
-    authToken: jolli.token,
+    ...(Flag.JOLLICODE_GATEWAY_URL ? { gatewayUrl: Flag.JOLLICODE_GATEWAY_URL } : {}),
+    ...(row.base_url ? { baseUrl: row.base_url } : {}),
   }) satisfies Info
 })
 
@@ -226,6 +249,7 @@ const layer = Layer.effect(
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
     const authSvc = yield* Auth.Service
+    const jolliSvc = yield* JolliSession.Service
     const accountSvc = yield* Account.Service
     const env = yield* Env.Service
     const npmSvc = yield* Npm.Service
@@ -386,7 +410,7 @@ const layer = Layer.effect(
          * The provider block only appears once a Jolli credential exists — `jolliBaseConfig`
          * explains why declaring it while signed out breaks first-run sign-in.
          */
-        let result: Info = Flag.JOLLICODE_LOCKDOWN ? yield* jolliLockdownConfig(auth[Brand.short]) : {}
+        let result: Info = Flag.JOLLICODE_LOCKDOWN ? yield* jolliLockdownConfig(jolliSvc) : {}
         const authEnv: Record<string, string> = {}
         const consoleManagedProviders = new Set<string>()
         let activeOrgName: string | undefined
@@ -658,6 +682,71 @@ const layer = Layer.effect(
           result.compaction = { ...result.compaction, prune: false }
         }
 
+        /**
+         * THE CEILING, APPLIED AFTER EVERY LAYER HAS MERGED — WHICH IS THE ONLY PLACE IT CAN BE.
+         *
+         * ⚠ LAYERING CANNOT DO THIS JOB, AND THAT IS NOT AN OPINION. `mergeConfigConcatArrays` is
+         * remeda's `mergeDeep`: a key one layer sets survives every layer above it, because no
+         * layer can express "remove this". So the two holes below are unreachable from any config
+         * layer and have to be closed here, once, at the end.
+         *
+         * ⚠ GATED ON THE STRICT FLAG, NOT ON `JOLLICODE_LOCKDOWN`. The bare CLI keeps a floor a
+         * coursework repo may step over — pinned by `test/config/jolli-lockdown.test.ts`. Only the
+         * desktop sidecar sets this one, and only that surface is genuinely locked.
+         */
+        if (Flag.JOLLICODE_LOCKDOWN_STRICT) {
+          const providers = result.provider
+          if (providers) {
+            const credential = yield* jolliSvc.current()
+            /**
+             * ⚠ THE BARE `jolli` ID IS THE AUTH SURFACE, NOT A PROVIDER ANYTHING RUNS AGAINST, so a
+             * block under it can only have come from a config layer. `enabled_providers` names the
+             * three protocol ids alone, and `jolliBaseConfig` never emits this key — leaving it in
+             * place hands a coursework repo a provider whose `npm`, `baseURL` and models nothing
+             * below pins.
+             */
+            delete providers[Brand.short]
+            /**
+             * ⚠ THE TENANT'S OWN ENDPOINT WINS, AND THE CREDENTIAL NEVER COMES FROM CONFIG. A repo
+             * that sets `options.apiKey` would otherwise run this locked surface as whichever
+             * account it named; one that sets `baseURL` would send the student's token to an
+             * address of its choosing. The provider's own `fetch` re-checks the origin too — this
+             * is the config half of the same rule.
+             *
+             * ⚠ SIGNED OUT MEANS NO PROVIDER BLOCK AT ALL, WHOEVER DECLARED IT. `connected` counts
+             * every provider that resolved, so a coursework repo declaring one with models would
+             * make the app believe the student is already signed in — and the first-run sign-in
+             * would never trigger. `gateway-config.ts` spells out that failure.
+             *
+             * ⚠ THE BUILD'S PIN IS PART OF WHAT IS BEING PINNED BACK, AND OMITTING IT SILENTLY
+             * DISARMED IT. What is rebuilt here is written over whatever merged, so a field left
+             * out is not "unchanged" — it is REPLACED by the default. `JOLLICODE_CONFIG_CONTENT`
+             * carries a build-pinned gateway down from the desktop; rebuilt without it, every model
+             * call left a demo or fixture build for the tenant's address or `Brand.gatewayUrl`,
+             * with the student's credential on it. The desktop is also the only surface that sets
+             * the strict flag, so the two were always on together and the pin never survived.
+             */
+            const pinned = credential
+              ? jolliBaseConfig({
+                  signedIn: true,
+                  ...(Flag.JOLLICODE_GATEWAY_URL ? { gatewayUrl: Flag.JOLLICODE_GATEWAY_URL } : {}),
+                  ...(credential.base_url ? { baseUrl: credential.base_url } : {}),
+                }).provider
+              : undefined
+            for (const id of JOLLI_PROVIDER_IDS) {
+              const block = providers[id]
+              if (!block) continue
+              if (!pinned) {
+                delete providers[id]
+                continue
+              }
+              block.options = { ...block.options, ...pinned[id]?.options }
+              delete block.options["apiKey"]
+              if (pinned[id]?.npm) block.npm = pinned[id].npm
+            }
+          }
+        }
+
         return {
           config: result,
           directories,
@@ -756,7 +845,7 @@ const layer = Layer.effect(
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [FSUtil.node, Auth.node, Account.node, Env.node, Npm.node, httpClient],
+  deps: [FSUtil.node, Auth.node, Account.node, Env.node, Npm.node, JolliSession.node, httpClient],
 })
 
 export * as Config from "./config"

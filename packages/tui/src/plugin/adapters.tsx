@@ -106,6 +106,9 @@ function stateApi(sync: ReturnType<typeof useSync>): TuiPluginApi["state"] {
     get provider() {
       return sync.data.provider
     },
+    get connected() {
+      return sync.data.provider_next.connected
+    },
     get path() {
       return sync.path
     },

@@ -220,6 +220,30 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
         })
         return tab
       },
+      // The session behind a tab can disappear (deleted from another client, server
+      // rebuilt). Swapping the stale tab for a fresh draft in place keeps its slot and
+      // lands the user on a new chat instead of a dead end; a session with no tab of its
+      // own (a deep link) just gets the draft appended.
+      replaceSessionTabWithDraft(session: Omit<SessionTab, "type">, directory: string) {
+        const stale = tabKey({ type: "session", ...session })
+        updateClosed((stack) => removeClosedTabs(stack, session.server, [session.sessionId]))
+        const draftID = uuid()
+        const tab = { type: "draft" as const, draftID, server: session.server, directory }
+        memory.ensure(tabKey(tab), "prompt", () => createDraftPromptSession(draftID))
+        void startTransition(() => {
+          setStore(
+            produce((tabs) => {
+              const index = tabs.findIndex((item) => tabKey(item) === stale)
+              if (index === -1) tabs.push(tab)
+              else tabs[index] = tab
+            }),
+          )
+          navigateTab(tab)
+        })
+        memory.remove(stale)
+        removeInfo(stale)
+        return tab
+      },
       updateDraft(draftID: string, draft: Partial<Omit<DraftTab, "type" | "draftID">>) {
         void startTransition(() => {
           setStore(

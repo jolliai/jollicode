@@ -1,13 +1,17 @@
 import { NodeHttpServer } from "@effect/platform-node"
 import { afterAll, describe, expect } from "bun:test"
-import { mkdir, rm, writeFile } from "node:fs/promises"
+import { mkdir, readFile, rm, utimes, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { Global } from "@opencode-ai/core/global"
+import { catalogCachePath } from "@opencode-ai/core/jolli/cache"
 import { base64Encode } from "@opencode-ai/core/util/encode"
 import { Hash } from "@opencode-ai/core/util/hash"
 import { Context, Effect, Layer, Option } from "effect"
-import { HttpClient, HttpClientRequest, HttpRouter } from "effect/unstable/http"
+import { FetchHttpClient, HttpClient, HttpClientRequest, HttpRouter } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { gatewayRequest } from "@opencode-ai/core/jolli/api"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
+import { JolliStore } from "@opencode-ai/core/jolli/store"
 import { Auth } from "../../src/auth"
 import { Config } from "../../src/config/config"
 import { Installation } from "../../src/installation"
@@ -23,12 +27,47 @@ import { authorizationLayer } from "../../src/server/routes/instance/httpapi/mid
 import { schemaErrorLayer } from "../../src/server/routes/instance/httpapi/middleware/schema-error"
 import { testEffect } from "../lib/effect"
 
+/** What files a catalogue snapshot. Stable across token rotation — see `GatewayRequest.identity`. */
+const IDENTITY = "student-a"
+
 /**
- * ⚠ THE AUTH SERVICE IS MOCKED EMPTY ON PURPOSE. Every case below is one the renderer actually
- * meets before a student has signed in — the session screen asks for this catalogue whether or not
- * there is a credential — and all of them must answer rather than fail.
+ * ⚠ THE SESSION SERVICE IS MOCKED DOWN TO `request()`, WHICH IS ALL THIS HANDLER USES. Every case
+ * below is one the renderer actually meets before a student has signed in — the session screen asks
+ * for this catalogue whether or not there is a credential — and all of them must answer rather than
+ * fail.
+ *
+ * ⚠ THE MOCK BUILDS ITS REQUEST WITH THE REAL `gatewayRequest`, so the allowlist refusal below is
+ * still the product's refusal rather than the test's.
  */
-function apiLayer(auth: Partial<Context.Service.Shape<typeof Auth.Service>> = {}) {
+function apiLayer(
+  credential?: { baseUrl?: string; token?: string },
+  refused?: (token: string) => void,
+  gateway: typeof globalThis.fetch = globalThis.fetch,
+) {
+  const request =
+    credential?.baseUrl && credential.token
+      ? gatewayRequest(credential.baseUrl, { token: credential.token, identity: IDENTITY })
+      : undefined
+  /**
+   * ⚠ `current()` IS MOCKED SEPARATELY FROM `request()` BECAUSE THE HANDLER READS THEM SEPARATELY,
+   * and that separation is the behaviour under test: the viewer comes off the stored token without
+   * touching the network, so a credential with no `baseUrl` still names the student while
+   * `request()` answers nothing.
+   */
+  const row = credential?.token
+    ? ({
+        id: "test",
+        subject: null,
+        email: null,
+        base_url: credential.baseUrl ?? null,
+        access_token: credential.token,
+        refresh_token: null,
+        token_expiry: null,
+        cache_key: IDENTITY,
+        time_created: 0,
+        time_updated: 0,
+      } satisfies JolliStore.Row)
+    : undefined
   return HttpRouter.serve(
     HttpApiBuilder.layer(RootHttpApi).pipe(
       Layer.provide([controlHandlers, controlPlaneHandlers, globalHandlers, jolliHandlers]),
@@ -39,15 +78,35 @@ function apiLayer(auth: Partial<Context.Service.Shape<typeof Auth.Service>> = {}
     { disableListenLog: true, disableLogger: true },
   ).pipe(
     Layer.provideMerge(NodeHttpServer.layerTest),
-    Layer.provide(Layer.mock(Auth.Service)(auth)),
+    Layer.provide(
+      Layer.mock(JolliSession.Service)({
+        current: () => Effect.succeed(row),
+        request: () => Effect.succeed(request),
+        /**
+         * ⚠ DECLARED EVEN WHERE NO CASE CALLS IT, because the handler reaches for it on a refused
+         * catalogue and `Layer.mock` throws for anything it was not given — a 401 would surface as
+         * a crashed route rather than as the "unreachable" every other failure answers with.
+         */
+        refused: (token: string) => Effect.sync(() => refused?.(token)).pipe(Effect.as(token)),
+      }),
+    ),
+    // `controlHandlers` shares this router and still owns every other provider's credentials.
+    Layer.provide(Layer.mock(Auth.Service)({})),
     Layer.provide(Layer.mock(Config.Service)({})),
     Layer.provide(Layer.mock(MoveSession.Service)({})),
     Layer.provide(Layer.mock(Installation.Service)({})),
     Layer.provide(ServerAuth.Config.configLayer({ password: Option.none(), username: "opencode" })),
+    /**
+     * ⚠ THE `Fetch` REFERENCE, NOT `globalThis.fetch`. `loadCatalog` provides `FetchHttpClient`
+     * itself, and that client reads this reference off the fiber — so a global stub is simply not
+     * consulted and the case below makes a real DNS lookup instead. Overriding the reference is
+     * also the only way to stub this without touching `globalThis`.
+     */
+    Layer.provide(Layer.succeed(FetchHttpClient.Fetch, gateway)),
   )
 }
 
-const signedOut = testEffect(apiLayer({ get: () => Effect.succeed(undefined) }))
+const signedOut = testEffect(apiLayer())
 
 /**
  * ⚠ THE WHOLE-BODY ASSERTIONS IN THIS FILE NOW DEPEND ON `"jwt"` NOT BEING A JWT. The route answers
@@ -71,8 +130,7 @@ function fakeToken(payload: Record<string, unknown>) {
   return `${base64Encode(JSON.stringify({ alg: "RS256" }))}.${base64Encode(JSON.stringify(payload))}.signature`
 }
 
-const withIdentity = (payload: Record<string, unknown>) =>
-  testEffect(apiLayer({ get: () => Effect.succeed({ type: "api", key: fakeToken(payload) } as never) }))
+const withIdentity = (payload: Record<string, unknown>) => testEffect(apiLayer({ token: fakeToken(payload) }))
 
 /**
  * WHO IS SIGNED IN SURVIVES AN UNREACHABLE GATEWAY.
@@ -126,7 +184,7 @@ describe("jolli HttpApi — the viewer", () => {
  * older backend reports no `baseUrl`, and there is no origin to guess — Brand.gatewayUrl is a
  * gateway root, which mounts the model routes but is not known to serve a course list.
  */
-const noTenant = testEffect(apiLayer({ get: () => Effect.succeed({ type: "api", key: "jwt" } as never) }))
+const noTenant = testEffect(apiLayer({ token: "jwt" }))
 
 describe("jolli HttpApi — credential without a tenant", () => {
   noTenant.live("answers unreachable rather than guessing an origin", () =>
@@ -143,11 +201,7 @@ describe("jolli HttpApi — credential without a tenant", () => {
  * not trusted just because it was stored — this request carries the student's JWT — and the screen
  * asking has an empty state that already reads correctly.
  */
-const strangeTenant = testEffect(
-  apiLayer({
-    get: () => Effect.succeed({ type: "api", key: "jwt", metadata: { baseUrl: "https://evil.example" } } as never),
-  }),
-)
+const strangeTenant = testEffect(apiLayer({ token: "jwt", baseUrl: "https://evil.example" }))
 
 describe("jolli HttpApi — a tenant outside the allowlist", () => {
   strangeTenant.live("answers unreachable rather than sending the credential there", () =>
@@ -166,7 +220,12 @@ describe("jolli HttpApi — a tenant outside the allowlist", () => {
  */
 const TENANT = "https://httpapi-jolli.jolli.ai"
 const TOKEN = "jwt"
-const cacheFile = join(Global.Path.cache, `jolli-catalog-${Hash.fast(`${TENANT}||${TOKEN}`)}.json`)
+/**
+ * ⚠ THE REAL FUNCTION RATHER THAN A MIRROR OF IT. A test that recomputed the key would keep passing
+ * while agreeing with nothing — it would seed the path IT chose, not the one the product reads. It
+ * did recompute it, and the day the key stopped being the token was the day that would have shown.
+ */
+const cacheFile = catalogCachePath({ origin: TENANT, token: TOKEN, identity: IDENTITY })
 
 await mkdir(Global.Path.cache, { recursive: true })
 await writeFile(
@@ -216,9 +275,7 @@ await writeFile(
 )
 afterAll(() => rm(cacheFile, { force: true }))
 
-const enrolled = testEffect(
-  apiLayer({ get: () => Effect.succeed({ type: "api", key: TOKEN, metadata: { baseUrl: TENANT } } as never) }),
-)
+const enrolled = testEffect(apiLayer({ token: TOKEN, baseUrl: TENANT }))
 
 describe("jolli HttpApi — a signed-in student", () => {
   /**
@@ -248,6 +305,95 @@ describe("jolli HttpApi — a signed-in student", () => {
       expect(body.assistants[0]).toMatchObject({ id: "12", courseId: "7", isDefault: true })
       expect(body.assistants[0]?.allowedModelIds).toEqual(["jolli-anthropic/uuid-opus"])
       expect(body.modelTiers).toEqual({ "jolli-anthropic/uuid-opus": "premium" })
+    }),
+  )
+})
+
+/**
+ * A CREDENTIAL THE GATEWAY REFUSES, WHICH IS NOT THE SAME THING AS AN OUTAGE.
+ *
+ * ⚠ THE STUDENT WHO NEVER SENDS A MESSAGE IS THE WHOLE REASON THIS PATH EXISTS. The model call
+ * reaches the refresh path on its own 401; somebody who only opens the app would otherwise sit in
+ * front of an empty course list until their token expired — up to three days of being told nothing
+ * is reachable when the real answer is that their sign-in ended.
+ *
+ * ⚠ A TENANT OF ITS OWN, NOT JUST A TOKEN OF ITS OWN. `catalogCachePath` keys on the origin and the
+ * stable `identity`, deliberately NOT on the access token — a rotating token must not orphan the
+ * snapshot. So a second credential at the same tenant reads the seeded file above and answers `ok`
+ * without ever reaching the gateway, which is exactly what this case needs not to happen.
+ */
+const REFUSED_TENANT = "https://httpapi-jolli-refused.jolli.ai"
+const REFUSED_TOKEN = "refused-jwt"
+const refusals: string[] = []
+/**
+ * A GATEWAY THAT REFUSES ONE TENANT AND NOTHING ELSE.
+ *
+ * ⚠ ONLY THE TENANT IS ANSWERED HERE. The test client reaches its own server through this same
+ * reference, so a stub that refused everything would 401 the request under test before it ever
+ * reached the route.
+ */
+// Asserted because `typeof fetch` carries `preconnect`, which a stub has no business having.
+const refusing = (tenant: string) =>
+  (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    const url = input instanceof Request ? input.url : input.toString()
+    if (url.startsWith(tenant)) return new Response("", { status: 401 })
+    return globalThis.fetch(input, init)
+  }) as typeof fetch
+
+const refusedByGateway = testEffect(
+  apiLayer(
+    { token: REFUSED_TOKEN, baseUrl: REFUSED_TENANT },
+    (token) => refusals.push(token),
+    refusing(REFUSED_TENANT),
+  ),
+)
+
+describe("jolli HttpApi — a credential the gateway refuses", () => {
+  refusedByGateway.live("renews rather than reporting an outage it is not", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(JolliPaths.course).pipe(HttpClient.execute)
+
+      expect(response.status).toBe(200)
+      // This request is already lost either way; what renewing decides is what the NEXT one sees —
+      // a working token, or a deleted credential and a screen that says to sign in.
+      expect(yield* response.json).toMatchObject({ status: "unreachable" })
+      expect(refusals).toEqual([REFUSED_TOKEN])
+    }),
+  )
+})
+
+/**
+ * THE SAME REFUSAL, FOR THE STUDENT WHO HAS ACTUALLY BEEN USING THE PRODUCT.
+ *
+ * ⚠ A SNAPSHOT ON DISK TURNS THE REFUSAL INTO AN `ok`, AND THAT IS WHY THIS CASE EXISTS SEPARATELY.
+ * `cache.ts` serves what it has when a refresh fails — right for an outage, and right here too —
+ * but the renewal above only ran on the failure branch, so it ran for the student with an empty
+ * cache and never for the one with a stale one. Whose screen, meanwhile, looked entirely normal:
+ * yesterday's courses, listed as `ok`, behind a credential the backend had already retired.
+ */
+const STALE_TENANT = "https://httpapi-jolli-stale.jolli.ai"
+const STALE_TOKEN = "stale-jwt"
+const staleRefusals: string[] = []
+const staleFile = catalogCachePath({ origin: STALE_TENANT, token: STALE_TOKEN, identity: IDENTITY })
+
+await writeFile(staleFile, await readFile(cacheFile, "utf8"))
+// Older than the five-minute TTL, so the refresh that meets the 401 actually happens.
+await utimes(staleFile, new Date(Date.now() - 60 * 60_000), new Date(Date.now() - 60 * 60_000))
+afterAll(() => rm(staleFile, { force: true }))
+
+const refusedWithSnapshot = testEffect(
+  apiLayer({ token: STALE_TOKEN, baseUrl: STALE_TENANT }, (token) => staleRefusals.push(token), refusing(STALE_TENANT)),
+)
+
+describe("jolli HttpApi — a refused credential with a catalogue still on disk", () => {
+  refusedWithSnapshot.live("serves the stale answer AND still renews", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(JolliPaths.course).pipe(HttpClient.execute)
+
+      expect(response.status).toBe(200)
+      // Serving what we have is not in question — a student on a train needs it. Doing it silently is.
+      expect(yield* response.json).toMatchObject({ status: "ok" })
+      expect(staleRefusals).toEqual([STALE_TOKEN])
     }),
   )
 })

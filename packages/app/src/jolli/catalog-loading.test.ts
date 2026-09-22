@@ -7,6 +7,7 @@ import {
   enrolledCourses,
   ready,
   resetCatalog,
+  viewer,
 } from "./catalog"
 import { modelTier } from "./model-tier"
 import type { Catalog } from "./types"
@@ -52,9 +53,9 @@ beforeEach(() => resetCatalog())
 
 describe("ensureCatalog", () => {
   /**
-   * ⚠ `CourseSessionProvider` MOUNTS TWICE — once on the new-session route and once inside the
-   * directory layout — so this is not a micro-optimisation: a bare fetch runs twice on every
-   * launch, and the second one races the first into the store.
+   * ⚠ THREE THINGS ASK ON EVERY LAUNCH — `CourseSessionProvider` on the new-session route and
+   * inside the directory layout, and `ServerScopedProviders` from above both — so this is not a
+   * micro-optimisation: bare fetches would race each other into the store.
    */
   test("asks once however many screens ask, and shares the one answer", async () => {
     let calls = 0
@@ -91,6 +92,66 @@ describe("ensureCatalog", () => {
 
     await ensureCatalog("server-a", () => Promise.resolve(catalog))
     expect(enrolledCourses().length).toBe(1)
+  })
+
+  /**
+   * ⚠ `unreachable` ARRIVES AS A 200 WITH AN EMPTY CATALOGUE — no credential, no tenant, a gateway
+   * that did not reply. Cached as an answer it would leave `inFlight` resolved and hand the student
+   * an empty course picker for the life of the process, with no screen able to ask again.
+   */
+  test("an unreachable answer is not cached and the next asker retries", async () => {
+    let calls = 0
+    const unreachable = () => {
+      calls++
+      return Promise.resolve({ status: "unreachable", courses: [], assistants: [], modelTiers: {} } satisfies Catalog)
+    }
+    await ensureCatalog("server-a", unreachable)
+    expect(enrolledCourses()).toEqual([])
+
+    await ensureCatalog("server-a", unreachable)
+    expect(calls).toBe(2)
+
+    await ensureCatalog("server-a", () => Promise.resolve(catalog))
+    expect(ready()).toBe(true)
+    expect(enrolledCourses().map((c) => c.code)).toEqual(["CS 310"])
+  })
+
+  /**
+   * ⚠ THE IDENTITY ON AN UNREACHABLE ANSWER IS NOT PART OF THE FAILURE. The server resolves the
+   * viewer from the stored token before it asks whether the gateway is reachable, precisely so a
+   * name on screen does not depend on the network — and the client used to throw that away with
+   * the empty course list it came beside, blanking the student's own name on every offline launch.
+   */
+  test("keeps the identity an unreachable answer carries, and none of its courses", async () => {
+    await ensureCatalog("server-a", () => Promise.resolve(catalog))
+
+    await ensureCatalog(`server-a#1`, () =>
+      Promise.resolve({
+        status: "unreachable",
+        courses: [],
+        assistants: [],
+        modelTiers: {},
+        viewer: { name: "Ada Lovelace" },
+      } satisfies Catalog),
+    )
+
+    expect(viewer()?.name).toBe("Ada Lovelace")
+    // The courses are what we could not ask about; the ones already on screen stay there.
+    expect(enrolledCourses().map((c) => c.code)).toEqual(["CS 310"])
+  })
+
+  /**
+   * ⚠ "SIGNED OUT" AND "NOT ASKED YET" ARE BOTH AN ABSENT VIEWER, AND ONLY `ready` TELLS THEM
+   * APART — so a reply that never flipped it left the account row saying "Account" forever rather
+   * than "Not signed in". A reply is a reply even when the gateway was never reached.
+   */
+  test("counts an unreachable answer as the server having replied", async () => {
+    await ensureCatalog("server-a", () =>
+      Promise.resolve({ status: "unreachable", courses: [], assistants: [], modelTiers: {} } satisfies Catalog),
+    )
+
+    expect(ready()).toBe(true)
+    expect(viewer()).toBeUndefined()
   })
 
   test("a different server is a different question", async () => {

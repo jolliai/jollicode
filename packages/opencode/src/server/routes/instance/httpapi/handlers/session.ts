@@ -122,8 +122,14 @@ export const refuseRebindingAfterFirstMessage = Effect.fn("SessionHttpApi.refuse
    *
    * ⚠ AND A READ FAILURE REFUSES RATHER THAN PERMITS. This is a lock; "I could not tell" must not
    * mean "go ahead".
+   *
+   * ⚠ WHICH IS WHY IT IS `catchCause` AND NOT `catch`. The only caller reads the database through
+   * `MessageV2.exists`, which is `Effect.orDie` — so a database that will not answer arrives as a
+   * DEFECT, and `Effect.catch` handles typed failures only. It went straight past the handler and
+   * killed the request: still fail-closed, by luck rather than by the rule stated above, and a 500
+   * where this is meant to answer 400. Catching the cause is what makes the sentence true.
    */
-  if (!(yield* started().pipe(Effect.catch(() => Effect.succeed(true))))) return
+  if (!(yield* started().pipe(Effect.catchCause(() => Effect.succeed(true))))) return
   /**
    * ⚠ THE REASON GOES IN THE LOG, NOT THE BODY. `HttpApiError.BadRequest` carries no message field,
    * and the only caller that can trip this is a client rewriting a binding it was never offered a

@@ -141,7 +141,7 @@ async function wait(fn: () => boolean, timeout = 2000) {
 test("asks before it removes anything", async () => {
   const picker = await mount({ connected: true })
   try {
-    await waitForText(picker.app, `Sign out of ${Brand.name}`)
+    await waitForText(picker.app, `Sign out of ${Brand.platform}`)
     expect(picker.removed).toEqual([])
 
     picker.app.mockInput.pressEnter()
@@ -162,7 +162,7 @@ test("says nothing to do when no credential is held", async () => {
   try {
     await Bun.sleep(150)
     await picker.app.renderOnce()
-    expect(picker.app.captureCharFrame()).not.toContain(`Sign out of ${Brand.name}`)
+    expect(picker.app.captureCharFrame()).not.toContain(`Sign out of ${Brand.platform}`)
     expect(picker.removed).toEqual([])
   } finally {
     picker.app.renderer.destroy()
