@@ -1377,6 +1377,129 @@ describe("session.llm.stream", () => {
   )
 
   it.instance(
+    "carries Jollicode session identity to the Jolli gateway request",
+    () =>
+      Effect.gen(function* () {
+        const model = loadFixture("openai", "gpt-5.2").model
+        const request = waitRequest(
+          "/responses",
+          createEventResponse(
+            [
+              {
+                type: "response.created",
+                response: {
+                  id: "resp-jolli-session",
+                  created_at: Math.floor(Date.now() / 1000),
+                  model: model.id,
+                  service_tier: null,
+                },
+              },
+              {
+                type: "response.output_item.added",
+                output_index: 0,
+                item: {
+                  type: "message",
+                  id: "item-jolli-session",
+                  status: "in_progress",
+                  role: "assistant",
+                  content: [],
+                },
+              },
+              {
+                type: "response.content_part.added",
+                item_id: "item-jolli-session",
+                output_index: 0,
+                content_index: 0,
+                part: { type: "output_text", text: "", annotations: [] },
+              },
+              {
+                type: "response.output_text.delta",
+                item_id: "item-jolli-session",
+                delta: "Hello",
+                logprobs: null,
+              },
+              {
+                type: "response.completed",
+                response: {
+                  incomplete_details: null,
+                  usage: {
+                    input_tokens: 1,
+                    input_tokens_details: null,
+                    output_tokens: 1,
+                    output_tokens_details: null,
+                  },
+                  service_tier: null,
+                },
+              },
+            ],
+            true,
+          ),
+        )
+        const providerID = ProviderV2.ID.make("jolli-openai")
+        const resolved = yield* Provider.use.getModel(providerID, ModelV2.ID.make(model.id))
+        const sessionID = SessionID.descending()
+        const parentSessionID = SessionID.descending()
+        const turnID = MessageID.ascending()
+        const clientAttemptID = "attempt-stable"
+        const agent = {
+          name: "test",
+          mode: "primary",
+          options: {},
+          permission: [{ permission: "*", pattern: "*", action: "allow" }],
+        } satisfies Agent.Info
+
+        yield* drain({
+          user: {
+            id: turnID,
+            sessionID,
+            role: "user",
+            time: { created: Date.now() },
+            agent: agent.name,
+            model: { providerID, modelID: resolved.id },
+          } satisfies SessionV1.User,
+          sessionID,
+          parentSessionID,
+          turnID,
+          clientAttemptID,
+          stepIndex: 2,
+          courseID: "7",
+          courseAssistantID: "8",
+          model: resolved,
+          agent,
+          system: ["You are a helpful assistant."],
+          messages: [{ role: "user", content: "Hello" }],
+          tools: {},
+        })
+
+        const headers = (yield* Effect.promise(() => request)).headers
+        expect(headers.get("x-jolli-conversation-id")).toBe(sessionID)
+        expect(headers.get("x-jolli-turn-id")).toBe(turnID)
+        expect(headers.get("x-jolli-attempt-id")).toBe(clientAttemptID)
+        expect(headers.get("x-jolli-request-id")).toBe(`${clientAttemptID}:2`)
+        expect(headers.get("x-jolli-step-index")).toBe("2")
+        expect(headers.get("x-jolli-space-id")).toBe("7")
+        expect(headers.get("x-jolli-assistant-id")).toBe("8")
+        expect(headers.get("x-jolli-parent-session-id")).toBe(parentSessionID)
+      }),
+    {
+      config: () => {
+        const model = loadFixture("openai", "gpt-5.2").model
+        return {
+          enabled_providers: ["jolli-openai"],
+          provider: {
+            "jolli-openai": {
+              name: "Jolli",
+              npm: "@ai-sdk/openai",
+              models: { [model.id]: configModel(model) as ConfigModel },
+              options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` },
+            },
+          },
+        }
+      },
+    },
+  )
+
+  it.instance(
     "keeps supported OpenAI models on AI SDK path when native flag is off",
     () =>
       Effect.gen(function* () {

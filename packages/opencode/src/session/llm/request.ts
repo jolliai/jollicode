@@ -10,6 +10,7 @@ import type { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "../system"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
+import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
 import { Effect, Record } from "effect"
 import { jsonSchema, tool as aiTool, type ModelMessage, type Tool } from "ai"
 import type { Plugin } from "@/plugin"
@@ -21,6 +22,11 @@ type PrepareInput = {
   readonly user: SessionV1.User
   readonly sessionID: string
   readonly parentSessionID?: string
+  readonly turnID?: string
+  readonly clientAttemptID?: string
+  readonly stepIndex?: number
+  readonly courseID?: string
+  readonly courseAssistantID?: string
   readonly model: Provider.Model
   readonly agent: Agent.Info
   readonly permission?: PermissionV1.Ruleset
@@ -48,6 +54,30 @@ export type Prepared = {
   }
   readonly messageTransformOptions: Record<string, any>
   readonly headers: Record<string, string>
+}
+
+export function jolliCodingAgentHeaders(input: {
+  readonly providerID: string
+  readonly sessionID: string
+  readonly parentSessionID?: string
+  readonly turnID?: string
+  readonly clientAttemptID?: string
+  readonly stepIndex?: number
+  readonly courseID?: string
+  readonly courseAssistantID?: string
+}): Record<string, string> {
+  if (!isJolliProviderId(input.providerID)) return {}
+  if (input.turnID === undefined || input.clientAttemptID === undefined || input.stepIndex === undefined) return {}
+  return {
+    "x-jolli-conversation-id": input.sessionID,
+    "x-jolli-turn-id": input.turnID,
+    "x-jolli-attempt-id": input.clientAttemptID,
+    "x-jolli-request-id": `${input.clientAttemptID}:${input.stepIndex}`,
+    "x-jolli-step-index": String(input.stepIndex),
+    ...(input.courseID ? { "x-jolli-space-id": input.courseID } : {}),
+    ...(input.courseAssistantID ? { "x-jolli-assistant-id": input.courseAssistantID } : {}),
+    ...(input.parentSessionID ? { "x-jolli-parent-session-id": input.parentSessionID } : {}),
+  }
 }
 
 const mergeOptions = (target: Record<string, any>, source: Record<string, any> | undefined): Record<string, any> =>
@@ -201,6 +231,16 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
       ...(input.parentSessionID ? { "x-parent-session-id": input.parentSessionID } : {}),
       ...input.model.headers,
       ...headers,
+      ...jolliCodingAgentHeaders({
+        providerID: input.model.providerID,
+        sessionID: input.sessionID,
+        parentSessionID: input.parentSessionID,
+        turnID: input.turnID,
+        clientAttemptID: input.clientAttemptID,
+        stepIndex: input.stepIndex,
+        courseID: input.courseID,
+        courseAssistantID: input.courseAssistantID,
+      }),
     },
   }
 })

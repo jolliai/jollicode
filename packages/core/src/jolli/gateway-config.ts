@@ -3,7 +3,7 @@
  *
  * ⚠ THE STUDENT DOES NOT CHOOSE A PROVIDER, EVER. They sign in to Jolli and Jolli decides what they
  * may run — that is the product. So rather than hiding provider screens one at a time, this removes
- * the subject: `enabled_providers` names exactly one provider, so every list the app builds — the
+ * the subject: `enabled_providers` names only Jolli protocol providers, so every list the app builds — the
  * composer's picker, the model dialogs, the settings panes — is already empty of anything else
  * before a component reads it. A screen we forget to hide has nothing to show.
  *
@@ -24,8 +24,60 @@
 import { Brand } from "../brand"
 import { isJolliOriginAllowed, parseJolliUrl } from "./origin"
 
-/** The provider id, the XDG directory segment and the auth.json key are all this one slug. */
-const PROVIDER_ID = Brand.short
+/**
+ * The wire protocols the Jolli gateway can dispatch to, in the order they appear in
+ * `enabled_providers`. Kept as a hard-coded list because it is the lockdown surface:
+ * one new value here is one new BYO channel a student can reach.
+ *
+ * `openai-compatible` is deliberately absent — it exists at the gateway level as a
+ * relay flavour rather than as its own protocol, and nothing in the tenant catalogue
+ * publishes models under it.
+ */
+export const SUPPORTED_PROTOCOLS = ["anthropic", "openai", "google"] as const
+export type SupportedProtocol = (typeof SUPPORTED_PROTOCOLS)[number]
+
+/**
+ * The opencode provider id one wire protocol answers under.
+ *
+ * ⚠ EACH PROTOCOL GETS ITS OWN OPENCODE PROVIDER, AND THAT IS THE WHOLE REASON THIS EXISTS.
+ * An opencode provider is one npm SDK plus one HTTP path shape, so the three protocols the
+ * gateway serves cannot share a single provider id — the SDK's own routing decides which
+ * URL a call reaches, and only one `npm` can be declared per provider block.
+ */
+export function providerIdFor(protocol: SupportedProtocol): string {
+  return `${Brand.short}-${protocol}`
+}
+
+/** The opencode provider ids backed by the Jolli gateway. */
+export const JOLLI_PROVIDER_IDS = SUPPORTED_PROTOCOLS.map(providerIdFor)
+
+/** Whether an id names one of the protocol-specific Jolli providers. */
+export function isJolliProviderId(id: string): boolean {
+  return JOLLI_PROVIDER_IDS.includes(id)
+}
+
+/** Whether an id names either the folded auth row or a protocol-specific provider. */
+export function isJolliAuthOrProviderId(id: string): boolean {
+  return id === Brand.short || isJolliProviderId(id)
+}
+
+/** Whether the connected provider set contains any protocol-specific Jolli provider. */
+export function isJolliConnected(connected: readonly string[]): boolean {
+  return connected.some(isJolliProviderId)
+}
+
+/** Which `@ai-sdk/*` package owns the outbound HTTP for a given wire protocol. */
+function npmForProtocol(protocol: SupportedProtocol): string {
+  switch (protocol) {
+    case "anthropic":
+      return "@ai-sdk/anthropic"
+    case "openai":
+      return "@ai-sdk/openai"
+    case "google":
+      return "@ai-sdk/google"
+  }
+  return protocol satisfies never
+}
 
 /** One model the signed-in student is allowed to run. */
 export interface JolliModel {
@@ -44,11 +96,12 @@ export interface JolliConfigInput {
    */
   readonly baseUrl?: string
   /**
-   * A gateway root to talk to instead of deriving one from the tenant, used verbatim.
+   * A gateway root to talk to instead of deriving one from the tenant.
    *
    * ⚠ NOT THE SAME THING AS `baseUrl`, WHICH IS WHY IT IS A SEPARATE FIELD. A tenant is the app and
    * the gateway hangs off its origin under `/api`; a gateway root already IS that endpoint, so
-   * appending anything to it produces a 404. The desktop build pins one through
+   * appending another `/api` produces a 404. Protocol version suffixes are still required by the
+   * vendor SDKs. The desktop build pins one through
    * `JOLLICODE_GATEWAY_URL`; nothing else sets it.
    */
   readonly gatewayUrl?: string
@@ -74,15 +127,18 @@ export interface JolliConfigInput {
    */
   readonly authToken?: string
   /**
-   * The models this install may run.
+   * The models this install may run, grouped by the wire protocol that answers them.
    *
    * ⚠ PASSED IN RATHER THAN KNOWN HERE, BECAUSE THE ANSWER IS THE SERVER'S. Which models a student
    * may run is a course's decision, and Jolli already records it — `CourseAssistant` carries
-   * `allowedModelIds` and a resolved `models` catalogue. Today both callers hand over the interim
-   * mock list from `model-catalog.ts`; when the grant is fetched at sign-in, only the callers
-   * change and this file does not.
+   * `allowedModelIds` and a resolved `models` catalogue.
+   *
+   * ⚠ GROUPED BY PROTOCOL SO THIS FILE CAN GENERATE ONE PROVIDER BLOCK PER `@ai-sdk/*` PACKAGE.
+   * An opencode provider maps one-to-one to an SDK, and each SDK owns a specific HTTP shape, so
+   * a model can only live inside the provider block whose npm serves its protocol. An empty
+   * record produces no provider blocks at all — the sign-in gate keys off that state.
    */
-  readonly models: ReadonlyArray<JolliModel>
+  readonly models: Readonly<Record<string, ReadonlyArray<JolliModel>>>
   /** Directory of generated course skills, when there are any. */
   readonly skillsDir?: string
 }
@@ -103,11 +159,13 @@ export interface JolliConfigInput {
 export function jolliBaseConfig(input: JolliConfigInput) {
   return {
     /**
-     * ⚠ THE WHOLE LOCKDOWN IS THIS ONE LINE. Everything else here is a catalogue; this is what
+     * ⚠ THE WHOLE LOCKDOWN IS THIS LINE. Everything else here is a catalogue; this is what
      * makes the catalogue the only one. Removing it does not "show more models", it re-opens BYO
-     * keys. It is declared signed out too, so a logged-out student still cannot reach one.
+     * keys. Enumerated for all three supported protocols even when signed out so a logged-out
+     * student still cannot reach a non-Jolli provider, and even when the catalog omits a
+     * protocol (empty picker under that vendor) rather than opens BYO under its slot.
      */
-    enabled_providers: [PROVIDER_ID],
+    enabled_providers: JOLLI_PROVIDER_IDS,
     /**
      * ⚠ IT IS THE V1 SHAPE — `{ paths: [...] }`, NOT A BARE ARRAY. Two config schemas live in this
      * repo: v1 takes `skills: { paths, urls }`, v2 takes a flat `skills: string[]`. A flat array
@@ -116,25 +174,45 @@ export function jolliBaseConfig(input: JolliConfigInput) {
      * still a list the server walks and logs about.
      */
     ...(input.skillsDir ? { skills: { paths: [input.skillsDir] } } : {}),
-    ...(input.signedIn ? { provider: { [PROVIDER_ID]: providerBlock(input) } } : {}),
+    ...(input.signedIn ? { provider: providerBlocks(input) } : {}),
   }
 }
 
-function providerBlock(input: JolliConfigInput) {
+/**
+ * One block per wire protocol that carries at least one model.
+ *
+ * ⚠ AN EMPTY BLOCK SET IS THE SIGNED-IN-BUT-NO-CATALOG POSTURE, AND IT MUST NOT COLLAPSE INTO THE
+ * SIGNED-OUT ONE. `jolliBaseConfig` still emits `enabled_providers` in that case, so the resolver
+ * finds three declared providers with no model rows — every list stays empty rather than the
+ * BYO screens coming back.
+ */
+function providerBlocks(input: JolliConfigInput): Record<string, ReturnType<typeof providerBlock>> {
+  const out: Record<string, ReturnType<typeof providerBlock>> = {}
+  for (const protocol of SUPPORTED_PROTOCOLS) {
+    const models = input.models[protocol] ?? []
+    if (models.length === 0) continue
+    out[providerIdFor(protocol)] = providerBlock(input, protocol, models)
+  }
+  return out
+}
+
+function providerBlock(input: JolliConfigInput, protocol: SupportedProtocol, models: ReadonlyArray<JolliModel>) {
   return {
     /**
-     * ⚠ ONE PROVIDER, WHERE THE WEB MOCK GROUPS BY VENDOR. On this surface Jolli IS the provider —
-     * it is who the student signed in to and who answers. The vendor stays legible as the first
-     * word of every model's name.
+     * ⚠ EVERY PROVIDER READS AS "JOLLI" ON THE SURFACE, EVEN THOUGH THERE ARE UP TO THREE OF THEM.
+     * The vendor stays legible as the first word of every model's name; a student picks a MODEL,
+     * not a vendor, so the provider label is intentionally uniform. The pass-through underneath
+     * dispatches to the right upstream by protocol.
      */
     name: "Jolli",
     /**
-     * ⚠ THE PROTOCOL IS ANTHROPIC, AND NAMING IT IS NOT OPTIONAL. A config-declared provider with
-     * no `npm` resolves to `@ai-sdk/openai-compatible`, which talks `/v1/chat/completions` — and
-     * the Jolli gateway serves only the Anthropic pair, refusing the other two protocols at the
-     * door. Leaving this out produces a provider that lists perfectly and fails on every send.
+     * ⚠ THE `npm` IS PROTOCOL-DEPENDENT AND NAMING IT IS NOT OPTIONAL. A config-declared provider
+     * with no `npm` resolves to `@ai-sdk/openai-compatible`, which talks `/v1/chat/completions`.
+     * Each protocol needs its matching SDK so the SDK-owned URL shape matches the pass-through
+     * route the gateway serves. See `npmForProtocol` for the mapping and `PassThroughRouter` on
+     * the backend for the route wiring.
      */
-    npm: "@ai-sdk/anthropic",
+    npm: npmForProtocol(protocol),
     /**
      * ⚠ THE GATEWAY IS MOUNTED ON THE ORIGIN, NOT UNDER THE TENANT'S PATH. A path-based deployment
      * reports its tenant as `https://host/<slug>`, but the LLM routes live at `https://host/api`
@@ -142,31 +220,54 @@ function providerBlock(input: JolliConfigInput) {
      * from the app router instead of the gateway. Same split `exchangeCliCode` makes, for the same
      * reason. A subdomain deployment has no slug and the header is simply absent.
      *
-     * ⚠ `apiKey` IS ABSENT UNLESS THE CALLER HAD NOWHERE ELSE TO PUT THE CREDENTIAL, AND WHEN IT IS
-     * THERE IT HOLDS A JWT RATHER THAN A KEY. On the bare CLI the JWT is in `auth.json` under this
-     * provider id and the resolver fills it in on its own, so nothing should write it here;
-     * `JolliConfigInput.authToken` says why the desktop is different and why the field is named as it is.
+     * ⚠ THE `/v1` (OR `/v1beta`) SUFFIX ON THE BASE URL IS THE SDK'S CONVENTION AND IT IS NON-
+     * OPTIONAL. Each vendor SDK appends only the last URL segment (`/messages`, `/responses`,
+     * `/chat/completions`, `/models/{id}:{action}`) to whatever base URL it was given — it does
+     * NOT add `/v1` for you (`@ai-sdk/anthropic` fetches `${baseURL}/messages`;
+     * `@ai-sdk/openai` fetches `${baseURL}/responses`; `@ai-sdk/google` fetches
+     * `${baseURL}/models/{...}`). Passing the bare `<origin>/api` leaves the SDK hitting
+     * `<origin>/api/messages`, which the pass-through router has no route for → Express 404
+     * "Not Found". The per-protocol suffix here is what makes the URL the SDK builds line up
+     * with the routes `PassThroughRouter.ts` mounts (`/v1/messages`, `/v1/responses`,
+     * `/v1/chat/completions`, `/v1beta/models/:modelAction`).
+     *
+     * ⚠ `apiKey` IS THE STUDENT'S JWT, NOT AN API KEY. Both CLI and desktop now embed it in the
+     * config: the CLI has an `auth.json` entry only under the legacy `"jolli"` slug, which none of
+     * the new per-protocol provider ids match, so the opencode resolver would find nothing to fill
+     * in from the auth store. Embedding it here keeps the three provider blocks in sync with one
+     * sign-in and lets the desktop keep the same path it already had (the token lives in the OS
+     * keychain there, so `JolliConfigInput.authToken` is already set).
      */
     options: {
-      ...gatewayOptions(input),
+      ...gatewayOptions(input, protocol),
       ...(input.authToken ? { apiKey: input.authToken } : {}),
     },
     models: Object.fromEntries(
-      input.models.map((model) => [
-        model.id,
-        { name: model.name, ...(model.upstreamId ? { id: model.upstreamId } : {}) },
-      ]),
+      models.map((model) => [model.id, { name: model.name, ...(model.upstreamId ? { id: model.upstreamId } : {}) }]),
     ),
   }
 }
 
+/** SDK-expected URL segment appended to the gateway base URL, per protocol. */
+function baseUrlSuffixFor(protocol: SupportedProtocol): string {
+  switch (protocol) {
+    case "anthropic":
+      return "/v1"
+    case "openai":
+      return "/v1"
+    case "google":
+      return "/v1beta"
+  }
+  return protocol satisfies never
+}
+
 /**
- * ⚠ A GATEWAY ROOT IS USED VERBATIM AND ONLY A TENANT GETS `/api` APPENDED, WHICH IS THE WHOLE
+ * ⚠ A GATEWAY ROOT KEEPS ITS OWN PATH AND ONLY A TENANT GETS `/api` APPENDED, WHICH IS THE WHOLE
  * DIFFERENCE BETWEEN THE TWO INPUTS. `Brand.gatewayUrl` is `https://api.jolli.ai` — the gateway on
  * its own host, already the `/api` mount — so appending again yields `https://api.jolli.ai/api`,
  * which nothing serves. A tenant is the app, and there the gateway does live under `/api` with the
- * slug in a header. A pinned `gatewayUrl` also keeps any path it carries, which `parseJolliUrl`
- * would otherwise drop.
+ * slug in a header. A pinned `gatewayUrl` also keeps any path it carries before the protocol version
+ * suffix is appended, which `parseJolliUrl` would otherwise drop.
  *
  * ⚠ A PINNED GATEWAY REPLACES THE TENANT RATHER THAN JOINING IT, SO THE TWO CANNOT BOTH BE
  * EXPRESSED. Nothing is derived from a gateway root — it is an endpoint, not a tenant — which means
@@ -175,14 +276,18 @@ function providerBlock(input: JolliConfigInput) {
  * or a single-tenant host; a build aimed at a multi-tenant PATH deployment would reach the gateway
  * unidentified, and must leave `JOLLICODE_GATEWAY_URL` unset and let the signed-in tenant decide.
  */
-function gatewayOptions(input: JolliConfigInput) {
+function gatewayOptions(input: JolliConfigInput, protocol: SupportedProtocol) {
+  const suffix = baseUrlSuffixFor(protocol)
   /**
    * ⚠ A BUILD-TIME PIN IS NOT ALLOWLISTED AND A STORED TENANT IS, WHICH IS THE ONE ASYMMETRY HERE.
    * `gatewayUrl` is compiled into the binary by whoever built it — a demo build aimed at a local
    * fixture is the whole point of it, and an allowlist would forbid exactly that. `baseUrl` arrives
    * from the credential store or the environment at runtime, which is a different kind of value.
+   *
+   * The per-protocol suffix (see `baseUrlSuffixFor`) is appended in every branch so each vendor
+   * SDK's expected URL shape is met before it tacks on its own last segment.
    */
-  if (input.gatewayUrl) return { baseURL: input.gatewayUrl }
+  if (input.gatewayUrl) return { baseURL: appendPathSuffix(input.gatewayUrl, suffix) }
   /**
    * ⚠ THE SAME ALLOWLIST THE CATALOGUE FETCH APPLIES, FOR A SHARPER REASON. `gatewayRequest` in
    * `api.ts` re-checks a stored tenant before sending the student's token to it, and this value is
@@ -191,10 +296,16 @@ function gatewayOptions(input: JolliConfigInput) {
    * credential on every model call would be the wrong half to guard. Falling back to the default
    * gateway keeps a garbled value from reaching the SDK at all.
    */
-  if (!input.baseUrl || !isJolliOriginAllowed(input.baseUrl)) return { baseURL: Brand.gatewayUrl }
+  if (!input.baseUrl || !isJolliOriginAllowed(input.baseUrl)) {
+    return { baseURL: appendPathSuffix(Brand.gatewayUrl, suffix) }
+  }
   const tenant = parseJolliUrl(input.baseUrl)
   return {
-    baseURL: `${tenant.origin}/api`,
+    baseURL: appendPathSuffix(`${tenant.origin}/api`, suffix),
     ...(tenant.tenantSlug ? { headers: { "x-tenant-slug": tenant.tenantSlug } } : {}),
   }
+}
+
+function appendPathSuffix(baseUrl: string, suffix: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/${suffix.replace(/^\/+/, "")}`
 }

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { AgentModel, CourseAssistantChoice, CourseListItem } from "../src/jolli/api"
+import type { AgentModel, CatalogModel, CourseAssistantChoice, CourseListItem } from "../src/jolli/api"
 import {
   accentOf,
   courseEntryState,
@@ -39,15 +39,21 @@ const choice = (over: Partial<CourseAssistantChoice> = {}): CourseAssistantChoic
   ...over,
 })
 
-const model = (id: string, name: string, category: AgentModel["category"] = null): AgentModel => ({
+const model = (
+  id: string,
+  name: string,
+  category: AgentModel["category"] = null,
+  protocol = "anthropic",
+): CatalogModel => ({
   id,
   name,
   category,
   description: null,
   isActive: true,
+  protocol,
 })
 
-const catalogue = new Map<string, AgentModel>([
+const catalogue = new Map<string, CatalogModel>([
   ["uuid-opus", model("uuid-opus", "claude-opus-4-8", "Premium")],
   ["uuid-haiku", model("uuid-haiku", "claude-haiku-4-5", "Basic")],
 ])
@@ -160,8 +166,8 @@ describe("toCourse", () => {
 describe("toAssistant", () => {
   test("prefixes grants with the provider and keeps the UUID as the model id", () => {
     const mapped = toAssistant({ choice: choice(), courseId: "7", isDefault: true, models: catalogue })
-    expect(mapped.allowedModelIds).toEqual(["jolli/uuid-opus", "jolli/uuid-haiku"])
-    expect(mapped.modelId).toBe("jolli/uuid-opus")
+    expect(mapped.allowedModelIds).toEqual(["jolli-anthropic/uuid-opus", "jolli-anthropic/uuid-haiku"])
+    expect(mapped.modelId).toBe("jolli-anthropic/uuid-opus")
     expect(mapped.isDefault).toBe(true)
   })
 
@@ -173,7 +179,7 @@ describe("toAssistant", () => {
       isDefault: false,
       models: catalogue,
     })
-    expect(mapped.allowedModelIds).toEqual(["jolli/uuid-opus"])
+    expect(mapped.allowedModelIds).toEqual(["jolli-anthropic/uuid-opus"])
     expect(mapped.isDefault).toBeUndefined()
   })
 
@@ -213,15 +219,35 @@ describe("toAssistant", () => {
 
 describe("toProviderModels", () => {
   // Model names are not unique across vendors; the object is keyed by id, so ids must be.
-  test("keys on the UUID and sends the name upstream", () => {
+  test("keys on the UUID and sends the name upstream, grouped by protocol", () => {
     const models = new Map([
-      ["uuid-a", model("uuid-a", "gpt-5.5", "Premium")],
-      ["uuid-b", model("uuid-b", "gpt-5.5", "Basic")],
+      ["uuid-a", model("uuid-a", "gpt-5.5", "Premium", "openai")],
+      ["uuid-b", model("uuid-b", "gpt-5.5", "Basic", "openai")],
     ])
     const mapped = toProviderModels(models)
-    expect(mapped.map((m) => m.id)).toEqual(["uuid-a", "uuid-b"])
-    expect(mapped.map((m) => m.upstreamId)).toEqual(["gpt-5.5", "gpt-5.5"])
-    expect(new Set(mapped.map((m) => m.id)).size).toBe(2)
+    const openai = mapped["openai"] ?? []
+    expect(openai.map((m) => m.id)).toEqual(["uuid-a", "uuid-b"])
+    expect(openai.map((m) => m.upstreamId)).toEqual(["gpt-5.5", "gpt-5.5"])
+    expect(new Set(openai.map((m) => m.id)).size).toBe(2)
+  })
+
+  test("splits models across protocol buckets", () => {
+    const models = new Map([
+      ["uuid-a", model("uuid-a", "claude-opus-4-8", "Premium", "anthropic")],
+      ["uuid-b", model("uuid-b", "gpt-5.5", "Premium", "openai")],
+      ["uuid-c", model("uuid-c", "gemini-2.0-flash", "Basic", "google")],
+    ])
+    const mapped = toProviderModels(models)
+    expect(mapped["anthropic"]?.map((m) => m.id)).toEqual(["uuid-a"])
+    expect(mapped["openai"]?.map((m) => m.id)).toEqual(["uuid-b"])
+    expect(mapped["google"]?.map((m) => m.id)).toEqual(["uuid-c"])
+  })
+
+  test("falls back safely when the server reports an unknown protocol", () => {
+    const models = new Map([["uuid-new", model("uuid-new", "future-model", "Premium", "future-protocol")]])
+    const mapped = toProviderModels(models)
+    expect(mapped["anthropic"]?.map((entry) => entry.id)).toEqual(["uuid-new"])
+    expect(mapped["future-protocol"]).toBeUndefined()
   })
 })
 
@@ -280,7 +306,10 @@ describe("modelTiers", () => {
       { courses: [], assistants: {}, models: Array.from(catalogue.values()) },
       "2026-09-21",
     )
-    expect(projected.modelTiers).toEqual({ "jolli/uuid-opus": "premium", "jolli/uuid-haiku": "economy" })
+    expect(projected.modelTiers).toEqual({
+      "jolli-anthropic/uuid-opus": "premium",
+      "jolli-anthropic/uuid-haiku": "economy",
+    })
   })
 
   // ⚠ It is keyed by model, not by assistant, because the nudge asks about the model that actually
@@ -294,7 +323,10 @@ describe("modelTiers", () => {
       },
       "2026-09-21",
     )
-    expect(Object.keys(projected.modelTiers).sort()).toEqual(["jolli/uuid-haiku", "jolli/uuid-opus"])
+    expect(Object.keys(projected.modelTiers).sort()).toEqual([
+      "jolli-anthropic/uuid-haiku",
+      "jolli-anthropic/uuid-opus",
+    ])
   })
 
   test("an unclassified model is simply absent, so it draws no nudge", () => {
@@ -320,7 +352,7 @@ describe("toAssistant — a grant whose models have all gone", () => {
       isDefault: false,
       models: catalogue,
     })
-    expect(mapped.allowedModelIds).toEqual(["jolli/uuid-gone", "jolli/uuid-also-gone"])
+    expect(mapped.allowedModelIds).toEqual(["jolli-anthropic/uuid-gone", "jolli-anthropic/uuid-also-gone"])
     expect(mapped.allowedModelIds.length).toBeGreaterThan(0)
     expect(mapped.modelId).toBeUndefined()
   })
@@ -332,7 +364,7 @@ describe("toAssistant — a grant whose models have all gone", () => {
       isDefault: false,
       models: catalogue,
     })
-    expect(mapped.allowedModelIds).toEqual(["jolli/uuid-opus"])
+    expect(mapped.allowedModelIds).toEqual(["jolli-anthropic/uuid-opus"])
   })
 })
 

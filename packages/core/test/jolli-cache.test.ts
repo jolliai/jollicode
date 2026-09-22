@@ -26,7 +26,7 @@ async function seed(origin: string, snapshot: unknown, ageMs = 0) {
   const file = cacheFile(origin)
   await mkdir(Global.Path.cache, { recursive: true })
   const stamped =
-    snapshot && typeof snapshot === "object" && !Array.isArray(snapshot) ? { schema: 1, ...snapshot } : snapshot
+    snapshot && typeof snapshot === "object" && !Array.isArray(snapshot) ? { schema: 2, ...snapshot } : snapshot
   await writeFile(file, JSON.stringify(stamped))
   if (ageMs) {
     const when = new Date(Date.now() - ageMs)
@@ -85,6 +85,7 @@ const providers = [
   {
     id: "p1",
     name: "anthropic",
+    protocol: "anthropic",
     isActive: true,
     models: [{ id: "uuid-opus", name: "claude-opus-4-8", category: "Premium", description: null, isActive: true }],
   },

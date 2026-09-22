@@ -130,6 +130,13 @@ export interface AgentModel extends Schema.Schema.Type<typeof AgentModel> {}
 const AgentModelProvider = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
+  /**
+   * The wire protocol this provider's models are reached over. Held as an open
+   * string for the same reason `CourseListItem.status` is: a value the client
+   * has not heard of must not fail the whole array, and the mapping layer picks
+   * a safe default when it meets one.
+   */
+  protocol: Schema.String,
   isActive: Schema.Boolean,
   models: Schema.Array(AgentModel),
 }).annotate({ identifier: "JolliApi.AgentModelProvider" })
@@ -184,23 +191,37 @@ export const fetchAssistantChoices = (request: GatewayRequest, courseId: number)
   get(request, `/api/courses/${courseId}/assistant-choices`, Schema.Array(CourseAssistantChoice))
 
 /**
- * The whole chat-model catalogue, flattened to `UUID -> model`.
+ * A chat model with its owning provider's wire protocol denormalised onto it.
  *
- * ⚠ THE VENDOR GROUPING IS DROPPED HERE AND NEVER SURFACES. `AgentModelProvider` (anthropic /
- * openai / google) is jolliedu's own routing concern; Jolli Code has exactly one provider and a
- * student never picks a vendor. Returning a Map rather than the groups is what stops it leaking —
- * the type simply cannot carry it downstream.
+ * ⚠ `protocol` IS NOT ON THE WIRE `AgentModel` — jolliedu declares it on the
+ * `AgentModelProvider` group and every model inside that group inherits it. The
+ * wire schema stays faithful to what the gateway returns; this shape is what
+ * downstream code (`toProviderModels`, `modelKey`) needs to route one call to
+ * the right upstream SDK.
+ */
+export interface CatalogModel extends AgentModel {
+  readonly protocol: string
+}
+
+/**
+ * The whole chat-model catalogue, flattened to `UUID -> model + its protocol`.
+ *
+ * ⚠ EACH MODEL CARRIES ITS PROVIDER'S PROTOCOL. Downstream code (the provider
+ * config generator, the assistant mapper) uses it to decide which `@ai-sdk/*`
+ * package to route the call through and which HTTP path to hit. Dropping the
+ * grouping is still fine — Jolli Code still shows one provider to the student —
+ * but the routing key that used to be implicit is now explicit on every model.
  *
  * ⚠ A DISABLED PROVIDER TAKES ITS WHOLE GROUP WITH IT, which is the field's documented meaning.
  */
 export const fetchModelIndex = (request: GatewayRequest) =>
   get(request, "/api/agent/models", Schema.Array(AgentModelProvider)).pipe(
     Effect.map((providers) => {
-      const index = new Map<string, AgentModel>()
+      const index = new Map<string, CatalogModel>()
       for (const provider of providers) {
         if (!provider.isActive) continue
         for (const model of provider.models) {
-          if (model.isActive) index.set(model.id, model)
+          if (model.isActive) index.set(model.id, { ...model, protocol: provider.protocol })
         }
       }
       return index

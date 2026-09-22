@@ -2,9 +2,38 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtemp, mkdir, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { Global } from "@opencode-ai/core/global"
+import { Hash } from "@opencode-ai/core/util/hash"
 import { clearCourseSkills, jolliGatewayConfig } from "./jolli-gateway"
 
 const roots: string[] = []
+const TENANT = "https://gateway-config-test.jolli.ai"
+const TOKEN = "jwt"
+const ENABLED_PROVIDERS = ["jolli-anthropic", "jolli-openai", "jolli-google"]
+
+async function seedCatalog() {
+  const file = join(Global.Path.cache, `jolli-catalog-${Hash.fast(`${TENANT}||${TOKEN}`)}.json`)
+  await mkdir(Global.Path.cache, { recursive: true })
+  await writeFile(
+    file,
+    JSON.stringify({
+      schema: 2,
+      courses: [],
+      assistants: {},
+      models: [
+        {
+          id: "uuid-opus",
+          name: "claude-opus-4-8",
+          category: "Premium",
+          description: null,
+          isActive: true,
+          protocol: "anthropic",
+        },
+      ],
+    }),
+  )
+  roots.push(file)
+}
 
 async function tempRoot() {
   const root = await mkdtemp(join(tmpdir(), "jolli-gateway-"))
@@ -20,23 +49,25 @@ afterEach(async () => {
 describe("jolliGatewayConfig", () => {
   test("locks the provider list but declares no provider while signed out", async () => {
     const config = JSON.parse(await jolliGatewayConfig({ signedIn: false }))
-    expect(config.enabled_providers).toEqual(["jolli"])
+    expect(config.enabled_providers).toEqual(ENABLED_PROVIDERS)
     // A provider block here reports as connected, so first-run sign-in would never trigger.
     expect(config.provider).toBeUndefined()
   })
 
   test("points the signed-in student at their own tenant", async () => {
-    const config = JSON.parse(await jolliGatewayConfig({ signedIn: true, baseUrl: "https://acme.jolli.ai" }))
-    expect(config.provider.jolli.options.baseURL).toBe("https://acme.jolli.ai/api")
+    await seedCatalog()
+    const config = JSON.parse(await jolliGatewayConfig({ signedIn: true, authToken: TOKEN, baseUrl: TENANT }))
+    expect(config.provider["jolli-anthropic"].options.baseURL).toBe(`${TENANT}/api/v1`)
   })
 
   test("carries the student's token, because the sidecar has no auth.json to read it from", async () => {
     // Sign-in happens in the Electron main process, not through the provider plugin, so without
     // this the provider resolves with no credential, reports as connected, and 401s on first send.
-    const config = JSON.parse(await jolliGatewayConfig({ signedIn: true, authToken: "jwt" }))
-    expect(config.provider.jolli.options.apiKey).toBe("jwt")
+    await seedCatalog()
+    const config = JSON.parse(await jolliGatewayConfig({ signedIn: true, authToken: TOKEN, baseUrl: TENANT }))
+    expect(config.provider["jolli-anthropic"].options.apiKey).toBe(TOKEN)
     // Signed out there is no provider block at all, so there is nowhere for a stale key to hide.
-    expect(JSON.parse(await jolliGatewayConfig({ signedIn: false, authToken: "jwt" })).provider).toBeUndefined()
+    expect(JSON.parse(await jolliGatewayConfig({ signedIn: false, authToken: TOKEN })).provider).toBeUndefined()
   })
 
   test("declares no models when the tenant catalogue cannot be had", async () => {
@@ -47,8 +78,8 @@ describe("jolliGatewayConfig", () => {
      * explain it. An empty block is the same emptiness with the cause left intact.
      */
     const config = JSON.parse(await jolliGatewayConfig({ signedIn: true, authToken: "jwt" }))
-    expect(config.provider.jolli.models).toEqual({})
-    expect(config.enabled_providers).toEqual(["jolli"])
+    expect(config.provider).toEqual({})
+    expect(config.enabled_providers).toEqual(ENABLED_PROVIDERS)
   })
 
   test("declares no skills directory, because there are no skills to declare", async () => {

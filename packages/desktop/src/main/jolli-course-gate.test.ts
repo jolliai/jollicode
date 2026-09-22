@@ -73,7 +73,7 @@ const cacheFile = join(Global.Path.cache, `jolli-catalog-${Hash.fast(`${TENANT}|
 async function seedCache(courses: unknown[]) {
   await mkdir(Global.Path.cache, { recursive: true })
   // The stamp is what makes a snapshot readable; see `cache.ts`'s SCHEMA.
-  await writeFile(cacheFile, JSON.stringify({ schema: 1, courses, assistants: {}, models: [] }))
+  await writeFile(cacheFile, JSON.stringify({ schema: 2, courses, assistants: {}, models: [] }))
   roots.push(cacheFile)
 }
 

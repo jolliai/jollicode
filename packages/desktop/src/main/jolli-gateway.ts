@@ -29,8 +29,9 @@ import { jolliBaseConfig } from "@opencode-ai/core/jolli/gateway-config"
  * credential sign-in stored; the old static `"public"` key authenticated as nobody in particular.
  *
  * ⚠ IT IS A GATEWAY ROOT, NOT A TENANT, AND `jolliBaseConfig` KEEPS THOSE APART. It is handed over
- * as `gatewayUrl` so it reaches the SDK verbatim; passing it as `baseUrl` would have `/api` appended
- * to an endpoint that is already the gateway, and would drop any path it carries.
+ * as `gatewayUrl` so its path is preserved and only the protocol version suffix is appended;
+ * passing it as `baseUrl` would add `/api` to an endpoint that is already the gateway and drop any
+ * path it carries.
  */
 const GATEWAY_URL = import.meta.env.JOLLICODE_GATEWAY_URL || undefined
 
@@ -78,9 +79,9 @@ export async function jolliGatewayConfig(input: {
  * saying why.
  */
 async function tenantModels(input: { signedIn: boolean; authToken?: string; baseUrl?: string }) {
-  if (!input.signedIn || !input.authToken || !input.baseUrl) return []
+  if (!input.signedIn || !input.authToken || !input.baseUrl) return {}
   const request = gatewayRequest(input.baseUrl, input.authToken)
-  if (!request) return []
+  if (!request) return {}
   /**
    * ⚠ IT CANNOT BE ALLOWED TO REJECT. This runs inside `createSidecarEnv()`, so anything thrown
    * here stops the sidecar forking and the app has no server at all — a catalogue that could not
@@ -90,9 +91,14 @@ async function tenantModels(input: { signedIn: boolean; authToken?: string; base
    * a student watching a splash screen: the sidecar does not fork until this returns, so every
    * second here is a second the app has no server. `STARTUP_DEADLINE` is what bounds it, and
    * running out lands on the stale snapshot rather than on an error.
+   *
+   * ⚠ RETURNS A `Record<protocol, JolliModel[]>` GROUPING RATHER THAN A FLAT ARRAY, so
+   * `jolliBaseConfig` can emit one opencode provider block per protocol. Empty record when the
+   * catalogue is unreachable — every provider block goes empty, and the sign-in gate keys off
+   * that state.
    */
   const loaded = await Effect.runPromise(loadCatalog(request, { timeout: STARTUP_DEADLINE })).catch(() => undefined)
-  if (!loaded || loaded.kind !== "ok") return []
+  if (!loaded || loaded.kind !== "ok") return {}
   return toProviderModels(new Map(loaded.snapshot.models.map((model) => [model.id, model])))
 }
 

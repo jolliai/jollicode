@@ -1,4 +1,5 @@
 import { Brand } from "@opencode-ai/core/brand"
+import { isJolliConnected } from "@opencode-ai/core/jolli/gateway-config"
 import { createEffect, createMemo, Show } from "solid-js"
 import { useSDK } from "../context/sdk"
 import { useSync } from "../context/sync"
@@ -35,8 +36,12 @@ export function DialogLogout() {
    * "a credential is held" on both surfaces — the bare CLI keeps the JWT in `auth.json` and the
    * desktop in the OS keychain, and the list route counts either. `dialog-provider.tsx` reads the
    * same field to decide whether there is anything to sign in to.
+   *
+   * ⚠ CHECKS ANY OF THE PER-PROTOCOL PROVIDER IDS (`jolli-anthropic`, `jolli-openai`,
+   * `jolli-google`), NOT THE BARE `jolli` SLUG. The gateway config emits one provider per wire
+   * protocol; the bare slug is now only the AUTH id (a single credential feeds all three blocks).
    */
-  const signedIn = createMemo(() => sync.data.provider_next.connected.includes(Brand.short))
+  const signedIn = createMemo(() => isJolliConnected(sync.data.provider_next.connected))
 
   /**
    * ⚠ IT WAITS FOR `complete` BEFORE CONCLUDING "NOT SIGNED IN". A bootstrap still in flight reports

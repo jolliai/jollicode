@@ -56,6 +56,7 @@ import { reply, TestLLMServer } from "../lib/llm-server"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
+import { providerIdFor } from "@opencode-ai/core/jolli/gateway-config"
 import { LocationServiceMap, locationServiceMapLayer } from "@opencode-ai/core/location-services"
 
 const summary = Layer.succeed(
@@ -69,6 +70,11 @@ const summary = Layer.succeed(
 
 const ref = {
   providerID: ProviderV2.ID.make("test"),
+  modelID: ModelV2.ID.make("test-model"),
+}
+
+const jolliRef = {
+  providerID: ProviderV2.ID.make(providerIdFor("openai")),
   modelID: ModelV2.ID.make("test-model"),
 }
 
@@ -294,6 +300,22 @@ function providerCfg(url: string) {
       ...cfg.provider,
       test: {
         ...cfg.provider.test,
+        options: {
+          ...cfg.provider.test.options,
+          baseURL: url,
+        },
+      },
+    },
+  }
+}
+
+function jolliProviderCfg(url: string) {
+  return {
+    ...cfg,
+    provider: {
+      [jolliRef.providerID]: {
+        ...cfg.provider.test,
+        id: jolliRef.providerID,
         options: {
           ...cfg.provider.test.options,
           baseURL: url,
@@ -1013,6 +1035,54 @@ it.instance("subtask child inherits parent session external_directory allow", ()
     )
     expect(Permission.evaluate("external_directory", "/tmp/allowed/file", rules).action).toBe("allow")
     expect(Permission.evaluate("task", "anything", rules).action).toBe("deny")
+  }),
+)
+
+it.instance("subtask uses independent zero-based Jolli identities and inherits the course binding", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(jolliProviderCfg)
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const chat = yield* sessions.create({
+      title: "Pinned",
+      metadata: {
+        jolli: {
+          courseId: "7",
+          assistantId: "12",
+          sharing: { staff: true, everyone: false },
+        },
+      },
+    })
+    const msg = yield* prompt.prompt({
+      sessionID: chat.id,
+      agent: "build",
+      model: jolliRef,
+      noReply: true,
+      parts: [{ type: "text", text: "hello" }],
+    })
+    yield* addSubtask(chat.id, msg.info.id, jolliRef)
+    yield* llm.text("child response")
+    yield* llm.text("parent response")
+
+    yield* prompt.loop({ sessionID: chat.id })
+
+    const hits = yield* llm.hits
+    const parent = hits.find((hit) => hit.headers["x-jolli-conversation-id"] === chat.id)
+    const child = hits.find((hit) => hit.headers["x-jolli-parent-session-id"] === chat.id)
+    expect(hits).toHaveLength(2)
+    expect(parent).toBeDefined()
+    expect(child).toBeDefined()
+    expect(parent?.headers["x-jolli-step-index"]).toBe("0")
+    expect(child?.headers["x-jolli-step-index"]).toBe("0")
+    expect(parent?.headers["x-jolli-request-id"]).toEndWith(":0")
+    expect(child?.headers["x-jolli-request-id"]).toEndWith(":0")
+    expect(child?.headers["x-jolli-conversation-id"]).not.toBe(chat.id)
+    expect(child?.headers["x-jolli-turn-id"]).not.toBe(parent?.headers["x-jolli-turn-id"])
+    expect(child?.headers["x-jolli-attempt-id"]).not.toBe(parent?.headers["x-jolli-attempt-id"])
+    for (const hit of hits) {
+      expect(hit.headers["x-jolli-space-id"]).toBe("7")
+      expect(hit.headers["x-jolli-assistant-id"]).toBe("12")
+    }
   }),
 )
 

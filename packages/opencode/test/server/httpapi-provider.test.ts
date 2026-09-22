@@ -1,4 +1,5 @@
 import { describe, expect } from "bun:test"
+import { providerIdFor, SUPPORTED_PROTOCOLS } from "@opencode-ai/core/jolli/gateway-config"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { FSUtil } from "@opencode-ai/core/fs-util"
 import { Effect, Layer } from "effect"
@@ -420,5 +421,24 @@ describe("provider HttpApi", () => {
       expect(body.connected).toContain("never-loads")
     }),
     projectOptions,
+  )
+
+  it.instance(
+    "maps the legacy Jolli credential to every enabled protocol provider",
+    Effect.gen(function* () {
+      const directory = (yield* TestInstance).directory
+      yield* setEnvScoped("OPENCODE_AUTH_CONTENT", JSON.stringify({ jolli: { type: "api", key: "jwt" } }))
+
+      const response = yield* request("/provider", { headers: { "x-opencode-directory": directory } })
+      expect(response.status).toBe(200)
+
+      const body = (yield* response.json) as { connected: string[] }
+      expect(body.connected).toEqual(expect.arrayContaining(SUPPORTED_PROTOCOLS.map(providerIdFor)))
+      expect(body.connected).not.toContain("jolli")
+    }),
+    {
+      ...projectOptions,
+      config: { ...projectOptions.config, enabled_providers: SUPPORTED_PROTOCOLS.map(providerIdFor) },
+    },
   )
 })

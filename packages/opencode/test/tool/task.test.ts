@@ -284,6 +284,43 @@ describe("tool.task", () => {
     }),
   )
 
+  it.instance("execute inherits parent session metadata when creating a child", () =>
+    Effect.gen(function* () {
+      const sessions = yield* Session.Service
+      const { chat, assistant } = yield* seed()
+      const metadata = {
+        jolli: {
+          courseId: "7",
+          assistantId: "12",
+          sharing: { staff: true, everyone: false },
+        },
+      }
+      yield* sessions.setMetadata({ sessionID: chat.id, metadata })
+      const tool = yield* TaskTool
+      const def = yield* tool.init()
+
+      const result = yield* def.execute(
+        {
+          description: "inspect bug",
+          prompt: "look into the cache key path",
+          subagent_type: "general",
+        },
+        {
+          sessionID: chat.id,
+          messageID: assistant.id,
+          agent: "build",
+          abort: new AbortController().signal,
+          extra: { promptOps: stubOps() },
+          messages: [],
+          metadata: () => Effect.void,
+          ask: () => Effect.void,
+        },
+      )
+
+      expect((yield* sessions.get(result.metadata.sessionId)).metadata).toEqual(metadata)
+    }),
+  )
+
   it.instance("execute surfaces child errors with a resumable task_id", () =>
     Effect.gen(function* () {
       const sessions = yield* Session.Service

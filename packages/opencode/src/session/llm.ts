@@ -36,6 +36,11 @@ export type StreamInput = {
   user: SessionV1.User
   sessionID: string
   parentSessionID?: string
+  turnID?: string
+  clientAttemptID?: string
+  stepIndex?: number
+  courseID?: string
+  courseAssistantID?: string
   model: Provider.Model
   agent: Agent.Info
   permission?: PermissionV1.Ruleset

@@ -10,10 +10,23 @@
  * That is what makes the rules below testable without a gateway.
  */
 import { Jolli } from "@opencode-ai/schema/jolli"
-import type { AgentModel, CourseAssistantChoice, CourseListItem } from "./api"
+import type { CatalogModel, CourseAssistantChoice, CourseListItem } from "./api"
+import { providerIdFor, type JolliModel, type SupportedProtocol, SUPPORTED_PROTOCOLS } from "./gateway-config"
 
-/** The provider id every model key is prefixed with. */
-const PROVIDER_ID = "jolli"
+/**
+ * Fallback protocol used when a course grant names a UUID no longer in the catalogue.
+ * "anthropic" mirrors the pre-multi-protocol behaviour — a dead id used to key against the
+ * single Jolli provider — and keeps `allowedModelIds` at least parseable rather than empty.
+ * The picker still shows nothing for the id (the model row is gone), which is the honest
+ * rendering of "your grant names a model that has been removed".
+ */
+const FALLBACK_PROTOCOL = "anthropic"
+
+function supportedProtocolOf(protocol: string | undefined): SupportedProtocol {
+  return SUPPORTED_PROTOCOLS.includes(protocol as SupportedProtocol)
+    ? (protocol as SupportedProtocol)
+    : FALLBACK_PROTOCOL
+}
 
 /**
  * TODAY, AS A TERM DATE. Mirrors jolliedu's `todayAsTermDate()` — local calendar fields, never an
@@ -141,8 +154,19 @@ const MODEL_TIER: Record<string, Jolli.ModelTier | undefined> = {
   Basic: "economy",
 }
 
-/** An opencode model key for a Registry UUID the catalogue still carries. */
-const modelKey = (uuid: string) => `${PROVIDER_ID}/${uuid}`
+/**
+ * An opencode model key for a Registry UUID the catalogue still carries.
+ *
+ * ⚠ THE PROVIDER SEGMENT IS PROTOCOL-QUALIFIED — one opencode provider per wire protocol
+ * (see `providerIdFor` in `gateway-config.ts`), so the key has to name which one. A grant
+ * pointing at a UUID whose model row is gone falls back to the anthropic-flavoured id, which
+ * matches how the single-provider era wrote every key.
+ */
+const modelKey = (uuid: string, protocol: string) => `${providerIdFor(supportedProtocolOf(protocol))}/${uuid}`
+
+/** Look up a UUID's protocol in the catalogue, or the safe default when the model is gone. */
+const protocolOf = (models: ReadonlyMap<string, CatalogModel>, uuid: string): string =>
+  supportedProtocolOf(models.get(uuid)?.protocol)
 
 export function toCourse(input: {
   item: CourseListItem
@@ -184,7 +208,7 @@ export function toAssistant(input: {
   choice: CourseAssistantChoice
   courseId: string
   isDefault: boolean
-  models: ReadonlyMap<string, AgentModel>
+  models: ReadonlyMap<string, CatalogModel>
 }): Jolli.Assistant {
   /**
    * ⚠ A GRANT THAT FILTERS DOWN TO NOTHING KEEPS ITS ORIGINAL IDS, AND THAT LOOKS WRONG UNTIL YOU
@@ -210,8 +234,8 @@ export function toAssistant(input: {
     ...(input.isDefault ? { isDefault: true } : {}),
     // Staff-only on the gateway, and the course prompt is injected server-side anyway.
     instructions: "",
-    allowedModelIds: granted.map(modelKey),
-    ...(preferred ? { modelId: modelKey(preferred.id) } : {}),
+    allowedModelIds: granted.map((uuid) => modelKey(uuid, protocolOf(input.models, uuid))),
+    ...(preferred ? { modelId: modelKey(preferred.id, preferred.protocol) } : {}),
     guardrails: {
       neverGiveDirectAnswers: input.choice.worksThroughProblems,
       restrictToMaterials: input.choice.answersFromMaterialsOnly,
@@ -227,20 +251,33 @@ export function toAssistant(input: {
   }
 }
 
-/** Every model the tenant offers, as the provider config's `models` block wants them. */
-export function toProviderModels(models: ReadonlyMap<string, AgentModel>) {
-  return Array.from(models.values()).map((model) => ({
-    /**
-     * ⚠ THE UUID IS THE OPENCODE MODEL ID, NOT THE NAME. Model names are not unique across vendors,
-     * and `provider.jolli.models` is an object keyed by id — two same-named models would silently
-     * overwrite each other. The UUID is also what `allowedModelIds` already names, so a grant
-     * matches with no translation step at all.
-     */
-    id: model.id,
-    name: model.category ? `${model.name} (${model.category})` : model.name,
-    /** What actually goes upstream. */
-    upstreamId: model.name,
-  }))
+/**
+ * Every model the tenant offers, grouped by wire protocol.
+ *
+ * ⚠ GROUPED BY PROTOCOL BECAUSE `jolliBaseConfig` GENERATES ONE PROVIDER BLOCK PER PROTOCOL,
+ * each with its own npm SDK. Handing back a flat list would force the config generator to
+ * re-group, and duplicating that decision would let the two answers drift.
+ *
+ * ⚠ THE UUID IS THE OPENCODE MODEL ID, NOT THE NAME. Model names are not unique across
+ * vendors, and each provider block's `models` object is keyed by id — two same-named models
+ * would silently overwrite each other. The UUID is also what `allowedModelIds` already names,
+ * so a grant matches with no translation step at all.
+ */
+export function toProviderModels(
+  models: ReadonlyMap<string, CatalogModel>,
+): Readonly<Record<string, ReadonlyArray<JolliModel>>> {
+  const byProtocol: Record<string, JolliModel[]> = {}
+  for (const model of models.values()) {
+    const protocol = supportedProtocolOf(model.protocol)
+    const bucket = (byProtocol[protocol] ??= [])
+    bucket.push({
+      id: model.id,
+      name: model.category ? `${model.name} (${model.category})` : model.name,
+      /** What actually goes upstream. */
+      upstreamId: model.name,
+    })
+  }
+  return byProtocol
 }
 
 /**
@@ -259,7 +296,7 @@ export function projectCatalog(
   snapshot: {
     readonly courses: readonly CourseListItem[]
     readonly assistants: Readonly<Record<string, readonly CourseAssistantChoice[]>>
-    readonly models: readonly AgentModel[]
+    readonly models: readonly CatalogModel[]
   },
   now: string,
 ): Jolli.Catalog {
@@ -269,7 +306,7 @@ export function projectCatalog(
   const modelTiers: Record<string, Jolli.ModelTier> = {}
   for (const model of snapshot.models) {
     const tier = model.category ? MODEL_TIER[model.category] : undefined
-    if (tier) modelTiers[modelKey(model.id)] = tier
+    if (tier) modelTiers[modelKey(model.id, model.protocol)] = tier
   }
 
   for (const item of snapshot.courses) {

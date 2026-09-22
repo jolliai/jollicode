@@ -29,7 +29,7 @@ import {
   fetchAssistantChoices,
   fetchCourses,
   fetchModelIndex,
-  type AgentModel,
+  type CatalogModel,
   type CourseAssistantChoice,
   type CourseListItem,
   JolliApiError,
@@ -76,7 +76,14 @@ export const STARTUP_DEADLINE = Duration.seconds(20)
  * version is what makes "a shape we no longer understand is the same as no cache" true rather than
  * aspirational.
  */
-const SCHEMA = 1
+/**
+ * Bumped to 2 when models grew a `protocol` field. Older cache files carried `AgentModel[]`
+ * without protocol, so a snapshot decoded under this version would leave every model in the
+ * FALLBACK_PROTOCOL bucket — treating them as `anthropic` and silently making the openai/google
+ * providers unreachable until the next successful refresh. `readSnapshot` returns undefined on a
+ * mismatch, which is exactly the "refetch rather than guess" posture we want here.
+ */
+const SCHEMA = 2
 
 /** What one tenant's snapshot holds. Raw gateway fields only — nothing derived. */
 export interface CatalogSnapshot {
@@ -85,7 +92,7 @@ export interface CatalogSnapshot {
   readonly courses: readonly CourseListItem[]
   /** Keyed by the course's numeric id as a string. Order is the gateway's — default first. */
   readonly assistants: Readonly<Record<string, readonly CourseAssistantChoice[]>>
-  readonly models: readonly AgentModel[]
+  readonly models: readonly CatalogModel[]
 }
 
 export type CatalogLoad =
