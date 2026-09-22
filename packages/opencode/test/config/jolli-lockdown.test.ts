@@ -4,6 +4,7 @@ import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { httpClient } from "@opencode-ai/core/effect/app-node-platform"
 import { FSUtil } from "@opencode-ai/core/fs-util"
 import { Npm } from "@opencode-ai/core/npm"
+import { providerIdFor, SUPPORTED_PROTOCOLS } from "@opencode-ai/core/jolli/gateway-config"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { Effect, Layer } from "effect"
 import { HttpClient } from "effect/unstable/http"
@@ -32,6 +33,7 @@ import path from "path"
  * split. Asserting the opposite here would pin a guarantee the CLI does not make.
  */
 const signedOut = Layer.mock(Auth.Service)({ all: () => Effect.succeed({}) })
+const enabledJolliProviders = SUPPORTED_PROTOCOLS.map(providerIdFor)
 
 const signedIn = Layer.mock(Auth.Service)({
   all: () =>
@@ -100,36 +102,33 @@ describe("Jolli lockdown", () => {
   test("locks the provider list even before anyone signs in", async () => {
     process.env["JOLLICODE_LOCKDOWN"] = "1"
     const config = await loadConfig(signedOut)
-    expect(config.enabled_providers).toEqual([Brand.short])
+    expect(config.enabled_providers).toEqual(enabledJolliProviders)
     // No credential, so no provider — declaring one here is what makes the app believe a
     // signed-out student is already connected.
-    expect(config.provider?.[Brand.short]).toBeUndefined()
+    expect(config.provider).toBeUndefined()
   })
 
-  test("declares the provider once a credential exists, pointed at that tenant", async () => {
+  test("keeps provider blocks empty when the signed-in catalogue is unavailable", async () => {
     process.env["JOLLICODE_LOCKDOWN"] = "1"
     const config = await loadConfig(signedIn)
-    expect(config.enabled_providers).toEqual([Brand.short])
-    expect(config.provider?.[Brand.short]?.options?.["baseURL"]).toBe("https://acme.jolli.ai/api")
-    // The JWT lives in auth.json; the provider resolver fills it in from there.
-    expect(config.provider?.[Brand.short]?.options?.["apiKey"]).toBeUndefined()
+    expect(config.enabled_providers).toEqual(enabledJolliProviders)
+    expect(config.provider).toEqual({})
   })
 
-  test("falls back to the brand gateway for a credential that names no tenant", async () => {
+  test("keeps the lockdown for a credential that names no tenant", async () => {
     process.env["JOLLICODE_LOCKDOWN"] = "1"
     const config = await loadConfig(signedInWithoutTenant)
-    // Signed in is signed in: a backend that predates `baseUrl` must still reach a gateway. Used
-    // verbatim — `api.jolli.ai` is the gateway host, not a tenant with the gateway under `/api`.
-    expect(config.provider?.[Brand.short]?.options?.["baseURL"]).toBe(Brand.gatewayUrl)
+    expect(config.enabled_providers).toEqual(enabledJolliProviders)
+    expect(config.provider).toEqual({})
   })
 
   test("does not treat another provider's credential as a Jolli sign-in", async () => {
     process.env["JOLLICODE_LOCKDOWN"] = "1"
     const config = await loadConfig(otherProviderOnly)
-    expect(config.enabled_providers).toEqual([Brand.short])
+    expect(config.enabled_providers).toEqual(enabledJolliProviders)
     // Declaring the provider block here would make the app believe this student is connected, and
     // the first message would fail with no credential instead of prompting for sign-in.
-    expect(config.provider?.[Brand.short]).toBeUndefined()
+    expect(config.provider).toBeUndefined()
   })
 
   /**
@@ -147,14 +146,14 @@ describe("Jolli lockdown", () => {
     // `mergeConfigConcatArrays` hands arrays to remeda's `mergeDeep`, which replaces rather than
     // concatenates, so the repo's list wins outright over the seeded one.
     expect(config.enabled_providers).toEqual(["anthropic", "openai", Brand.short])
-    // The seeded Jolli block is still there underneath, so a signed-in student keeps a working
-    // gateway even while the repo has widened the list around it.
-    expect(config.provider?.[Brand.short]?.options?.["baseURL"]).toBe("https://acme.jolli.ai/api")
+    // No stale local catalogue is invented when the gateway cannot be reached.
+    expect(config.provider?.[providerIdFor("anthropic")]).toBeUndefined()
   })
 
   test("lets a repo declare its own jolli block when this side declares none", async () => {
     process.env["JOLLICODE_LOCKDOWN"] = "1"
     const config = await loadConfig(signedOut, {
+      enabled_providers: [Brand.short],
       provider: { [Brand.short]: { options: { apiKey: "sk-mine", baseURL: "https://evil.example" } } },
     })
     /**
@@ -176,7 +175,7 @@ describe("Jolli lockdown", () => {
      */
     process.env["JOLLICODE_LOCKDOWN"] = "1"
     const config = await loadConfig(signedIn)
-    expect(config.provider?.[Brand.short]?.models ?? {}).toEqual({})
-    expect(config.enabled_providers).toEqual([Brand.short])
+    expect(config.provider).toEqual({})
+    expect(config.enabled_providers).toEqual(enabledJolliProviders)
   })
 })

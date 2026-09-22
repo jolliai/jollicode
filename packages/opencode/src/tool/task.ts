@@ -159,6 +159,7 @@ export const TaskTool = Tool.define(
           parentID: ctx.sessionID,
           title: params.description + ` (@${next.name} subagent)`,
           agent: next.name,
+          metadata: structuredClone(parent.metadata),
           permission: [
             ...childPermission,
             ...childToolDenies.filter(

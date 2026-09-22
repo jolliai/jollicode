@@ -17,7 +17,18 @@ import { useConnected } from "./use-connected"
 import { useBindings } from "../keymap"
 import { useClipboard } from "../context/clipboard"
 import { Brand } from "@opencode-ai/core/brand"
+import { isJolliAuthOrProviderId, isJolliConnected } from "@opencode-ai/core/jolli/gateway-config"
 import open from "open"
+
+/**
+ * "Is this provider connected?" — with the folded Jolli row treated as connected
+ * when ANY of its per-protocol children is. `sync.data.provider_next.connected`
+ * carries the per-protocol ids, not the folded `"jolli"` slug.
+ */
+function isProviderConnected(connected: readonly string[], providerID: string): boolean {
+  if (providerID === Brand.short) return isJolliConnected(connected)
+  return connected.includes(providerID)
+}
 
 const PROVIDER_PRIORITY: Record<string, number> = {
   [Brand.short]: 0,
@@ -42,10 +53,21 @@ type ProviderOption = {
  * synthetic row that prompts for a provider id and writes a credential for it. That row does not go
  * through the provider list at all, so `enabled_providers` — which is the whole model lockdown —
  * never sees it: it was the one way a student could still attach their own key.
+ *
+ * ⚠ THE THREE PER-PROTOCOL JOLLI PROVIDERS FOLD INTO ONE UI ROW WHOSE VALUE IS `Brand.short`. The
+ * opencode config emits `jolli-anthropic`, `jolli-openai`, `jolli-google` — three provider blocks
+ * because each SDK npm needs its own — but the picker is a UX surface, and three identical "Jolli"
+ * rows offering the same sign-in would be noise, not choice. The auth layer already thinks of
+ * them as one credential (`plugin/jolli.ts` writes a single `"jolli"` entry that feeds every
+ * block), so this fold mirrors that. Downstream checks that need "is Jolli connected" have to look
+ * for ANY of the per-protocol ids — {@link isProviderConnected} does that.
  */
 export function providerOptions(list: { id: string; name: string }[]): ProviderOption[] {
+  const jolliPresent = list.some((provider) => isJolliAuthOrProviderId(provider.id))
+  const withoutJolli = list.filter((provider) => !isJolliAuthOrProviderId(provider.id))
+  const folded = jolliPresent ? [{ id: Brand.short, name: Brand.name }, ...withoutJolli] : withoutJolli
   return pipe(
-    list,
+    folded,
     sortBy(
       (x) => PROVIDER_PRIORITY[x.id] ?? 99,
       (x) => x.name.toLowerCase(),
@@ -168,7 +190,8 @@ export function createDialogProviderOptions() {
       map((provider) => {
         const providerID = provider.providerID
         const consoleManaged = isConsoleManagedProvider(sync.data.console_state.consoleManagedProviders, providerID)
-        const connected = sync.data.provider_next.connected.includes(providerID)
+        // Folded Jolli row → check the per-protocol ids; other providers stay literal.
+        const connected = isProviderConnected(sync.data.provider_next.connected, providerID)
 
         return {
           title: provider.title,
@@ -233,7 +256,9 @@ export function createDialogProviderOptions() {
  * handed an error about a list they have not asked for yet.
  */
 async function warmCatalog(sdk: ReturnType<typeof useSDK>, providerID: string) {
-  if (providerID !== Brand.short) return
+  // Fires for the folded Jolli row (`Brand.short`) as well as any per-protocol id, since the
+  // completeLogin path can reach here through either identity depending on the caller.
+  if (!isJolliAuthOrProviderId(providerID)) return
   await sdk.client.jolli.course().catch(() => undefined)
 }
 
@@ -261,7 +286,7 @@ async function completeLogin(input: {
   dialog: ReturnType<typeof useDialog>
   providerID: string
 }) {
-  const jolli = input.providerID === Brand.short
+  const jolli = isJolliAuthOrProviderId(input.providerID)
   if (jolli) input.dialog.clear()
   await warmCatalog(input.sdk, input.providerID)
   await input.sdk.client.instance.dispose()
@@ -275,9 +300,9 @@ export function connectAction(input: {
   connected: string[]
 }) {
   if (input.providerIDs.length > 1) return "pick" as const
-  if (input.providerIDs.length === 1 && input.providerIDs[0] !== Brand.short) return "pick" as const
+  if (input.providerIDs.length === 1 && !isJolliAuthOrProviderId(input.providerIDs[0])) return "pick" as const
   if (!input.methods) return "pick" as const
-  return input.connected.includes(Brand.short) ? ("signed-in" as const) : ("login" as const)
+  return isProviderConnected(input.connected, Brand.short) ? ("signed-in" as const) : ("login" as const)
 }
 
 /**

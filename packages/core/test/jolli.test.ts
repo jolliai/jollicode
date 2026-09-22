@@ -1,19 +1,34 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Brand } from "../src/brand"
-import { jolliBaseConfig } from "../src/jolli/gateway-config"
+import {
+  isJolliAuthOrProviderId,
+  isJolliConnected,
+  isJolliProviderId,
+  JOLLI_PROVIDER_IDS,
+  jolliBaseConfig,
+  providerIdFor,
+  SUPPORTED_PROTOCOLS,
+} from "../src/jolli/gateway-config"
 import { startJolliLogin } from "../src/jolli/loopback"
 import { exchangeCliCode } from "../src/jolli/exchange"
 import { isJolliOriginAllowed, jolliAuthOrigin, parseJolliUrl } from "../src/jolli/origin"
 
 /**
  * A tenant's models, as the gateway now supplies them: named by Registry UUID, with the wire name
- * carried separately. A local name-keyed catalogue used to stand in for this and is gone: a course
- * grants by Registry UUID, so nothing in a name-keyed list could ever match a grant.
+ * carried separately. Grouped by wire protocol because that is how `jolliBaseConfig` consumes them
+ * — one opencode provider block per protocol.
  */
-const MODELS = [
+const ANTHROPIC_MODELS = [
   { id: "uuid-opus", name: "claude-opus-4-8", upstreamId: "claude-opus-4-8" },
   { id: "uuid-haiku", name: "claude-haiku-4-5", upstreamId: "claude-haiku-4-5" },
 ]
+
+const MODELS = { anthropic: ANTHROPIC_MODELS }
+
+const JOLLI_ANTHROPIC = providerIdFor("anthropic")
+const JOLLI_OPENAI = providerIdFor("openai")
+const JOLLI_GOOGLE = providerIdFor("google")
+const ALL_ENABLED = SUPPORTED_PROTOCOLS.map(providerIdFor)
 
 const original = process.env["JOLLI_URL"]
 const originalFetch = globalThis.fetch
@@ -55,18 +70,29 @@ describe("jolliAuthOrigin", () => {
 })
 
 describe("jolliBaseConfig", () => {
+  test("derives provider identity and connection checks from the supported protocols", () => {
+    expect(JOLLI_PROVIDER_IDS).toEqual(ALL_ENABLED)
+    expect(isJolliProviderId(JOLLI_OPENAI)).toBe(true)
+    expect(isJolliProviderId(Brand.short)).toBe(false)
+    expect(isJolliAuthOrProviderId(Brand.short)).toBe(true)
+    expect(isJolliAuthOrProviderId("openai")).toBe(false)
+    expect(isJolliConnected(["openai", JOLLI_GOOGLE])).toBe(true)
+    expect(isJolliConnected([Brand.short, "openai"])).toBe(false)
+  })
+
   test("declares no provider while signed out", () => {
     const config = jolliBaseConfig({ signedIn: false, models: MODELS })
     // The lockdown still applies — a signed-out student must not reach another provider either.
-    expect(config.enabled_providers).toEqual([Brand.short])
+    // All three protocol ids stay enabled even when signed out so nothing outside them can be reached.
+    expect(config.enabled_providers).toEqual(ALL_ENABLED)
     // And the provider list stays genuinely empty, which is what the sign-in prompt keys off.
     expect(config).not.toHaveProperty("provider")
   })
 
   test("points at the signed-in tenant's gateway", () => {
     const config = jolliBaseConfig({ signedIn: true, models: MODELS, baseUrl: "https://acme.jolli.ai" })
-    const provider = config.provider?.[Brand.short]
-    expect(provider?.options.baseURL).toBe("https://acme.jolli.ai/api")
+    const provider = config.provider?.[JOLLI_ANTHROPIC]
+    expect(provider?.options.baseURL).toBe("https://acme.jolli.ai/api/v1")
     // Subdomain tenant: the host says who it is, so no header is needed.
     expect(provider?.options).not.toHaveProperty("headers")
     // Without this the provider resolves to @ai-sdk/openai-compatible and every send is refused.
@@ -84,23 +110,22 @@ describe("jolliBaseConfig", () => {
       models: MODELS,
       baseUrl: "https://jolli-local.me/t3lwf8aw",
     })
-    const options = config.provider?.[Brand.short]?.options
-    expect(options?.baseURL).toBe("https://jolli-local.me/api")
+    const options = config.provider?.[JOLLI_ANTHROPIC]?.options
+    expect(options?.baseURL).toBe("https://jolli-local.me/api/v1")
     expect(options?.headers).toEqual({ "x-tenant-slug": "t3lwf8aw" })
   })
 
   test("falls back to the brand gateway when sign-in reported no tenant", () => {
     const config = jolliBaseConfig({ signedIn: true, models: MODELS })
-    // Used verbatim: `api.jolli.ai` is the gateway on its own host and is already the `/api` mount,
-    // so appending again would point every send at `https://api.jolli.ai/api`.
-    expect(config.provider?.[Brand.short]?.options.baseURL).toBe(Brand.gatewayUrl)
+    // The brand URL is already the gateway root, so only the SDK-required version suffix is added.
+    expect(config.provider?.[JOLLI_ANTHROPIC]?.options.baseURL).toBe(`${Brand.gatewayUrl}/v1`)
   })
 
   test("falls back to the brand gateway rather than emitting a broken baseURL", () => {
     // A stored tenant is only as good as whatever wrote it; `https://` + garbage would otherwise
     // reach the SDK as its baseURL and fail on the first send instead of here.
     const config = jolliBaseConfig({ signedIn: true, models: MODELS, baseUrl: "acme.jolli.ai" })
-    expect(config.provider?.[Brand.short]?.options.baseURL).toBe(Brand.gatewayUrl)
+    expect(config.provider?.[JOLLI_ANTHROPIC]?.options.baseURL).toBe(`${Brand.gatewayUrl}/v1`)
   })
 
   /**
@@ -112,7 +137,7 @@ describe("jolliBaseConfig", () => {
   test("refuses a tenant outside the Jolli allowlist", () => {
     for (const baseUrl of ["https://evil.example", "http://acme.jolli.ai", "https://notjolli.ai"]) {
       const config = jolliBaseConfig({ signedIn: true, models: MODELS, baseUrl })
-      expect(config.provider?.[Brand.short]?.options.baseURL).toBe(Brand.gatewayUrl)
+      expect(config.provider?.[JOLLI_ANTHROPIC]?.options.baseURL).toBe(`${Brand.gatewayUrl}/v1`)
     }
     // And the check is the shared one, so an allowlisted tenant is untouched by it.
     expect(isJolliOriginAllowed("https://acme.jolli.ai")).toBe(true)
@@ -122,16 +147,16 @@ describe("jolliBaseConfig", () => {
    * ⚠ A BUILD-TIME PIN IS DELIBERATELY EXEMPT. Whoever compiled the binary chose it, and aiming a
    * demo build at a local fixture is the entire purpose of the field.
    */
-  test("uses a pinned gateway root verbatim and lets it outrank the tenant", () => {
+  test("uses a pinned gateway root and lets it outrank the tenant", () => {
     const config = jolliBaseConfig({
       signedIn: true,
       models: MODELS,
       gatewayUrl: "https://gw.jolli-local.me/edge",
       baseUrl: "https://acme.jolli.ai",
     })
-    const options = config.provider?.[Brand.short]?.options
+    const options = config.provider?.[JOLLI_ANTHROPIC]?.options
     // A gateway root is already the endpoint: no `/api`, and the path it carries survives.
-    expect(options?.baseURL).toBe("https://gw.jolli-local.me/edge")
+    expect(options?.baseURL).toBe("https://gw.jolli-local.me/edge/v1")
     // And it is not a tenant, so nothing is derived from it.
     expect(options).not.toHaveProperty("headers")
   })
@@ -142,11 +167,52 @@ describe("jolliBaseConfig", () => {
       models: MODELS,
       baseUrl: "https://acme.jolli.ai",
       authToken: "jwt",
-    }).provider?.[Brand.short]?.options
+    }).provider?.[JOLLI_ANTHROPIC]?.options
     // The desktop sidecar has no `auth.json` entry to resolve one from, so the JWT travels here —
     // as `apiKey`, which is the schema's name for the field, not a claim about what the value is.
     expect(options?.apiKey).toBe("jwt")
-    expect(options?.baseURL).toBe("https://acme.jolli.ai/api")
+    expect(options?.baseURL).toBe("https://acme.jolli.ai/api/v1")
+  })
+
+  test("uses the matching SDK and versioned base URL for every protocol", () => {
+    const config = jolliBaseConfig({
+      signedIn: true,
+      baseUrl: "https://acme.jolli.ai",
+      models: {
+        anthropic: [{ id: "anthropic-id", name: "Claude" }],
+        openai: [{ id: "openai-id", name: "GPT" }],
+        google: [{ id: "google-id", name: "Gemini" }],
+      },
+    })
+    expect(config.provider?.[JOLLI_ANTHROPIC]).toMatchObject({
+      npm: "@ai-sdk/anthropic",
+      options: { baseURL: "https://acme.jolli.ai/api/v1" },
+    })
+    expect(config.provider?.[JOLLI_OPENAI]).toMatchObject({
+      npm: "@ai-sdk/openai",
+      options: { baseURL: "https://acme.jolli.ai/api/v1" },
+    })
+    expect(config.provider?.[JOLLI_GOOGLE]).toMatchObject({
+      npm: "@ai-sdk/google",
+      options: { baseURL: "https://acme.jolli.ai/api/v1beta" },
+    })
+  })
+
+  test("joins a trailing-slash gateway root without a doubled separator", () => {
+    const config = jolliBaseConfig({
+      signedIn: true,
+      gatewayUrl: "https://gw.jolli-local.me/edge/",
+      models: MODELS,
+    })
+    expect(config.provider?.[JOLLI_ANTHROPIC]?.options.baseURL).toBe("https://gw.jolli-local.me/edge/v1")
+  })
+
+  test("does not emit provider blocks outside the supported protocol allowlist", () => {
+    const config = jolliBaseConfig({
+      signedIn: true,
+      models: { "future-protocol": [{ id: "future-id", name: "Future" }] },
+    })
+    expect(config.provider).toEqual({})
   })
 
   test("keys models by id and sends upstreamId on the wire", () => {
@@ -156,7 +222,7 @@ describe("jolliBaseConfig", () => {
      * keyed by id, so two same-named models would silently overwrite one another. The UUID is also
      * what a course's `allowedModelIds` already names, so a grant matches with no translation.
      */
-    const models = jolliBaseConfig({ signedIn: true, models: MODELS }).provider?.[Brand.short]?.models ?? {}
+    const models = jolliBaseConfig({ signedIn: true, models: MODELS }).provider?.[JOLLI_ANTHROPIC]?.models ?? {}
     expect(Object.keys(models)).toEqual(["uuid-opus", "uuid-haiku"])
     expect(models["uuid-opus"]).toEqual({ name: "claude-opus-4-8", id: "claude-opus-4-8" })
   })
@@ -164,10 +230,10 @@ describe("jolliBaseConfig", () => {
   test("declares exactly the models it was given, and nothing it knows on its own", () => {
     const config = jolliBaseConfig({
       signedIn: true,
-      models: [{ id: "course-model", name: "Course Model" }],
+      models: { anthropic: [{ id: "course-model", name: "Course Model" }] },
     })
     // The grant is the server's to make; a catalogue baked in here would outlive it.
-    expect(config.provider?.[Brand.short]?.models).toEqual({ "course-model": { name: "Course Model" } })
+    expect(config.provider?.[JOLLI_ANTHROPIC]?.models).toEqual({ "course-model": { name: "Course Model" } })
   })
 
   test("omits the skills key rather than declaring an empty path list", () => {

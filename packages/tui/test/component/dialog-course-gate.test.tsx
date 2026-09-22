@@ -3,7 +3,7 @@ import { afterAll, expect, test } from "bun:test"
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { testRender, useRenderer } from "@opentui/solid"
 import { onCleanup, onMount } from "solid-js"
-import { Brand } from "@opencode-ai/core/brand"
+import { providerIdFor } from "@opencode-ai/core/jolli/gateway-config"
 import { ArgsProvider } from "../../src/context/args"
 import { ClipboardProvider } from "../../src/context/clipboard"
 import { ExitProvider } from "../../src/context/exit"
@@ -81,7 +81,8 @@ async function mount() {
      * somebody is signed in — `noCourses()` checks that first, and a signed-out empty list means
      * "sign in", not "your instructor has not set one up".
      */
-    if (url.pathname === "/provider") return Promise.resolve(json({ all: [], default: {}, connected: [Brand.short] }))
+    if (url.pathname === "/provider")
+      return Promise.resolve(json({ all: [], default: {}, connected: [providerIdFor("anthropic")] }))
     if (url.pathname !== "/jolli/course") return undefined
     answers += 1
     return Promise.resolve(json(answers === 1 ? NOTHING : EVERYTHING))

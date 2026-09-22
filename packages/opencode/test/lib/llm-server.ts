@@ -17,6 +17,7 @@ type Flow =
 
 type Hit = {
   url: URL
+  headers: Readonly<Record<string, string>>
   body: Record<string, unknown>
 }
 
@@ -597,9 +598,10 @@ function item(input: Item | Reply) {
   return input instanceof Reply ? input.item() : input
 }
 
-function hit(url: string, body: unknown) {
+function hit(url: string, headers: Readonly<Record<string, string>>, body: unknown) {
   return {
     url: new URL(url, "http://localhost"),
+    headers,
     body: body && typeof body === "object" ? (body as Record<string, unknown>) : {},
   } satisfies Hit
 }
@@ -672,7 +674,7 @@ export class TestLLMServer extends Context.Service<TestLLMServer, TestLLMServer.
       const handle = Effect.fn("TestLLMServer.handle")(function* (mode: "chat" | "responses") {
         const req = yield* HttpServerRequest.HttpServerRequest
         const body = yield* req.json.pipe(Effect.orElseSucceed(() => ({})))
-        const current = hit(req.originalUrl, body)
+        const current = hit(req.originalUrl, req.headers, body)
         if (isTitleRequest(body)) {
           hits = [...hits, current]
           yield* notify()

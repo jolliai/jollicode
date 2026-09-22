@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Brand } from "@opencode-ai/core/brand"
+import { providerIdFor } from "@opencode-ai/core/jolli/gateway-config"
 import { connectAction, providerOptions } from "../../../../src/component/dialog-provider"
 
 describe("providerOptions", () => {
@@ -38,6 +39,7 @@ describe("providerOptions", () => {
 
 describe("connectAction", () => {
   const methods = [{ type: "oauth" as const, label: "Sign in to Jolli Code" }]
+  const connected = [providerIdFor("anthropic")]
 
   test("signs the student in when Jolli is the only provider and nothing is connected yet", () => {
     // Signed out the provider list is genuinely empty — Jolli is not in models.dev, so it enters
@@ -47,11 +49,11 @@ describe("connectAction", () => {
 
   test("does not send an already signed-in student back out to a browser", () => {
     // The whole dialog would otherwise render nothing while a new sign-in tab opened behind it.
-    expect(connectAction({ providerIDs: [Brand.short], methods, connected: [Brand.short] })).toBe("signed-in")
+    expect(connectAction({ providerIDs: [Brand.short], methods, connected })).toBe("signed-in")
   })
 
   test("still shows the picker when there is more than one provider to pick", () => {
-    expect(connectAction({ providerIDs: [Brand.short, "openai"], methods, connected: [Brand.short] })).toBe("pick")
+    expect(connectAction({ providerIDs: [Brand.short, "openai"], methods, connected })).toBe("pick")
     expect(connectAction({ providerIDs: ["openai"], methods, connected: [] })).toBe("pick")
   })
 

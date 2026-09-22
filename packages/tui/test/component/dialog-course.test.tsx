@@ -3,7 +3,7 @@ import { expect, test } from "bun:test"
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { testRender, useRenderer } from "@opentui/solid"
 import { onCleanup, onMount } from "solid-js"
-import { Brand } from "@opencode-ai/core/brand"
+import { providerIdFor } from "@opencode-ai/core/jolli/gateway-config"
 import { ArgsProvider } from "../../src/context/args"
 import { ClipboardProvider } from "../../src/context/clipboard"
 import { ExitProvider } from "../../src/context/exit"
@@ -30,8 +30,11 @@ import { createTuiResolvedConfig } from "../fixture/tui-runtime"
  *
  * ⚠ THE SHAPE IS THE SERVER'S OUTPUT, NOT THE GATEWAY'S WIRE FORMAT. `projectCatalog` has already
  * run by the time a renderer sees this: ids are strings, `entryState` is computed against today,
- * and grants are `jolli/<uuid>`.
+ * and grants are `<provider-id>/<uuid>`.
  */
+const PROVIDER_ID = providerIdFor("anthropic")
+const MODEL_KEY = `${PROVIDER_ID}/opus`
+
 const CATALOG = {
   status: "ok",
   courses: [
@@ -94,8 +97,8 @@ const CATALOG = {
       accent: 1,
       isDefault: true,
       instructions: "",
-      allowedModelIds: ["jolli/opus"],
-      modelId: "jolli/opus",
+      allowedModelIds: [MODEL_KEY],
+      modelId: MODEL_KEY,
       guardrails: { neverGiveDirectAnswers: true, restrictToMaterials: false, showCitations: true, weeklyTokenCap: 0 },
       coaching: { coachTheQuestion: true, coachTheProcess: true, coachTheModelChoice: true, instructions: "" },
       skills: [],
@@ -116,7 +119,7 @@ async function mount() {
      * checks the credential before it restores or pre-selects anything, so a harness that left this
      * empty would exercise the signed-out branch and prove nothing about the picker.
      */
-    if (url.pathname === "/provider") return Promise.resolve(json({ all: [], default: {}, connected: [Brand.short] }))
+    if (url.pathname === "/provider") return Promise.resolve(json({ all: [], default: {}, connected: [PROVIDER_ID] }))
     return undefined
   })
   const config = createTuiResolvedConfig()
@@ -257,12 +260,12 @@ test("publishes the bound assistant's model grant", async () => {
   try {
     await picker.app.waitFor(() => !!picker.jolli.assistant())
 
-    expect(ModelGrant.allowed()).toEqual(["jolli/opus"])
-    expect(ModelGrant.preferred()).toBe("jolli/opus")
+    expect(ModelGrant.allowed()).toEqual([MODEL_KEY])
+    expect(ModelGrant.preferred()).toBe(MODEL_KEY)
 
-    expect(ModelGrant.isAllowed("jolli", "opus")).toBe(true)
-    expect(ModelGrant.isAllowed("jolli", "sonnet")).toBe(false)
-    expect(ModelGrant.isAllowed("jolli", "haiku")).toBe(false)
+    expect(ModelGrant.isAllowed(PROVIDER_ID, "opus")).toBe(true)
+    expect(ModelGrant.isAllowed(PROVIDER_ID, "sonnet")).toBe(false)
+    expect(ModelGrant.isAllowed(PROVIDER_ID, "haiku")).toBe(false)
   } finally {
     picker.app.renderer.destroy()
     await picker.tmp[Symbol.asyncDispose]()

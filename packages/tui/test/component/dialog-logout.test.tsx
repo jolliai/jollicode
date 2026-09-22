@@ -18,6 +18,7 @@ import { OpencodeKeymapProvider, registerOpencodeKeymap } from "../../src/keymap
 import { DialogProvider } from "../../src/ui/dialog"
 import { ToastProvider } from "../../src/ui/toast"
 import { Brand } from "@opencode-ai/core/brand"
+import { providerIdFor } from "@opencode-ai/core/jolli/gateway-config"
 import { DialogLogout } from "../../src/component/dialog-logout"
 import { tmpdir } from "../fixture/fixture"
 import { TestTuiContexts } from "../fixture/tui-environment"
@@ -46,7 +47,9 @@ async function mount(options: { connected: boolean }) {
      * exercise the "nothing to do" branch and then contradict it.
      */
     if (url.pathname === "/provider")
-      return Promise.resolve(json({ all: [], default: {}, connected: options.connected ? [Brand.short] : [] }))
+      return Promise.resolve(
+        json({ all: [], default: {}, connected: options.connected ? [providerIdFor("anthropic")] : [] }),
+      )
     return undefined
   })
   const config = createTuiResolvedConfig()

@@ -70,7 +70,7 @@ function mergeConfigConcatArrays(target: Info, source: Info): Info {
  */
 const jolliLockdownConfig = Effect.fnUntraced(function* (credential: Auth.Info | undefined) {
   const jolli = jolliCredential(credential)
-  if (!jolli) return jolliBaseConfig({ signedIn: false, models: [] })
+  if (!jolli) return jolliBaseConfig({ signedIn: false, models: {} })
   const request = jolli.baseUrl ? gatewayRequest(jolli.baseUrl, jolli.token) : undefined
   /**
    * ⚠ CONFIG LOADING MUST NOT BE ABLE TO FAIL ON THIS, NOR HOLD A LAUNCH OPEN OVER IT. A defect
@@ -86,8 +86,16 @@ const jolliLockdownConfig = Effect.fnUntraced(function* (credential: Auth.Info |
     : undefined
   return jolliBaseConfig({
     signedIn: true,
-    models: loaded?.kind === "ok" ? toProviderModels(new Map(loaded.snapshot.models.map((m) => [m.id, m]))) : [],
+    models: loaded?.kind === "ok" ? toProviderModels(new Map(loaded.snapshot.models.map((m) => [m.id, m]))) : {},
     ...(jolli.baseUrl ? { baseUrl: jolli.baseUrl } : {}),
+    /**
+     * ⚠ EMBEDDED HERE FOR THE SAME REASON THE DESKTOP DOES: PER-PROTOCOL PROVIDER IDS.
+     * The auth-store `jolli` entry only fills the legacy single-provider id, but this config
+     * declares three (`jolli-anthropic`, `jolli-openai`, `jolli-google`), and each one needs
+     * its own apiKey. Embedding the token here keeps all three provider blocks in sync with
+     * one sign-in and lets `plugin/jolli.ts` stay a single-provider auth surface.
+     */
+    authToken: jolli.token,
   }) satisfies Info
 })
 

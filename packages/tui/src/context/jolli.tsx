@@ -18,9 +18,9 @@
  * conflicts on the next rebase. One signal keeps that diff to the single call site that reads it.
  */
 
-import { Brand } from "@opencode-ai/core/brand"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { courseBindingOf, type CourseBinding } from "@opencode-ai/core/jolli/binding"
+import { isJolliConnected } from "@opencode-ai/core/jolli/gateway-config"
 import { Lookup } from "@opencode-ai/core/jolli/lookup"
 import { defaultSessionSharing } from "@opencode-ai/core/jolli/sharing"
 import { Jolli } from "@opencode-ai/schema/jolli"
@@ -114,8 +114,14 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
      * guarding on it. `/jolli/course` answers an empty catalogue rather than an error with no
      * credential, and it is that answer landing which lets {@link submissionBlocker} say "no
      * courses yet, sign in" instead of "still loading" forever.
+     *
+     * ⚠ CHECKS ANY OF THE PER-PROTOCOL PROVIDER IDS (`jolli-anthropic`, `jolli-openai`,
+     * `jolli-google`), NOT THE BARE `jolli` SLUG. The gateway config emits one opencode provider
+     * per wire protocol (see `providerIdFor`), and none of them is called `"jolli"` — so a check
+     * that only asked about the bare slug would report "signed out" for a student who had actually
+     * signed in, and the course dialog would sit on its empty view forever.
      */
-    const signedIn = createMemo(() => sync.data.provider_next.connected.includes(Brand.short))
+    const signedIn = createMemo(() => isJolliConnected(sync.data.provider_next.connected))
 
     /** The kv key holding the last course this student chose. See the restore effect below. */
     const REMEMBERED = "jolli_last_course"

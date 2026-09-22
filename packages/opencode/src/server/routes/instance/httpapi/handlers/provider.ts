@@ -1,6 +1,8 @@
 import { ProviderAuth } from "@/provider/auth"
 import { Config } from "@/config/config"
 import { ModelsDev } from "@opencode-ai/core/models-dev"
+import { Brand } from "@opencode-ai/core/brand"
+import { providerIdFor, SUPPORTED_PROTOCOLS } from "@opencode-ai/core/jolli/gateway-config"
 import { Provider } from "@/provider/provider"
 import { Auth } from "@/auth"
 
@@ -51,6 +53,10 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
       }
       const connected = yield* provider.list()
       const credentials = yield* authStore.all().pipe(Effect.orDie)
+      const credentialConnections = Object.keys(credentials).flatMap((id) => {
+        if (id === Brand.short) return SUPPORTED_PROTOCOLS.map(providerIdFor).filter(allowed)
+        return allowed(id) ? [id] : []
+      })
       const providers = Object.assign(
         mapValues(filtered, (item) => Provider.fromModelsDevProvider(item)),
         connected,
@@ -68,7 +74,7 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
          * that stores the same credential again, on every launch. Holding the credential is the
          * honest answer to the question this field asks.
          */
-        connected: Array.from(new Set([...Object.keys(connected), ...Object.keys(credentials).filter(allowed)])),
+        connected: Array.from(new Set([...Object.keys(connected), ...credentialConnections])),
       }
     })
 

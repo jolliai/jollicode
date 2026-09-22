@@ -109,7 +109,7 @@ await mkdir(Global.Path.cache, { recursive: true })
 await writeFile(
   cacheFile,
   JSON.stringify({
-    schema: 1,
+    schema: 2,
     courses: [
       {
         id: 7,
@@ -139,7 +139,16 @@ await writeFile(
         },
       ],
     },
-    models: [{ id: "uuid-opus", name: "claude-opus-4-8", category: "Premium", description: null, isActive: true }],
+    models: [
+      {
+        id: "uuid-opus",
+        name: "claude-opus-4-8",
+        category: "Premium",
+        description: null,
+        isActive: true,
+        protocol: "anthropic",
+      },
+    ],
   }),
 )
 afterAll(() => rm(cacheFile, { force: true }))
@@ -174,8 +183,8 @@ describe("jolli HttpApi — a signed-in student", () => {
       // Computed per request against today, never read from the snapshot.
       expect(body.courses[0]?.entryState).toBe("open")
       expect(body.assistants[0]).toMatchObject({ id: "12", courseId: "7", isDefault: true })
-      expect(body.assistants[0]?.allowedModelIds).toEqual(["jolli/uuid-opus"])
-      expect(body.modelTiers).toEqual({ "jolli/uuid-opus": "premium" })
+      expect(body.assistants[0]?.allowedModelIds).toEqual(["jolli-anthropic/uuid-opus"])
+      expect(body.modelTiers).toEqual({ "jolli-anthropic/uuid-opus": "premium" })
     }),
   )
 })

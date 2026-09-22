@@ -132,20 +132,34 @@ describe("fetchModelIndex", () => {
   })
 
   /**
-   * ⚠ THE VENDOR GROUPING IS DROPPED HERE AND MUST NOT SURFACE: Jolli Code has one provider and a
-   * student never picks a vendor. A disabled provider takes its whole group with it.
+   * ⚠ THE VENDOR GROUPING IS DROPPED HERE, BUT ITS WIRE PROTOCOL STAYS ON EACH MODEL. Jolli Code
+   * has one provider and a student never picks a vendor, while the provider config still needs the
+   * protocol to select the correct upstream SDK. A disabled provider takes its whole group with it.
    */
   test("flattens the providers by UUID and drops what is switched off", async () => {
     const http = stub(() =>
       json([
-        { id: "p1", name: "anthropic", isActive: true, models: [model("uuid-opus", "claude-opus-4-8")] },
+        {
+          id: "p1",
+          name: "anthropic",
+          protocol: "anthropic",
+          isActive: true,
+          models: [model("uuid-opus", "claude-opus-4-8")],
+        },
         {
           id: "p2",
           name: "openai",
+          protocol: "openai",
           isActive: true,
           models: [model("uuid-retired", "gpt-4", false), model("uuid-gpt", "gpt-5.5")],
         },
-        { id: "p3", name: "google", isActive: false, models: [model("uuid-gemini", "gemini-3")] },
+        {
+          id: "p3",
+          name: "google",
+          protocol: "google",
+          isActive: false,
+          models: [model("uuid-gemini", "gemini-3")],
+        },
       ]),
     )
     const index = await Effect.runPromise(
@@ -153,6 +167,8 @@ describe("fetchModelIndex", () => {
     )
     expect([...index.keys()].sort()).toEqual(["uuid-gpt", "uuid-opus"])
     expect(index.get("uuid-opus")?.name).toBe("claude-opus-4-8")
+    expect(index.get("uuid-opus")?.protocol).toBe("anthropic")
+    expect(index.get("uuid-gpt")?.protocol).toBe("openai")
     expect(http.seen[0]?.url).toBe("https://acme.jolli.ai/api/agent/models")
   })
 

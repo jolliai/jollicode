@@ -56,6 +56,8 @@ import { SessionTable } from "@opencode-ai/core/session/sql"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { LLMEvent } from "@opencode-ai/llm"
+import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
+import { randomUUID } from "node:crypto"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -1083,7 +1085,10 @@ const layer = Layer.effect(
         const ctx = yield* InstanceState.context
         let structured: unknown
         let step = 0
+        let providerStepIndex = 0
         const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
+        const clientAttemptID = randomUUID()
+        const courseBinding = courseBindingOf(session)
 
         while (true) {
           yield* status.set(sessionID, { type: "busy" })
@@ -1275,6 +1280,11 @@ const layer = Layer.effect(
               permission: session.permission,
               sessionID,
               parentSessionID: session.parentID,
+              turnID: lastUser.id,
+              clientAttemptID,
+              stepIndex: providerStepIndex,
+              courseID: courseBinding?.courseId,
+              courseAssistantID: courseBinding?.assistantId,
               system,
               messages: [
                 ...modelMsgs,
@@ -1284,6 +1294,7 @@ const layer = Layer.effect(
               model,
               toolChoice: format.type === "json_schema" ? "required" : undefined,
             })
+            providerStepIndex++
 
             if (structured !== undefined) {
               handle.message.structured = structured
