@@ -10,6 +10,7 @@ export const dict = {
   "desktop.jolli.signIn.waiting": "Дар интизори браузери шумо…",
   "desktop.jolli.signIn.hint":
     "Воридшавиро дар варақаи браузере, ки ҳозир кушода шуд, ба анҷом расонед ва сипас ба ин ҷо баргардед.",
+  "desktop.jolli.signIn.cancel": "Бекор кардан",
   "desktop.jolli.signIn.serverUnavailable":
     "Шумо ворид шудед, аммо Jolli Code сервери маҳаллиро аз нав оғоз карда натавонист. Барои анҷом додан барномаро аз нав оғоз кунед.",
 

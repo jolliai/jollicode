@@ -18,6 +18,7 @@ import { createPathHelpers } from "./file/path"
 import type { ProjectAvatarVariant } from "@opencode-ai/ui/v2/project-avatar-v2"
 import { migrateLegacySessionStateKeys, ServerScope, SessionStateKey } from "@/utils/server-scope"
 import { createSessionKeyReader, ensureSessionKey, pruneSessionKeys } from "./layout-helpers"
+import { isRecord, migrateSidebar } from "./layout-migration"
 import { requireServerKey } from "@/utils/session-route"
 import { type DraftTab, useTabs } from "./tabs"
 import { closeSessionTab, openSessionTab, previewSessionTab, type SessionTabs } from "./layout-tabs"
@@ -177,22 +178,11 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
       return { ...value, server: server.key }
     })
 
-    const isRecord = (value: unknown): value is Record<string, unknown> =>
-      typeof value === "object" && value !== null && !Array.isArray(value)
-
     const migrate = (value: unknown) => {
       if (!isRecord(value)) return value
 
       const sidebar = value.sidebar
-      const migratedSidebar = (() => {
-        if (!isRecord(sidebar)) return sidebar
-        if (typeof sidebar.workspaces !== "boolean") return sidebar
-        return {
-          ...sidebar,
-          workspaces: {},
-          workspacesDefault: sidebar.workspaces,
-        }
-      })()
+      const migratedSidebar = migrateSidebar(sidebar)
 
       const review = value.review
       const fileTree = value.fileTree
@@ -272,10 +262,15 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
       { ...target, migrate },
       createStore({
         sidebar: {
-          opened: false,
+          /** The navigation, so it starts visible. `migrate` carries older installs across. */
+          opened: true,
           width: DEFAULT_SIDEBAR_WIDTH,
           workspaces: {} as Record<string, boolean>,
           workspacesDefault: false,
+          /** Which of the collapsible sections are collapsed, by section id. */
+          sections: {} as Record<string, boolean>,
+          /** ⚠ `true` HERE SO A FRESH INSTALL IS NOT MIGRATED. See the branch in `migrate`. */
+          railMigrated: true,
         },
         terminal: {
           height: DEFAULT_TERMINAL_HEIGHT,
@@ -683,6 +678,23 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         toggleWorkspaces(directory: string) {
           const current = store.sidebar.workspaces[directory] ?? store.sidebar.workspacesDefault ?? false
           setStore("sidebar", "workspaces", directory, !current)
+        },
+        /**
+         * WHETHER ONE OF THE SIDEBAR'S COLLAPSIBLE SECTIONS IS COLLAPSED.
+         *
+         * ⚠ COLLAPSED-IS-TRUE, SO THE ABSENT CASE IS "EXPANDED". A section a student has never
+         * touched should be open, and `{}` is what every install starts with — storing the
+         * expanded state instead would make a missing entry mean "collapsed" and hide the list
+         * from everyone once.
+         *
+         * ⚠ NOT EVERY SECTION IS IN HERE. Sessions owns the sidebar's leftover height and has no
+         * collapse control, because collapsing it would leave dead space rather than reclaim any.
+         */
+        sectionCollapsed(id: string) {
+          return () => store.sidebar.sections?.[id] ?? false
+        },
+        toggleSection(id: string) {
+          setStore("sidebar", "sections", id, !(store.sidebar.sections?.[id] ?? false))
         },
       },
       terminal: {

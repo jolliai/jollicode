@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Jolli bilen girmek",
   "desktop.jolli.signIn.waiting": "Brauzeriňize garaşylýar…",
   "desktop.jolli.signIn.hint": "Şu wagt açylan brauzer bellikde girişi tamamlaň, soňra bu ýere dolanyň.",
+  "desktop.jolli.signIn.cancel": "Elatyr",
   "desktop.jolli.signIn.serverUnavailable":
     "Siz girdiňiz, ýöne Jolli Code ýerli serweri täzeden başladyp bilmedi. Tamamlamak üçin programmany täzeden başladyň.",
 

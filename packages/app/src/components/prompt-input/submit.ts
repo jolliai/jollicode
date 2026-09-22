@@ -10,6 +10,7 @@ import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useLocal, type ModelSelection } from "@/context/local"
 import { useCourseSession } from "@/jolli/session-binding"
+import { defaultSessionTitle } from "@/jolli/session-title"
 import { usePermission } from "@/context/permission"
 import { type ContextItem, type ImageAttachmentPart, type Prompt, type usePrompt } from "@/context/prompt"
 import { useSDK, type DirectorySDK } from "@/context/sdk"
@@ -304,6 +305,15 @@ export function createPromptSubmit(input: PromptSubmitInput) {
 
   const seed = (dir: string, info: Session) => {
     serverSync().session.remember(info)
+    /**
+     * ⚠ THE SIDEBAR READS A DIFFERENT CACHE FROM THE THREE LINES BELOW, AND SEEDING ONLY THOSE IS
+     * WHY A NEW SESSION WAS INVISIBLE UNTIL A RELOAD. The session registry and the per-directory
+     * store feed the session route; the sidebar's list and its search read the Home session index
+     * (`global-sync/home-session-index.ts`), which until now was only ever written by its own fetch
+     * and by `session.created` arriving over the event stream. Writing all three here is the same
+     * shape `archive` already has — it removes from the store AND from the index.
+     */
+    serverSync().homeSessions.add(info)
     const [, setStore] = serverSync().child(dir)
     setStore("session", (list: Session[]) => {
       const result = Binary.search(list, info.id, (item) => item.id)
@@ -402,11 +412,20 @@ export function createPromptSubmit(input: PromptSubmitInput) {
 
     let session = input.info()
     if (!session && isNewSession) {
+      /**
+       * ⚠ THE TITLE IS DECIDED HERE BECAUSE THIS IS THE ONLY PLACE THAT HAS BOTH HALVES OF IT. The
+       * sidebar's list reads the Home session index, which carries no messages — so "the first
+       * thing the student typed" is free exactly once, on the frame that creates the session, and
+       * unreachable everywhere it would later be rendered. See `jolli/session-title.ts` for what
+       * this costs (the server stops generating a title of its own).
+       */
+      const title = defaultSessionTitle({ course: courseSession.course()?.code, text })
       const created = await sdk()
         .api.session.create({
           agent: currentAgent.name,
           model: { id: currentModel.id, providerID: currentModel.provider.id, variant },
           location: { directory: sessionDirectory },
+          ...(title ? { title } : {}),
           /**
            * ⚠ THE BINDING IS WRITTEN AS THE SESSION IS CREATED, NOT PATCHED ON AFTERWARDS. Which
            * course a session belongs to decides which models may run in it and who may read it, so

@@ -11,6 +11,7 @@ const sessionCreateInputs: Array<{
   agent?: string
   model?: { id: string; providerID: string; variant?: string }
   location?: { directory: string }
+  title?: string
 }> = []
 const enabledAutoAccept: Array<{ server: string; sessionID: string; directory: string }> = []
 const optimistic: Array<{
@@ -24,8 +25,12 @@ const optimistic: Array<{
 }> = []
 const optimisticSeeded: boolean[] = []
 const storedSessions: Record<string, Array<{ id: string; title?: string }>> = {}
+/** Ids handed to the Home session index — what the sidebar list and its search read. */
+const indexedSessions: string[] = []
 const promoted: Array<{ directory: string; sessionID: string }> = []
 let courseBinding: { courseId: string; assistantId: string } | undefined
+/** The resolved course behind that binding — its `code` is the prefix a new session is named with. */
+let course: { id: string; code: string } | undefined
 const coursePromoted: Array<{ directory: string; sessionID: string }> = []
 const sentShell: Array<{ sessionID: string; id?: string; command: string }> = []
 const syncedDirectories: string[] = []
@@ -170,6 +175,8 @@ beforeAll(async () => {
        * session created without a course is exactly what a bare CLI or an older build produces.
        */
       current: () => courseBinding,
+      /** Read for the title a new session is born with — see `jolli/session-title.ts`. */
+      course: () => course,
       promote(directory: string, sessionID: string) {
         coursePromoted.push({ directory, sessionID })
       },
@@ -259,6 +266,13 @@ beforeAll(async () => {
           serverSessionSyncs++
         },
       },
+      // The Home session index the sidebar list and its search read — `seed` writes the new
+      // session here as well as into the per-directory store.
+      homeSessions: {
+        add: (session: { id: string }) => {
+          indexedSessions.push(session.id)
+        },
+      },
       child: (directory: string) => {
         syncedDirectories.push(directory)
         storedSessions[directory] ??= []
@@ -304,6 +318,8 @@ beforeEach(() => {
   optimistic.length = 0
   optimisticSeeded.length = 0
   promoted.length = 0
+  courseBinding = undefined
+  course = undefined
   coursePromoted.length = 0
   promotedDrafts.length = 0
   sentPrompts.length = 0
@@ -320,6 +336,7 @@ beforeEach(() => {
   permissionServer = "server-a"
   createSessionGate = undefined
   serverSessionSyncs = 0
+  indexedSessions.length = 0
   for (const key of Object.keys(storedSessions)) delete storedSessions[key]
 })
 
@@ -353,16 +370,19 @@ describe("prompt submit worktree selection", () => {
 
     expect(createdClients).toEqual(["/repo/worktree-a", "/repo/worktree-b"])
     expect(createdSessions).toEqual(["/repo/worktree-a", "/repo/worktree-b"])
+    // `title` is the submitted text — these two run in shell mode, so the command is what was typed.
     expect(sessionCreateInputs).toEqual([
       {
         agent: "agent",
         model: { id: "model", providerID: "provider", variant: undefined },
         location: { directory: "/repo/worktree-a" },
+        title: "ls",
       },
       {
         agent: "agent",
         model: { id: "model", providerID: "provider", variant: undefined },
         location: { directory: "/repo/worktree-b" },
+        title: "ls",
       },
     ])
     expect(sentShell).toEqual([
@@ -619,5 +639,86 @@ describe("prompt submit worktree selection", () => {
     expect(storedSessions["/repo/worktree-a"]).toHaveLength(1)
     expect(storedSessions["/repo/worktree-a"]?.[0]).toMatchObject({ id: "session-1", title: "New session 1" })
     expect(optimisticSeeded).toEqual([true])
+    // The sidebar reads a different cache from the store above, so seeding one is not seeding both.
+    expect(indexedSessions).toEqual(["session-1"])
+  })
+})
+
+/**
+ * WHAT A NEW SESSION IS CALLED BEFORE ANYONE HAS NAMED IT.
+ *
+ * ⚠ THE ASSERTION IS ON THE CREATE PAYLOAD, NOT ON THE STORE. The server is the only authority on a
+ * session's title — `seed` writes back whatever `create` answered with — so a title that is right in
+ * this array and wrong on the wire is a title that never reaches a reader. The shim that carries it
+ * there is covered separately in `utils/server-compat.test.ts`.
+ */
+describe("prompt submit session title", () => {
+  const titleSubmit = () =>
+    createPromptSubmit({
+      prompt,
+      info: () => undefined,
+      imageAttachments: () => [],
+      commentCount: () => 0,
+      autoAccept: () => false,
+      mode: () => "normal",
+      working: () => false,
+      editor: () => undefined,
+      queueScroll: () => undefined,
+      promptLength: (value) => value.reduce((sum, part) => sum + ("content" in part ? part.content.length : 0), 0),
+      addToHistory: () => undefined,
+      resetHistoryNavigation: () => undefined,
+      setMode: () => undefined,
+      setPopover: () => undefined,
+      onSubmit: () => undefined,
+    })
+
+  test("names a new session after its course and the first message", async () => {
+    course = { id: "1", code: "CS 310" }
+    promptValue = [{ type: "text", content: "why does my quicksort go out of bounds", start: 0, end: 38 }]
+
+    await titleSubmit().handleSubmit({ preventDefault: () => undefined } as unknown as Event)
+
+    expect(sessionCreateInputs[0]?.title).toBe("CS 310 · why does my quicksort go out of bounds")
+  })
+
+  test("names it after the message alone when the session has no course", async () => {
+    promptValue = [{ type: "text", content: "why does my quicksort go out of bounds", start: 0, end: 38 }]
+
+    await titleSubmit().handleSubmit({ preventDefault: () => undefined } as unknown as Event)
+
+    expect(sessionCreateInputs[0]?.title).toBe("why does my quicksort go out of bounds")
+  })
+
+  /**
+   * ⚠ NO TITLE RATHER THAN THE COURSE CODE ON ITS OWN. Omitting the field leaves the session on the
+   * server's default, which is the one case the server's own titler still runs for.
+   */
+  test("sends no title when the submission carries no text", async () => {
+    course = { id: "1", code: "CS 310" }
+    promptValue = [{ type: "text", content: "   ", start: 0, end: 3 }]
+
+    const submit = createPromptSubmit({
+      prompt,
+      info: () => undefined,
+      imageAttachments: () => [],
+      // Images alone are a valid submission; the empty-prompt early return does not apply.
+      commentCount: () => 1,
+      autoAccept: () => false,
+      mode: () => "normal",
+      working: () => false,
+      editor: () => undefined,
+      queueScroll: () => undefined,
+      promptLength: (value) => value.reduce((sum, part) => sum + ("content" in part ? part.content.length : 0), 0),
+      addToHistory: () => undefined,
+      resetHistoryNavigation: () => undefined,
+      setMode: () => undefined,
+      setPopover: () => undefined,
+      onSubmit: () => undefined,
+    })
+
+    await submit.handleSubmit({ preventDefault: () => undefined } as unknown as Event)
+
+    expect(sessionCreateInputs).toHaveLength(1)
+    expect(sessionCreateInputs[0]).not.toHaveProperty("title")
   })
 })

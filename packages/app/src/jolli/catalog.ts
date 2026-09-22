@@ -16,9 +16,19 @@ import { createSignal } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { Lookup } from "@opencode-ai/core/jolli/lookup"
 import { ModelTiers } from "./model-tier"
-import type { Assistant, Catalog, Course } from "./types"
+import type { Assistant, Catalog, Course, Viewer } from "./types"
 
-const [store, setStore] = createStore<{ courses: readonly Course[]; assistants: readonly Assistant[] }>({
+const [store, setStore] = createStore<{
+  courses: readonly Course[]
+  assistants: readonly Assistant[]
+  /**
+   * ⚠ IT RIDES ALONG WITH THE COURSES RATHER THAN HAVING A STORE OF ITS OWN, because it arrives in
+   * the same response from the same token. A second store would be a second thing to reset, a
+   * second thing to key by server, and a second opportunity to be describing a different student
+   * than the course list is.
+   */
+  viewer?: Viewer
+}>({
   courses: [],
   assistants: [],
 })
@@ -37,22 +47,54 @@ export const catalogGeneration = generation
 /**
  * WHETHER THE ANSWER HAS ARRIVED, WHICH IS NOT THE SAME QUESTION AS WHETHER IT WAS EMPTY.
  *
- * ⚠ ONE CALLER GENUINELY NEEDS THIS AND THE REST MUST NOT. Auto-selecting a student's only course
- * has to wait for the list, because "exactly one" and "none yet" are indistinguishable while it is
- * still in flight. Everything else renders an empty list as an empty list and corrects itself when
- * the data lands, which is what a store is for.
+ * ⚠ TWO CALLERS GENUINELY NEED THIS AND THE REST MUST NOT — an earlier version of this note said
+ * one. Auto-selecting a student's only course has to wait for the list, because "exactly one" and
+ * "none yet" are indistinguishable while it is still in flight. The sidebar's account row needs it
+ * for the same reason in a different shape: "signed out" and "not asked yet" are both an absent
+ * viewer, and the row says something different for each. Everything else renders an empty list as an
+ * empty list and corrects itself when the data lands, which is what a store is for.
  */
 export const ready = loaded
 
-/** Called once the server has answered. */
+/**
+ * WHO THE SERVER SAYS IS SIGNED IN, IF THE TOKEN WOULD SAY.
+ *
+ * ⚠ ABSENT MEANS "WE CANNOT TELL", NOT "SIGNED OUT" — and not until {@link ready} does it mean
+ * anything at all. See `packages/core/src/jolli/identity.ts`: nothing may branch on this beyond
+ * which words to draw.
+ */
+export function viewer(): Viewer | undefined {
+  return store.viewer
+}
+
+/**
+ * Called once the server has answered.
+ *
+ * ⚠ THE ARGUMENT IS TYPED `Catalog` AND IS NOT ONE — IT IS WHATEVER CAME BACK OVER HTTP. The single
+ * caller reaches this through `response.data as Catalog`, an assertion with nothing behind it, so
+ * every field here is untrusted until proven otherwise.
+ *
+ * ⚠ AND A MISSING `courses` USED TO TAKE THE WHOLE APPLICATION DOWN, which is why this coerces
+ * rather than trusts. `enrolledCourses()` spreads this array; assigning `undefined` to it made that
+ * `[...undefined]`, a `TypeError` thrown from a render — and since the sidebar reads it at the top
+ * of a layout that is mounted on every route, the result was the error screen rather than a missing
+ * section. That was survivable while only the home page read courses and only two routes fetched
+ * them; both stopped being true when the sidebar became the navigation.
+ *
+ * ⚠ AN UNPARSEABLE ANSWER IS STILL AN ANSWER, so `loaded` is set either way. It means "the server
+ * has replied", and the callers that need it — the account row, the course pre-selection — are
+ * asking whether to keep waiting, not whether the reply was any good.
+ */
 export function setCatalog(catalog: Catalog) {
+  const payload = catalog as Partial<Catalog> | undefined
   setStore(
     produce((draft) => {
-      draft.courses = catalog.courses
-      draft.assistants = catalog.assistants
+      draft.courses = Array.isArray(payload?.courses) ? payload.courses : []
+      draft.assistants = Array.isArray(payload?.assistants) ? payload.assistants : []
+      draft.viewer = payload?.viewer
     }),
   )
-  ModelTiers.set(catalog.modelTiers)
+  ModelTiers.set(payload?.modelTiers ?? {})
   setLoaded(true)
 }
 
@@ -93,6 +135,26 @@ export function enrolledCourses(): Course[] {
 
 export function canStartSession(courseId: string | undefined): boolean {
   return Lookup.canStartSession(store, courseId)
+}
+
+/**
+ * THE COURSES A NAVIGATION LIST SHOWS: the ones that can be opened, or — when none can — all of
+ * them, so that an empty column can say why it is empty.
+ *
+ * ⚠ THIS IS THE MIDDLE OF THE TWO RULES ABOVE IT, AND BOTH EXTREMES HAVE BEEN SHIPPED. Listing
+ * published courses only (the fixtures' rule) left a student whose single course was unpublished
+ * staring at nothing; listing everything (the rule {@link enrolledCourses} still implements) filled
+ * the sidebar with draft, ended and archived courses that cannot be clicked into a session. The
+ * only case the explanation is needed for is the one where there is nothing else to show.
+ *
+ * ⚠ IT IS NOT WHAT THE PICKER USES, DELIBERATELY. `prompt-course-selector` lists every enrolment
+ * with its `blockedReason` spelled out, because refusing a course a student went looking for is
+ * information; a filter row in a 300px column that they did not ask for is not.
+ */
+export function listedCourses(): Course[] {
+  const all = enrolledCourses()
+  const startable = all.filter((course) => canStartSession(course.id))
+  return startable.length > 0 ? startable : all
 }
 
 /** What is in the way of starting this course, as the code the picker puts into words. */
@@ -150,6 +212,10 @@ export function ensureCatalog(key: string, load: () => Promise<Catalog>): Promis
  *
  * ⚠ IT ALSO CLEARS THE TIER MAP, which belongs to the same answer. Leaving the previous account's
  * tiers behind would have the coaching nudge reasoning about models this student cannot run.
+ *
+ * ⚠ AND THE VIEWER, FOR THE SAME REASON ONLY SHARPER. This runs on sign-out and on switching
+ * accounts; an identity that outlived its credential would leave the previous student's name in the
+ * sidebar of somebody else's session.
  */
 export function resetCatalog() {
   inFlight = undefined
@@ -158,6 +224,7 @@ export function resetCatalog() {
     produce((draft) => {
       draft.courses = []
       draft.assistants = []
+      draft.viewer = undefined
     }),
   )
   ModelTiers.set({})

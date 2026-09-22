@@ -1,0 +1,9 @@
+/**
+ * ⚠ ONLY WHAT TAILWIND CANNOT SAY. The sidebar's width transition, its collapsed state and its
+ * layout are all utility classes on the element, deliberately matching the review panel so the two
+ * edges of the window animate identically. What is left is colouring the resize handle's hairline,
+ * which lives in a pseudo-element the handle owns and a utility class therefore cannot reach.
+ */
+[data-component="app-sidebar"] [data-component="resize-handle"]::after {
+  background: var(--v2-border-border-muted, var(--border-weak-base));
+}

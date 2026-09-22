@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
 import { createSessionKeyReader, ensureSessionKey, pruneSessionKeys } from "./layout-helpers"
+import { migrateSidebar } from "./layout-migration"
 
 describe("layout session-key helpers", () => {
   test("couples touch and scroll seed in order", () => {
@@ -65,5 +66,46 @@ describe("pruneSessionKeys", () => {
     })
 
     expect(drop).toEqual([])
+  })
+})
+
+describe("migrateSidebar", () => {
+  test("opens the sidebar once for an install that predates it", () => {
+    const next = migrateSidebar({ opened: false, width: 344 })
+
+    expect(next).toEqual({ width: 344, opened: true, railMigrated: true })
+  })
+
+  /**
+   * ⚠ THE ONE THAT MATTERS. If the latch were read off `opened`, this case would reopen the sidebar
+   * on every launch and the close button would look broken.
+   */
+  test("leaves a migrated install that was deliberately closed alone", () => {
+    const stored = { opened: false, width: 344, railMigrated: true }
+    const next = migrateSidebar(stored)
+
+    expect(next).toBe(stored)
+  })
+
+  test("returns the same reference when there is nothing to do", () => {
+    const stored = { opened: true, width: 300, railMigrated: true, workspaces: {} }
+
+    expect(migrateSidebar(stored)).toBe(stored)
+  })
+
+  test("carries a boolean workspaces flag into the per-directory map, and still migrates the rail", () => {
+    expect(migrateSidebar({ opened: false, workspaces: true })).toEqual({
+      opened: true,
+      railMigrated: true,
+      workspaces: {},
+      workspacesDefault: true,
+    })
+  })
+
+  test("passes through a missing or non-record slice so the store defaults apply", () => {
+    expect(migrateSidebar(undefined)).toBeUndefined()
+    expect(migrateSidebar(null)).toBeNull()
+    expect(migrateSidebar("nonsense")).toBe("nonsense")
+    expect(migrateSidebar([1, 2])).toEqual([1, 2])
   })
 })

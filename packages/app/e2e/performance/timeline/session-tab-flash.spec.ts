@@ -1,4 +1,5 @@
 import { benchmark, expect } from "../benchmark"
+import { openSidebarSession } from "../../utils/nav"
 import { expectSessionTitle } from "../../utils/waits"
 import { fixture } from "./session-timeline-stress.fixture"
 import {
@@ -23,10 +24,7 @@ benchmark("samples cached session repaint after the click", async ({ page, repor
   await page.goto(stressSessionHref(fixture.targetID))
   await expectSessionTitle(page, fixture.expected.targetTitle)
   await waitForStableTimeline(page, fixture.expected.targetMessageIDs.at(-1)!)
-  await page
-    .locator(`[data-slot="titlebar-tabs"] a[href="${stressSessionHref(fixture.sourceID)}"]`)
-    .first()
-    .click()
+  await openSidebarSession(page, { id: fixture.sourceID })
   await expectSessionTitle(page, fixture.expected.sourceTitle)
   await waitForStableTimeline(page, fixture.expected.sourceMessageIDs.at(-1)!)
 
@@ -38,10 +36,7 @@ benchmark("samples cached session repaint after the click", async ({ page, repor
     windowMs: 1_000,
   })
 
-  await page
-    .locator(`[data-slot="titlebar-tabs"] a[href="${stressSessionHref(fixture.targetID)}"]`)
-    .first()
-    .click()
+  await openSidebarSession(page, { id: fixture.targetID })
   await Promise.all([expectSessionTitle(page, fixture.expected.targetTitle), waitForCachedRepaintWindow(page, 1_000)])
   const result = await collectCachedRepaintTrace(page)
   report(compressCachedRepaintTrace(result))

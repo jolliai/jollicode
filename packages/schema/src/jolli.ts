@@ -402,6 +402,26 @@ export const CatalogStatus = Schema.Literals(["ok", "unreachable"]).annotate({
 })
 export type CatalogStatus = typeof CatalogStatus.Type
 
+/**
+ * WHO THE HELD CREDENTIAL BELONGS TO, FOR LABELLING ONE ROW.
+ *
+ * ⚠ DECODED FROM THE TOKEN, NEVER VERIFIED, AND NEVER AUTHORITATIVE. See
+ * `packages/core/src/jolli/identity.ts` for the full argument. Nothing may branch on this except
+ * what words to draw: not what a student may start, not what they may read, not which models run.
+ *
+ * ⚠ BOTH FIELDS OPTIONAL, AND ABSENCE MEANS "WE COULD NOT TELL" RATHER THAN "SIGNED OUT". A token
+ * whose payload we could not read, or which carries neither claim, produces no viewer at all —
+ * which is a different state from having no credential, and the account row words them differently.
+ *
+ * ⚠ NO AVATAR URL, DELIBERATELY. An image source taken from an unverified payload would make the
+ * renderer fetch an attacker-choosable origin; the row draws an initial instead.
+ */
+export const Viewer = Schema.Struct({
+  name: Schema.String.pipe(optional),
+  email: Schema.String.pipe(optional),
+}).annotate({ identifier: "Jolli.Viewer" })
+export type Viewer = typeof Viewer.Type
+
 /** What `/jolli/course` answers with. */
 export interface Catalog extends Schema.Schema.Type<typeof Catalog> {}
 export const Catalog = Schema.Struct({
@@ -421,4 +441,17 @@ export const Catalog = Schema.Struct({
    * model nobody classified" stays the default.
    */
   modelTiers: Schema.Record(Schema.String, ModelTier),
+  /**
+   * The signed-in student, when the token would say. See {@link Viewer}.
+   *
+   * ⚠ IT RIDES ON THE CATALOGUE RATHER THAN ON A ROUTE OF ITS OWN, AND THAT IS THE POINT. Identity
+   * and enrolment then come from the same token in the same process, so the two can never describe
+   * different students — which is exactly the window the desktop's sidecar restart exists to close.
+   * A second route would need its own store, its own in-flight de-duping and its own reset, each of
+   * which is a way for it to disagree with this one.
+   *
+   * ⚠ OPTIONAL, SO IT IS OMITTED RATHER THAN SENT AS NULL. `optional` drops `undefined` on encode,
+   * which is what keeps the existing whole-body route assertions unchanged.
+   */
+  viewer: Viewer.pipe(optional),
 }).annotate({ identifier: "Jolli.Catalog" })

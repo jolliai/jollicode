@@ -1144,7 +1144,9 @@ export default function Page() {
     review: reviewTab,
     fileBrowser: () => newSessionDesign() && isDesktop() && !!params.id,
   })
-  command.register("session-palette", () => [
+  // Key shared with the other palette registrations so exactly one is ever live — see
+  // `home-sessions-controller.tsx`, which explains why that matters now.
+  command.register("palette", () => [
     {
       id: "command.palette",
       title: language.t("command.palette"),

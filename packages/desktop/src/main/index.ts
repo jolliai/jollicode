@@ -13,7 +13,7 @@ import contextMenu from "electron-context-menu"
 
 import { Brand } from "@opencode-ai/app/brand"
 import type { ServerReadyData } from "../preload/types"
-import { currentSession, signIn, signOut } from "./jolli-auth"
+import { cancelSignIn, currentSession, signIn, signOut } from "./jolli-auth"
 import { clearCatalogCache } from "@opencode-ai/core/jolli/cache"
 import { checkCourseGate } from "./jolli-course-gate"
 import { checkAppExists, resolveAppPath } from "./apps"
@@ -367,6 +367,7 @@ const main = Effect.gen(function* () {
       return { serverReady: await restartSidecar(), courses }
     },
     jolliCourseGate: () => checkCourseGate(currentSession()),
+    jolliSignInCancel: () => cancelSignIn(),
     /**
      * ⚠ THE SIDECAR HAS TO BE REPLACED, NOT JUST THE STORED CREDENTIAL. The token reaches the
      * server in its environment and is read once, at fork — so a sidecar started by the previous

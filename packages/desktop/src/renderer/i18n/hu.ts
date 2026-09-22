@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Bejelentkezés Jollival",
   "desktop.jolli.signIn.waiting": "Várakozás a böngészőre…",
   "desktop.jolli.signIn.hint": "Fejezze be a bejelentkezést az imént megnyílt böngészőlapon, majd térjen vissza ide.",
+  "desktop.jolli.signIn.cancel": "Mégsem",
   "desktop.jolli.signIn.serverUnavailable":
     "Bejelentkezett, de a Jolli Code nem tudta újraindítani a helyi kiszolgálót. A befejezéshez indítsa újra az alkalmazást.",
 

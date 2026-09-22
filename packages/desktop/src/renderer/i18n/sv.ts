@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Logga in med Jolli",
   "desktop.jolli.signIn.waiting": "Väntar på din webbläsare…",
   "desktop.jolli.signIn.hint": "Slutför inloggningen i webbläsarfliken som just öppnades och kom sedan tillbaka hit.",
+  "desktop.jolli.signIn.cancel": "Avbryt",
   "desktop.jolli.signIn.serverUnavailable":
     "Du är inloggad, men Jolli Code kunde inte starta om sin lokala server. Starta om appen för att slutföra.",
 

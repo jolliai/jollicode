@@ -11,6 +11,7 @@
 import { gatewayRequest } from "@opencode-ai/core/jolli/api"
 import { loadCatalog } from "@opencode-ai/core/jolli/cache"
 import { projectCatalog, today } from "@opencode-ai/core/jolli/catalog"
+import { viewerFromToken } from "@opencode-ai/core/jolli/identity"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { Auth } from "@/auth"
@@ -32,22 +33,38 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
     const course = Effect.fn("JolliHttpApi.course")(function* () {
       const stored = yield* auth.get(JOLLI_AUTH_KEY).pipe(Effect.catch(() => Effect.succeed(undefined)))
       const credential = jolliCredential(stored)
-      if (!credential?.baseUrl) return UNREACHABLE
+
+      /**
+       * WHO IS SIGNED IN, DECIDED BEFORE WE ASK WHETHER THE GATEWAY IS REACHABLE.
+       *
+       * ⚠ THAT ORDER IS THE POINT, NOT AN ACCIDENT OF WHERE THE LINE FITS. Identity is derivable
+       * from the token alone, so gating it behind the reachability guards below would blank a
+       * student's own name because their Wi-Fi dropped — or, worse, because their server predates
+       * `baseUrl` and the very next line answers `UNREACHABLE` while holding a perfectly good
+       * token.
+       *
+       * ⚠ SPREAD INTO EVERY RETURN, NEVER MUTATED INTO `UNREACHABLE`. That constant is shared by
+       * all four branches; writing to it would leak one request's viewer into the next one's answer.
+       */
+      const viewer = credential ? viewerFromToken(credential.token) : undefined
+      const identity = viewer ? { viewer } : {}
+
+      if (!credential?.baseUrl) return { ...UNREACHABLE, ...identity }
 
       const request = gatewayRequest(credential.baseUrl, credential.token)
-      if (!request) return UNREACHABLE
+      if (!request) return { ...UNREACHABLE, ...identity }
 
       const loaded = yield* loadCatalog(request)
       if (loaded.kind !== "ok") {
         yield* Effect.logDebug("Jolli: catalogue unavailable, answering empty", { error: loaded.error })
-        return UNREACHABLE
+        return { ...UNREACHABLE, ...identity }
       }
       /**
        * ⚠ `today` IS READ PER REQUEST, NOT PER CACHE WRITE. A course's `entryState` depends on the
        * date as much as on its own fields, so a snapshot cached last night must not be allowed to
        * assert this morning that a course is still running.
        */
-      return projectCatalog(loaded.snapshot, today())
+      return { ...projectCatalog(loaded.snapshot, today()), ...identity }
     })
 
     return handlers.handle("course", course)

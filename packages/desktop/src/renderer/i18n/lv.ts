@@ -10,6 +10,7 @@ export const dict = {
   "desktop.jolli.signIn.waiting": "Gaida jūsu pārlūkprogrammu…",
   "desktop.jolli.signIn.hint":
     "Pabeidziet pierakstīšanos tikko atvērtajā pārlūkprogrammas cilnē un pēc tam atgriezieties šeit.",
+  "desktop.jolli.signIn.cancel": "Atcelt",
   "desktop.jolli.signIn.serverUnavailable":
     "Jūs esat pieteicies, bet Jolli Code nevarēja restartēt savu lokālo serveri. Restartējiet lietotni, lai pabeigtu.",
 

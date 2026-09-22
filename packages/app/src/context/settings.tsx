@@ -185,7 +185,19 @@ const defaultSettings: Settings = {
     releaseNotes: true,
     followup: "steer",
     showFileTree: false,
-    showNavigation: false,
+    /**
+     * ⚠ ON BY DEFAULT IN THIS FORK, WHERE UPSTREAM SHIPS IT OFF. Upstream could afford to: its v2
+     * titlebar carried a tab strip, so "the thing I was just looking at" was always one click away
+     * without a Back button. The strip is gone and the sidebar replaced it, and a sidebar answers
+     * "which session" but not "which screen" — the settings page, a project you drilled into, the
+     * draft you came from. Back and forward are the only control for that, so they are present
+     * unless someone says otherwise.
+     *
+     * ⚠ AND IT REMAINS A SETTING RATHER THAN BECOMING UNCONDITIONAL. `withFallback` only reaches
+     * this when the key is absent, so an install where the reader turned the pair OFF keeps it off;
+     * flipping the default moves the people who never had an opinion, which is who it is for.
+     */
+    showNavigation: true,
     showSearch: false,
     showStatus: false,
     showTerminal: false,

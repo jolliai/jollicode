@@ -1,11 +1,10 @@
-import { type Accessor, createMemo, For, type JSX, onCleanup, Show, splitProps } from "solid-js"
+import { type Accessor, createMemo, For, onCleanup, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { DragDropProvider, PointerSensor } from "@dnd-kit/solid"
 import { isSortable, useSortable } from "@dnd-kit/solid/sortable"
 import { AutoScroller, Feedback, PointerActivationConstraints } from "@dnd-kit/dom"
 import { RestrictToVerticalAxis } from "@dnd-kit/abstract/modifiers"
 import { RestrictToElement } from "@dnd-kit/dom/modifiers"
-import { ScrollView } from "@opencode-ai/ui/scroll-view"
 import { ProjectAvatar } from "@opencode-ai/ui/v2/project-avatar-v2"
 import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
 import { IconButtonV2 } from "@opencode-ai/ui/v2/icon-button-v2"
@@ -20,9 +19,16 @@ import { ServerRowMenuView, serverMenuLabels } from "@/components/server/server-
 import { ServerHealthIndicator } from "@/components/server/server-row"
 import { type ServerHealth } from "@/utils/server-health"
 import { fileManagerApp } from "@/utils/file-manager"
-import { HomeCourses } from "./home-courses"
+import { APP_SIDEBAR_ROW_LABEL, AppSidebarRow } from "@/components/app-sidebar/app-sidebar-row"
 
-const HOME_PROJECT_NAV_LABEL = "min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
+/**
+ * ⚠ THE ROW PRIMITIVE NOW LIVES IN `components/app-sidebar/app-sidebar-row.tsx`, because the
+ * sidebar is where it is used most. These two aliases keep the old names working for the call sites
+ * in this file and in `home-courses.tsx` rather than spreading a rename across them.
+ */
+const HOME_PROJECT_NAV_LABEL = APP_SIDEBAR_ROW_LABEL
+export { AppSidebarRow as HomeProjectNavButton }
+const HomeProjectNavButton = AppSidebarRow
 
 const serverContextMenuID = (server: ServerConnection.Any) => `server:${ServerConnection.key(server)}`
 const projectContextMenuID = (server: ServerConnection.Any, directory: string) =>
@@ -61,129 +67,84 @@ export type HomeProjectsViewProps = {
   onOpenHelp: () => void
 }
 
-export function HomeProjectsView(props: HomeProjectsViewProps) {
+/**
+ * THE PROJECT ROWS, WITHOUT ANY OPINION ABOUT WHAT SURROUNDS THEM.
+ *
+ * ⚠ EXTRACTED SO THE SIDEBAR CAN RENDER THE SAME ROWS. The rows themselves were always
+ * width-agnostic — `h-7`, `min-w-0`, `truncate` throughout, and the `@dnd-kit` reorder is already
+ * restricted to the vertical axis and to its own list element — so what had to be separated was the
+ * page's `<aside>`, its container-query heights and its section headers, none of which survive at
+ * sidebar width. This renders the single-server list, its empty state, or the per-server groups.
+ *
+ * ⚠ IT OWNS THE CONTEXT-MENU STORE, which is why this is the split point rather than something
+ * lower. Exactly one row menu may be open at a time across the whole list, and that invariant is
+ * held by one store shared by every row here.
+ */
+export function HomeProjectsListBody(props: HomeProjectsViewProps) {
   const [contextMenu, setContextMenu] = createStore({ open: undefined as string | undefined })
   const contextMenuProps = {
     contextMenuOpen: (id: string) => contextMenu.open === id,
     onSetContextMenuOpen: (id: string, open: boolean) => setContextMenu("open", open ? id : undefined),
   }
   return (
-    <aside
-      class={`
-        mt-6 flex min-h-0 min-w-0 flex-col gap-4 overflow-hidden
-        lg:sticky lg:top-14 lg:mt-14 lg:h-[calc(100cqh-56px)] lg:self-start lg:pt-[52px]
-      `}
-      aria-label={props.language.t("home.projects")}
-      onWheel={(event) => {
-        if (event.target === event.currentTarget) return
-        props.onWheel(event)
-      }}
+    <Show
+      when={props.servers().length > 1}
+      fallback={
+        <div class="pr-3">
+          <Show
+            when={props.projects().length > 0}
+            fallback={<HomeProjectEmpty {...props} server={props.servers()[0]} items={props.recentlyClosed()} />}
+          >
+            <HomeProjectList {...props} {...contextMenuProps} server={props.servers()[0]} items={props.projects()} />
+          </Show>
+        </div>
+      }
     >
-      <HomeCourses />
-      <div class="flex h-7 min-w-0 shrink-0 items-center justify-between pl-1.5 pr-3">
-        <div class="text-v2-text-text-muted [font-weight:530]">{props.language.t("home.projects")}</div>
-        <Show
-          when={props.servers().length === 1 && !(props.projects().length === 0 && props.recentlyClosed().length > 0)}
-        >
-          <TooltipV2 placement="bottom" value={props.language.t("home.project.add")}>
-            <IconButtonV2
-              data-action="home-add-project"
-              variant="ghost-muted"
-              size="large"
-              class="titlebar-icon [&_[data-slot=icon-svg]]:text-v2-icon-icon-muted"
-              icon={<IconV2 name="folder-add-left" />}
-              disabled={props.serverHealth(props.servers()[0])?.healthy === false}
-              onClick={() => props.onChooseProject(props.servers()[0])}
-              aria-label={props.language.t("home.project.add")}
-            />
-          </TooltipV2>
-        </Show>
-      </div>
-      <ScrollView data-slot="home-projects-scroll" class="min-h-0 min-w-0 shrink">
-        <Show
-          when={props.servers().length > 1}
-          fallback={
-            <div class="pr-3">
-              <Show
-                when={props.projects().length > 0}
-                fallback={<HomeProjectEmpty {...props} server={props.servers()[0]} items={props.recentlyClosed()} />}
-              >
-                <HomeProjectList
+      <div class="flex min-w-0 flex-col gap-4 pr-3">
+        <For each={props.servers()}>
+          {(item) => {
+            const projects = () => props.projectsForServer(item)
+            const healthy = () => !!props.serverHealth(item)?.healthy
+            const hasProjects = () => projects().length > 0
+            const collapsed = () => props.collapsed(item)
+            return (
+              <div class="flex min-w-0 flex-col gap-1">
+                <HomeServerRow
+                  server={item}
                   {...props}
                   {...contextMenuProps}
-                  server={props.servers()[0]}
-                  items={props.projects()}
+                  selected={props.selection().server === ServerConnection.key(item) && !props.selection().directory}
+                  collapsed={collapsed()}
+                  health={props.serverHealth(item)}
                 />
-              </Show>
-            </div>
-          }
-        >
-          <div class="flex min-w-0 flex-col gap-4 pr-3">
-            <For each={props.servers()}>
-              {(item) => {
-                const projects = () => props.projectsForServer(item)
-                const healthy = () => !!props.serverHealth(item)?.healthy
-                const hasProjects = () => projects().length > 0
-                const collapsed = () => props.collapsed(item)
-                return (
-                  <div class="flex min-w-0 flex-col gap-1">
-                    <HomeServerRow
-                      server={item}
-                      {...props}
-                      {...contextMenuProps}
-                      selected={props.selection().server === ServerConnection.key(item) && !props.selection().directory}
-                      collapsed={collapsed()}
-                      health={props.serverHealth(item)}
-                    />
-                    <Show when={healthy() && hasProjects() && !collapsed()}>
-                      <div class="mx-3 h-px bg-v2-border-border-base" />
-                      <HomeProjectList {...props} {...contextMenuProps} server={item} items={projects()} />
-                    </Show>
-                  </div>
-                )
-              }}
-            </For>
-          </div>
-        </Show>
-      </ScrollView>
-      <HomeUtilityNav
-        class="mb-8 mt-4 hidden shrink-0 lg:flex"
-        onOpenSettings={props.onOpenSettings}
-        onOpenHelp={props.onOpenHelp}
-        language={props.language}
-      />
-    </aside>
+                <Show when={healthy() && hasProjects() && !collapsed()}>
+                  <div class="mx-3 h-px bg-v2-border-border-base" />
+                  <HomeProjectList {...props} {...contextMenuProps} server={item} items={projects()} />
+                </Show>
+              </div>
+            )
+          }}
+        </For>
+      </div>
+    </Show>
   )
 }
 
-export function HomeUtilityNav(props: {
-  class?: string
-  onOpenSettings: () => void
-  onOpenHelp: () => void
-  language: ReturnType<typeof useLanguage>
-}) {
-  return (
-    <div class={`${props.class ?? ""} min-w-0 flex-col gap-1 pr-3`}>
-      <HomeProjectNavButton
-        type="button"
-        class="text-v2-text-text-faint [&>[data-slot=icon-svg]]:text-v2-icon-icon-muted"
-        onClick={props.onOpenSettings}
-      >
-        <IconV2 name="settings-gear" size="small" />
-        <span class={HOME_PROJECT_NAV_LABEL}>{props.language.t("sidebar.settings")}</span>
-      </HomeProjectNavButton>
-      <HomeProjectNavButton
-        type="button"
-        class="text-v2-text-text-faint [&>[data-slot=icon-svg]]:text-v2-icon-icon-muted"
-        onClick={props.onOpenHelp}
-      >
-        <IconV2 name="help" size="small" />
-        <span class={HOME_PROJECT_NAV_LABEL}>{props.language.t("sidebar.help")}</span>
-      </HomeProjectNavButton>
-    </div>
-  )
-}
-
+/**
+ * ⚠ TWO THINGS THAT USED TO LIVE HERE ARE GONE, AND FOR DIFFERENT REASONS.
+ *
+ * `HomeProjectsView` — the `<aside>` that wrapped all of this — was the home page's 280px column:
+ * sticky, measured in `100cqh` against that page's own scroller, with the Courses section, a
+ * Projects label and the utility nav stacked inside it. The sidebar owns all four of those now, and
+ * its section headers and gutter are its own, so the wrapper had nothing left to contribute.
+ *
+ * `HomeUtilityNav` — the Settings and Help rows — moved into the sidebar's account menu
+ * (`components/app-sidebar/app-sidebar-account.tsx`). They were never part of the projects list;
+ * they sat under it because that column happened to be where there was room.
+ *
+ * What survived is `HomeProjectsListBody` above and the rows below, which were always
+ * width-agnostic.
+ */
 function HomeServerRow(props: {
   language: HomeProjectsViewProps["language"]
   projectsForServer: HomeProjectsViewProps["projectsForServer"]
@@ -587,31 +548,7 @@ function HomeProjectRow(
   )
 }
 
-// Exported so the Courses section can use the identical row. The two lists sit in one column and
-// must read as siblings; a second hand-written copy of this style is how they stop being.
-export function HomeProjectNavButton(props: JSX.ButtonHTMLAttributes<HTMLButtonElement>) {
-  const [local, rest] = splitProps(props, ["class", "classList", "children"])
-  return (
-    <button
-      {...rest}
-      class={`
-        flex h-7 min-w-0 w-full shrink-0 cursor-default items-center gap-2 rounded-[6px] bg-transparent px-1.5 text-left
-        text-v2-text-text-muted [font-weight:440] transition-[background-color,color,box-shadow] duration-[120ms] ease-in-out
-        hover:bg-v2-background-bg-layer-01 hover:text-v2-text-text-base
-        data-[selected]:bg-v2-background-bg-layer-03 data-[selected]:text-v2-text-text-base
-        data-[selected]:hover:bg-v2-background-bg-layer-03
-        focus-visible:bg-v2-background-bg-layer-01 focus-visible:text-v2-text-text-base focus-visible:outline-none
-        focus-visible:[box-shadow:inset_0_0_0_0.5px_var(--v2-border-border-muted)]
-        ${local.class ?? ""}
-      `}
-      classList={local.classList}
-    >
-      {local.children}
-    </button>
-  )
-}
-
-function HomeProjectAvatar(props: { project: LocalProject; outline?: boolean }) {
+export function HomeProjectAvatar(props: { project: LocalProject; outline?: boolean }) {
   const name = createMemo(() => displayName(props.project))
   return (
     <ProjectAvatar

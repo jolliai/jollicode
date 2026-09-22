@@ -1,14 +1,18 @@
 /**
  * WHICH COURSE, AND WHOSE ASSISTANT, THIS SESSION WILL BELONG TO.
  *
- * ⚠ THESE RENDER ONLY ON THE NEW-SESSION SCREEN, AND THAT ABSENCE ELSEWHERE IS THE LOCK. A session's
- * course decides which models may run and who may read the transcript; changing it halfway through
- * would retroactively re-scope work already done under different terms. Project, location and branch
- * are already fixed this way, so a student meets one rule rather than two.
+ * ⚠ THESE RENDER WHEREVER THE BINDING IS STILL CHOOSABLE, WHICH IS NOT THE SAME AS THE LOCK. An
+ * earlier version of this note said they appear only on the new-session screen and that their
+ * absence everywhere else *was* the lock. That was true of the UI and false about the product: the
+ * lock is `refuseRebindingAfterFirstMessage` in the server's session handler, which rejects any
+ * PATCH that changes `courseId` or `assistantId` once the conversation has started. The UI's job is
+ * narrower — render a control only where the write would be accepted, and render the binding as
+ * text everywhere else. `session-course-bar.tsx` is what decides which of those you get.
  *
- * ⚠ THE VISUAL LANGUAGE IS `prompt-workspace-selector.tsx`'s, DELIBERATELY. This row sits directly
- * above that one, and two selector rows built to different measurements read as two features that
- * happen to be adjacent rather than one decision made in stages.
+ * ⚠ THE VISUAL LANGUAGE IS `prompt-workspace-selector.tsx`'s, DELIBERATELY. The two rows no longer
+ * sit next to each other — course above the composer, project below it — so the reason is no longer
+ * adjacency. It is that a student should meet one control shape for "narrow what this session is",
+ * whichever side of the box it appears on.
  */
 
 import { For, Show } from "solid-js"

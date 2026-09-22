@@ -62,6 +62,24 @@ export function createInlineEditorController() {
       if (!stopEvents()) return
       event.stopPropagation()
     }
+    /**
+     * WHAT THE *DISPLAYED* TITLE SWALLOWS, WHICH IS NOT THE SAME QUESTION AS WHAT THE FIELD SWALLOWS.
+     *
+     * ⚠ THE READ-ONLY LABEL ONLY HAS THE RIGHT TO EAT A CLICK IF IT DOES SOMETHING WITH IT. Opening
+     * on double-click is that something: dblclick arrives after two ordinary clicks, so without the
+     * stops the row behind would fire twice on the way to becoming a text field. With
+     * `openOnDblClick={false}` the label has no behaviour at all — it is text — and swallowing
+     * clicks there made the sidebar's session rows reachable only by their leading avatar, with the
+     * title, the widest part of the row, inert.
+     *
+     * ⚠ THE EDITING BRANCH STILL HONOURS `stopPropagation` UNCONDITIONALLY. An open field is the
+     * one case where a click genuinely is not the row's: clicking into the text to reposition the
+     * caret must not navigate away from what you are renaming.
+     */
+    const stopDisplayPropagation = (event: Event) => {
+      if (!allowDblClick()) return
+      stopPropagation(event)
+    }
     const handleDblClick = (event: MouseEvent) => {
       if (!allowDblClick()) return
       stopPropagation(event)
@@ -75,10 +93,10 @@ export function createInlineEditorController() {
           <span
             class={props.displayClass ?? props.class}
             onDblClick={handleDblClick}
-            onPointerDown={stopPropagation}
-            onMouseDown={stopPropagation}
-            onClick={stopPropagation}
-            onTouchStart={stopPropagation}
+            onPointerDown={stopDisplayPropagation}
+            onMouseDown={stopDisplayPropagation}
+            onClick={stopDisplayPropagation}
+            onTouchStart={stopDisplayPropagation}
           >
             {props.value()}
           </span>

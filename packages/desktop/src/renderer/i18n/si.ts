@@ -9,6 +9,7 @@ export const dict: Record<string, string> = {
   "desktop.jolli.signIn.action": "Jolli සමඟ පුරනය වන්න",
   "desktop.jolli.signIn.waiting": "ඔබේ බ්‍රව්සරය එනතුරු බලා සිටී…",
   "desktop.jolli.signIn.hint": "දැන් විවෘත වූ බ්‍රව්සර ටැබය තුළ පුරනය සම්පූර්ණ කර, නැවත මෙහි එන්න.",
+  "desktop.jolli.signIn.cancel": "අවලංගු කරන්න",
   "desktop.jolli.signIn.serverUnavailable":
     "ඔබ පුරනය වී ඇත, නමුත් Jolli Code හට එහි ස්ථානීය සේවාදායකය නැවත ආරම්භ කළ නොහැකි විය. සම්පූර්ණ කිරීමට යෙදුම නැවත ආරම්භ කරන්න.",
 

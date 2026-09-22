@@ -2,9 +2,26 @@ import type { SessionApi, SessionInfo, SessionListInput } from "@opencode-ai/cli
 import type { Session } from "@opencode-ai/sdk/v2/client"
 import { withTimestampedFallback } from "./session-title"
 
-export function normalizeSessionInfo(input: SessionInfo | Session): Session {
+/**
+ * ⚠ `metadata` IS DECLARED HERE BECAUSE THE VENDORED CLIENT'S TYPES PREDATE IT. `@opencode-ai/client`
+ * ships as a tarball in `packages/app/vendor`, so its `SessionInfo` cannot be regenerated alongside
+ * a server-side schema change; the field is on the wire (see `schema/src/session.ts` and
+ * `core/src/session/info.ts`) and a stale `.d.ts` is not a reason to throw the value away. Declaring
+ * the intersection beats an inline cast: it says what the payload actually is, once.
+ */
+export type SessionInfoWithMetadata = SessionInfo & { metadata?: Record<string, unknown> }
+
+/**
+ * ⚠ THIS REBUILDS THE OBJECT FIELD BY FIELD, SO ANY FIELD LEFT OUT IS DELETED RATHER THAN IGNORED —
+ * which is how `metadata` came to be dropped from every session read through a v2 list. That bag is
+ * where Jolli keeps a session's course binding (`core/jolli/binding.ts`), so a session opened from
+ * the session list came back with no course, no assistant and no model grant, while one created in
+ * the same renderer looked fine purely on `session-binding.tsx`'s one-frame `handoff` cache.
+ */
+export function normalizeSessionInfo(input: SessionInfoWithMetadata | Session): Session {
   if (!("location" in input)) return input
   return {
+    metadata: input.metadata,
     id: input.id,
     slug: input.id,
     projectID: input.projectID,

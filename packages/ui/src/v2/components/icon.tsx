@@ -1,5 +1,16 @@
 import { onMount, type ComponentProps, splitProps } from "solid-js"
 
+/**
+ * ONE PATH, TWO ICONS: the panel-toggle outline, drawn pointing right.
+ *
+ * ⚠ `sidebar-left` MIRRORS THIS BY TRANSFORM RATHER THAN REDRAWING IT. Hand-mirroring a
+ * 24-segment filled outline about x=10 is 24 chances to land a subpixel off, and these two are read
+ * side by side — one toggles the sidebar, the other the review panel — so any asymmetry reads as a
+ * rendering bug rather than as two icons. `monitor` below already carries a `transform` in its body,
+ * so this is the file's existing escape hatch and not a new trick.
+ */
+const sidebarPanelPath = `<path d="M2.91536 2.91406H2.36536V2.36406H2.91536V2.91406ZM2.91536 17.0807V17.6307H2.36536V17.0807H2.91536ZM17.082 17.0807H17.632V17.6307H17.082V17.0807ZM17.082 2.91406V2.36406H17.632V2.91406H17.082ZM6.9987 2.91406H6.4487V2.36406H6.9987V2.91406ZM6.9987 17.0807V17.6307H6.4487V17.0807H6.9987ZM2.91536 2.91406H3.46536V17.0807H2.91536H2.36536V2.91406H2.91536ZM2.91536 17.0807V16.5307H17.082V17.0807V17.6307H2.91536V17.0807ZM17.082 17.0807H16.532V2.91406H17.082H17.632V17.0807H17.082ZM17.082 2.91406V3.46406H2.91536V2.91406V2.36406H17.082V2.91406ZM6.9987 2.91406H7.5487V17.0807H6.9987H6.4487V2.91406H6.9987ZM17.082 17.0807L17.082 17.6307L6.9987 17.6307V17.0807V16.5307L17.082 16.5307L17.082 17.0807ZM6.9987 2.91406V2.36406H17.082V2.91406V3.46406H6.9987V2.91406Z" fill="currentColor"/>`
+
 const icons = {
   edit: {
     viewBox: "0 0 16 16",
@@ -27,7 +38,11 @@ const icons = {
   },
   "sidebar-right": {
     viewBox: "0 0 20 20",
-    body: `<path d="M2.91536 2.91406H2.36536V2.36406H2.91536V2.91406ZM2.91536 17.0807V17.6307H2.36536V17.0807H2.91536ZM17.082 17.0807H17.632V17.6307H17.082V17.0807ZM17.082 2.91406V2.36406H17.632V2.91406H17.082ZM6.9987 2.91406H6.4487V2.36406H6.9987V2.91406ZM6.9987 17.0807V17.6307H6.4487V17.0807H6.9987ZM2.91536 2.91406H3.46536V17.0807H2.91536H2.36536V2.91406H2.91536ZM2.91536 17.0807V16.5307H17.082V17.0807V17.6307H2.91536V17.0807ZM17.082 17.0807H16.532V2.91406H17.082H17.632V17.0807H17.082ZM17.082 2.91406V3.46406H2.91536V2.91406V2.36406H17.082V2.91406ZM6.9987 2.91406H7.5487V17.0807H6.9987H6.4487V2.91406H6.9987ZM17.082 17.0807L17.082 17.6307L6.9987 17.6307V17.0807V16.5307L17.082 16.5307L17.082 17.0807ZM6.9987 2.91406V2.36406H17.082V2.91406V3.46406H6.9987V2.91406Z" fill="currentColor"/>`,
+    body: sidebarPanelPath,
+  },
+  "sidebar-left": {
+    viewBox: "0 0 20 20",
+    body: `<g transform="translate(20,0) scale(-1,1)">${sidebarPanelPath}</g>`,
   },
   status: {
     viewBox: "0 0 20 20",
@@ -165,6 +180,18 @@ const icons = {
   "eye-off": {
     viewBox: "0 0 16 16",
     body: `<path d="M8 3.5C3.5 3.5 1 8 1 8C1 8 3.5 12.5 8 12.5C12.5 12.5 15 8 15 8C15 8 12.5 3.5 8 3.5Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="8" r="2" stroke="currentColor"/><path d="M2.5 2.5L13.5 13.5" stroke="currentColor" stroke-linecap="round"/>`,
+  },
+  /**
+   * THE ACCOUNT MARK, AND IT IS A PLACEHOLDER BY DESIGN.
+   *
+   * ⚠ IT RENDERS ONLY WHILE WE CANNOT NAME THE READER. The sidebar's account row swaps it for an
+   * initial avatar the moment a name or an email arrives; this glyph is what stands in the row's
+   * fixed 28px slot before that (and on a signed-out web build, which never gets one). That is why
+   * it is a generic bust and not a portrait frame — it says "an account", not "your account".
+   */
+  user: {
+    viewBox: "0 0 16 16",
+    body: `<circle cx="8" cy="5.5" r="2.5" stroke="currentColor"/><path d="M13 14V12.5C13 10.8431 11.6569 9.5 10 9.5H6C4.34315 9.5 3 10.8431 3 12.5V14" stroke="currentColor"/>`,
   },
   archive: {
     viewBox: "0 0 16 16",

@@ -10,6 +10,7 @@ export const dict = {
   "desktop.jolli.signIn.waiting": "S'està esperant el navegador…",
   "desktop.jolli.signIn.hint":
     "Acaba d'iniciar la sessió a la pestanya del navegador que s'acaba d'obrir i torna aquí.",
+  "desktop.jolli.signIn.cancel": "Cancel·la",
   "desktop.jolli.signIn.serverUnavailable":
     "Heu iniciat la sessió, però Jolli Code no ha pogut reiniciar el seu servidor local. Reinicieu l'aplicació per acabar.",
 

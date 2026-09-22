@@ -1,6 +1,7 @@
 import { base64Encode } from "@opencode-ai/core/util/encode"
 import { expect, test, type Page } from "@playwright/test"
 import { mockOpenCodeServer } from "../utils/mock-server"
+import { openSidebarSession } from "../utils/nav"
 import { expectSessionTitle } from "../utils/waits"
 
 const directory = "C:/OpenCode/TodoDockNavigation"
@@ -163,10 +164,7 @@ function sessionHref(sessionID: string) {
 }
 
 async function switchSession(page: Page, sessionID: string, title: string) {
-  const href = sessionHref(sessionID)
-  const tab = page.locator(`[data-slot="titlebar-tabs"] a[href="${href}"]`).first()
-  await expect(tab).toBeVisible()
-  await tab.click()
+  await openSidebarSession(page, { id: sessionID })
   await expectSessionTitle(page, title)
 }
 

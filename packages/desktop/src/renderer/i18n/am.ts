@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "በ Jolli ይግቡ",
   "desktop.jolli.signIn.waiting": "አሳሽዎን በመጠበቅ ላይ…",
   "desktop.jolli.signIn.hint": "አሁን በተከፈተው የአሳሽ ትር ውስጥ መግባትዎን ያጠናቅቁ፣ ከዚያ ወደዚህ ይመለሱ።",
+  "desktop.jolli.signIn.cancel": "ሰርዝ",
   "desktop.jolli.signIn.serverUnavailable":
     "ገብተዋል፣ ነገር ግን Jolli Code የአካባቢውን አገልጋይ እንደገና ማስጀመር አልቻለም። ለማጠናቀቅ መተግበሪያውን እንደገና ያስጀምሩ።",
 

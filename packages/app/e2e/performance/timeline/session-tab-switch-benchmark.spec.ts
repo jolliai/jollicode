@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test"
+import { openSidebarSession } from "../../utils/nav"
 import { expectSessionTitle } from "../../utils/waits"
 import { benchmark, expect, withBenchmarkPage } from "../benchmark"
 import { fixture } from "./session-timeline-stress.fixture"
@@ -123,10 +124,7 @@ function summarizeReviewPane(results: Record<"closed" | "open", Record<"cold" | 
 }
 
 async function switchSession(page: Page, sessionID: string, title: string) {
-  const href = stressSessionHref(sessionID)
-  const tab = page.locator(`[data-slot="titlebar-tabs"] a[href="${href}"]`).first()
-  await expect(tab).toBeVisible()
-  await tab.click()
+  await openSidebarSession(page, { id: sessionID })
   await expectSessionTitle(page, title)
 }
 

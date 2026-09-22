@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Rita inn við Jolli",
   "desktop.jolli.signIn.waiting": "Bíðar eftir kaganum…",
   "desktop.jolli.signIn.hint": "Fullfør innritingina í kaga-teiginum, sum júst opnaðist, og kom so aftur higar.",
+  "desktop.jolli.signIn.cancel": "Avlýs",
   "desktop.jolli.signIn.serverUnavailable":
     "Tú ert innritaður, men Jolli Code kundi ikki endurbyrja sín lokala ambætara. Endurbyrja appina fyri at gera lidnað.",
 

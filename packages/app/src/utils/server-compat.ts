@@ -9,12 +9,12 @@ import type {
   SessionCommandOutput,
   SessionCompactInput,
   SessionCompactOutput,
-  SessionInfo,
   SessionPromptInput,
   SessionPromptOutput,
   SessionShellInput,
   SessionShellOutput,
 } from "@opencode-ai/client/promise"
+import type { SessionInfoWithMetadata } from "./session"
 
 type LegacyClient = OpencodeClient
 type LegacyFor = (directory?: string) => LegacyClient
@@ -23,13 +23,15 @@ type CompatibleSessionApi = Omit<
   "prompt" | "command" | "shell" | "compact" | "rename" | "archive" | "remove" | "create"
 > & {
   /**
-   * ⚠ `metadata` IS DECLARED HERE BECAUSE V2's INPUT TYPE DOES NOT CARRY IT, and leaving that
-   * mismatch implicit is how it got lost once already: an object spread (`...(x ? {metadata} : {})`)
-   * satisfies excess-property checking, so a caller passing it type-checked cleanly while the shim
-   * below quietly dropped the field. Naming it makes both halves fail loudly instead.
+   * ⚠ `metadata` AND `title` ARE DECLARED HERE BECAUSE V2's INPUT TYPE CARRIES NEITHER, and leaving
+   * that mismatch implicit is how `metadata` got lost once already: an object spread
+   * (`...(x ? {metadata} : {})`) satisfies excess-property checking, so a caller passing it
+   * type-checked cleanly while the shim below quietly dropped the field. Naming them makes both
+   * halves fail loudly instead. The server has taken both since long before the generated types
+   * were cut — see `Session.CreateInput`.
    */
   create: (
-    input?: Parameters<SessionApi["create"]>[0] & { metadata?: Record<string, unknown> },
+    input?: Parameters<SessionApi["create"]>[0] & { metadata?: Record<string, unknown>; title?: string },
   ) => ReturnType<SessionApi["create"]>
   prompt: (input: SessionPromptInput & LegacyPrompt) => Promise<SessionPromptOutput>
   command: (input: SessionCommandInput) => Promise<SessionCommandOutput>
@@ -67,8 +69,23 @@ function mime(uri: string) {
   return match?.[1] ?? "application/octet-stream"
 }
 
-function sessionInfo(session: Session): SessionInfo {
+/**
+ * ⚠ THE READ SIDE OF THE SAME TRAP THE `create` INPUT ABOVE IS DOCUMENTED FOR, AND IT REBUILDS THE
+ * OBJECT FIELD BY FIELD — so a field left out is DELETED rather than ignored. `metadata` was the
+ * field left out, and the desktop always negotiates v1, so every `session.get` and `session.list`
+ * came back with Jolli's course binding (`core/jolli/binding.ts`) stripped off.
+ *
+ * ⚠ AND IT WAS THE ONE PROJECTION LEFT, which is why the symptom looked intermittent rather than
+ * total. `normalizeSessionInfo` (`utils/session.ts`) and `toLegacySummary`
+ * (`global-sync/home-session-index.ts`) were each fixed for this already, so the sidebar's index and
+ * the initial v1 root-session load both carried the binding — but `resolve()` in
+ * `context/server-session.ts` refetches a session through THIS shim on every open and `reconcile`s
+ * the answer over the good row. The course therefore survived until the session was opened, switched
+ * to a few times, or restored after a restart, and vanished on any of the three.
+ */
+function sessionInfo(session: Session): SessionInfoWithMetadata {
   return {
+    metadata: session.metadata,
     id: session.id,
     parentID: session.parentID,
     projectID: session.projectID,
@@ -173,12 +190,15 @@ function createV1Api(input: CompatibleInput): CompatibleApi {
         const result = await legacy(value?.location ?? undefined).session.create({
           directory: directory(value?.location ?? undefined),
           /**
-           * ⚠ `metadata` HAS TO BE FORWARDED, AND FORGETTING IT FAILS SILENTLY. The desktop always
-           * negotiates v1, so every `session.create` goes through this shim; a field dropped here
-           * is a field the server never hears about, with no error anywhere. Jolli's course
-           * binding travels this way and must exist from the session's first moment — that is what
-           * lets the server refuse to change it later.
+           * ⚠ `metadata` AND `title` HAVE TO BE FORWARDED, AND FORGETTING EITHER FAILS SILENTLY.
+           * The desktop always negotiates v1, so every `session.create` goes through this shim; a
+           * field dropped here is a field the server never hears about, with no error anywhere.
+           * Jolli's course binding travels this way and must exist from the session's first moment
+           * — that is what lets the server refuse to change it later. The title travels with it for
+           * the same reason: a session that reaches the sidebar before its title does shows "New
+           * session" there, which is the whole thing `jolli/session-title.ts` is written to avoid.
            */
+          ...(value?.title ? { title: value.title } : {}),
           ...(value?.metadata ? { metadata: value.metadata } : {}),
         })
         if (!result.data) throw new Error("Failed to create session")

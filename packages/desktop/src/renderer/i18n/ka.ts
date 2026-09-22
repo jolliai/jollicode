@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "შესვლა Jolli-ით",
   "desktop.jolli.signIn.waiting": "ველოდებით თქვენს ბრაუზერს…",
   "desktop.jolli.signIn.hint": "დაასრულეთ შესვლა ახლახან გახსნილ ბრაუზერის ჩანართში და დაბრუნდით აქ.",
+  "desktop.jolli.signIn.cancel": "გაუქმება",
   "desktop.jolli.signIn.serverUnavailable":
     "შესული ხართ, მაგრამ Jolli Code-მა ვერ გადატვირთა ლოკალური სერვერი. დასასრულებლად გადატვირთეთ აპლიკაცია.",
 

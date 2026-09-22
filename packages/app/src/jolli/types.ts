@@ -30,3 +30,4 @@ export type AssistantSkill = Jolli.AssistantSkill
 export type ModelTier = Jolli.ModelTier
 export type Assistant = Jolli.Assistant
 export type Catalog = Jolli.Catalog
+export type Viewer = Jolli.Viewer

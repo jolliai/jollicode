@@ -2,6 +2,18 @@ import { describe, expect, test } from "bun:test"
 import { createApiForServer, createSdkForServer } from "./server"
 import { createCompatibleApi } from "./server-compat"
 
+/** A session as the V1 server actually stores one: with Jolli's course binding in its metadata bag. */
+const BOUND_SESSION = {
+  id: "ses_1",
+  slug: "ses_1",
+  projectID: "project",
+  directory: "/repo",
+  title: "CS 101 · hi new chat",
+  version: "1",
+  metadata: { jolli: { courseId: "1", assistantId: "2", sharing: { staff: true, everyone: false } } },
+  time: { created: 1, updated: 1 },
+}
+
 function setup(
   protocol: "v1" | "v2" | Promise<"v1" | "v2">,
   responses?: { vcs?: { branch: string; default_branch: string } },
@@ -12,6 +24,17 @@ function setup(
       const request = new Request(input, init)
       requests.push(request)
       if (request.method === "PATCH") {
+        return Response.json({
+          id: "ses_1",
+          slug: "ses_1",
+          projectID: "project",
+          directory: "/repo",
+          title: "Session",
+          version: "1",
+          time: { created: 1, updated: 1 },
+        })
+      }
+      if (request.method === "POST" && new URL(request.url).pathname === "/session") {
         return Response.json({
           id: "ses_1",
           slug: "ses_1",
@@ -37,6 +60,10 @@ function setup(
       }
       if (request.method === "GET" && new URL(request.url).pathname === "/vcs")
         return Response.json(responses?.vcs ?? {})
+      if (request.method === "GET" && new URL(request.url).pathname === "/session/ses_1")
+        return Response.json(BOUND_SESSION)
+      if (request.method === "GET" && new URL(request.url).pathname === "/session")
+        return Response.json([BOUND_SESSION])
       if (request.method === "GET") return Response.json([])
       return new Response(undefined, { status: 204 })
     },
@@ -65,6 +92,45 @@ describe("createCompatibleApi", () => {
     expect(await requests[0]!.json()).toMatchObject({ time: { archived: expect.any(Number) } })
   })
   */
+
+  /**
+   * ⚠ V2'S GENERATED INPUT TYPE CARRIES NEITHER OF THESE, SO NEITHER IS SPREAD AUTOMATICALLY — the
+   * shim names them one by one, and a field it forgets is one the server never hears about with no
+   * error anywhere. The desktop always negotiates v1, so this is the create that actually runs:
+   * `metadata` carries Jolli's course binding and `title` the name a new session is born with.
+   */
+  test("forwards the title and metadata a V1 session is created with", async () => {
+    const { api, requests } = setup("v1")
+    await api.session.create({
+      location: { directory: "/repo" },
+      title: "CS 310 · why does my quicksort go out of bounds",
+      metadata: { jolli: { courseId: "1", assistantId: "2" } },
+    })
+
+    expect(new URL(requests[0]!.url).pathname).toBe("/session")
+    expect(await requests[0]!.json()).toMatchObject({
+      title: "CS 310 · why does my quicksort go out of bounds",
+      metadata: { jolli: { courseId: "1", assistantId: "2" } },
+    })
+  })
+
+  /**
+   * ⚠ THE READ SIDE OF THE SAME FIELD, AND THE ONE THE SHIM ACTUALLY DROPPED. `resolve()` in
+   * `context/server-session.ts` refetches a session through here every time one is opened and
+   * `reconcile`s the answer over the synced row, so a `metadata` missing from this projection took
+   * the course off the session that was already on screen — the sidebar kept saying "CS 101 ·"
+   * because that is the title, while the prompt bar said "No course" and refused to send.
+   */
+  test("keeps the course binding on a V1 session that is read back", async () => {
+    const { api } = setup("v1")
+
+    expect(await api.session.get({ sessionID: "ses_1" })).toMatchObject({
+      metadata: { jolli: { courseId: "1", assistantId: "2" } },
+    })
+    expect((await api.session.list({ directory: "/repo" })).data[0]).toMatchObject({
+      metadata: { jolli: { courseId: "1", assistantId: "2" } },
+    })
+  })
 
   test("converts current prompts to the V1 prompt contract", async () => {
     const { api, requests } = setup("v1")

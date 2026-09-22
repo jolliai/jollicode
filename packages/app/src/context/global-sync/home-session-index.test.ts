@@ -103,6 +103,16 @@ describe("Home V2 session index", () => {
     ])
   })
 
+  test("keeps a session's metadata, which is where its course binding lives", () => {
+    const metadata = { jolli: { courseId: "cs-310", assistantId: "tutor", sharing: { staff: true, everyone: false } } }
+    const bound = { ...session({ id: "bound" }), metadata }
+
+    expect(parseHomeSessionIndex([bound, session({ id: "unbound" })])).toEqual([
+      expect.objectContaining({ id: "bound", metadata }),
+      expect.objectContaining({ id: "unbound", metadata: undefined }),
+    ])
+  })
+
   test("preserves the per-directory Home retention limit", () => {
     const now = 10 * 60 * 60 * 1000
     const sessions = Array.from({ length: 80 }, (_, index) => ({
@@ -152,6 +162,31 @@ describe("Home V2 session index", () => {
     expect(homeSessionIndexRefresh("server.connected", true)).toEqual({ connected: true, refetch: true })
     expect(homeSessionIndexRefresh("global.disposed", true).refetch).toBe(true)
     expect(homeSessionIndexRefresh("session.next.moved", true).refetch).toBe(true)
+  })
+
+  test("adds a newly created session to the loaded Home index", () => {
+    const queryClient = new QueryClient()
+    const cache = createHomeSessionIndexCache(queryClient, "server")
+    const sessions = [{ id: "a", time: { created: 1, updated: 1 } }] as Session[]
+    queryClient.setQueryData(cache.indexKey, { sessions, eventSequence: 0 })
+
+    cache.add({ id: "b", title: "new", time: { created: 2, updated: 2 } } as Session)
+    cache.add({ id: "a", title: "same row", time: { created: 1, updated: 3 } } as Session)
+
+    const index = queryClient.getQueryData<{ sessions: Session[] }>(cache.indexKey)
+    expect(index?.sessions.map((item) => item.id)).toEqual(["a", "b"])
+    expect(index?.sessions.find((item) => item.id === "a")?.title).toBe("same row")
+  })
+
+  test("keeps children and archived sessions out of the Home index", () => {
+    const queryClient = new QueryClient()
+    const cache = createHomeSessionIndexCache(queryClient, "server")
+    queryClient.setQueryData(cache.indexKey, { sessions: [] as Session[], eventSequence: 0 })
+
+    cache.add({ id: "child", parentID: "a", time: { created: 1, updated: 1 } } as Session)
+    cache.add({ id: "archived", time: { created: 1, updated: 1, archived: 2 } } as Session)
+
+    expect(queryClient.getQueryData<{ sessions: Session[] }>(cache.indexKey)?.sessions).toEqual([])
   })
 
   test("removes a session from the loaded Home index", () => {

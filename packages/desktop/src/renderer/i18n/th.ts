@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "ลงชื่อเข้าใช้ด้วย Jolli",
   "desktop.jolli.signIn.waiting": "กำลังรอเบราว์เซอร์ของคุณ…",
   "desktop.jolli.signIn.hint": "ลงชื่อเข้าใช้ให้เสร็จในแท็บเบราว์เซอร์ที่เพิ่งเปิดขึ้น แล้วกลับมาที่นี่",
+  "desktop.jolli.signIn.cancel": "ยกเลิก",
   "desktop.jolli.signIn.serverUnavailable":
     "คุณลงชื่อเข้าใช้แล้ว แต่ Jolli Code ไม่สามารถรีสตาร์ทเซิร์ฟเวอร์ในเครื่องได้ รีสตาร์ทแอปเพื่อทำให้เสร็จสมบูรณ์",
 

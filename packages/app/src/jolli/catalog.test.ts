@@ -5,6 +5,7 @@ import {
   courseById,
   defaultAssistantFor,
   enrolledCourses,
+  listedCourses,
   ready,
   resetCatalog,
   setCatalog,
@@ -70,6 +71,38 @@ describe("enrolledCourses", () => {
   })
 })
 
+describe("listedCourses", () => {
+  test("hides what cannot be started while anything can", () => {
+    setCatalog(
+      catalog(
+        [course("1", "open", ["a"]), course("2", "draft", ["b"]), course("3", "ended", ["c"])],
+        [assistant("a", "1"), assistant("b", "2"), assistant("c", "3")],
+      ),
+    )
+    expect(listedCourses().map((c) => c.id)).toEqual(["1"])
+  })
+
+  /**
+   * ⚠ THE CASE THE WHOLE RULE EXISTS FOR. With nothing startable the filter would empty the column,
+   * and an empty column cannot say "your instructor hasn't published this yet".
+   */
+  test("shows everything when nothing can be started", () => {
+    setCatalog(catalog([course("1", "draft"), course("2", "archived")], []))
+    expect(listedCourses().map((c) => c.id)).toEqual(["1", "2"])
+  })
+
+  // An open course with nobody to answer is not startable either, so it is filtered like a draft.
+  test("counts an open course with no assistant as unstartable", () => {
+    setCatalog(catalog([course("1", "open", ["a"]), course("2", "open")], [assistant("a", "1")]))
+    expect(listedCourses().map((c) => c.id)).toEqual(["1"])
+  })
+
+  test("stays empty for a student with no enrolments", () => {
+    setCatalog(catalog([], []))
+    expect(listedCourses()).toEqual([])
+  })
+})
+
 describe("canStartSession", () => {
   test("needs an open course AND an assistant", () => {
     setCatalog(
@@ -131,5 +164,41 @@ describe("courseById", () => {
     expect(courseById(undefined)).toBeUndefined()
     expect(courseById("nope")).toBeUndefined()
     expect(courseById("1")?.id).toBe("1")
+  })
+})
+
+/**
+ * ⚠ THE PAYLOAD IS TYPED `Catalog` AND ARRIVES OVER HTTP, WHICH ARE NOT THE SAME CLAIM. The only
+ * caller reaches `setCatalog` through `response.data as Catalog` — an assertion with nothing behind
+ * it — so these cases pin what happens when the body does not hold up.
+ *
+ * ⚠ THE CRASH WAS NOT A MISSING SECTION, IT WAS THE ERROR SCREEN. `enrolledCourses()` spreads the
+ * stored array, so a `courses` that was not one made `[...undefined]` throw out of a render; the
+ * sidebar reads it at the top of a layout mounted on every route, so the whole application went
+ * down rather than one list.
+ */
+describe("setCatalog with an answer that is not a catalogue", () => {
+  const malformed = [
+    ["an empty body", {}],
+    ["a null body", null],
+    ["courses of the wrong type", { courses: { "1": course("1", "open") }, assistants: [] }],
+    ["assistants of the wrong type", { courses: [], assistants: "none" }],
+  ] as const
+
+  for (const [name, body] of malformed) {
+    test(`survives ${name}`, () => {
+      setCatalog(body as unknown as Catalog)
+      expect(enrolledCourses()).toEqual([])
+      expect(assistantsForCourse("1")).toEqual([])
+      expect(canStartSession("1")).toBe(false)
+      // ⚠ STILL "ANSWERED". `ready` means the server replied, not that the reply was any good.
+      expect(ready()).toBe(true)
+    })
+  }
+
+  test("a later good answer replaces a bad one", () => {
+    setCatalog({} as unknown as Catalog)
+    setCatalog(catalog([course("1", "open", ["a"])], [assistant("a", "1")]))
+    expect(enrolledCourses().map((item) => item.id)).toEqual(["1"])
   })
 })

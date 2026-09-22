@@ -12,35 +12,33 @@
  * handoff across the frame where a session is created — so a reader who knows one knows the other,
  * while the diff against upstream stays at the call sites.
  *
- * ⚠ THE IMMUTABILITY IS UI-ONLY, AND SAYING SO IS THE POINT. Nothing here prevents a binding being
- * rewritten, because nothing here is the authority. What makes a session's course fixed is that no
- * screen renders a control to change it, exactly as project, location and branch are fixed today.
- * `Session.agent` is genuinely mutable server-side — the server overwrites it whenever a turn
+ * ⚠ THE IMMUTABILITY IS ENFORCED BY THE SERVER, AND THIS CONTEXT ONLY REFLECTS IT. An earlier
+ * version of this note said the opposite — that nothing here is the authority and what fixes a
+ * session's course is that no screen renders a control to change it. Both halves have since stopped
+ * being true: `refuseRebindingAfterFirstMessage` in the session PATCH handler rejects a course or
+ * assistant change once the conversation has started, and a screen *does* render a control, on the
+ * draft route where the write would still be accepted. So `locked` is not the lock; it is how this
+ * context tells a view which of the two forms to draw.
+ *
+ * ⚠ `Session.agent` REMAINS GENUINELY MUTABLE SERVER-SIDE — the server overwrites it whenever a turn
  * arrives naming a different agent, and a `switchAgent` endpoint exists — so an assistant lock
- * enforced anywhere but the UI would be a lock this product does not actually have.
+ * enforced anywhere but in the binding would be a lock this product does not actually have.
  */
 
 import { createSimpleContext } from "@opencode-ai/ui/context"
 import { useParams } from "@solidjs/router"
 import { createEffect, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
+import { useLayout } from "@/context/layout"
 import { useSDK } from "@/context/sdk"
-import { useServerSDK } from "@/context/server-sdk"
-import {
-  assistantById,
-  canStartSession,
-  catalogGeneration,
-  courseById,
-  defaultAssistantFor,
-  ensureCatalog,
-  enrolledCourses,
-  ready,
-} from "./catalog"
+import { assistantById, canStartSession, courseById, defaultAssistantFor, enrolledCourses, ready } from "./catalog"
+import { useJolliCatalog } from "./catalog-fetch"
+import { CourseIntent, courseIntentRouteKey } from "./course-intent"
 import { ModelGrant } from "./model-grant"
 import { useSync } from "@/context/sync"
 import { courseBindingOf, type CourseBinding } from "@opencode-ai/core/jolli/binding"
 import { defaultSessionSharing, mayMakePrivate } from "@opencode-ai/core/jolli/sharing"
-import type { Assistant, Catalog, Course, SessionSharing } from "./types"
+import type { Assistant, Course, SessionSharing } from "./types"
 
 export type { CourseBinding }
 
@@ -73,26 +71,18 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
   init: () => {
     const params = useParams()
     const id = createMemo(() => params.id || undefined)
+    /** Only ever read to scope a `CourseIntent` request to the session it was made for. */
+    const layout = useLayout()
 
     /**
-     * ⚠ THE CATALOGUE IS FETCHED HERE BECAUSE THIS IS THE CONTEXT THAT NEEDS IT, and `ensureCatalog`
-     * makes the duplicate harmless — this provider mounts on both the new-session route and inside
-     * the directory layout, so a bare fetch would run twice on every launch.
+     * ⚠ THE FETCH IS NO LONGER THIS CONTEXT'S PRIVATE BUSINESS — see `catalog-fetch.ts`. It used to
+     * be an effect right here, on the reasoning that this is the context that needs the catalogue.
+     * That was true and still left the home route without one, because `/` mounts under neither of
+     * this provider's two mount points. The hook is called here as one caller among several, and
+     * `ensureCatalog` makes the duplicates free.
      */
-    const serverSDK = useServerSDK()
     const sdk = useSDK()
-    createEffect(() => {
-      const server = serverSDK()
-      /**
-       * ⚠ THE GENERATION IS READ SO A RESET RE-RUNS THIS. The server's URL survives a sign-in —
-       * the sidecar restarts on the same host and port — so it cannot be the only thing this
-       * depends on, and `resetCatalog()` would otherwise clear the store with nothing left to
-       * refill it.
-       */
-      void ensureCatalog(`${server.url}#${catalogGeneration()}`, () =>
-        server.client.jolli.course().then((response) => response.data as Catalog),
-      )
-    })
+    useJolliCatalog()
 
     const [store, setStore] = createStore<{ draft?: CourseBinding }>({})
 
@@ -193,20 +183,64 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
      *
      * ⚠ PICKING A COURSE STILL PICKS AN ASSISTANT — see `draftFor`, which resolves the course's
      * default. One decision, not two, which is the part that was actually worth automating.
+     *
+     * ⚠ AND A REQUEST FROM THE SIDEBAR OUTRANKS ALL OF THAT — see `course-intent.ts`. The "+" on a
+     * course row means "start a session in THIS course", which is a decision the student has just
+     * made explicitly; folding it into this one effect rather than adding a second one is what
+     * guarantees the two cannot both write a draft in the same frame.
      */
     let autoSelected = false
     createEffect(() => {
-      if (autoSelected || !ready() || id() || store.draft) return
-      const first = enrolledCourses().find((course) => canStartSession(course.id))
-      if (!first) return
+      if (!ready() || id()) return
+
       /**
-       * ⚠ THE LATCH CLOSES ONLY IF THE DRAFT WAS ACTUALLY BUILT. `draftFor` returns nothing when the
-       * course resolves but its default assistant does not — rare, but setting the latch first would
-       * make that a permanent refusal to pre-select on a course `canStartSession` just called
-       * startable.
+       * ⚠ `claim`, NOT `pending`. The request belongs to one new session — see `course-intent.ts`.
+       * Asking with this route's key is what lets both providers on this draft get the same answer
+       * while a LATER draft, reached by abandoning this one, retires the request instead of
+       * inheriting it.
        */
-      const draft = draftFor(first.id)
-      if (!draft) return
+      const requested = CourseIntent.claim(courseIntentRouteKey(layout.route()))
+      if (!requested) {
+        if (autoSelected || store.draft) return
+        const first = enrolledCourses().find((course) => canStartSession(course.id))
+        if (!first) return
+        /**
+         * ⚠ THE LATCH CLOSES ONLY IF THE DRAFT WAS ACTUALLY BUILT. `draftFor` returns nothing when
+         * the course resolves but its default assistant does not — rare, but setting the latch
+         * first would make that a permanent refusal to pre-select on a course `canStartSession`
+         * just called startable.
+         */
+        const draft = draftFor(first.id)
+        if (!draft) return
+        autoSelected = true
+        setStore("draft", draft)
+        return
+      }
+
+      /**
+       * ⚠ THE REQUEST IS NOT CLEARED HERE, AND THAT IS THE WHOLE FIX — see `course-intent.ts`. Two
+       * `CourseSessionProvider` instances are mounted on this route and both reach this line;
+       * clearing as we read gave the request to the outer one and sent the inner one, which is the
+       * one the screen reads, into the default branch above. Both now apply the same course —
+       * `claim` answers per route, so a second reader on the same draft is not a second consumer.
+       *
+       * ⚠ AN UNSTARTABLE OR UNRESOLVABLE COURSE IS CLEARED, THOUGH, so a request the product
+       * cannot honour does not sit there waiting to fire at whatever mounts next.
+       *
+       * ⚠ THIS BRANCH DELIBERATELY IGNORES `store.draft` AND THE LATCH. A student already sitting
+       * on the draft screen with CS 310 pre-selected, who clicks the "+" on CS 240, means CS 240;
+       * respecting either guard here would silently keep the default and the button would look
+       * broken.
+       */
+      if (!canStartSession(requested)) {
+        CourseIntent.clear()
+        return
+      }
+      const draft = draftFor(requested)
+      if (!draft) {
+        CourseIntent.clear()
+        return
+      }
       autoSelected = true
       setStore("draft", draft)
     })
@@ -244,6 +278,12 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
          * assistant the new course has never heard of.
          */
         setCourse(courseId: string) {
+          /**
+           * ⚠ A HAND-PICKED COURSE OVERRULES A PENDING "+" REQUEST. Without this, a student who
+           * clicked the "+" on CS 310 and then changed their mind in the picker would have the
+           * request re-apply CS 310 the next time the effect ran.
+           */
+          CourseIntent.clear()
           setStore("draft", draftFor(courseId))
         },
         setAssistant(assistantId: string) {
@@ -252,6 +292,7 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
           setStore("draft", draftFor(courseId, assistantId))
         },
         clear() {
+          CourseIntent.clear()
           setStore("draft", undefined)
         },
       },
@@ -304,6 +345,13 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
         if (!next) return
         handoff.set(session, { ...next })
         setStore("draft", undefined)
+        /**
+         * ⚠ THE "+" REQUEST IS ANSWERED HERE, WHICH IS THE ONLY MOMENT IT CAN BE. It has to outlive
+         * the two providers that read it — that is why it is not consumed on read — so the thing
+         * that ends it is the session existing. Leaving it set would re-apply that course to the
+         * next new session the student opened from anywhere.
+         */
+        CourseIntent.clear()
       },
     }
   },

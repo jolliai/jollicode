@@ -10,6 +10,7 @@ export const dict = {
   "desktop.jolli.signIn.waiting": "En attente de votre navigateur…",
   "desktop.jolli.signIn.hint":
     "Terminez la connexion dans l'onglet du navigateur qui vient de s'ouvrir, puis revenez ici.",
+  "desktop.jolli.signIn.cancel": "Annuler",
   "desktop.jolli.signIn.serverUnavailable":
     "Vous êtes connecté, mais Jolli Code n'a pas pu redémarrer son serveur local. Redémarrez l'application pour terminer.",
 

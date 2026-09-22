@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Jolli-ээр нэвтрэх",
   "desktop.jolli.signIn.waiting": "Таны хөтчийг хүлээж байна…",
   "desktop.jolli.signIn.hint": "Дөнгөж сая нээгдсэн хөтчийн табад нэвтрэлтээ дуусгаад энд буцаж ирнэ үү.",
+  "desktop.jolli.signIn.cancel": "Цуцлах",
   "desktop.jolli.signIn.serverUnavailable":
     "Та нэвтэрсэн ч Jolli Code дотоод серверээ дахин эхлүүлж чадсангүй. Дуусгахын тулд аппликейшнийг дахин эхлүүлнэ үү.",
 

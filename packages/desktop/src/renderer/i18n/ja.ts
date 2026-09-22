@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Jolli でサインイン",
   "desktop.jolli.signIn.waiting": "ブラウザーを待機しています…",
   "desktop.jolli.signIn.hint": "今開いたブラウザーのタブでサインインを完了してから、ここに戻ってください。",
+  "desktop.jolli.signIn.cancel": "キャンセル",
   "desktop.jolli.signIn.serverUnavailable":
     "サインインは完了しましたが、Jolli Code がローカルサーバーを再起動できませんでした。アプリを再起動して完了してください。",
 

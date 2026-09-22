@@ -1,6 +1,7 @@
 import { base64Encode } from "@opencode-ai/core/util/encode"
 import { expect, test, type Page } from "@playwright/test"
 import { mockOpenCodeServer } from "../utils/mock-server"
+import { openSidebarSession } from "../utils/nav"
 import { expectSessionTitle } from "../utils/waits"
 
 const directory = "C:/OpenCode/ReviewStatePersistence"
@@ -59,7 +60,7 @@ async function expectSelectedFile(page: Page, file: string) {
 }
 
 async function switchSession(page: Page, title: string) {
-  await page.locator("[data-titlebar-tab-slot]", { hasText: title }).click()
+  await openSidebarSession(page, { title })
   await expectSessionTitle(page, title)
 }
 

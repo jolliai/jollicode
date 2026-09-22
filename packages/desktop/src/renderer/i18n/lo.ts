@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "ເຂົ້າສູ່ລະບົບດ້ວຍ Jolli",
   "desktop.jolli.signIn.waiting": "ກຳລັງລໍຖ້າເບຣົາເຊີຂອງທ່ານ…",
   "desktop.jolli.signIn.hint": "ເຮັດການເຂົ້າສູ່ລະບົບໃຫ້ສຳເລັດໃນແທັບເບຣົາເຊີທີ່ຫາກໍເປີດ ແລ້ວກັບມາທີ່ນີ້.",
+  "desktop.jolli.signIn.cancel": "ຍົກເລີກ",
   "desktop.jolli.signIn.serverUnavailable":
     "ທ່ານເຂົ້າສູ່ລະບົບແລ້ວ ແຕ່ Jolli Code ບໍ່ສາມາດເລີ່ມເຊີບເວີໃນເຄື່ອງຄືນໃໝ່ໄດ້. ກະລຸນາເລີ່ມແອັບຄືນໃໝ່ເພື່ອໃຫ້ສຳເລັດ.",
 

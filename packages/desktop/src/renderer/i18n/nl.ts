@@ -10,6 +10,7 @@ export const dict = {
   "desktop.jolli.signIn.waiting": "Wachten op je browser…",
   "desktop.jolli.signIn.hint":
     "Rond het aanmelden af in het browsertabblad dat zojuist is geopend en kom dan hier terug.",
+  "desktop.jolli.signIn.cancel": "Annuleer",
   "desktop.jolli.signIn.serverUnavailable":
     "Je bent ingelogd, maar Jolli Code kon zijn lokale server niet herstarten. Start de app opnieuw om af te ronden.",
 

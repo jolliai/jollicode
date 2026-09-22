@@ -2,7 +2,6 @@ import type { Session } from "@opencode-ai/sdk/v2/client"
 import { preloadMarkdown } from "@opencode-ai/session-ui/markdown-cache"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useQuery } from "@tanstack/solid-query"
-import { DateTime } from "luxon"
 import { type Accessor, createEffect, createMemo, createRoot, type JSX, startTransition } from "solid-js"
 import { produce } from "solid-js/store"
 import { useCommand } from "@/context/command"
@@ -40,7 +39,7 @@ export type HomeSessionRecord = {
 }
 
 export type HomeSessionGroup = {
-  id: "today" | "yesterday" | "older"
+  id: "recent"
   title: string
   sessions: HomeSessionRecord[]
 }
@@ -95,14 +94,42 @@ export function createHomeSessionsController(home: HomeController) {
       Date.now(),
     ),
   )
-  const allRecords = createMemo(() =>
-    buildHomeSessionRecords({
+  /**
+   * ⚠ ONE RECORD OBJECT PER SESSION, REUSED UNTIL THAT SESSION ACTUALLY CHANGES, AND IT IS LOAD
+   * BEARING RATHER THAN AN OPTIMISATION. `<For>` keys by reference, so a rebuilt record is a
+   * destroyed and re-created row — which closes the row's open menu (it clears it in `onCleanup`),
+   * drops a rename editor mid-edit, and re-runs every row's avatar state. This memo re-runs on every
+   * `session.updated` the server sends, and one arrives after each turn's token accounting, so
+   * allocating fresh records each time meant the list flickered through a whole rebuild while you
+   * were reading it.
+   *
+   * ⚠ THE MAP IS REPLACED RATHER THAN MUTATED, so a session that leaves the list takes its entry
+   * with it instead of accumulating for the life of the renderer.
+   */
+  let records_ = new Map<string, HomeSessionRecord>()
+  const allRecords = createMemo(() => {
+    const next = new Map<string, HomeSessionRecord>()
+    const result = buildHomeSessionRecords({
       sessions: indexedSessions,
       projectDirectories,
       projects: home.project.list,
       projectByID,
-    }),
-  )
+      reuse: (record) => {
+        const previous = records_.get(record.session.id)
+        const keep =
+          previous &&
+          previous.session === record.session &&
+          previous.project === record.project &&
+          previous.projectName === record.projectName &&
+          previous.course === record.course
+        const resolved = keep ? previous : record
+        next.set(record.session.id, resolved)
+        return resolved
+      },
+    })
+    records_ = next
+    return result
+  })
   /**
    * ⚠ THE COURSE FILTER IS APPLIED BEFORE THE LIMIT, so selecting a course cannot show fewer than a
    * full page of its sessions just because busier courses filled the first 64.
@@ -153,7 +180,16 @@ export function createHomeSessionsController(home: HomeController) {
       })
   })
 
-  command.register("home.palette", () => [
+  /**
+   * ⚠ THE KEY IS SHARED WITH THE OTHER TWO PALETTE REGISTRATIONS, AND THAT IS LOAD-BEARING.
+   * `activeCommandRegistrations` keeps one registration per key and drops the rest, while the id
+   * de-duping one layer up only warns and keeps whichever came first. This controller now lives at
+   * application scope, so it is mounted at the same time as the session and draft routes; giving
+   * all three the key `"palette"` makes the most recently mounted surface own the palette outright
+   * and hand it back on unmount. Three different keys would leave two live registrations of id
+   * `command.palette` and a DEV warning on every route change.
+   */
+  command.register("palette", () => [
     {
       id: "command.palette",
       title: language.t("command.palette"),
@@ -233,6 +269,45 @@ export function createHomeSessionsController(home: HomeController) {
           tabs.select(tab)
         })
       },
+      /**
+       * RENAME A SESSION FROM ITS ROW.
+       *
+       * ⚠ THIS REPLACES A PATH THAT THE TAB STRIP OWNED. Renaming used to be reachable by
+       * right-clicking a tab, including an INACTIVE one — the only way to retitle a session you
+       * were not currently reading. Deleting the strip took that with it; the session heading in
+       * the timeline only ever renames the session on screen.
+       *
+       * ⚠ THE OPTIMISTIC WRITE IS THE SERVER EVENT, NOT A LOCAL PATCH. `session.renamed` comes back
+       * over sync and `server-session.ts` folds it into the store, so there is nothing to reconcile
+       * here — which is also why a failure only has to say so.
+       */
+      rename: async (session: Session, title: string) => {
+        const next = title.trim()
+        if (!next || next === session.title) return
+        const ctx = home.server.focusedContext()
+        if (!ctx) return
+        await ctx.sdk.client.session
+          .update({ sessionID: session.id, directory: session.directory, title: next })
+          .catch((cause: unknown) =>
+            showToast({
+              title: language.t("common.requestFailed"),
+              description: errorMessage(cause, language.t("common.requestFailed")),
+            }),
+          )
+      },
+      /**
+       * ⚠ "CLOSE" MEANS THE REGISTRY ENTRY, NOT THE SESSION — the session keeps existing and stays
+       * in this list. It is what `mod+w` does, and `closeTab` already handles the parts that are
+       * easy to get wrong: recording it for reopen, disposing the unsent prompt, and navigating on
+       * if you were standing in it.
+       */
+      close: (session: Session) => {
+        const server = home.selection.value().server
+        const index = tabs.store.findIndex(
+          (tab) => tab.type === "session" && tab.server === server && tab.sessionId === session.id,
+        )
+        if (index !== -1) tabs.closeTab(index)
+      },
       archive: async (session: Session) => {
         const conn = home.server.focused()
         const ctx = home.server.focusedContext()
@@ -281,6 +356,8 @@ function buildHomeSessionRecords(input: {
   projectDirectories: () => string[]
   projects: () => LocalProject[]
   projectByID: () => Map<string, LocalProject>
+  /** Hands each freshly built record to the caller, which may swap in an equal one it already had. */
+  reuse?: (record: HomeSessionRecord) => HomeSessionRecord
 }) {
   const directories = new Set(input.projectDirectories().map(pathKey))
   const sessions = input.sessions().filter((session) => directories.has(pathKey(session.directory)))
@@ -296,12 +373,13 @@ function buildHomeSessionRecords(input: {
               pathKey(item.worktree) === directory || item.sandboxes?.some((sandbox) => pathKey(sandbox) === directory),
           ) ?? projectForSession(session, input.projects(), input.projectByID())
       if (!project) return []
-      return {
+      const record: HomeSessionRecord = {
         session,
         project,
         projectName: displayName(project),
         course: courseById(courseBindingOf(session)?.courseId),
       }
+      return input.reuse ? input.reuse(record) : record
     })
 }
 
@@ -309,28 +387,26 @@ export function homeSessionSearchKey(record: HomeSessionRecord) {
   return `${pathKey(record.session.directory)}:${record.session.id}`
 }
 
+/**
+ * ONE LIST, MOST RECENT FIRST — NOT TODAY / YESTERDAY / OLDER.
+ *
+ * ⚠ THE DATE HEADERS WERE A HOME-PAGE IDEA AND THE HOME PAGE IS GONE. They were worth their line of
+ * vertical space across a 720px column where a day's work was several rows; the only surface left
+ * reading `groups()` is the 300px sidebar, where three sticky headers over a 64-row list spent a
+ * quarter of the visible column saying what the order already says.
+ *
+ * ⚠ THE ORDER IS UNCHANGED AND IT IS WHAT MAKES THIS SAFE. `records()` is already sorted by
+ * `compareSessionTime` and capped at `HOME_SESSION_LIMIT` upstream, so flattening the groups drops
+ * the headers and nothing else — the rows come out in exactly the sequence the three buckets used
+ * to present them in. Anything past the fold is reached by scrolling.
+ *
+ * ⚠ AND IT STAYS A GROUP ARRAY RATHER THAN BECOMING A BARE LIST, so the one caller keeps its
+ * heading, its empty check and its `<For>` shape. A single group is the smaller change than
+ * rewriting the section around a different contract.
+ */
 function groupSessions(records: HomeSessionRecord[], language: ReturnType<typeof useLanguage>): HomeSessionGroup[] {
-  const now = DateTime.local()
-  const yesterday = now.minus({ days: 1 })
-  const todaySessions = records.filter((record) =>
-    DateTime.fromMillis(record.session.time.updated ?? record.session.time.created).hasSame(now, "day"),
-  )
-  const yesterdaySessions = records.filter((record) =>
-    DateTime.fromMillis(record.session.time.updated ?? record.session.time.created).hasSame(yesterday, "day"),
-  )
-  const olderSessions = records.filter((record) => {
-    const time = DateTime.fromMillis(record.session.time.updated ?? record.session.time.created)
-    return !time.hasSame(now, "day") && !time.hasSame(yesterday, "day")
-  })
-  const olderTitle =
-    todaySessions.length === 0 && yesterdaySessions.length === 0
-      ? language.t("sidebar.project.recentSessions")
-      : language.t("home.sessions.group.older")
-  return [
-    { id: "today" as const, title: language.t("home.sessions.group.today"), sessions: todaySessions },
-    { id: "yesterday" as const, title: language.t("home.sessions.group.yesterday"), sessions: yesterdaySessions },
-    { id: "older" as const, title: olderTitle, sessions: olderSessions },
-  ].filter((group) => group.sessions.length > 0)
+  if (records.length === 0) return []
+  return [{ id: "recent" as const, title: language.t("sidebar.project.recentSessions"), sessions: records }]
 }
 
 export type HomeSessionsController = ReturnType<typeof createHomeSessionsController>

@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Prihlásiť sa cez Jolli",
   "desktop.jolli.signIn.waiting": "Čaká sa na prehliadač…",
   "desktop.jolli.signIn.hint": "Dokončite prihlásenie na práve otvorenej karte prehliadača a potom sa vráťte sem.",
+  "desktop.jolli.signIn.cancel": "Zrušiť",
   "desktop.jolli.signIn.serverUnavailable":
     "Ste prihlásení, ale Jolli Code nedokázal reštartovať svoj lokálny server. Dokončite reštartovaním aplikácie.",
 

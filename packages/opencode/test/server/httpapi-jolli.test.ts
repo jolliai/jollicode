@@ -3,6 +3,7 @@ import { afterAll, describe, expect } from "bun:test"
 import { mkdir, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { Global } from "@opencode-ai/core/global"
+import { base64Encode } from "@opencode-ai/core/util/encode"
 import { Hash } from "@opencode-ai/core/util/hash"
 import { Context, Effect, Layer, Option } from "effect"
 import { HttpClient, HttpClientRequest, HttpRouter } from "effect/unstable/http"
@@ -48,11 +49,73 @@ function apiLayer(auth: Partial<Context.Service.Shape<typeof Auth.Service>> = {}
 
 const signedOut = testEffect(apiLayer({ get: () => Effect.succeed(undefined) }))
 
+/**
+ * ⚠ THE WHOLE-BODY ASSERTIONS IN THIS FILE NOW DEPEND ON `"jwt"` NOT BEING A JWT. The route answers
+ * with an optional `viewer` decoded from the credential; the literal `"jwt"` these cases use as a
+ * key has no `.` segments, so nothing decodes and the field is omitted rather than sent. If a future
+ * edit makes those fixtures look like real tokens, these `toEqual`s will start failing for a reason
+ * that has nothing to do with what they are testing.
+ */
 describe("jolli HttpApi", () => {
   signedOut.live("answers unreachable rather than failing when signed out", () =>
     Effect.gen(function* () {
       const response = yield* HttpClientRequest.get(JolliPaths.course).pipe(HttpClient.execute)
       expect(response.status).toBe(200)
+      expect(yield* response.json).toEqual({ status: "unreachable", courses: [], assistants: [], modelTiers: {} })
+    }),
+  )
+})
+
+/** A syntactically real JWT whose payload we control. Never signed; nothing here verifies one. */
+function fakeToken(payload: Record<string, unknown>) {
+  return `${base64Encode(JSON.stringify({ alg: "RS256" }))}.${base64Encode(JSON.stringify(payload))}.signature`
+}
+
+const withIdentity = (payload: Record<string, unknown>) =>
+  testEffect(apiLayer({ get: () => Effect.succeed({ type: "api", key: fakeToken(payload) } as never) }))
+
+/**
+ * WHO IS SIGNED IN SURVIVES AN UNREACHABLE GATEWAY.
+ *
+ * ⚠ THAT IS THE WHOLE POINT OF THE ORDERING IN THE HANDLER, AND IT IS WHAT THESE CASES PIN. Every
+ * credential below has no `baseUrl`, so the route answers `unreachable` — and still names the
+ * student, because the name came out of the token rather than off the network. Decoding after the
+ * reachability guards would blank a student's own name because their Wi-Fi dropped.
+ */
+describe("jolli HttpApi — the viewer", () => {
+  withIdentity({ name: "Ada Lovelace", email: "ada@jolli.ai" }).live("names the student from the token", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(JolliPaths.course).pipe(HttpClient.execute)
+      expect(yield* response.json).toEqual({
+        status: "unreachable",
+        courses: [],
+        assistants: [],
+        modelTiers: {},
+        viewer: { name: "Ada Lovelace", email: "ada@jolli.ai" },
+      })
+    }),
+  )
+
+  withIdentity({ email: "ada@jolli.ai" }).live("falls back to the address when there is no name", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(JolliPaths.course).pipe(HttpClient.execute)
+      const body = (yield* response.json) as { viewer?: { name?: string; email?: string } }
+      expect(body.viewer).toEqual({ name: "ada", email: "ada@jolli.ai" })
+    }),
+  )
+
+  withIdentity({ name: "李雷" }).live("carries a non-ASCII name through unmangled", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(JolliPaths.course).pipe(HttpClient.execute)
+      const body = (yield* response.json) as { viewer?: { name?: string } }
+      expect(body.viewer?.name).toBe("李雷")
+    }),
+  )
+
+  /** ⚠ OMITTED, NOT NULL. `optional` drops `undefined` on encode, which is what keeps the cases above green. */
+  withIdentity({ sub: "user_123" }).live("omits the field entirely when the token will not say", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(JolliPaths.course).pipe(HttpClient.execute)
       expect(yield* response.json).toEqual({ status: "unreachable", courses: [], assistants: [], modelTiers: {} })
     }),
   )

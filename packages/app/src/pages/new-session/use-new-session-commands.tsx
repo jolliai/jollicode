@@ -15,7 +15,15 @@ export function useNewSessionCommands(input: {
   const language = useLanguage()
 
   useSettingsCommand()
-  command.register("new-session", () => [
+  /**
+   * ⚠ THE PALETTE IS REGISTERED SEPARATELY, UNDER A KEY SHARED WITH THE SESSION ROUTE AND THE
+   * SIDEBAR. It used to ride along with the two commands below, which was fine while only one
+   * surface was ever mounted; the sidebar's copy now lives at application scope, and
+   * `activeCommandRegistrations` resolves that by keeping one registration per key. Bundling the
+   * palette with `input.focus` would force those two to share the palette's fate. See
+   * `home-sessions-controller.tsx`.
+   */
+  command.register("palette", () => [
     {
       id: "command.palette",
       title: language.t("command.palette"),
@@ -25,6 +33,8 @@ export function useNewSessionCommands(input: {
         void dialog.show(() => <DialogSelectFile />)
       },
     },
+  ])
+  command.register("new-session", () => [
     {
       id: "input.focus",
       title: language.t("command.input.focus"),

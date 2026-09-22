@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Մուտք գործել Jolli-ով",
   "desktop.jolli.signIn.waiting": "Սպասում ենք ձեր դիտարկիչին…",
   "desktop.jolli.signIn.hint": "Ավարտեք մուտքը նոր բացված դիտարկիչի ներդիրում, ապա վերադարձեք այստեղ։",
+  "desktop.jolli.signIn.cancel": "Չեղարկել",
   "desktop.jolli.signIn.serverUnavailable":
     "Դուք մուտք եք գործել, սակայն Jolli Code-ը չկարողացավ վերագործարկել իր տեղային սերվերը. Ավարտելու համար վերագործարկեք հավելվածը։",
 

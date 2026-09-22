@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Prisijungti su Jolli",
   "desktop.jolli.signIn.waiting": "Laukiama jūsų naršyklės…",
   "desktop.jolli.signIn.hint": "Užbaikite prisijungimą ką tik atsidariusioje naršyklės kortelėje ir grįžkite čia.",
+  "desktop.jolli.signIn.cancel": "Atšaukti",
   "desktop.jolli.signIn.serverUnavailable":
     "Prisijungėte, bet „Jolli Code“ nepavyko iš naujo paleisti vietinio serverio. Kad užbaigtumėte, paleiskite programą iš naujo.",
 

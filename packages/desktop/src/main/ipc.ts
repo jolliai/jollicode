@@ -49,6 +49,7 @@ type Deps = {
   jolliCourseGate: () => Promise<CourseGateResult>
   jolliSignOut: () => Promise<void>
   jolliSignIn: () => Promise<JolliSignInResult>
+  jolliSignInCancel: () => void
   isFirstLaunchOnboardingPending: () => Promise<boolean> | boolean
   finishFirstLaunchOnboarding: (createDefaultProject: boolean) => Promise<string | null> | string | null
   isOldLayoutEligible: () => Promise<boolean> | boolean
@@ -87,6 +88,15 @@ export function registerIpcHandlers(deps: Deps) {
   // sidecar that did not come back resolves instead, with `serverReady: false` for the screen to
   // act on.
   ipcMain.handle("jolli-sign-in", () => deps.jolliSignIn())
+  /**
+   * ⚠ IT CLOSES THE LOOPBACK SERVER, WHICH THE RENDERER CANNOT DO FOR ITSELF. Closing the browser
+   * tab is invisible to that server, so without this the attempt runs until its five-minute
+   * timeout — still listening, still able to redeem the code for somebody who has given up.
+   *
+   * ⚠ THE `jolli-sign-in` INVOKE IT CANCELS REJECTS, and the sign-in screen deliberately ignores
+   * that rejection: the student asked for it.
+   */
+  ipcMain.handle("jolli-sign-in-cancel", () => deps.jolliSignInCancel())
   ipcMain.handle("is-first-launch-onboarding-pending", () => deps.isFirstLaunchOnboardingPending())
   ipcMain.handle("finish-first-launch-onboarding", (_event: IpcMainInvokeEvent, createDefaultProject: boolean) =>
     deps.finishFirstLaunchOnboarding(createDefaultProject),

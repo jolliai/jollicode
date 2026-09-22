@@ -16,7 +16,6 @@ import { usePlatform } from "@/context/platform"
 import { SettingsGeneralV2 } from "./general"
 import { SettingsKeybinds } from "../settings-keybinds"
 import "./settings-v2.css"
-import { SettingsServersV2 } from "./servers"
 import { useLayout } from "@/context/layout"
 import { useTabs } from "@/context/tabs"
 import { useServerSync } from "@/context/server-sync"
@@ -67,16 +66,15 @@ export const DialogSettings: Component<{
                     </TabsV2.Trigger>
                   </div>
                 </div>
-
-                <div class="flex flex-col gap-1.5">
-                  <TabsV2.SectionTitle>{language.t("settings.section.server")}</TabsV2.SectionTitle>
-                  <div class="flex flex-col gap-1.5 w-full">
-                    <TabsV2.Trigger value="servers">
-                      <Icon name="server" />
-                      {language.t("status.popover.tab.servers")}
-                    </TabsV2.Trigger>
-                  </div>
-                </div>
+                {/*
+                 * ⚠ THE "SERVERS" SECTION IS GONE, AND IT IS NOT A LAYOUT SIMPLIFICATION. Upstream
+                 * lets you point the app at several opencode backends — a local sidecar, a remote
+                 * HTTP server, one over WSL — and that page was where you added and switched
+                 * between them. Jolli Code has exactly one backend: the sidecar this app forks,
+                 * configured against the Jolli gateway (`desktop/src/main/jolli-gateway.ts`). A
+                 * page offering to add a second one offered a door that does not exist, in the same
+                 * way the Providers and Models tabs did before it — Jolli decides what runs.
+                 */}
               </div>
             </div>
             <div class="settings-v2-nav-footer">
@@ -90,9 +88,6 @@ export const DialogSettings: Component<{
         </TabsV2.Content>
         <TabsV2.Content value="shortcuts" class="settings-v2-panel">
           <SettingsKeybinds v2 />
-        </TabsV2.Content>
-        <TabsV2.Content value="servers" class="settings-v2-panel">
-          <SettingsServersV2 />
         </TabsV2.Content>
       </TabsV2>
     </Dialog>

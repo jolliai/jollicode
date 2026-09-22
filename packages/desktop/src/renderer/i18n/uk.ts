@@ -9,6 +9,7 @@ export const dict = {
   "desktop.jolli.signIn.action": "Увійти через Jolli",
   "desktop.jolli.signIn.waiting": "Очікування браузера…",
   "desktop.jolli.signIn.hint": "Завершіть вхід у вкладці браузера, що щойно відкрилася, а потім поверніться сюди.",
+  "desktop.jolli.signIn.cancel": "Скасувати",
   "desktop.jolli.signIn.serverUnavailable":
     "Ви увійшли, але Jolli Code не зміг перезапустити локальний сервер. Перезапустіть застосунок, щоб завершити.",
 

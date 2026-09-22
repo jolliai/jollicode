@@ -10,6 +10,7 @@ export const dict = {
   "desktop.jolli.signIn.waiting": "ބްރައުޒަރަށް އިންތިޒާރު ކުރެވެނީ…",
   "desktop.jolli.signIn.hint":
     "މިހާރު ހުޅުވުނު ބްރައުޒަރ ޓެބުގައި ސައިން އިން ފުރިހަމަ ކުރެއްވުމަށްފަހު، މިތަނަށް އެނބުރި ވަޑައިގަންނަވާ.",
+  "desktop.jolli.signIn.cancel": "ކެންސަލް",
   "desktop.jolli.signIn.serverUnavailable":
     "ތިޔަ ސައިން އިން ވެއްޖެ، ނަމަވެސް Jolli Code އަށް އޭގެ ލޯކަލް ސާވަރު އަލުން ފަށައިގަނެވޭ ގޮތެއް ނުވި. ފުރިހަމަކުރުމަށް އެޕް އަލުން ފަށާ.",
 

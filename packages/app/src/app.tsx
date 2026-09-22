@@ -41,6 +41,7 @@ import { makeEventListener } from "@solid-primitives/event-listener"
 import { CommandProvider, useCommand, type CommandOption } from "@/context/command"
 import { CommentsProvider } from "@/context/comments"
 import { CourseSessionProvider } from "@/jolli/session-binding"
+import { HomeDataProvider } from "@/context/home-data"
 import { FileProvider } from "@/context/file"
 import { ServerSDKProvider } from "@/context/server-sdk"
 import { ServerSyncProvider, useServerSync } from "@/context/server-sync"
@@ -369,11 +370,15 @@ function LegacyServerScopedShell(props: ServerScopedShellProps) {
   )
 }
 
+// `HomeDataProvider` sits INSIDE `ServerScopedProviders` because `createHomeController` reads
+// `useLayout()`, and OUTSIDE `NewLayout` because the sidebar it feeds is part of that layout.
 function NewAppLayout(props: ParentProps<{ serverScoped?: JSX.Element }>) {
   return (
     <SelectedServerProviders>
       <ServerScopedProviders serverScoped={props.serverScoped}>
-        <NewLayout>{props.children}</NewLayout>
+        <HomeDataProvider>
+          <NewLayout>{props.children}</NewLayout>
+        </HomeDataProvider>
       </ServerScopedProviders>
     </SelectedServerProviders>
   )
@@ -569,16 +574,32 @@ export function AppInterface(props: {
   startup?: Promise<void>
   serverScoped?: JSX.Element
 }) {
-  // The visual new layout lives in the router root so it remains mounted across
-  // route changes. Draft and session routes override only their server-bound data
-  // providers beneath it.
+  /**
+   * The visual new layout lives in the router root so it remains mounted across route changes.
+   * Draft and session routes override only their server-bound data providers beneath it.
+   *
+   * ⚠ NO `QueryProvider` HERE, AND THAT IS A FIX RATHER THAN A TIDY-UP. `AppBaseProviders` already
+   * mounts one above `AppInterface`, so a second one here gave the application TWO query caches with
+   * a provider boundary running straight through its data layer: `GlobalProvider` sits above this
+   * point, so every server context — and the `useQueryClient()` that `createServerSyncContextInner`
+   * captures for the Home session index — resolved to the OUTER cache, while every screen under the
+   * router read the INNER one. The index the sidebar list and its search read was therefore written
+   * by its own fetch and by nothing else: `homeSessions.apply()` bailed on
+   * `queryClient.getQueryState(indexKey)` being undefined in the cache it was holding, so
+   * `session.created`, `session.updated` and `session.deleted` were all silently dropped. A session
+   * you had just made was missing from the list until a full reload, and one you had just deleted
+   * stayed in it and opened a "session not found" tab.
+   *
+   * ⚠ THE SHELL IS ALSO NOT WHERE A CACHE BOUNDARY WOULD BELONG. This provider was originally inside
+   * `<ServerKey>`, where a new client on every server change at least meant something; it has not
+   * been since the shell was restructured. Query keys are already scoped by server
+   * (`ServerConnection.key`) and by `serverSDK.scope`, which is what keeps two servers' data apart.
+   */
   const ServerShell = (shellProps: ParentProps) => (
-    <QueryProvider>
-      <SharedProviders>
-        {props.children}
-        {shellProps.children}
-      </SharedProviders>
-    </QueryProvider>
+    <SharedProviders>
+      {props.children}
+      {shellProps.children}
+    </SharedProviders>
   )
 
   return (
