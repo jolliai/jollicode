@@ -40,7 +40,6 @@ export const dict = {
   "desktop.menu.minimize": "Նվազագույնի հասցնել",
   "desktop.menu.maximize": "Առավելագույնի հասցնել",
   "desktop.menu.documentation": "Jolli Code Փաստաթղթեր",
-  "desktop.menu.supportForum": "Աջակցման ֆորում",
   "desktop.menu.shareFeedback": "Կիսվել կարծիք",
   "desktop.menu.reportBug": "Հաղորդել սխալի մասին",
   "desktop.menu.ariaLabel": "Jolli Code մենյու",

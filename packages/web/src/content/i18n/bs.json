@@ -3,7 +3,6 @@
   "app.header.home": "Početna",
   "app.header.docs": "Dokumentacija",
   "app.footer.issueLink": "Pronašli ste grešku? Prijavite problem",
-  "app.footer.discordLink": "Pridružite se našoj Discord zajednici",
   "app.lander.hero.title": "AI agent za kodiranje, napravljen za terminal.",
   "app.lander.cta.getStarted": "Započnite",
   "app.lander.features.native_tui.title": "Izvorni TUI",

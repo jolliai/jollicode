@@ -3,11 +3,13 @@ export * as ConfigManaged from "./managed"
 import { existsSync } from "fs"
 import os from "os"
 import path from "path"
+import { Brand } from "@opencode-ai/core/brand"
 import { Process } from "@/util/process"
 
-const MANAGED_PLIST_DOMAIN = "ai.opencode.managed"
+// Mirrors the app's reverse-DNS namespace (Brand.appId is `ai.jolli.desktop`).
+const MANAGED_PLIST_DOMAIN = "ai.jolli.managed"
 
-// Keys injected by macOS/MDM into the managed plist that are not OpenCode config
+// Keys injected by macOS/MDM into the managed plist that are not Jolli Code config
 const PLIST_META = new Set([
   "PayloadDisplayName",
   "PayloadIdentifier",
@@ -20,11 +22,11 @@ const PLIST_META = new Set([
 function systemManagedConfigDir(): string {
   switch (process.platform) {
     case "darwin":
-      return "/Library/Application Support/opencode"
+      return `/Library/Application Support/${Brand.bin}`
     case "win32":
-      return path.join(process.env.ProgramData || "C:\\ProgramData", "opencode")
+      return path.join(process.env.ProgramData || "C:\\ProgramData", Brand.bin)
     default:
-      return "/etc/opencode"
+      return `/etc/${Brand.bin}`
   }
 }
 

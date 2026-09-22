@@ -40,7 +40,6 @@ export const dict: Record<string, string> = {
   "desktop.menu.minimize": "न्यूनतम गर्नुहोस्",
   "desktop.menu.maximize": "अधिकतम गर्नुहोस्",
   "desktop.menu.documentation": "Jolli Code कागजात",
-  "desktop.menu.supportForum": "समर्थन फोरम",
   "desktop.menu.shareFeedback": "प्रतिक्रिया साझा गर्नुहोस्",
   "desktop.menu.reportBug": "बग रिपोर्ट गर्नुहोस्",
   "desktop.menu.ariaLabel": "Jolli Code मेनु",

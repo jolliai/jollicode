@@ -43,16 +43,16 @@ Per esempio, se la tua configurazione globale imposta `autoupdate: true` e la co
 Le sorgenti di configurazione vengono caricate in questo ordine (le successive sovrascrivono le precedenti):
 
 1. **Config remota** (da `.well-known/opencode`) - default dell'organizzazione
-2. **Config globale** (`~/.config/opencode/opencode.json`) - preferenze utente
+2. **Config globale** (`~/.config/jollicode/opencode.json`) - preferenze utente
 3. **Config personalizzata** (variabile d'ambiente `OPENCODE_CONFIG`) - sovrascritture personalizzate
 4. **Config di progetto** (`opencode.json` nel progetto) - impostazioni specifiche del progetto
-5. **Directory `.opencode`** - agenti, comandi, plugin
+5. **Directory `.jollicode`** - agenti, comandi, plugin
 6. **Config inline** (variabile d'ambiente `OPENCODE_CONFIG_CONTENT`) - sovrascritture a runtime
 
 Questo significa che la configurazione di progetto puo sovrascrivere i default globali, e la configurazione globale puo sovrascrivere i default remoti dell'organizzazione.
 
 :::note
-Le directory `.opencode` e `~/.config/opencode` usano **nomi al plurale** per le sottodirectory: `agents/`, `commands/`, `modes/`, `plugins/`, `skills/`, `tools/` e `themes/`. I nomi al singolare (ad es. `agent/`) sono supportati per retrocompatibilita.
+Le directory `.jollicode` e `~/.config/jollicode` usano **nomi al plurale** per le sottodirectory: `agents/`, `commands/`, `modes/`, `plugins/`, `skills/`, `tools/` e `themes/`. I nomi al singolare (ad es. `agent/`) sono supportati per retrocompatibilita.
 :::
 
 ---
@@ -95,9 +95,9 @@ Puoi abilitare server specifici nella tua configurazione locale:
 
 ### Configurazione globale
 
-Metti la configurazione globale di OpenCode in `~/.config/opencode/opencode.json`. Usa la configurazione globale per preferenze server/runtime valide per l'utente come provider, modelli e permessi.
+Metti la configurazione globale di OpenCode in `~/.config/jollicode/opencode.json`. Usa la configurazione globale per preferenze server/runtime valide per l'utente come provider, modelli e permessi.
 
-Per le impostazioni specifiche della TUI, usa `~/.config/opencode/tui.json`.
+Per le impostazioni specifiche della TUI, usa `~/.config/jollicode/tui.json`.
 
 La configurazione globale sovrascrive i default remoti dell'organizzazione.
 
@@ -134,14 +134,14 @@ La configurazione personalizzata viene caricata tra quella globale e quella di p
 
 ### Directory personalizzata
 
-Specifica una directory di configurazione personalizzata usando la variabile d'ambiente `OPENCODE_CONFIG_DIR`. Questa directory verra usata per cercare agenti, comandi, modalita e plugin proprio come la directory standard `.opencode` e dovrebbe seguire la stessa struttura.
+Specifica una directory di configurazione personalizzata usando la variabile d'ambiente `OPENCODE_CONFIG_DIR`. Questa directory verra usata per cercare agenti, comandi, modalita e plugin proprio come la directory standard `.jollicode` e dovrebbe seguire la stessa struttura.
 
 ```bash
 export OPENCODE_CONFIG_DIR=/path/to/my/config-directory
 opencode run "Hello world"
 ```
 
-La directory personalizzata viene caricata dopo la configurazione globale e le directory `.opencode`, quindi **puo sovrascrivere** le loro impostazioni.
+La directory personalizzata viene caricata dopo la configurazione globale e le directory `.jollicode`, quindi **puo sovrascrivere** le loro impostazioni.
 
 ---
 
@@ -335,7 +335,7 @@ Puoi configurare agenti specializzati per task specifici tramite l'opzione `agen
 }
 ```
 
-Puoi anche definire agenti usando file markdown in `~/.config/opencode/agents/` o `.opencode/agents/`. [Scopri di piu](/docs/agents).
+Puoi anche definire agenti usando file markdown in `~/.config/jollicode/agents/` o `.jollicode/agents/`. [Scopri di piu](/docs/agents).
 
 ---
 
@@ -399,7 +399,7 @@ Puoi configurare comandi personalizzati per task ripetitivi tramite l'opzione `c
 }
 ```
 
-Puoi anche definire comandi usando file markdown in `~/.config/opencode/commands/` o `.opencode/commands/`. [Scopri di piu](/docs/commands).
+Puoi anche definire comandi usando file markdown in `~/.config/jollicode/commands/` o `.jollicode/commands/`. [Scopri di piu](/docs/commands).
 
 ---
 
@@ -537,7 +537,7 @@ Puoi configurare i server MCP che vuoi usare tramite l'opzione `mcp`.
 
 [I plugin](/docs/plugins) estendono OpenCode con strumenti personalizzati, hook e integrazioni.
 
-Metti i file dei plugin in `.opencode/plugins/` o `~/.config/opencode/plugins/`. Puoi anche caricare plugin da npm tramite l'opzione `plugin`.
+Metti i file dei plugin in `.jollicode/plugins/` o `~/.config/jollicode/plugins/`. Puoi anche caricare plugin da npm tramite l'opzione `plugin`.
 
 ```json title="opencode.json"
 {

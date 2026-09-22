@@ -3,7 +3,6 @@
   "app.header.home": "홈",
   "app.header.docs": "문서",
   "app.footer.issueLink": "버그를 찾으셨나요? 이슈를 열어 주세요",
-  "app.footer.discordLink": "Discord 커뮤니티에 참여하세요",
   "app.lander.hero.title": "터미널을 위해 만든 AI coding agent.",
   "app.lander.cta.getStarted": "시작하기",
   "app.lander.features.native_tui.title": "네이티브 TUI",

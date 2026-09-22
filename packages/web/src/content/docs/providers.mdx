@@ -18,7 +18,7 @@ To add a provider you need to:
 ### Credentials
 
 When you add a provider's API keys with the `/connect` command, they are stored
-in `~/.local/share/opencode/auth.json`.
+in `~/.local/share/jollicode/auth.json`.
 
 ---
 
@@ -1349,7 +1349,7 @@ In the event you see a feature or model from Helicone that isn't configured auto
 
 Here's [Helicone's Model Directory](https://helicone.ai/models), you'll need this to grab the IDs of the models you want to add.
 
-```jsonc title="~/.config/opencode/opencode.jsonc"
+```jsonc title="~/.config/jollicode/opencode.jsonc"
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1377,7 +1377,7 @@ Here's [Helicone's Model Directory](https://helicone.ai/models), you'll need thi
 
 Helicone supports custom headers for features like caching, user tracking, and session management. Add them to your provider config using `options.headers`:
 
-```jsonc title="~/.config/opencode/opencode.jsonc"
+```jsonc title="~/.config/jollicode/opencode.jsonc"
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {

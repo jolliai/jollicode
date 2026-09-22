@@ -44,7 +44,6 @@ export const dict = {
   "desktop.menu.minimize": "最小化",
   "desktop.menu.maximize": "最大化",
   "desktop.menu.documentation": "Jolli Code 文档",
-  "desktop.menu.supportForum": "支持论坛",
   "desktop.menu.shareFeedback": "提供反馈",
   "desktop.menu.reportBug": "报告错误",
   "desktop.menu.ariaLabel": "Jolli Code 菜单",

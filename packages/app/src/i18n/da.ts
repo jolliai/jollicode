@@ -1161,7 +1161,6 @@ export const dict = {
   "desktop.menu.minimize": "Minimer",
   "desktop.menu.maximize": "Maksimer",
   "desktop.menu.documentation": "Jolli Code-dokumentation",
-  "desktop.menu.supportForum": "Supportforum",
   "desktop.menu.shareFeedback": "Giv feedback",
   "desktop.menu.reportBug": "Rapportér en fejl",
   "desktop.menu.ariaLabel": "Jolli Code-menu",

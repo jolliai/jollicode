@@ -152,7 +152,7 @@ function manifest() {
 
 function serverLogRoots() {
   const xdgData = process.env.XDG_DATA_HOME || join(homedir(), ".local", "share")
-  return [...new Set([join(xdgData, Brand.short, "log"), join(app.getPath("userData"), Brand.short, "log")])]
+  return [...new Set([join(xdgData, Brand.bin, "log"), join(app.getPath("userData"), Brand.bin, "log")])]
 }
 
 type Entry = { name: string; path?: string; data?: Buffer }

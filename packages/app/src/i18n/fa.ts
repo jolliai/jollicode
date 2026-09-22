@@ -40,7 +40,6 @@ export const dict = {
   "desktop.menu.minimize": "به حداقل رساندن",
   "desktop.menu.maximize": "به حداکثر رساندن",
   "desktop.menu.documentation": "مستندات Jolli Code",
-  "desktop.menu.supportForum": "انجمن پشتیبانی",
   "desktop.menu.shareFeedback": "بازخورد را به اشتراک بگذارید",
   "desktop.menu.reportBug": "گزارش یک اشکال",
   "desktop.menu.ariaLabel": "منوی Jolli Code",

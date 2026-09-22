@@ -43,16 +43,16 @@ Yapılandırma dosyaları değiştirilmez, birleştirilir. Aşağıdaki yapılan
 Yapılandırma kaynakları bu sırayla yüklenir (sonraki kaynaklar öncekileri geçersiz kılar):
 
 1. **Uzak yapılandırma** (`.well-known/opencode`'dan) - kurumsal varsayılanlar
-2. **Genel yapılandırma** (`~/.config/opencode/opencode.json`) - kullanıcı tercihleri
+2. **Genel yapılandırma** (`~/.config/jollicode/opencode.json`) - kullanıcı tercihleri
 3. **Özel yapılandırma** (`OPENCODE_CONFIG` env var) - özel geçersiz kılmalar
 4. **Proje yapılandırması** (projedeki `opencode.json`) - projeye özgü ayarlar
-5. **`.opencode` dizinleri** - agent'lar, komutlar, eklentiler
+5. **`.jollicode` dizinleri** - agent'lar, komutlar, eklentiler
 6. **Satır içi yapılandırma** (`OPENCODE_CONFIG_CONTENT` env var) - çalışma zamanı geçersiz kılmaları
 
 Bu, proje yapılandırmalarının genel varsayılanları geçersiz kılabileceği ve genel yapılandırmaların uzak organizasyonel varsayılanları geçersiz kılabileceği anlamına gelir.
 
 :::note
-`.opencode` ve `~/.config/opencode` dizinleri alt dizinler için **çoğul adlar** kullanır: `agents/`, `commands/`, `modes/`, `plugins/`, `skills/`, `tools/` ve `themes/`. Tekil adlar (örneğin, `agent/`) da geriye dönük uyumluluk açısından desteklenir.
+`.jollicode` ve `~/.config/jollicode` dizinleri alt dizinler için **çoğul adlar** kullanır: `agents/`, `commands/`, `modes/`, `plugins/`, `skills/`, `tools/` ve `themes/`. Tekil adlar (örneğin, `agent/`) da geriye dönük uyumluluk açısından desteklenir.
 :::
 
 ---
@@ -95,7 +95,7 @@ Yerel yapılandırmanızda belirli sunucuları etkinleştirebilirsiniz:
 
 ### Global
 
-Global opencode yapılandırmanızı `~/.config/opencode/opencode.json` içine yerleştirin. Temalar, sağlayıcılar veya tuş atamaları gibi kullanıcı çapındaki tercihler için genel yapılandırmayı kullanın.
+Global opencode yapılandırmanızı `~/.config/jollicode/opencode.json` içine yerleştirin. Temalar, sağlayıcılar veya tuş atamaları gibi kullanıcı çapındaki tercihler için genel yapılandırmayı kullanın.
 
 Genel yapılandırma, uzak kurumsal varsayılanları geçersiz kılar.
 
@@ -132,7 +132,7 @@ opencode run "Hello world"
 
 `OPENCODE_CONFIG_DIR` kullanarak özel bir yapılandırma dizini belirtin
 ortam değişkeni. Bu dizin agent'lar, komutlar için aranacaktır.
-modlar ve eklentiler tıpkı standart `.opencode` dizini gibi olmalıdır ve
+modlar ve eklentiler tıpkı standart `.jollicode` dizini gibi olmalıdır ve
 aynı yapıyı takip edin.
 
 ```bash
@@ -140,7 +140,7 @@ export OPENCODE_CONFIG_DIR=/path/to/my/config-directory
 opencode run "Hello world"
 ```
 
-Özel dizin, genel yapılandırma ve `.opencode` dizinlerinden sonra yüklenir, böylece bunların ayarlarını **geçersiz kılabilir**.
+Özel dizin, genel yapılandırma ve `.jollicode` dizinlerinden sonra yüklenir, böylece bunların ayarlarını **geçersiz kılabilir**.
 
 ---
 
@@ -337,7 +337,7 @@ opencode yapılandırmanızda kullanmak istediğiniz temayı `theme` seçeneği 
 }
 ```
 
-Agent'ları `~/.config/opencode/agents/` veya `.opencode/agents/` içindeki Markdown dosyalarıyla da tanımlayabilirsiniz. [Daha fazla bilgi](/docs/agents).
+Agent'ları `~/.config/jollicode/agents/` veya `.jollicode/agents/` içindeki Markdown dosyalarıyla da tanımlayabilirsiniz. [Daha fazla bilgi](/docs/agents).
 
 ---
 
@@ -401,7 +401,7 @@ Varsayılan olarak paylaşım, `/share` komutunu kullanarak konuşmaları açık
 }
 ```
 
-Komutları `~/.config/opencode/commands/` veya `.opencode/commands/` içindeki Markdown dosyalarıyla da tanımlayabilirsiniz. [Daha fazla bilgi](/docs/commands).
+Komutları `~/.config/jollicode/commands/` veya `.jollicode/commands/` içindeki Markdown dosyalarıyla da tanımlayabilirsiniz. [Daha fazla bilgi](/docs/commands).
 
 ---
 
@@ -539,7 +539,7 @@ Kullanmak istediğiniz MCP sunucularını `mcp` seçeneği aracılığıyla yap�
 
 [Eklentiler](/docs/plugins) opencode'u özel araçlar, kancalar ve entegrasyonlarla genişletin.
 
-Eklenti dosyalarını `.opencode/plugins/` veya `~/.config/opencode/plugins/` içine yerleştirin. Ayrıca eklentileri `plugin` seçeneği aracılığıyla npm'den de yükleyebilirsiniz.
+Eklenti dosyalarını `.jollicode/plugins/` veya `~/.config/jollicode/plugins/` içine yerleştirin. Ayrıca eklentileri `plugin` seçeneği aracılığıyla npm'den de yükleyebilirsiniz.
 
 ```json title="opencode.json"
 {

@@ -8,7 +8,6 @@ export const dict = {
   "nav.github": "GitHub",
   "nav.docs": "문서",
   "nav.changelog": "변경 내역",
-  "nav.discord": "Discord",
   "nav.x": "X",
   "nav.enterprise": "엔터프라이즈",
   "nav.zen": "Zen",
@@ -26,7 +25,6 @@ export const dict = {
   "footer.github": "GitHub",
   "footer.docs": "문서",
   "footer.changelog": "변경 내역",
-  "footer.discord": "Discord",
   "footer.x": "X",
 
   "legal.brand": "브랜드",
@@ -44,7 +42,6 @@ export const dict = {
   "notFound.home": "홈",
   "notFound.docs": "문서",
   "notFound.github": "GitHub",
-  "notFound.discord": "Discord",
   "notFound.logoLightAlt": "opencode 밝은 로고",
   "notFound.logoDarkAlt": "opencode 어두운 로고",
 

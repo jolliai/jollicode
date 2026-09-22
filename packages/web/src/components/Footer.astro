@@ -6,10 +6,8 @@ import { Icon } from "@astrojs/starlight/components"
 const { lang, editUrl, lastUpdated, entry } = Astro.locals.starlightRoute
 const template = entry.data.template
 const issueLink = Astro.locals.t("app.footer.issueLink", "Found a bug? Open an issue")
-const discordLink = Astro.locals.t("app.footer.discordLink", "Join our Discord community")
 
 const github = config.social?.find((item) => item.icon === "github")
-const discord = config.social?.find((item) => item.icon === "discord")
 ---
 
 {
@@ -30,14 +28,6 @@ const discord = config.social?.find((item) => item.icon === "discord")
               <a href={`${github.href}/issues/new`} target="_blank" rel="noopener noreferrer" class="sl-flex">
                 <Icon name={github.icon} size="1em" />
                 {issueLink}
-              </a>
-            )
-          }
-          {
-            discord && (
-              <a href={discord.href} target="_blank" rel="noopener noreferrer" class="sl-flex">
-                <Icon name={discord.icon} size="1em" />
-                {discordLink}
               </a>
             )
           }

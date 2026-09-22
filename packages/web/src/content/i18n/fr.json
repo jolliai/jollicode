@@ -3,7 +3,6 @@
   "app.header.home": "Accueil",
   "app.header.docs": "Documentation",
   "app.footer.issueLink": "Vous avez trouvé un bug ? Ouvrez une issue",
-  "app.footer.discordLink": "Rejoignez notre communauté Discord",
   "app.lander.hero.title": "L'agent de codage AI conçu pour le terminal.",
   "app.lander.cta.getStarted": "Commencer",
   "app.lander.features.native_tui.title": "TUI natif",

@@ -3,7 +3,6 @@
   "app.header.home": "Ana sayfa",
   "app.header.docs": "Dokümanlar",
   "app.footer.issueLink": "Bir hata mı buldunuz? Issue açın",
-  "app.footer.discordLink": "Discord topluluğumuza katılın",
   "app.lander.hero.title": "Terminal için üretilmiş AI kodlama ajanı.",
   "app.lander.cta.getStarted": "Başlayın",
   "app.lander.features.native_tui.title": "Yerel TUI",

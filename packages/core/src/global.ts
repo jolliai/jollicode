@@ -8,7 +8,10 @@ import { Flag, env } from "./flag/flag"
 import { makeGlobalNode } from "./effect/app-node"
 import { Brand } from "./brand"
 
-const app = Brand.short
+// On-disk dir segment matches the file name (`jollicode.db`, `jollicode.log`, ...) so the
+// data directory and the files inside it share one name. Kept distinct from Brand.short,
+// which is the provider id / auth username / branch prefix, not a directory name.
+const app = Brand.bin
 const data = path.join(xdgData!, app)
 const cache = path.join(xdgCache!, app)
 const config = path.join(xdgConfig!, app)

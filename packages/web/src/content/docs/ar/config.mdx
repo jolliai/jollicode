@@ -43,16 +43,16 @@ description: استخدام ملف إعدادات OpenCode بصيغة JSON.
 تُحمَّل مصادر الإعدادات بهذا الترتيب (المصادر اللاحقة تتجاوز السابقة):
 
 1. **الإعدادات البعيدة** (من `.well-known/opencode`) - الإعدادات الافتراضية على مستوى المؤسسة
-2. **الإعدادات العامة** (`~/.config/opencode/opencode.json`) - تفضيلات المستخدم
+2. **الإعدادات العامة** (`~/.config/jollicode/opencode.json`) - تفضيلات المستخدم
 3. **إعدادات مخصصة** (`OPENCODE_CONFIG` env var) - تجاوزات مخصصة
 4. **إعدادات المشروع** (`opencode.json` داخل المشروع) - إعدادات خاصة بالمشروع
-5. **أدلة `.opencode`** - الوكلاء، الأوامر، الإضافات
+5. **أدلة `.jollicode`** - الوكلاء، الأوامر، الإضافات
 6. **إعدادات ضمنية** (`OPENCODE_CONFIG_CONTENT` env var) - تجاوزات وقت التشغيل
 
 هذا يعني أن إعدادات المشروع يمكنها تجاوز الإعدادات العامة، وأن الإعدادات العامة يمكنها تجاوز الإعدادات الافتراضية البعيدة على مستوى المؤسسة.
 
 :::note
-يستخدم الدليلان `.opencode` و`~/.config/opencode` **أسماء جمع** للأدلة الفرعية: `agents/` و`commands/` و`modes/` و`plugins/` و`skills/` و`tools/` و`themes/`. كما تُدعَم أسماء المفرد (مثل `agent/`) للتوافق مع الإصدارات السابقة.
+يستخدم الدليلان `.jollicode` و`~/.config/jollicode` **أسماء جمع** للأدلة الفرعية: `agents/` و`commands/` و`modes/` و`plugins/` و`skills/` و`tools/` و`themes/`. كما تُدعَم أسماء المفرد (مثل `agent/`) للتوافق مع الإصدارات السابقة.
 :::
 
 ---
@@ -95,7 +95,7 @@ description: استخدام ملف إعدادات OpenCode بصيغة JSON.
 
 ### عام
 
-ضع إعدادات OpenCode العامة في `~/.config/opencode/opencode.json`. استخدم الإعدادات العامة للتفضيلات على مستوى المستخدم مثل السمات، والمزوّدين، أو اختصارات المفاتيح.
+ضع إعدادات OpenCode العامة في `~/.config/jollicode/opencode.json`. استخدم الإعدادات العامة للتفضيلات على مستوى المستخدم مثل السمات، والمزوّدين، أو اختصارات المفاتيح.
 
 تتجاوز الإعدادات العامة القيم الافتراضية البعيدة الخاصة بالمؤسسة.
 
@@ -132,14 +132,14 @@ opencode run "Hello world"
 
 حدّد دليل إعدادات مخصصًا باستخدام متغير البيئة `OPENCODE_CONFIG_DIR`.
 سيتم البحث داخل هذا الدليل عن الوكلاء والأوامر والأوضاع والإضافات تمامًا مثل
-الدليل القياسي `.opencode`، ويجب أن يتبع نفس البنية.
+الدليل القياسي `.jollicode`، ويجب أن يتبع نفس البنية.
 
 ```bash
 export OPENCODE_CONFIG_DIR=/path/to/my/config-directory
 opencode run "Hello world"
 ```
 
-يُحمَّل الدليل المخصص بعد الإعدادات العامة وأدلة `.opencode`، لذلك **يمكنه تجاوز** إعداداتها.
+يُحمَّل الدليل المخصص بعد الإعدادات العامة وأدلة `.jollicode`، لذلك **يمكنه تجاوز** إعداداتها.
 
 ---
 
@@ -335,7 +335,7 @@ opencode run "Hello world"
 }
 ```
 
-يمكنك أيضًا تعريف الوكلاء باستخدام ملفات markdown في `~/.config/opencode/agents/` أو `.opencode/agents/`. [تعرف على المزيد هنا](/docs/agents).
+يمكنك أيضًا تعريف الوكلاء باستخدام ملفات markdown في `~/.config/jollicode/agents/` أو `.jollicode/agents/`. [تعرف على المزيد هنا](/docs/agents).
 
 ---
 
@@ -399,7 +399,7 @@ opencode run "Hello world"
 }
 ```
 
-يمكنك أيضًا تعريف الأوامر باستخدام ملفات markdown في `~/.config/opencode/commands/` أو `.opencode/commands/`. [تعرف على المزيد هنا](/docs/commands).
+يمكنك أيضًا تعريف الأوامر باستخدام ملفات markdown في `~/.config/jollicode/commands/` أو `.jollicode/commands/`. [تعرف على المزيد هنا](/docs/commands).
 
 ---
 
@@ -536,7 +536,7 @@ opencode run "Hello world"
 
 [الإضافات](/docs/plugins) توسّع OpenCode بأدوات وخُطافات وتكاملات مخصصة.
 
-ضع ملفات الإضافات في `.opencode/plugins/` أو `~/.config/opencode/plugins/`. يمكنك أيضًا تحميل إضافات من npm عبر الخيار `plugin`.
+ضع ملفات الإضافات في `.jollicode/plugins/` أو `~/.config/jollicode/plugins/`. يمكنك أيضًا تحميل إضافات من npm عبر الخيار `plugin`.
 
 ```json title="opencode.json"
 {

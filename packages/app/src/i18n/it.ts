@@ -1112,7 +1112,6 @@ export const dict = {
   "desktop.menu.minimize": "Riduci a icona",
   "desktop.menu.maximize": "Ingrandisci",
   "desktop.menu.documentation": "Documentazione di Jolli Code",
-  "desktop.menu.supportForum": "Forum di supporto",
   "desktop.menu.shareFeedback": "Invia feedback",
   "desktop.menu.reportBug": "Segnala un bug",
   "desktop.menu.ariaLabel": "Menu Jolli Code",

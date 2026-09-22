@@ -188,10 +188,10 @@ Konfigurirajte agente u svom konfiguracijskom fajlu `opencode.json`:
 
 Također možete definirati agente koristeći markdown datoteke. Stavite ih u:
 
-- Globalno: `~/.config/opencode/agents/`
-- Po projektu: `.opencode/agents/`
+- Globalno: `~/.config/jollicode/agents/`
+- Po projektu: `.jollicode/agents/`
 
-```markdown title="~/.config/opencode/agents/review.md"
+```markdown title="~/.config/jollicode/agents/review.md"
 ---
 description: Reviews code for quality and best practices
 mode: subagent
@@ -454,7 +454,7 @@ Možete nadjačati ove dozvole po agentu.
 
 Također možete postaviti dozvole u Markdown agentima.
 
-```markdown title="~/.config/opencode/agents/review.md"
+```markdown title="~/.config/jollicode/agents/review.md"
 ---
 description: Code review without edits
 mode: subagent
@@ -711,7 +711,7 @@ Imate li agenta kojeg biste željeli podijeliti? [Pošalji PR](https://github.co
 
 ### Agent za dokumentaciju
 
-```markdown title="~/.config/opencode/agents/docs-writer.md"
+```markdown title="~/.config/jollicode/agents/docs-writer.md"
 ---
 description: Writes and maintains project documentation
 mode: subagent
@@ -733,7 +733,7 @@ Focus on:
 
 ### Sigurnosni revizor
 
-```markdown title="~/.config/opencode/agents/security-auditor.md"
+```markdown title="~/.config/jollicode/agents/security-auditor.md"
 ---
 description: Performs security audits and identifies vulnerabilities
 mode: subagent

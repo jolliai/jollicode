@@ -3,7 +3,7 @@ title: Solución de problemas
 description: Problemas comunes y cómo resolverlos.
 ---
 
-Para depurar problemas con OpenCode, comience verificando los registros y los datos locales que almacena en el disco.
+Para depurar problemas con Jolli Code, comience verificando los registros y los datos locales que almacena en el disco.
 
 ---
 
@@ -11,21 +11,21 @@ Para depurar problemas con OpenCode, comience verificando los registros y los da
 
 Los archivos de registro se escriben en:
 
-- **macOS/Linux**: `~/.local/share/opencode/log/`
-- **Windows**: Presione `WIN+R` y pegue `%USERPROFILE%\.local\share\opencode\log`
+- **macOS/Linux**: `~/.local/share/jollicode/log/`
+- **Windows**: Presione `WIN+R` y pegue `%USERPROFILE%\.local\share\jollicode\log`
 
 Los archivos de registro reciben nombres con marcas de tiempo (por ejemplo, `2025-01-09T123456.log`) y se conservan los 10 archivos de registro más recientes.
 
-Puede configurar el nivel de registro con la opción de línea de comandos `--log-level` para obtener información de depuración más detallada. Por ejemplo, `opencode --log-level DEBUG`.
+Puede configurar el nivel de registro con la opción de línea de comandos `--log-level` para obtener información de depuración más detallada. Por ejemplo, `jollicode --log-level DEBUG`.
 
 ---
 
 ## Almacenamiento
 
-opencode almacena datos de sesión y otros datos de aplicaciones en el disco en:
+Jolli Code almacena datos de sesión y otros datos de aplicaciones en el disco en:
 
-- **macOS/Linux**: `~/.local/share/opencode/`
-- **Windows**: Presione `WIN+R` y pegue `%USERPROFILE%\.local\share\opencode`
+- **macOS/Linux**: `~/.local/share/jollicode/`
+- **Windows**: Presione `WIN+R` y pegue `%USERPROFILE%\.local\share\jollicode`
 
 Este directorio contiene:
 
@@ -39,13 +39,13 @@ Este directorio contiene:
 
 ## Aplicación de escritorio
 
-OpenCode Desktop ejecuta un servidor OpenCode local (el sidecar `opencode-cli`) en segundo plano. La mayoría de los problemas se deben a un complemento que no funciona correctamente, una memoria caché dañada o una mala configuración del servidor.
+Jolli Code Desktop ejecuta un servidor Jolli Code local (el sidecar `jollicode-cli`) en segundo plano. La mayoría de los problemas se deben a un complemento que no funciona correctamente, una memoria caché dañada o una mala configuración del servidor.
 
 ### Comprobaciones rápidas
 
 - Salga por completo y reinicie la aplicación.
 - Si la aplicación muestra una pantalla de error, haga clic en **Reiniciar** y copie los detalles del error.
-- Solo macOS: menú `OpenCode` -> **Recargar vista web** (ayuda si la interfaz de usuario está en blanco/congelada).
+- Solo macOS: menú `Jolli Code` -> **Recargar vista web** (ayuda si la interfaz de usuario está en blanco/congelada).
 
 ---
 
@@ -57,9 +57,9 @@ Si la aplicación de escritorio falla al iniciarse, se bloquea o se comporta de 
 
 Abra su archivo de configuración global y busque una clave `plugin`.
 
-- **macOS/Linux**: `~/.config/opencode/opencode.jsonc` (o `~/.config/opencode/opencode.json`)
-- **macOS/Linux** (instalaciones anteriores): `~/.local/share/opencode/opencode.jsonc`
-- **Windows**: Presione `WIN+R` y pegue `%USERPROFILE%\.config\opencode\opencode.jsonc`
+- **macOS/Linux**: `~/.config/jollicode/opencode.jsonc` (o `~/.config/jollicode/opencode.json`)
+- **macOS/Linux** (instalaciones anteriores): `~/.local/share/jollicode/opencode.jsonc`
+- **Windows**: Presione `WIN+R` y pegue `%USERPROFILE%\.config\jollicode\opencode.jsonc`
 
 Si tiene complementos configurados, desactívelos temporalmente eliminando la clave o configurándola en una matriz vacía:
 
@@ -72,13 +72,13 @@ Si tiene complementos configurados, desactívelos temporalmente eliminando la cl
 
 #### Verificar directorios de complementos
 
-OpenCode también puede cargar complementos locales desde el disco. Quítelos temporalmente del camino (o cambie el nombre de la carpeta) y reinicie la aplicación de escritorio:
+Jolli Code también puede cargar complementos locales desde el disco. Quítelos temporalmente del camino (o cambie el nombre de la carpeta) y reinicie la aplicación de escritorio:
 
 - **Complementos globales**
-  - **macOS/Linux**: `~/.config/opencode/plugins/`
-  - **Windows**: Presione `WIN+R` y pegue `%USERPROFILE%\.config\opencode\plugins`
+  - **macOS/Linux**: `~/.config/jollicode/plugins/`
+  - **Windows**: Presione `WIN+R` y pegue `%USERPROFILE%\.config\jollicode\plugins`
 - **Complementos de proyecto** (solo si usas la configuración por proyecto)
-  - `<your-project>/.opencode/plugins/`
+  - `<your-project>/.jollicode/plugins/`
 
 Si la aplicación comienza a funcionar nuevamente, vuelva a habilitar los complementos uno a la vez para encontrar cuál está causando el problema.
 
@@ -86,22 +86,22 @@ Si la aplicación comienza a funcionar nuevamente, vuelva a habilitar los comple
 
 ### Borrar el caché
 
-Si deshabilitar los complementos no ayuda (o la instalación de un complemento está bloqueada), borre el caché para que OpenCode pueda reconstruirlo.
+Si deshabilitar los complementos no ayuda (o la instalación de un complemento está bloqueada), borre el caché para que Jolli Code pueda reconstruirlo.
 
-1. Salga de OpenCode Desktop por completo.
+1. Salga de Jolli Code Desktop por completo.
 2. Elimine el directorio de caché:
 
-- **macOS**: Buscador -> `Cmd+Shift+G` -> pegar `~/.cache/opencode`
-- **Linux**: eliminar `~/.cache/opencode` (o ejecutar `rm -rf ~/.cache/opencode`)
-- **Windows**: Presione `WIN+R` y pegue `%USERPROFILE%\.cache\opencode`
+- **macOS**: Buscador -> `Cmd+Shift+G` -> pegar `~/.cache/jollicode`
+- **Linux**: eliminar `~/.cache/jollicode` (o ejecutar `rm -rf ~/.cache/jollicode`)
+- **Windows**: Presione `WIN+R` y pegue `%USERPROFILE%\.cache\jollicode`
 
-3. Reinicie el escritorio OpenCode.
+3. Reinicie el escritorio Jolli Code.
 
 ---
 
 ### Solucionar problemas de conexión del servidor
 
-OpenCode Desktop puede iniciar su propio servidor local (predeterminado) o conectarse a la URL de un servidor que haya configurado.
+Jolli Code Desktop puede iniciar su propio servidor local (predeterminado) o conectarse a la URL de un servidor que haya configurado.
 
 Si ve un cuadro de diálogo **"Error de conexión"** (o la aplicación nunca pasa de la pantalla de inicio), busque una URL de servidor personalizada.
 
@@ -132,21 +132,21 @@ En Linux, algunas configuraciones de Wayland pueden causar ventanas en blanco o 
 
 ### Windows: tiempo de ejecución de WebView2
 
-En Windows, el escritorio OpenCode requiere Microsoft Edge **WebView2 Runtime**. Si la aplicación se abre en una ventana en blanco o no se inicia, instale/actualice WebView2 e inténtelo nuevamente.
+En Windows, el escritorio Jolli Code requiere Microsoft Edge **WebView2 Runtime**. Si la aplicación se abre en una ventana en blanco o no se inicia, instale/actualice WebView2 e inténtelo nuevamente.
 
 ---
 
 ### Windows: Problemas generales de rendimiento
 
-Si tiene un rendimiento lento, problemas de acceso a archivos o problemas de terminal en Windows, intente usar [WSL (Windows Subsistema para Linux)](/docs/windows-wsl). WSL proporciona un entorno Linux que funciona de manera más fluida con las funciones de OpenCode.
+Si tiene un rendimiento lento, problemas de acceso a archivos o problemas de terminal en Windows, intente usar [WSL (Windows Subsistema para Linux)](/docs/windows-wsl). WSL proporciona un entorno Linux que funciona de manera más fluida con las funciones de Jolli Code.
 
 ---
 
 ### Notificaciones que no se muestran
 
-OpenCode Desktop solo muestra notificaciones del sistema cuando:
+Jolli Code Desktop solo muestra notificaciones del sistema cuando:
 
-- las notificaciones están habilitadas para OpenCode en la configuración de su sistema operativo, y
+- las notificaciones están habilitadas para Jolli Code en la configuración de su sistema operativo, y
 - la ventana de la aplicación no está enfocada.
 
 ---
@@ -155,10 +155,10 @@ OpenCode Desktop solo muestra notificaciones del sistema cuando:
 
 Si la aplicación no se inicia y no puede borrar la configuración desde la interfaz de usuario, restablezca el estado guardado de la aplicación de escritorio.
 
-1. Salga del escritorio OpenCode.
-2. Busque y elimine estos archivos (se encuentran en el directorio de datos de la aplicación de escritorio OpenCode):
+1. Salga del escritorio Jolli Code.
+2. Busque y elimine estos archivos (se encuentran en el directorio de datos de la aplicación de escritorio Jolli Code):
 
-- `jollicode.settings.dat` (URL del servidor predeterminado de escritorio)
+- `jollicode.settings` (URL del servidor predeterminado de escritorio)
 - `jollicode.global.dat` y `jollicode.workspace.*.dat` (estado de la interfaz de usuario como servidores/proyectos recientes)
 
 Para encontrar el directorio rápidamente:
@@ -171,21 +171,15 @@ Para encontrar el directorio rápidamente:
 
 ## Obtener ayuda
 
-Si tiene problemas con OpenCode:
+Si tiene problemas con Jolli Code:
 
 1. **Informar problemas el GitHub**
 
    La mejor manera de informar errores o solicitar funciones es a través de nuestro repositorio GitHub:
 
-   [**github.com/anomalyco/opencode/issues**](https://github.com/anomalyco/opencode/issues)
+   [**github.com/jolliai/jollicode/issues**](https://github.com/jolliai/jollicode/issues)
 
    Antes de crear un nuevo problema, busque los problemas existentes para ver si su problema ya ha sido informado.
-
-2. **Únete a nuestro Discord**
-
-   Para obtener ayuda en tiempo real y debates comunitarios, únase a nuestro servidor de Discord:
-
-   [**opencode.ai/discord**](https://opencode.ai/discord)
 
 ---
 
@@ -195,11 +189,11 @@ A continuación se detallan algunos problemas comunes y cómo resolverlos.
 
 ---
 
-### OpenCode no se inicia
+### Jolli Code no se inicia
 
 1. Verifique los registros en busca de mensajes de error.
 2. Intente ejecutar con `--print-logs` para ver el resultado en la terminal.
-3. Asegúrese de tener la última versión con `opencode upgrade`
+3. Asegúrese de tener la última versión con `jollicode upgrade`
 
 ---
 
@@ -227,7 +221,7 @@ Ejemplos:
 - `openrouter/google/gemini-2.5-flash`
 - `opencode/kimi-k2`
 
-Para saber a qué modelos tiene acceso, ejecute `opencode models`
+Para saber a qué modelos tiene acceso, ejecute `jollicode models`
 
 ---
 
@@ -241,10 +235,10 @@ Para resolver esto:
 2. Si el problema persiste, intente borrar la configuración almacenada:
 
    ```bash
-   rm -rf ~/.local/share/opencode
+   rm -rf ~/.local/share/jollicode
    ```
 
-   En Windows, presione `WIN+R` y elimine: `%USERPROFILE%\.local\share\opencode`
+   En Windows, presione `WIN+R` y elimine: `%USERPROFILE%\.local\share\jollicode`
 
 3. Vuelva a autenticarse con su proveedor utilizando el comando `/connect` en TUI.
 
@@ -252,21 +246,21 @@ Para resolver esto:
 
 ### AI_APICallError y problemas con el paquete del proveedor
 
-Si encuentra errores de llamada API, esto puede deberse a paquetes de proveedores obsoletos. opencode instala dinámicamente paquetes de proveedores (OpenAI, Anthropic, Google, etc.) según sea necesario y los almacena en caché localmente.
+Si encuentra errores de llamada API, esto puede deberse a paquetes de proveedores obsoletos. Jolli Code instala dinámicamente paquetes de proveedores (OpenAI, Anthropic, Google, etc.) según sea necesario y los almacena en caché localmente.
 
 Para resolver problemas con el paquete del proveedor:
 
 1. Borre la caché del paquete del proveedor:
 
    ```bash
-   rm -rf ~/.cache/opencode
+   rm -rf ~/.cache/jollicode
    ```
 
-   En Windows, presione `WIN+R` y elimine: `%USERPROFILE%\.cache\opencode`
+   En Windows, presione `WIN+R` y elimine: `%USERPROFILE%\.cache\jollicode`
 
-2. Reinicie opencode para reinstalar los paquetes del proveedor más recientes.
+2. Reinicie Jolli Code para reinstalar los paquetes del proveedor más recientes.
 
-Esto obligará a opencode a descargar las versiones más recientes de los paquetes del proveedor, lo que a menudo resuelve problemas de compatibilidad con los parámetros del modelo y los cambios de API.
+Esto obligará a Jolli Code a descargar las versiones más recientes de los paquetes del proveedor, lo que a menudo resuelve problemas de compatibilidad con los parámetros del modelo y los cambios de API.
 
 ---
 
@@ -297,4 +291,4 @@ Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
 export DISPLAY=:99.0
 ```
 
-opencode detectará si estás usando Wayland y prefieres `wl-clipboard`; de lo contrario, intentará encontrar herramientas del portapapeles en el orden de: `xclip` y `xsel`.
+Jolli Code detectará si estás usando Wayland y prefieres `wl-clipboard`; de lo contrario, intentará encontrar herramientas del portapapeles en el orden de: `xclip` y `xsel`.

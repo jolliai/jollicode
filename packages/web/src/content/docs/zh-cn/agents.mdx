@@ -188,10 +188,10 @@ _模式_：`primary`
 
 您还可以使用 Markdown 文件定义代理。将它们放在：
 
-- 全局：`~/.config/opencode/agents/`
-- 项目级：`.opencode/agents/`
+- 全局：`~/.config/jollicode/agents/`
+- 项目级：`.jollicode/agents/`
 
-```markdown title="~/.config/opencode/agents/review.md"
+```markdown title="~/.config/jollicode/agents/review.md"
 ---
 description: Reviews code for quality and best practices
 mode: subagent
@@ -454,7 +454,7 @@ OpenCode 配置中的模型 ID 使用 `provider/model-id` 格式。例如，如�
 
 您还可以在 Markdown 代理中设置权限。
 
-```markdown title="~/.config/opencode/agents/review.md"
+```markdown title="~/.config/jollicode/agents/review.md"
 ---
 description: Code review without edits
 mode: subagent
@@ -711,7 +711,7 @@ opencode agent create
 
 ### 文档代理
 
-```markdown title="~/.config/opencode/agents/docs-writer.md"
+```markdown title="~/.config/jollicode/agents/docs-writer.md"
 ---
 description: Writes and maintains project documentation
 mode: subagent
@@ -733,7 +733,7 @@ Focus on:
 
 ### 安全审计代理
 
-```markdown title="~/.config/opencode/agents/security-auditor.md"
+```markdown title="~/.config/jollicode/agents/security-auditor.md"
 ---
 description: Performs security audits and identifies vulnerabilities
 mode: subagent

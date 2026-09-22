@@ -188,10 +188,10 @@ _Mode_: `primary`
 
 Markdown 파일로도 agent를 정의할 수 있습니다. 다음 위치에 두세요.
 
-- Global: `~/.config/opencode/agents/`
-- Per-project: `.opencode/agents/`
+- Global: `~/.config/jollicode/agents/`
+- Per-project: `.jollicode/agents/`
 
-```markdown title="~/.config/opencode/agents/review.md"
+```markdown title="~/.config/jollicode/agents/review.md"
 ---
 description: Reviews code for quality and best practices
 mode: subagent
@@ -454,7 +454,7 @@ permission을 설정해 agent가 수행할 수 있는 action을 제어할 수 �
 
 Markdown agent에서도 permission을 설정할 수 있습니다.
 
-```markdown title="~/.config/opencode/agents/review.md"
+```markdown title="~/.config/jollicode/agents/review.md"
 ---
 description: Code review without edits
 mode: subagent
@@ -711,7 +711,7 @@ opencode agent create
 
 ### Documentation agent
 
-```markdown title="~/.config/opencode/agents/docs-writer.md"
+```markdown title="~/.config/jollicode/agents/docs-writer.md"
 ---
 description: Writes and maintains project documentation
 mode: subagent
@@ -733,7 +733,7 @@ Focus on:
 
 ### Security auditor
 
-```markdown title="~/.config/opencode/agents/security-auditor.md"
+```markdown title="~/.config/jollicode/agents/security-auditor.md"
 ---
 description: Performs security audits and identifies vulnerabilities
 mode: subagent

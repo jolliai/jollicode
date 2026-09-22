@@ -18,7 +18,7 @@ Um einen Anbieter hinzuzufügen, müssen Sie:
 ### Anmeldeinformationen
 
 Wenn Sie die API-Schlüssel eines Anbieters mit dem Befehl `/connect` hinzufügen, werden diese gespeichert
-in `~/.local/share/opencode/auth.json`.
+in `~/.local/share/jollicode/auth.json`.
 
 ---
 
@@ -1021,7 +1021,7 @@ Falls Sie eine Funktion oder ein Modell von Helicone sehen, das nicht automatisc
 
 Hier ist [Helicone's Model Directory](https://helicone.ai/models). Sie benötigen dies, um die IDs der Modelle abzurufen, die Sie hinzufügen möchten.
 
-```jsonc title="~/.config/opencode/opencode.jsonc"
+```jsonc title="~/.config/jollicode/opencode.jsonc"
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -1049,7 +1049,7 @@ Hier ist [Helicone's Model Directory](https://helicone.ai/models). Sie benötige
 
 Helicone unterstützt benutzerdefinierte Header für Funktionen wie Caching, Benutzerverfolgung und Sitzungsverwaltung. Fügen Sie sie mit `options.headers` zu Ihrer Anbieterkonfiguration hinzu:
 
-```jsonc title="~/.config/opencode/opencode.jsonc"
+```jsonc title="~/.config/jollicode/opencode.jsonc"
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {

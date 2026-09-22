@@ -42,7 +42,6 @@ const desktop = [
   "Suskleisti",
   "Išskleisti",
   "Jolli Code dokumentacija",
-  "Pagalbos forumas",
   "Pateikti atsiliepimą",
   "Pranešti apie klaidą",
   "Jolli Code meniu",
