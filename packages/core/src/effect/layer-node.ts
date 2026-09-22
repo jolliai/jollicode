@@ -85,9 +85,16 @@ export function make<
 >(
   input: MakeInput<Implementation, Items, T>,
 ): Node<Layer.Success<Implementation>, Layer.Error<Implementation> | Error<Items[number]>, T> {
+  const name = input.service !== undefined ? input.service.key : input.name
+  // A dependency is only ever undefined when a circular import evaluated this node before the
+  // dependency module finished initializing. Bun's dev loader happens to order those safely, but a
+  // `bun build --compile` bundle reorders module init and surfaces the cycle as an `undefined` dep —
+  // which otherwise crashes far away as `undefined is not an object (evaluating 'a.name')` inside
+  // the tree walk. Fail here instead, naming the node and slot so the cycle is obvious. See JOLLI-2474.
+  assertDefinedDeps(name, input.deps)
   return {
     kind: "layer",
-    name: input.service !== undefined ? input.service.key : input.name,
+    name,
     service: input.service,
     implementation: input.layer,
     dependencies: input.deps,
@@ -108,7 +115,18 @@ export function unbound<R, Shape, const T extends Tag>(service: Context.Key<R, S
 export function group<const Items extends readonly AnyNode[]>(
   dependencies: Items,
 ): Node<Output<Items[number]>, Error<Items[number]>, NodeTag<Items[number]>> {
+  assertDefinedDeps("group", dependencies)
   return { kind: "group", name: "group", dependencies }
+}
+
+function assertDefinedDeps(name: string, deps: readonly (AnyNode | undefined)[]) {
+  const index = deps.findIndex((dep) => dep === undefined)
+  if (index === -1) return
+  throw new Error(
+    `LayerNode "${name}" has an undefined dependency at index ${index}. This is a circular import: ` +
+      `a module read this node's dependency before that dependency module finished initializing. ` +
+      `Break the cycle (e.g. make the back-reference a type-only import).`,
+  )
 }
 
 export type Replacement = readonly [source: AnyNode, replacement: AnyNode | Layer.Any]

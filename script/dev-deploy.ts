@@ -10,10 +10,9 @@ import path from "path"
 // install into something other than VS Code, e.g. `bun run dev:deploy cursor`.
 //
 // The CLI is installed as a source shim (bun runs src/index.ts) rather than a
-// compiled `bun build --compile` binary: the compiled binary currently crashes
-// ~3s after TUI start with an AbortError ("Unexpected server error"), while the
-// source run is stable (tracked in JOLLI-2474). The shim also makes code changes
-// take effect with no rebuild.
+// compiled `bun build --compile` binary so that local code changes take effect
+// with no rebuild. (The compiled binary used to crash ~3s after TUI start; that
+// was a circular-import bug in the layer-node graph, fixed in JOLLI-2474.)
 //
 // Cross-platform: writes a POSIX /bin/sh shim (macOS/Linux, and Git Bash on
 // Windows) plus .cmd/.ps1 shims on Windows, whose native shells ignore the
