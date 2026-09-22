@@ -3,7 +3,7 @@ title: MCP-серверы
 description: Добавьте локальные и удаленные инструменты MCP.
 ---
 
-Вы можете добавить внешние инструменты в opencode, используя _Model Context Protocol_ или MCP. opencode поддерживает как локальные, так и удаленные серверы.
+Вы можете добавить внешние инструменты в jollicode, используя _Model Context Protocol_ или MCP. jollicode поддерживает как локальные, так и удаленные серверы.
 
 После добавления инструменты MCP автоматически становятся доступными для LLM наряду со встроенными инструментами.
 
@@ -23,7 +23,7 @@ description: Добавьте локальные и удаленные инст�
 
 ## Включение
 
-Вы можете определить серверы MCP в своем [opencode Config](https://opencode.ai/docs/config/) в разделе `mcp`. Добавьте каждому MCP уникальное имя. Вы можете обратиться к этому MCP по имени при запросе LLM.
+Вы можете определить серверы MCP в своем [jollicode Config](https://opencode.ai/docs/config/) в разделе `mcp`. Добавьте каждому MCP уникальное имя. Вы можете обратиться к этому MCP по имени при запросе LLM.
 
 ```jsonc title="opencode.jsonc" {6}
 {
@@ -165,7 +165,7 @@ use the mcp_everything tool to add the number 3 and 4
 
 ## OAuth
 
-opencode автоматически обрабатывает аутентификацию OAuth для удаленных серверов MCP. Когда серверу требуется аутентификация, opencode:
+jollicode автоматически обрабатывает аутентификацию OAuth для удаленных серверов MCP. Когда серверу требуется аутентификация, jollicode:
 
 1. Обнаружьте ответ 401 и инициируйте поток OAuth.
 2. Используйте **Динамическую регистрацию клиента (RFC 7591)**, если это поддерживается сервером.
@@ -189,7 +189,7 @@ opencode автоматически обрабатывает аутентифи�
 }
 ```
 
-Если сервер требует аутентификации, opencode предложит вам пройти аутентификацию при первой попытке его использования. Если нет, вы можете [вручную запустить поток ](#authenticating) с помощью `opencode mcp auth <server-name>`.
+Если сервер требует аутентификации, jollicode предложит вам пройти аутентификацию при первой попытке его использования. Если нет, вы можете [вручную запустить поток ](#authenticating) с помощью `jollicode mcp auth <server-name>`.
 
 ---
 
@@ -223,22 +223,22 @@ opencode автоматически обрабатывает аутентифи�
 Аутентификация с помощью определенного сервера MCP:
 
 ```bash
-opencode mcp auth my-oauth-server
+jollicode mcp auth my-oauth-server
 ```
 
 Перечислите все серверы MCP и их статус аутентификации:
 
 ```bash
-opencode mcp list
+jollicode mcp list
 ```
 
 Удалить сохраненные учетные данные:
 
 ```bash
-opencode mcp logout my-oauth-server
+jollicode mcp logout my-oauth-server
 ```
 
-Команда `mcp auth` откроет ваш браузер для авторизации. После того как вы авторизуетесь, opencode надежно сохранит токены в `~/.local/share/jollicode/mcp-auth.json`.
+Команда `mcp auth` откроет ваш браузер для авторизации. После того как вы авторизуетесь, jollicode надежно сохранит токены в `~/.local/share/jollicode/mcp-auth.json`.
 
 ---
 
@@ -279,10 +279,10 @@ opencode mcp logout my-oauth-server
 
 ```bash
 # View auth status for all OAuth-capable servers
-opencode mcp auth list
+jollicode mcp auth list
 
 # Debug connection and OAuth flow for a specific server
-opencode mcp debug my-oauth-server
+jollicode mcp debug my-oauth-server
 ```
 
 Команда `mcp debug` показывает текущий статус аутентификации, проверяет соединение HTTP и пытается выполнить поток обнаружения OAuth.
@@ -291,7 +291,7 @@ opencode mcp debug my-oauth-server
 
 ## Управление
 
-Ваши MCP доступны в виде инструментов opencode наряду со встроенными инструментами. Таким образом, вы можете управлять ими через конфигурацию opencode, как и любым другим инструментом.
+Ваши MCP доступны в виде инструментов jollicode наряду со встроенными инструментами. Таким образом, вы можете управлять ими через конфигурацию jollicode, как и любым другим инструментом.
 
 ---
 
@@ -420,10 +420,10 @@ opencode mcp debug my-oauth-server
 После добавления конфигурации пройдите аутентификацию с помощью Sentry:
 
 ```bash
-opencode mcp auth sentry
+jollicode mcp auth sentry
 ```
 
-Откроется окно браузера для завершения процесса OAuth и подключения opencode к вашей учетной записи Sentry.
+Откроется окно браузера для завершения процесса OAuth и подключения jollicode к вашей учетной записи Sentry.
 
 После аутентификации вы можете использовать инструменты Sentry в своих подсказках для запроса данных о проблемах, проектах и ​​ошибках.
 

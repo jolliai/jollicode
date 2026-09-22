@@ -7,11 +7,11 @@ import config from "../../../../config.mjs"
 export const console = config.console
 export const email = `mailto:${config.email}`
 
-OpenCode Go er et lavprisabonnement til **$10/måned**, der giver dig pålidelig adgang til populære åbne kodningsmodeller.
+Jolli Code Go er et lavprisabonnement til **$10/måned**, der giver dig pålidelig adgang til populære åbne kodningsmodeller.
 
-Go fungerer som enhver anden udbyder i OpenCode. Du abonnerer på OpenCode Go og
+Go fungerer som enhver anden udbyder i Jolli Code. Du abonnerer på Jolli Code Go og
 får din API-nøgle. Det er **helt valgfrit**, og du behøver ikke at bruge det for at
-bruge OpenCode.
+bruge Jolli Code.
 
 Det er primært udviklet til internationale brugere og giver stabil global adgang.
 
@@ -27,7 +27,7 @@ Det kan dog være svært at få pålidelig adgang til dem med lav latenstid. Udb
 varierer i kvalitet og tilgængelighed.
 
 :::tip
-Vi testede en udvalgt gruppe af modeller og udbydere, der fungerer godt med OpenCode.
+Vi testede en udvalgt gruppe af modeller og udbydere, der fungerer godt med Jolli Code.
 :::
 
 For at løse dette, gjorde vi et par ting:
@@ -39,22 +39,22 @@ For at løse dette, gjorde vi et par ting:
 3. Til sidst benchmarkede vi kombinationen af model og udbyder, og kom frem til
    en liste, som vi trygt kan anbefale.
 
-OpenCode Go giver dig adgang til disse modeller for **$10/måned**.
+Jolli Code Go giver dig adgang til disse modeller for **$10/måned**.
 
 ---
 
 ## Sådan fungerer det
 
-OpenCode Go fungerer som enhver anden udbyder i OpenCode.
+Jolli Code Go fungerer som enhver anden udbyder i Jolli Code.
 
 1. Du logger ind på **<a href={console}>OpenCode Zen</a>**, abonnerer på Go, og
    kopierer din API-nøgle.
-2. Du kører kommandoen `/connect` i TUI'en, vælger `OpenCode Go`, og indsætter
+2. Du kører kommandoen `/connect` i TUI'en, vælger `Jolli Code Go`, og indsætter
    din API-nøgle.
 3. Kør `/models` i TUI'en for at se listen over tilgængelige modeller gennem Go.
 
 :::note
-Kun ét medlem per arbejdsområde kan abonnere på OpenCode Go.
+Kun ét medlem per arbejdsområde kan abonnere på Jolli Code Go.
 :::
 
 Den nuværende liste over modeller inkluderer:
@@ -94,7 +94,7 @@ Listen over modeller kan ændre sig, efterhånden som vi tester og tilføjer nye
 
 ## Hvor kan jeg bruge det?
 
-OpenCode Go er udviklet til [OpenCode](https://opencode.ai) og andre kodningsagenter,
+Jolli Code Go er udviklet til [Jolli Code](https://opencode.ai) og andre kodningsagenter,
 der sender lignende typer anmodninger. Trafikken overvåges for misbrug, der
 forringer oplevelsen for andre brugere.
 
@@ -108,18 +108,18 @@ Din klient skal:
 
 ### Validerede klienter
 
-Ud over OpenCode er følgende klienter blevet valideret til at fungere korrekt
-med OpenCode Go. Vi garanterer dog ikke, at de fortsat vil fungere fremover.
+Ud over Jolli Code er følgende klienter blevet valideret til at fungere korrekt
+med Jolli Code Go. Vi garanterer dog ikke, at de fortsat vil fungere fremover.
 
 | Klient            | Sessionsunderstøttelse                                                                                                                                                                                                                                    |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Hermes**        | Builds, der indeholder [PR #101864](https://github.com/NousResearch/hermes-agent/pull/101864), sender headeren i primære og sekundære OpenCode-anmodninger. Rettelsen blev merged efter v0.21.0; den version indeholder den ikke i sig selv.              |
+| **Hermes**        | Builds, der indeholder [PR #101864](https://github.com/NousResearch/hermes-agent/pull/101864), sender headeren i primære og sekundære Jolli Code-anmodninger. Rettelsen blev merged efter v0.21.0; den version indeholder den ikke i sig selv.              |
 | **Claude Code**   | Go genkender dens indbyggede sessionsheader. En wrapper til en brugerdefineret header er ikke nødvendig.                                                                                                                                                  |
 | **Codex**         | Go genkender dens indbyggede sessionsheader. Nogle versioner og proxyopsætninger udelader den stadig; bevar sessionsheaderen, når anmodninger videresendes.                                                                                               |
 | **ZCode**         | Go genkender dens indbyggede sessionsheader. Vores [anmodning om `x-opencode-session`](https://github.com/zai-org/feedback/issues/492) er stadig åben, men det er ikke længere nødvendigt at sende netop denne header.                                    |
-| **Pi**            | Aktuelle builds sender sessionsoplysninger til OpenCode. Opdater ældre installationer.                                                                                                                                                                    |
+| **Pi**            | Aktuelle builds sender sessionsoplysninger til Jolli Code. Opdater ældre installationer.                                                                                                                                                                    |
 | **jcode**         | Opdater til **v0.81.6 eller nyere**, som indeholder [rettelsen til sessionsheaderen](https://github.com/1jehuang/jcode/issues/1167).                                                                                                                      |
-| **Kilo Code CLI** | Builds, der indeholder [PR #13752](https://github.com/Kilo-Org/kilocode/pull/13752), gendanner OpenCode-sessionsheadere. Denne rettelse dækker CLI'en, men ikke VS Code-udvidelsen. Se [issue #13723](https://github.com/Kilo-Org/kilocode/issues/13723). |
+| **Kilo Code CLI** | Builds, der indeholder [PR #13752](https://github.com/Kilo-Org/kilocode/pull/13752), gendanner Jolli Code-sessionsheadere. Denne rettelse dækker CLI'en, men ikke VS Code-udvidelsen. Se [issue #13723](https://github.com/Kilo-Org/kilocode/issues/13723). |
 
 ### Kendte problematiske klienter
 
@@ -319,7 +319,7 @@ Du kan også få adgang til Go-modeller gennem følgende API-endpoints.
 | Hy3                          | hy3                          | `https://opencode.ai/zen/go/v1/chat/completions` | `@ai-sdk/openai-compatible` |
 | Union Alpha Free             | union-alpha                  | `https://opencode.ai/zen/go/v1/messages`         | `@ai-sdk/anthropic`         |
 
-Dit [model id](/docs/config/#models) i din OpenCode config
+Dit [model id](/docs/config/#models) i din Jolli Code config
 bruger formatet `opencode-go/<model-id>`. For eksempel for Kimi K3, vil du
 bruge `opencode-go/kimi-k3` i din config.
 
@@ -378,9 +378,9 @@ https://opencode.ai/zen/go/v1/models
 
 ## Mål
 
-Vi skabte OpenCode Go for at:
+Vi skabte Jolli Code Go for at:
 
 1. Gøre AI-kodning **tilgængelig** for flere mennesker med et lavprisabonnement.
 2. Give **pålidelig** adgang til de bedste åbne kodningsmodeller.
 3. Kuratere modeller, der er **testet og benchmarkede** til brug med kodningsagenter.
-4. Undgå **lock-in** ved også at lade dig bruge enhver anden udbyder med OpenCode.
+4. Undgå **lock-in** ved også at lade dig bruge enhver anden udbyder med Jolli Code.

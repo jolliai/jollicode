@@ -3,7 +3,7 @@ title: "Umiejętności Agenta"
 description: "Definiuj powtarzalne zachowania za pomocą definicji SKILL.md"
 ---
 
-Umiejętności agenta pozwalają opencode odkryć instrukcje wielokrotnego użytku z repozytorium lub katalogu domowego.
+Umiejętności agenta pozwalają jollicode odkryć instrukcje wielokrotnego użytku z repozytorium lub katalogu domowego.
 Umiejętności są ładowane na żądanie za pośrednictwem natywnego narzędzia `skill` — agenci widzą dostępne umiejętności i w razie potrzeby mogą załadować pełną zawartość.
 
 ---
@@ -11,7 +11,7 @@ Umiejętności są ładowane na żądanie za pośrednictwem natywnego narzędzia
 ## Lokalizacja plików
 
 Utwórz jeden folder na nazwę umiejętności i umieść w nim `SKILL.md`.
-opencode przeszukuje te lokalizacje:
+jollicode przeszukuje te lokalizacje:
 
 - Project config: `.jollicode/skills/<name>/SKILL.md`
 - Global config: `~/.config/jollicode/skills/<name>/SKILL.md`
@@ -24,7 +24,7 @@ opencode przeszukuje te lokalizacje:
 
 ## Zrozumienie wykrywania
 
-W przypadku ścieżek lokalnych projektu opencode przechodzi od bieżącego katalogu roboczego, aż dotrze do drzewa roboczego git.
+W przypadku ścieżek lokalnych projektu jollicode przechodzi od bieżącego katalogu roboczego, aż dotrze do drzewa roboczego git.
 Ładuje po drodze dowolne pasujące `skills/*/SKILL.md` w `.jollicode/` i dowolne pasujące `.claude/skills/*/SKILL.md` lub `.agents/skills/*/SKILL.md`.
 
 Ładowane są także definicje globalne z `~/.config/jollicode/skills/*/SKILL.md`, `~/.claude/skills/*/SKILL.md` i `~/.agents/skills/*/SKILL.md`.
@@ -80,7 +80,7 @@ Utwórz `.jollicode/skills/git-release/SKILL.md` w ten sposób:
 name: git-release
 description: Create consistent releases and changelogs
 license: MIT
-compatibility: opencode
+compatibility: jollicode
 metadata:
   audience: maintainers
   workflow: github
@@ -102,7 +102,7 @@ Ask clarifying questions if the target versioning scheme is unclear.
 
 ## Opis narzędzia
 
-opencode wymienia dostępne umiejętności w opisie narzędzia `skill`.
+jollicode wymienia dostępne umiejętności w opisie narzędzia `skill`.
 Każdy wpis zawiera nazwę i opis umiejętności:
 
 ```xml

@@ -3,7 +3,7 @@ title: Araçlar
 description: LLM'in kullanabileceği araçları yönetin.
 ---
 
-Araçlar, LLM'in kod tabanınızda eylem gerçekleştirmesini sağlar. opencode yerleşik bir araç setiyle gelir, ancak bunu [özel araçlarla](/docs/custom-tools) veya [MCP sunucularıyla](/docs/mcp-servers) genişletebilirsiniz.
+Araçlar, LLM'in kod tabanınızda eylem gerçekleştirmesini sağlar. jollicode yerleşik bir araç setiyle gelir, ancak bunu [özel araçlarla](/docs/custom-tools) veya [MCP sunucularıyla](/docs/mcp-servers) genişletebilirsiniz.
 
 Varsayılan olarak tüm araçlar **etkindir** ve çalışmak için izin istemez. Araç davranışını [izinler](/docs/permissions) üzerinden kontrol edebilirsiniz.
 
@@ -41,7 +41,7 @@ Birden fazla aracı aynı anda kontrol etmek için joker karakterler de kullanab
 
 ## Yerleşik
 
-opencode içinde bulunan tüm yerleşik araçlar aşağıdadır.
+jollicode içinde bulunan tüm yerleşik araçlar aşağıdadır.
 
 ---
 
@@ -253,12 +253,12 @@ LLM'in web sayfalarını getirip okumasını sağlar. Dokümantasyon aramak veya
 Web'de bilgi arar.
 
 :::note
-Bu araç yalnızca opencode provider kullanılırken veya `OPENCODE_ENABLE_EXA` ortam değişkeni doğru değerlerden birine ayarlandığında (örneğin `true` ya da `1`) kullanılabilir.
+Bu araç yalnızca jollicode provider kullanılırken veya `OPENCODE_ENABLE_EXA` ortam değişkeni doğru değerlerden birine ayarlandığında (örneğin `true` ya da `1`) kullanılabilir.
 
-opencode başlatırken etkinleştirmek için:
+jollicode başlatırken etkinleştirmek için:
 
 ```bash
-OPENCODE_ENABLE_EXA=1 opencode
+OPENCODE_ENABLE_EXA=1 jollicode
 ```
 
 :::

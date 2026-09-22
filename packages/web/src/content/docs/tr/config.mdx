@@ -1,15 +1,15 @@
 ---
 title: Yapılandırma
-description: opencode JSON yapılandırması kullanır.
+description: jollicode JSON yapılandırması kullanır.
 ---
 
-opencode'u JSON yapılandırma dosyası kullanarak yapılandırabilirsiniz.
+jollicode'u JSON yapılandırma dosyası kullanarak yapılandırabilirsiniz.
 
 ---
 
 ## Format
 
-opencode hem **JSON** hem de **JSONC** (JSON Yorumlarla birlikte) formatlarını destekler.
+jollicode hem **JSON** hem de **JSONC** (JSON Yorumlarla birlikte) formatlarını destekler.
 
 ```jsonc title="opencode.jsonc"
 {
@@ -34,7 +34,7 @@ Yapılandırma dosyaları **birleştirilir**, değiştirilmez.
 
 Yapılandırma dosyaları değiştirilmez, birleştirilir. Aşağıdaki yapılandırma konumlarındaki ayarlar birleştirilir. Daha sonraki yapılandırmalar, yalnızca çakışan anahtarlar için önceki yapılandırmaları geçersiz kılar. Tüm yapılandırmalardaki çakışmayan ayarlar korunur.
 
-Örneğin, genel ayarınız `theme: "opencode"` ve `autoupdate: true`'yi ayarlıyorsa ve proje ayarlarınız `model: "anthropic/claude-sonnet-4-5"`'yi ayarlıyorsa, nihai yapılandırma üç ayarı da içerecektir.
+Örneğin, genel ayarınız `theme: "jollicode"` ve `autoupdate: true`'yi ayarlıyorsa ve proje ayarlarınız `model: "anthropic/claude-sonnet-4-5"`'yi ayarlıyorsa, nihai yapılandırma üç ayarı da içerecektir.
 
 ---
 
@@ -95,7 +95,7 @@ Yerel yapılandırmanızda belirli sunucuları etkinleştirebilirsiniz:
 
 ### Global
 
-Global opencode yapılandırmanızı `~/.config/jollicode/opencode.json` içine yerleştirin. Temalar, sağlayıcılar veya tuş atamaları gibi kullanıcı çapındaki tercihler için genel yapılandırmayı kullanın.
+Global jollicode yapılandırmanızı `~/.config/jollicode/opencode.json` içine yerleştirin. Temalar, sağlayıcılar veya tuş atamaları gibi kullanıcı çapındaki tercihler için genel yapılandırmayı kullanın.
 
 Genel yapılandırma, uzak kurumsal varsayılanları geçersiz kılar.
 
@@ -109,7 +109,7 @@ Proje kökünüze `opencode.json` ekleyin. Proje yapılandırması, standart yap
 Projeye özel yapılandırmayı projenizin köküne yerleştirin.
 :::
 
-opencode başlatıldığında geçerli dizinde bir yapılandırma dosyası arar veya en yakın Git dizinine gider.
+jollicode başlatıldığında geçerli dizinde bir yapılandırma dosyası arar veya en yakın Git dizinine gider.
 
 Bunun Git'te kontrol edilmesi de güvenlidir ve global olanla aynı şemayı kullanır.
 
@@ -121,7 +121,7 @@ Bunun Git'te kontrol edilmesi de güvenlidir ve global olanla aynı şemayı kul
 
 ```bash
 export OPENCODE_CONFIG=/path/to/my/custom-config.json
-opencode run "Hello world"
+jollicode run "Hello world"
 ```
 
 Özel yapılandırma genel ve proje yapılandırmaları arasında öncelik sırasına göre yüklenir.
@@ -137,7 +137,7 @@ aynı yapıyı takip edin.
 
 ```bash
 export OPENCODE_CONFIG_DIR=/path/to/my/config-directory
-opencode run "Hello world"
+jollicode run "Hello world"
 ```
 
 Özel dizin, genel yapılandırma ve `.jollicode` dizinlerinden sonra yüklenir, böylece bunların ayarlarını **geçersiz kılabilir**.
@@ -181,7 +181,7 @@ Mevcut seçenekler:
 
 ### Sunucu
 
-`opencode serve` ve `opencode web` komutları için sunucu ayarlarını `server` seçeneği aracılığıyla yapılandırabilirsiniz.
+`jollicode serve` ve `jollicode web` komutları için sunucu ayarlarını `server` seçeneği aracılığıyla yapılandırabilirsiniz.
 
 ```json title="opencode.json"
 {
@@ -200,7 +200,7 @@ Mevcut seçenekler:
 
 - `port` - Dinlenecek port.
 - `hostname` - Dinlenecek ana bilgisayar adı. `mdns` etkinleştirildiğinde ve hiçbir ana bilgisayar adı ayarlanmadığında, varsayılan değer `0.0.0.0` olur.
-- `mdns` - mDNS hizmet bulmayı etkinleştirin. Bu, ağdaki diğer cihazların opencode sunucunuzu keşfetmesine olanak tanır.
+- `mdns` - mDNS hizmet bulmayı etkinleştirin. Bu, ağdaki diğer cihazların jollicode sunucunuzu keşfetmesine olanak tanır.
 - `mdnsDomain` - mDNS hizmeti için özel alan adı. Varsayılan olarak `opencode.local` şeklindedir. Aynı ağda birden fazla örneği çalıştırmak için kullanışlıdır.
 - `cors` - Tarayıcı tabanlı bir istemciden HTTP sunucusunu kullanırken CORS'ye izin verecek ek kaynaklar. Değerler tam kaynaklar olmalıdır (şema + ana bilgisayar + isteğe bağlı bağlantı noktası), örneğin `https://app.example.com`.
 
@@ -228,7 +228,7 @@ Bir LLM'nin kullanabileceği araçları `tools` seçeneği aracılığıyla yön
 
 ### Modeller
 
-opencode yapılandırmanızda kullanmak istediğiniz sağlayıcıları ve modelleri `provider`, `model` ve `small_model` seçenekleri aracılığıyla yapılandırabilirsiniz.
+jollicode yapılandırmanızda kullanmak istediğiniz sağlayıcıları ve modelleri `provider`, `model` ve `small_model` seçenekleri aracılığıyla yapılandırabilirsiniz.
 
 ```json title="opencode.json"
 {
@@ -239,7 +239,7 @@ opencode yapılandırmanızda kullanmak istediğiniz sağlayıcıları ve modell
 }
 ```
 
-`small_model` seçeneği, başlık oluşturma gibi hafif görevler için ayrı bir model yapılandırır. Varsayılan olarak opencode, sağlayıcınızda mevcutsa daha ucuz bir model kullanmaya çalışır, aksi takdirde ana modelinize geri döner.
+`small_model` seçeneği, başlık oluşturma gibi hafif görevler için ayrı bir model yapılandırır. Varsayılan olarak jollicode, sağlayıcınızda mevcutsa daha ucuz bir model kullanmaya çalışır, aksi takdirde ana modelinize geri döner.
 
 Sağlayıcı seçenekleri `timeout` ve `setCacheKey` içerebilir:
 
@@ -301,7 +301,7 @@ Taşıyıcı belirteçleri (`AWS_BEARER_TOKEN_BEDROCK` veya `/connect`) profil t
 
 ### Temalar
 
-opencode yapılandırmanızda kullanmak istediğiniz temayı `theme` seçeneği aracılığıyla yapılandırabilirsiniz.
+jollicode yapılandırmanızda kullanmak istediğiniz temayı `theme` seçeneği aracılığıyla yapılandırabilirsiniz.
 
 ```json title="opencode.json"
 {
@@ -352,9 +352,9 @@ Agent'ları `~/.config/jollicode/agents/` veya `.jollicode/agents/` içindeki Ma
 }
 ```
 
-Varsayılan agent, birincil agent olmalıdır (alt agent değil). Bu, `"build"` veya `"plan"` gibi yerleşik bir agent ya da tanımladığınız bir [özel agent](/docs/agents) olabilir. Belirtilen agent mevcut değilse veya bir alt agent ise, opencode bir uyarıyla birlikte `"build"`'ye geri döner.
+Varsayılan agent, birincil agent olmalıdır (alt agent değil). Bu, `"build"` veya `"plan"` gibi yerleşik bir agent ya da tanımladığınız bir [özel agent](/docs/agents) olabilir. Belirtilen agent mevcut değilse veya bir alt agent ise, jollicode bir uyarıyla birlikte `"build"`'ye geri döner.
 
-Bu ayar tüm arayüzler için geçerlidir: TUI, CLI (`opencode run`), masaüstü uygulaması ve GitHub Action.
+Bu ayar tüm arayüzler için geçerlidir: TUI, CLI (`jollicode run`), masaüstü uygulaması ve GitHub Action.
 
 ---
 
@@ -422,7 +422,7 @@ Tuş atamalarınızı `keybinds` seçeneği aracılığıyla özelleştirebilirs
 
 ### Otomatik Güncelleme
 
-opencode başlatıldığında yeni güncellemeleri otomatik olarak indirecektir. Bunu `autoupdate` seçeneğiyle devre dışı bırakabilirsiniz.
+jollicode başlatıldığında yeni güncellemeleri otomatik olarak indirecektir. Bunu `autoupdate` seçeneğiyle devre dışı bırakabilirsiniz.
 
 ```json title="opencode.json"
 {
@@ -464,7 +464,7 @@ Kod formatlayıcılarını `formatter` seçeneği aracılığıyla yapılandıra
 
 ### İzinler
 
-Varsayılan olarak, opencode açık bir onay gerektirmeden **tüm işlemlere izin verir**. `permission` seçeneğini kullanarak bunu değiştirebilirsiniz.
+Varsayılan olarak, jollicode açık bir onay gerektirmeden **tüm işlemlere izin verir**. `permission` seçeneğini kullanarak bunu değiştirebilirsiniz.
 
 Örneğin, `edit` ve `bash` araçlarının kullanıcı onayı gerektirdiğinden emin olmak için:
 
@@ -537,7 +537,7 @@ Kullanmak istediğiniz MCP sunucularını `mcp` seçeneği aracılığıyla yap�
 
 ### Eklentiler
 
-[Eklentiler](/docs/plugins) opencode'u özel araçlar, kancalar ve entegrasyonlarla genişletin.
+[Eklentiler](/docs/plugins) jollicode'u özel araçlar, kancalar ve entegrasyonlarla genişletin.
 
 Eklenti dosyalarını `.jollicode/plugins/` veya `~/.config/jollicode/plugins/` içine yerleştirin. Ayrıca eklentileri `plugin` seçeneği aracılığıyla npm'den de yükleyebilirsiniz.
 
@@ -601,7 +601,7 @@ Bu, talimat dosyalarına giden bir dizi yolu ve glob desenini alır. [Kurallar h
 }
 ```
 
-Bu, opencode'u tek tek devre dışı bırakmak yerine yalnızca belirli sağlayıcıları kullanacak şekilde kısıtlamak istediğinizde kullanışlıdır.
+Bu, jollicode'u tek tek devre dışı bırakmak yerine yalnızca belirli sağlayıcıları kullanacak şekilde kısıtlamak istediğinizde kullanışlıdır.
 
 :::note
 `disabled_providers`, `enabled_providers`'ye göre önceliklidir.

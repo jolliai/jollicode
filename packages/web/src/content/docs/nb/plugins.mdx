@@ -1,9 +1,9 @@
 ---
 title: Programtillegg
-description: Skriv dine egne programtillegg for å utvide OpenCode.
+description: Skriv dine egne programtillegg for å utvide Jolli Code.
 ---
 
-Plugins lar deg utvide OpenCode ved å koble til ulike hendelser og tilpasse atferd. Du kan lage plugins for å legge til nye funksjoner, integrere med eksterne tjenester eller endre standardoppførselen til OpenCode.
+Plugins lar deg utvide Jolli Code ved å koble til ulike hendelser og tilpasse atferd. Du kan lage plugins for å legge til nye funksjoner, integrere med eksterne tjenester eller endre standardoppførselen til Jolli Code.
 
 For eksempler, sjekk ut [plugins](/docs/ecosystem#plugins) opprettet av fellesskapet.
 
@@ -83,7 +83,7 @@ Lokale plugins og tilpassede verktøy kan bruke eksterne npm-pakker. Legg til en
 }
 ```
 
-OpenCode kjører `bun install` ved oppstart for å installere disse. Programtilleggene og verktøyene dine kan deretter importere dem.
+Jolli Code kjører `bun install` ved oppstart for å installere disse. Programtilleggene og verktøyene dine kan deretter importere dem.
 
 ```ts title=".jollicode/plugins/my-plugin.ts"
 import { escape } from "shescape"
@@ -118,7 +118,7 @@ Plugin-funksjonen mottar:
 - `project`: Gjeldende prosjektinformasjon.
 - `directory`: Gjeldende arbeidskatalog.
 - `worktree`: Git-arbeidstrebanen.
-- `client`: En OpenCode SDK klient for samhandling med AI.
+- `client`: En Jolli Code SDK klient for samhandling med AI.
 - `$`: Buns [shell API](https://bun.com/docs/runtime/shell) for å utføre kommandoer.
 
 ---
@@ -211,7 +211,7 @@ Plugins kan abonnere på hendelser som vist nedenfor i Eksempler-delen. Her er e
 
 ## Eksempler
 
-Her er noen eksempler på plugins du kan bruke for å utvide OpenCode.
+Her er noen eksempler på plugins du kan bruke for å utvide Jolli Code.
 
 ---
 
@@ -225,7 +225,7 @@ export const NotificationPlugin = async ({ project, client, $, directory, worktr
     event: async ({ event }) => {
       // Send notification on session completion
       if (event.type === "session.idle") {
-        await $`osascript -e 'display notification "Session completed!" with title "opencode"'`
+        await $`osascript -e 'display notification "Session completed!" with title "jollicode"'`
       }
     },
   }
@@ -235,14 +235,14 @@ export const NotificationPlugin = async ({ project, client, $, directory, worktr
 Vi bruker `osascript` for å kjøre AppleScript på macOS. Her bruker vi den til å sende varsler.
 
 :::note
-Hvis du bruker OpenCode-skrivebordsappen, kan den sende systemvarsler automatisk når et svar er klart eller når en økt feiler.
+Hvis du bruker Jolli Code-skrivebordsappen, kan den sende systemvarsler automatisk når et svar er klart eller når en økt feiler.
 :::
 
 ---
 
 ### .env-beskyttelse
 
-Hindre OpenCode fra å lese `.env` filer:
+Hindre Jolli Code fra å lese `.env` filer:
 
 ```javascript title=".jollicode/plugins/env-protection.js"
 export const EnvProtection = async ({ project, client, $, directory, worktree }) => {
@@ -277,7 +277,7 @@ export const InjectEnvPlugin = async () => {
 
 ### Egendefinerte verktøy
 
-Plugins kan også legge til egendefinerte verktøy til OpenCode:
+Plugins kan også legge til egendefinerte verktøy til Jolli Code:
 
 ```ts title=".jollicode/plugins/custom-tools.ts"
 import { type Plugin, tool } from "@opencode-ai/plugin"
@@ -300,13 +300,13 @@ export const CustomToolsPlugin: Plugin = async (ctx) => {
 }
 ```
 
-`tool`-hjelperen lager et tilpasset verktøy som OpenCode kan kalle. Den tar en Zod-skjemafunksjon og returnerer en verktøydefinisjon med:
+`tool`-hjelperen lager et tilpasset verktøy som Jolli Code kan kalle. Den tar en Zod-skjemafunksjon og returnerer en verktøydefinisjon med:
 
 - `description`: Hva verktøyet gjør
 - `args`: Zod-skjema for verktøyets argumenter
   - `execute`: Funksjon som kjører når verktøyet kalles
 
-Dine egendefinerte verktøy vil være tilgjengelige for OpenCode sammen med innebygde verktøy.
+Dine egendefinerte verktøy vil være tilgjengelige for Jolli Code sammen med innebygde verktøy.
 
 :::note
 Hvis et plugin-verktøy bruker samme navn som et innebygd verktøy, vil plugin-verktøyet ha forrang.

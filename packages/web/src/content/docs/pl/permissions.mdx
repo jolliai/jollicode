@@ -3,7 +3,7 @@ title: Uprawnienia
 description: Kontroluj, które Akcje wymagają zatwierdzenia do uruchomienia.
 ---
 
-opencode używa `permission`, aby uniknąć, czy dana akcja została wykonana automatycznie, zachowana monit lub została zablokowana.
+jollicode używa `permission`, aby uniknąć, czy dana akcja została wykonana automatycznie, zachowana monit lub została zablokowana.
 
 Od `v1.1.1` starsza stworzona logiczna `tools` jest przestarzała i została stworzona scalona z `permission`. Stara wersja `tools` jest nadal obsługiwana w celu zapewnienia zgodności wstecznej.
 
@@ -127,7 +127,7 @@ Skoncentruj listę na zaufanych ścieżkach i dodaj dodatkowe zezwolenie lub odm
 
 ## Dostępne uprawnienia
 
-Uprawnienia opencode są określane na podstawie nazwy narzędzia i kilku zabezpieczeń:
+Uprawnienia jollicode są określane na podstawie nazwy narzędzia i kilku zabezpieczeń:
 
 - `read` — odczyt pliku (odpowiada ścieżce pliku)
 - `edit` — wszystkie modyfikacje plików (obejmuje `edit`, `write`, `patch`)
@@ -146,7 +146,7 @@ Uprawnienia opencode są określane na podstawie nazwy narzędzia i kilku zabezp
 
 ## Domyślne
 
-Jeżeli nic nie jest określone, opencode zostanie uruchomione od dopuszczalnych rozwiązań diagnostycznych:
+Jeżeli nic nie jest określone, jollicode zostanie uruchomione od dopuszczalnych rozwiązań diagnostycznych:
 
 - Dostępne uprawnienia ma wartość domyślną `"allow"`.
 - `doom_loop` i `external_directory` zamek ma wartość `"ask"`.
@@ -169,10 +169,10 @@ Jeżeli nic nie jest określone, opencode zostanie uruchomione od dopuszczalnych
 
 ## Co robi „Zapytaj”.
 
-Gdy opencode poprosi o zatwierdzenie, interfejs użytkownika oferujący trzy wyniki:
+Gdy jollicode poprosi o zatwierdzenie, interfejs użytkownika oferujący trzy wyniki:
 
 - `once` — zatwierdź tylko tę prośbę
-- `always` — zastosowanie, które następuje po zastosowaniu sugerowanych wzorców (przez następczą bieżącą sesję opencode)
+- `always` — zastosowanie, które następuje po zastosowaniu sugerowanych wzorców (przez następczą bieżącą sesję jollicode)
 - `reject` — odrzucić
 
 Zestaw wzorców, które `always` zatwierdziłby, jest udostępniony przez narzędzie (na przykładzie zatwierdzenia bash zazwyczaj umieszczają na częstotliwości bezpiecznej prefiksy polecenia, takie jak `git status*`).

@@ -3,7 +3,7 @@ title: Vještine agenata
 description: "Definisite ponasanje koje se moze ponovo koristiti"
 ---
 
-Agent skills omogucavaju OpenCode da pronade uputstva koja se mogu ponovo koristiti iz repozitorija ili home direktorija.
+Agent skills omogucavaju Jolli Code da pronade uputstva koja se mogu ponovo koristiti iz repozitorija ili home direktorija.
 Skills se ucitavaju po potrebi kroz ugradeni `skill` alat - agenti vide dostupne skills i ucitavaju puni sadrzaj kad zatreba.
 
 ---
@@ -11,7 +11,7 @@ Skills se ucitavaju po potrebi kroz ugradeni `skill` alat - agenti vide dostupne
 ## Postavite datoteke
 
 Kreirajte jedan folder po nazivu skill-a i stavite `SKILL.md` unutar njega.
-OpenCode pretrazuje ove lokacije:
+Jolli Code pretrazuje ove lokacije:
 
 - Konfiguracija projekta: `.jollicode/skills/<name>/SKILL.md`
 - Globalna konfiguracija: `~/.config/jollicode/skills/<name>/SKILL.md`
@@ -24,7 +24,7 @@ OpenCode pretrazuje ove lokacije:
 
 ## Razumijte otkrivanje
 
-Za projektne lokalne putanje, OpenCode ide prema gore od trenutnog radnog direktorija dok ne dode do git worktree-ja.
+Za projektne lokalne putanje, Jolli Code ide prema gore od trenutnog radnog direktorija dok ne dode do git worktree-ja.
 Usput ucitava sve odgovarajuce `skills/*/SKILL.md` u `.jollicode/` i odgovarajuce `.claude/skills/*/SKILL.md` ili `.agents/skills/*/SKILL.md`.
 
 Globalne definicije se takoder ucitavaju iz `~/.config/jollicode/skills/*/SKILL.md`, `~/.claude/skills/*/SKILL.md` i `~/.agents/skills/*/SKILL.md`.
@@ -80,7 +80,7 @@ Kreirajte `.jollicode/skills/git-release/SKILL.md` ovako:
 name: git-release
 description: Create consistent releases and changelogs
 license: MIT
-compatibility: opencode
+compatibility: jollicode
 metadata:
   audience: maintainers
   workflow: github
@@ -102,7 +102,7 @@ Ask clarifying questions if the target versioning scheme is unclear.
 
 ## Opis alata
 
-OpenCode navodi dostupne skills u opisu `skill` alata.
+Jolli Code navodi dostupne skills u opisu `skill` alata.
 Svaki unos sadrzi naziv i opis skill-a:
 
 ```xml

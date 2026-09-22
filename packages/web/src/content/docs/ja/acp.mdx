@@ -1,9 +1,9 @@
 ---
 title: ACP サポート
-description: ACP 互換エディターで OpenCode を使用します。
+description: ACP 互換エディターで Jolli Code を使用します。
 ---
 
-OpenCode は [Agent Client Protocol](https://agentclientprotocol.com) または (ACP) をサポートしているため、互換性のあるエディターや IDE で直接使用できます。
+Jolli Code は [Agent Client Protocol](https://agentclientprotocol.com) または (ACP) をサポートしているため、互換性のあるエディターや IDE で直接使用できます。
 
 :::tip
 ACP をサポートするエディターとツールのリストについては、[ACP progress report](https://zed.dev/blog/acp-progress-report#available-now) を参照してください。
@@ -14,9 +14,9 @@ ACP は、コードエディターと AI コーディングエージェント間
 
 ## 設定
 
-ACP 経由で OpenCode を使用するには、`opencode acp` コマンドを実行するようにエディタを設定します。
+ACP 経由で Jolli Code を使用するには、`jollicode acp` コマンドを実行するようにエディタを設定します。
 
-このコマンドは、stdio 経由で JSON-RPC 経由でエディターと通信する ACP 互換のサブプロセスとして OpenCode を開始します。
+このコマンドは、stdio 経由で JSON-RPC 経由でエディターと通信する ACP 互換のサブプロセスとして Jolli Code を開始します。
 
 以下は、ACP をサポートする一般的なエディタの例です。
 
@@ -24,16 +24,16 @@ ACP 経由で OpenCode を使用するには、`opencode acp` コマンドを実
 
 ### Zed
 
-コマンドパレットで `zed: acp registry` を実行し、[Zed ACP レジストリ](https://zed.dev/docs/ai/external-agents#registry)から OpenCode をインストールします。
+コマンドパレットで `zed: acp registry` を実行し、[Zed ACP レジストリ](https://zed.dev/docs/ai/external-agents#registry)から Jolli Code をインストールします。
 
-代わりにカスタムの OpenCode 実行ファイルを使用する場合は、[Zed](https://zed.dev) の設定 (`~/.config/zed/settings.json`) に追加します。
+代わりにカスタムの Jolli Code 実行ファイルを使用する場合は、[Zed](https://zed.dev) の設定 (`~/.config/zed/settings.json`) に追加します。
 
 ```json title="~/.config/zed/settings.json"
 {
   "agent_servers": {
-    "OpenCode": {
+    "Jolli Code": {
       "type": "custom",
-      "command": "opencode",
+      "command": "jollicode",
       "args": ["acp"]
     }
   }
@@ -53,9 +53,9 @@ ACP 経由で OpenCode を使用するには、`opencode acp` コマンドを実
         {
           "agent": {
             "custom": {
-              "name": "OpenCode",
+              "name": "Jolli Code",
               "command": {
-                "command": "opencode",
+                "command": "jollicode",
                 "args": ["acp"]
               }
             }
@@ -76,7 +76,7 @@ ACP 経由で OpenCode を使用するには、`opencode acp` コマンドを実
 ```json title="acp.json"
 {
   "agent_servers": {
-    "OpenCode": {
+    "Jolli Code": {
       "command": "/absolute/path/bin/opencode",
       "args": ["acp"]
     }
@@ -84,7 +84,7 @@ ACP 経由で OpenCode を使用するには、`opencode acp` コマンドを実
 }
 ```
 
-これを開くには、AI Chat エージェントセレクターで新しい「OpenCode」エージェントを使用します。
+これを開くには、AI Chat エージェントセレクターで新しい「Jolli Code」エージェントを使用します。
 
 ---
 
@@ -95,8 +95,8 @@ ACP 経由で OpenCode を使用するには、`opencode acp` コマンドを実
 ```lua
 {
   acp_providers = {
-    ["opencode"] = {
-      command = "opencode",
+    ["jollicode"] = {
+      command = "jollicode",
       args = { "acp" }
     }
   }
@@ -108,8 +108,8 @@ ACP 経由で OpenCode を使用するには、`opencode acp` コマンドを実
 ```lua {6-8}
 {
   acp_providers = {
-    ["opencode"] = {
-      command = "opencode",
+    ["jollicode"] = {
+      command = "jollicode",
       args = { "acp" },
       env = {
         OPENCODE_API_KEY = os.getenv("OPENCODE_API_KEY")
@@ -123,14 +123,14 @@ ACP 経由で OpenCode を使用するには、`opencode acp` コマンドを実
 
 ### CodeCompanion.nvim
 
-[CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim) で OpenCode を ACP エージェントとして使用するには、以下を Neovim 構成に追加します。
+[CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim) で Jolli Code を ACP エージェントとして使用するには、以下を Neovim 構成に追加します。
 
 ```lua
 require("codecompanion").setup({
   interactions = {
     chat = {
       adapter = {
-        name = "opencode",
+        name = "jollicode",
         model = "claude-sonnet-4",
       },
     },
@@ -138,13 +138,13 @@ require("codecompanion").setup({
 })
 ```
 
-この構成は、OpenCode をチャットの ACP エージェントとして使用するように CodeCompanion をセットアップします。
+この構成は、Jolli Code をチャットの ACP エージェントとして使用するように CodeCompanion をセットアップします。
 
 環境変数 (`OPENCODE_API_KEY` など) を渡す必要がある場合、詳細については、CodeCompanion.nvim ドキュメントの「[アダプターの構成: 環境変数](https://codecompanion.olimorris.dev/getting-started#setting-an-api-key)」を参照してください。
 
 ## サポート
 
-OpenCode は、ACP 経由でもターミナル内で動作するのと同じように動作します。すべての機能がサポートされています。
+Jolli Code は、ACP 経由でもターミナル内で動作するのと同じように動作します。すべての機能がサポートされています。
 
 :::note
 `/undo` や `/redo` などの一部の組み込みスラッシュコマンドは現在サポートされていません。
@@ -152,7 +152,7 @@ OpenCode は、ACP 経由でもターミナル内で動作するのと同じよ�
 
 - 組み込みツール (ファイル操作、ターミナルコマンドなど)
 - カスタムツールとスラッシュコマンド
-- OpenCode 設定で構成された MCP サーバー
+- Jolli Code 設定で構成された MCP サーバー
 - `AGENTS.md` のプロジェクト固有のルール
 - カスタムフォーマッタとリンター
 - エージェントと権限システム
