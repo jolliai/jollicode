@@ -3,7 +3,7 @@ title: Wtyczki
 description: Napisz własną wtyczkę, aby rozszerzyć opencode.
 ---
 
-Wtyczki umożliwiające wyłączenie opencode poprzez podjęcie różnych zdarzeń i zachowanie. Można utworzyć wtyczkę, aby sprawdzić nowe funkcje, integrować się z usługami lub sprawdzaniem zachowania opencode.
+Wtyczki umożliwiające wyłączenie jollicode poprzez podjęcie różnych zdarzeń i zachowanie. Można utworzyć wtyczkę, aby sprawdzić nowe funkcje, integrować się z usługami lub sprawdzaniem zachowania opencode.
 
 Aby znaleźć się z przykładami, przejrzyj [wtyczki](/docs/ecosystem#plugins) utworzone przez społeczność.
 
@@ -83,7 +83,7 @@ Lokalne narzędzie i narzędzie, które można wykorzystać z zewnętrznych paki
 }
 ```
 
-opencode uruchomienie `bun install` przy uruchomieniu, aby je uruchomić. Twoje dodatkowe funkcje będą dostępne po zaimportowaniu.
+jollicode uruchomienie `bun install` przy uruchomieniu, aby je uruchomić. Twoje dodatkowe funkcje będą dostępne po zaimportowaniu.
 
 ```ts title=".jollicode/plugins/my-plugin.ts"
 import { escape } from "shescape"
@@ -118,7 +118,7 @@ Funkcja dostępu do:
 - `project`: Aktualne informacje o projekcie.
 - `directory`: Bieżący katalog roboczy.
 - `worktree`: Ścieżka eksploatacyjna Git.
-- `client`: Klient SDK z opencode do sztucznej inteligencji.
+- `client`: Klient SDK z jollicode do sztucznej inteligencji.
 - `$`: [API obudowy](https://bun.com/docs/runtime/shell) Buna do wykonywania oprogramowania.
 
 ---
@@ -225,7 +225,7 @@ export const NotificationPlugin = async ({ project, client, $, directory, worktr
     event: async ({ event }) => {
       // Send notification on session completion
       if (event.type === "session.idle") {
-        await $`osascript -e 'display notification "Session completed!" with title "opencode"'`
+        await $`osascript -e 'display notification "Session completed!" with title "jollicode"'`
       }
     },
   }
@@ -235,14 +235,14 @@ export const NotificationPlugin = async ({ project, client, $, directory, worktr
 Używamy `osascript` do uruchamiania AppleScript na macOS. Tutaj możesz przejść do wysyłania pozostałości.
 
 :::note
-Jeśli korzystasz z aplikacji komputerowej opencode, może ona automatycznie wysłać wiadomość systemową, gdy odpowiedź jest gotowa lub gdy wystąpią błędy sesji.
+Jeśli korzystasz z aplikacji komputerowej jollicode, może ona automatycznie wysłać wiadomość systemową, gdy odpowiedź jest gotowa lub gdy wystąpią błędy sesji.
 :::
 
 ---
 
 ### ochrona .env
 
-Zablokuj opencode czytanie plików `.env`:
+Zablokuj jollicode czytanie plików `.env`:
 
 ```javascript title=".jollicode/plugins/env-protection.js"
 export const EnvProtection = async ({ project, client, $, directory, worktree }) => {
@@ -277,7 +277,7 @@ export const InjectEnvPlugin = async () => {
 
 ### Niestandardowe narzędzia
 
-Wtyczki mogą również dodawać niestandardowe narzędzia do opencode:
+Wtyczki mogą również dodawać niestandardowe narzędzia do jollicode:
 
 ```ts title=".jollicode/plugins/custom-tools.ts"
 import { type Plugin, tool } from "@opencode-ai/plugin"

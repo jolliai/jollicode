@@ -3,7 +3,7 @@ title: "Habilidades do Agente"
 description: "Defina comportamentos reutilizáveis via definições de SKILL.md"
 ---
 
-As habilidades do agente permitem que o opencode descubra instruções reutilizáveis do seu repositório ou diretório pessoal.
+As habilidades do agente permitem que o jollicode descubra instruções reutilizáveis do seu repositório ou diretório pessoal.
 As habilidades são carregadas sob demanda através da ferramenta nativa `skill`—os agentes veem as habilidades disponíveis e podem carregar o conteúdo completo quando necessário.
 
 ---
@@ -11,7 +11,7 @@ As habilidades são carregadas sob demanda através da ferramenta nativa `skill`
 ## Colocar arquivos
 
 Crie uma pasta por nome de habilidade e coloque um `SKILL.md` dentro dela.
-O opencode pesquisa nesses locais:
+O jollicode pesquisa nesses locais:
 
 - Configuração do projeto: `.jollicode/skills/<name>/SKILL.md`
 - Configuração global: `~/.config/jollicode/skills/<name>/SKILL.md`
@@ -24,7 +24,7 @@ O opencode pesquisa nesses locais:
 
 ## Entender a descoberta
 
-Para caminhos locais do projeto, o opencode sobe a partir do seu diretório de trabalho atual até alcançar a árvore de trabalho do git.
+Para caminhos locais do projeto, o jollicode sobe a partir do seu diretório de trabalho atual até alcançar a árvore de trabalho do git.
 Ele carrega qualquer `skills/*/SKILL.md` correspondente em `.jollicode/` e qualquer `.claude/skills/*/SKILL.md` ou `.agents/skills/*/SKILL.md` ao longo do caminho.
 
 As definições globais também são carregadas de `~/.config/jollicode/skills/*/SKILL.md`, `~/.claude/skills/*/SKILL.md` e `~/.agents/skills/*/SKILL.md`.
@@ -80,7 +80,7 @@ Crie `.jollicode/skills/git-release/SKILL.md` assim:
 name: git-release
 description: Create consistent releases and changelogs
 license: MIT
-compatibility: opencode
+compatibility: jollicode
 metadata:
   audience: maintainers
   workflow: github
@@ -102,7 +102,7 @@ Ask clarifying questions if the target versioning scheme is unclear.
 
 ## Reconhecer descrição da ferramenta
 
-O opencode lista as habilidades disponíveis na descrição da ferramenta `skill`.
+O jollicode lista as habilidades disponíveis na descrição da ferramenta `skill`.
 Cada entrada inclui o nome e a descrição da habilidade:
 
 ```xml

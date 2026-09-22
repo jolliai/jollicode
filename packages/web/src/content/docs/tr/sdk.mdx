@@ -1,13 +1,13 @@
 ---
 title: SDK
-description: opencode sunucusu için type-safe JS istemcisi.
+description: jollicode sunucusu için type-safe JS istemcisi.
 ---
 
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-opencode JS/TS SDK, sunucu ile etkileşmek için type-safe bir istemci sağlar.
-opencode'u programatik olarak kontrol etmek ve entegrasyonlar oluşturmak için kullanabilirsiniz.
+jollicode JS/TS SDK, sunucu ile etkileşmek için type-safe bir istemci sağlar.
+jollicode'u programatik olarak kontrol etmek ve entegrasyonlar oluşturmak için kullanabilirsiniz.
 
 [Sunucu](/docs/server) sayfasında nasıl çalıştığını görebilir, örnekler için topluluğun oluşturduğu [projeler](/docs/ecosystem#projects) bölümüne bakabilirsiniz.
 
@@ -25,7 +25,7 @@ npm install @opencode-ai/sdk
 
 ## İstemci Oluşturma
 
-Bir opencode örneği oluşturun:
+Bir jollicode örneği oluşturun:
 
 ```javascript
 import { createOpencode } from "@opencode-ai/sdk"
@@ -54,7 +54,7 @@ Davranışı özelleştirmek için bir yapılandırma nesnesi iletebilirsiniz. �
 ```javascript
 import { createOpencode } from "@opencode-ai/sdk"
 
-const opencode = await createOpencode({
+const jollicode = await createOpencode({
   hostname: "127.0.0.1",
   port: 4096,
   config: {
@@ -69,7 +69,7 @@ opencode.server.close()
 
 ## Yalnızca istemci
 
-Halihazırda çalışan bir opencode örneğiniz varsa, ona bağlanmak için bir istemci örneği oluşturabilirsiniz:
+Halihazırda çalışan bir jollicode örneğiniz varsa, ona bağlanmak için bir istemci örneği oluşturabilirsiniz:
 
 ```javascript
 import { createOpencodeClient } from "@opencode-ai/sdk"
@@ -376,7 +376,7 @@ await client.session.prompt({
 ```javascript
 // Search and read files
 const textResults = await client.find.text({
-  query: { pattern: "function.*opencode" },
+  query: { pattern: "function.*jollicode" },
 })
 
 const files = await client.find.files({

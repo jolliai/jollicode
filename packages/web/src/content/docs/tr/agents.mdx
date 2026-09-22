@@ -15,7 +15,7 @@ Bir oturum sırasında agent'lar arasında geçiş yapabilir veya onları `@` if
 
 ## Türler
 
-opencode'da iki tür agent vardır; birincil agent'lar ve alt agent'lar.
+jollicode'da iki tür agent vardır; birincil agent'lar ve alt agent'lar.
 
 ---
 
@@ -27,7 +27,7 @@ Birincil agent'lar, doğrudan etkileşim kurduğunuz ana yardımcılardır. **Se
 Bir oturum sırasında birincil agent'lar arasında geçiş yapmak için **Sekme** tuşunu kullanabilirsiniz.
 :::
 
-opencode, **Build** ve **Plan** olmak üzere iki yerleşik birincil agent ile birlikte gelir. Bunlara aşağıda bakacağız.
+jollicode, **Build** ve **Plan** olmak üzere iki yerleşik birincil agent ile birlikte gelir. Bunlara aşağıda bakacağız.
 
 ---
 
@@ -35,13 +35,13 @@ opencode, **Build** ve **Plan** olmak üzere iki yerleşik birincil agent ile bi
 
 Alt agent'lar, birincil agent'ların belirli görevler için çağırabileceği uzman yardımcılardır. Ayrıca mesajlarınızda **@ bahsederek** bunları manuel olarak da çağırabilirsiniz.
 
-OpenCode, **General**, **Explore** ve **Scout** olmak üzere üç yerleşik alt agent ile birlikte gelir. Buna aşağıda bakacağız.
+Jolli Code, **General**, **Explore** ve **Scout** olmak üzere üç yerleşik alt agent ile birlikte gelir. Buna aşağıda bakacağız.
 
 ---
 
 ## Yerleşik
 
-OpenCode iki yerleşik birincil agent ve üç yerleşik alt agent ile birlikte gelir.
+Jolli Code iki yerleşik birincil agent ve üç yerleşik alt agent ile birlikte gelir.
 
 ---
 
@@ -87,7 +87,7 @@ Kod tabanlarını keşfetmeye yönelik hızlı, salt okunur bir agent. Dosyalar 
 
 _Mod_: `subagent`
 
-Harici dokümanlar ve bağımlılık araştırmaları için salt okunur bir agent. Bir bağımlılık repository'sini OpenCode'un yönetilen cache'ine clone etmeniz, kütüphane kaynak kodunu incelemeniz veya workspace'inizi değiştirmeden yerel kodu upstream implementasyonlarla karşılaştırmanız gerektiğinde bunu kullanın.
+Harici dokümanlar ve bağımlılık araştırmaları için salt okunur bir agent. Bir bağımlılık repository'sini Jolli Code'un yönetilen cache'ine clone etmeniz, kütüphane kaynak kodunu incelemeniz veya workspace'inizi değiştirmeden yerel kodu upstream implementasyonlarla karşılaştırmanız gerektiğinde bunu kullanın.
 
 ---
 
@@ -284,7 +284,7 @@ Sıcaklık değerleri tipik olarak 0,0 ila 1,0 arasındadır:
 }
 ```
 
-Sıcaklık belirtilmezse opencode modeline özgü varsayılanları kullanır; çoğu model için genellikle 0, Qwen modelleri için 0,55.
+Sıcaklık belirtilmezse jollicode modeline özgü varsayılanları kullanır; çoğu model için genellikle 0, Qwen modelleri için 0,55.
 
 ---
 
@@ -344,7 +344,7 @@ Bu agent için `prompt` yapılandırmasıyla özel bir sistem prompt dosyası be
 }
 ```
 
-Bu yol, yapılandırma dosyasının bulunduğu yere göredir. Yani bu hem global opencode yapılandırması hem de projeye özel yapılandırma için işe yarar.
+Bu yol, yapılandırma dosyasının bulunduğu yere göredir. Yani bu hem global jollicode yapılandırması hem de projeye özel yapılandırma için işe yarar.
 
 ---
 
@@ -366,7 +366,7 @@ Bir model belirtmezseniz, birincil agent'lar [küresel olarak yapılandırılmı
 }
 ```
 
-opencode yapılandırmanızdaki model kimliği `provider/model-id` biçimini kullanır. Örneğin, [OpenCode Zen](/docs/zen) kullanıyorsanız, GPT 5.1 Codex için `opencode/gpt-5.1-codex` kullanırsınız.
+jollicode yapılandırmanızdaki model kimliği `provider/model-id` biçimini kullanır. Örneğin, [OpenCode Zen](/docs/zen) kullanıyorsanız, GPT 5.1 Codex için `opencode/gpt-5.1-codex` kullanırsınız.
 
 ---
 
@@ -664,7 +664,7 @@ Agent yapılandırmanızdaki diğer seçenekler, model seçenekleri olarak **do�
 Bu ek seçenekler modele ve sağlayıcıya özeldir. Kullanılabilir parametreler için sağlayıcınızın belgelerine bakın.
 
 :::tip
-Mevcut modellerin listesini görmek için `opencode models` komutunu çalıştırın.
+Mevcut modellerin listesini görmek için `jollicode models` komutunu çalıştırın.
 :::
 
 ---
@@ -674,7 +674,7 @@ Mevcut modellerin listesini görmek için `opencode models` komutunu çalıştı
 Aşağıdaki komutu kullanarak yeni agent'lar oluşturabilirsiniz:
 
 ```bash
-opencode agent create
+jollicode agent create
 ```
 
 Bu etkileşimli komut şunları sağlayacaktır:

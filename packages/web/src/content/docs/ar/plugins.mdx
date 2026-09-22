@@ -1,9 +1,9 @@
 ---
 title: الإضافات
-description: اكتب إضافاتك الخاصة لتوسيع OpenCode.
+description: اكتب إضافاتك الخاصة لتوسيع Jolli Code.
 ---
 
-تتيح لك الإضافات توسيع OpenCode عبر ربطها بأحداث مختلفة وتخصيص السلوك. يمكنك إنشاء إضافات لإضافة ميزات جديدة، أو التكامل مع خدمات خارجية، أو تعديل السلوك الافتراضي لـ OpenCode.
+تتيح لك الإضافات توسيع Jolli Code عبر ربطها بأحداث مختلفة وتخصيص السلوك. يمكنك إنشاء إضافات لإضافة ميزات جديدة، أو التكامل مع خدمات خارجية، أو تعديل السلوك الافتراضي لـ Jolli Code.
 
 للاطلاع على أمثلة، راجع [الإضافات](/docs/ecosystem#plugins) التي أنشأها المجتمع.
 
@@ -83,7 +83,7 @@ description: اكتب إضافاتك الخاصة لتوسيع OpenCode.
 }
 ```
 
-يشغّل OpenCode الأمر `bun install` عند بدء التشغيل لتثبيتها. بعد ذلك يمكن لإضافاتك وأدواتك استيرادها.
+يشغّل Jolli Code الأمر `bun install` عند بدء التشغيل لتثبيتها. بعد ذلك يمكن لإضافاتك وأدواتك استيرادها.
 
 ```ts title=".jollicode/plugins/my-plugin.ts"
 import { escape } from "shescape"
@@ -118,7 +118,7 @@ export const MyPlugin = async ({ project, client, $, directory, worktree }) => {
 - `project`: معلومات المشروع الحالي.
 - `directory`: دليل العمل الحالي.
 - `worktree`: مسار git worktree.
-- `client`: عميل SDK لـ opencode للتفاعل مع الذكاء الاصطناعي.
+- `client`: عميل SDK لـ jollicode للتفاعل مع الذكاء الاصطناعي.
 - `$`: واجهة [shell API](https://bun.com/docs/runtime/shell) الخاصة بـ Bun لتنفيذ الأوامر.
 
 ---
@@ -225,7 +225,7 @@ export const NotificationPlugin = async ({ project, client, $, directory, worktr
     event: async ({ event }) => {
       // Send notification on session completion
       if (event.type === "session.idle") {
-        await $`osascript -e 'display notification "Session completed!" with title "opencode"'`
+        await $`osascript -e 'display notification "Session completed!" with title "jollicode"'`
       }
     },
   }
@@ -235,14 +235,14 @@ export const NotificationPlugin = async ({ project, client, $, directory, worktr
 نستخدم `osascript` لتشغيل AppleScript على macOS. هنا نستخدمه لإرسال إشعارات.
 
 :::note
-إذا كنت تستخدم تطبيق OpenCode لسطح المكتب، فيمكنه إرسال إشعارات النظام تلقائيا عند جاهزية الرد أو عند حدوث خطأ في جلسة.
+إذا كنت تستخدم تطبيق Jolli Code لسطح المكتب، فيمكنه إرسال إشعارات النظام تلقائيا عند جاهزية الرد أو عند حدوث خطأ في جلسة.
 :::
 
 ---
 
 ### حماية .env
 
-امنع opencode من قراءة ملفات `.env`:
+امنع jollicode من قراءة ملفات `.env`:
 
 ```javascript title=".jollicode/plugins/env-protection.js"
 export const EnvProtection = async ({ project, client, $, directory, worktree }) => {
@@ -277,7 +277,7 @@ export const InjectEnvPlugin = async () => {
 
 ### أدوات مخصصة
 
-يمكن للإضافات أيضا إضافة أدوات مخصصة إلى opencode:
+يمكن للإضافات أيضا إضافة أدوات مخصصة إلى jollicode:
 
 ```ts title=".jollicode/plugins/custom-tools.ts"
 import { type Plugin, tool } from "@opencode-ai/plugin"
@@ -300,13 +300,13 @@ export const CustomToolsPlugin: Plugin = async (ctx) => {
 }
 ```
 
-تقوم الدالة المساعدة `tool` بإنشاء أداة مخصصة يمكن لـ opencode استدعاؤها. تأخذ دالة مخطط Zod وتعيد تعريف أداة يتضمن:
+تقوم الدالة المساعدة `tool` بإنشاء أداة مخصصة يمكن لـ jollicode استدعاؤها. تأخذ دالة مخطط Zod وتعيد تعريف أداة يتضمن:
 
 - `description`: ما الذي تفعله الأداة
 - `args`: مخطط Zod لوسائط الأداة
 - `execute`: الدالة التي تُشغَّل عند استدعاء الأداة
 
-ستكون أدواتك المخصصة متاحة لـ opencode إلى جانب الأدوات المضمنة.
+ستكون أدواتك المخصصة متاحة لـ jollicode إلى جانب الأدوات المضمنة.
 
 ---
 

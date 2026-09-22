@@ -1,33 +1,33 @@
 ---
 title: GitLab
-description: Brug OpenCode i GitLab-problemer og Merge Requests.
+description: Brug Jolli Code i GitLab-problemer og Merge Requests.
 ---
 
-OpenCode integreres med din GitLab-arbejdsgang gennem din GitLab CI/CD-pipeline eller med GitLab Duo.
+Jolli Code integreres med din GitLab-arbejdsgang gennem din GitLab CI/CD-pipeline eller med GitLab Duo.
 
-I begge tilfælde vil OpenCode køre på dine GitLab-løbere.
+I begge tilfælde vil Jolli Code køre på dine GitLab-løbere.
 
 ---
 
 ## GitLab CI
 
-OpenCode fungerer i en almindelig GitLab-pipeline. Du kan bygge det ind i en pipeline som en [CI component](https://docs.gitlab.com/ee/ci/components/)
+Jolli Code fungerer i en almindelig GitLab-pipeline. Du kan bygge det ind i en pipeline som en [CI component](https://docs.gitlab.com/ee/ci/components/)
 
-Her bruger vi en community-skabt CI/CD-komponent til OpenCode — [nagyv/gitlab-opencode](https://gitlab.com/nagyv/gitlab-opencode).
+Her bruger vi en community-skabt CI/CD-komponent til Jolli Code — [nagyv/gitlab-opencode](https://gitlab.com/nagyv/gitlab-opencode).
 
 ---
 
 ### Funktioner
 
-- **Brug brugerdefineret konfiguration pr. job**: Konfigurer OpenCode med en brugerdefineret konfigurationsmappe, for eksempel `./config/#custom-directory` for at aktivere eller deaktivere funktionalitet pr. OpenCode påkald.
-- **Minimal opsætning**: CI-komponenten sætter OpenCode op i baggrunden, du behøver kun at oprette OpenCode-konfigurationen og den indledende prompt.
+- **Brug brugerdefineret konfiguration pr. job**: Konfigurer Jolli Code med en brugerdefineret konfigurationsmappe, for eksempel `./config/#custom-directory` for at aktivere eller deaktivere funktionalitet pr. Jolli Code påkald.
+- **Minimal opsætning**: CI-komponenten sætter Jolli Code op i baggrunden, du behøver kun at oprette Jolli Code-konfigurationen og den indledende prompt.
 - **Fleksibel**: CI-komponenten understøtter flere input til at tilpasse dens adfærd
 
 ---
 
 ### Opsætning
 
-1. Gem din OpenCode-autentificering JSON som en filtype CI-miljøvariabel under **Indstillinger** > **CI/CD** > **Variabler**. Sørg for at markere dem som "Maskede og skjulte".
+1. Gem din Jolli Code-autentificering JSON som en filtype CI-miljøvariabel under **Indstillinger** > **CI/CD** > **Variabler**. Sørg for at markere dem som "Maskede og skjulte".
 2. Tilføj følgende til din `.gitlab-ci.yml` fil.
 
    ```yaml title=".gitlab-ci.yml"
@@ -35,7 +35,7 @@ Her bruger vi en community-skabt CI/CD-komponent til OpenCode — [nagyv/gitlab-
      - component: $CI_SERVER_FQDN/nagyv/gitlab-opencode/opencode@2
        inputs:
          config_dir: ${CI_PROJECT_DIR}/opencode-config
-         auth_json: $OPENCODE_AUTH_JSON # The variable name for your OpenCode authentication JSON
+         auth_json: $OPENCODE_AUTH_JSON # The variable name for your Jolli Code authentication JSON
          command: optional-custom-command
          message: "Your prompt here"
    ```
@@ -46,23 +46,23 @@ For flere input og use cases [check out the docs](https://gitlab.com/explore/cat
 
 ## GitLab Duo
 
-OpenCode integreres med din GitLab-arbejdsgang.
-Nævn `@opencode` i en kommentar, og OpenCode vil udføre opgaver i din GitLab CI-pipeline.
+Jolli Code integreres med din GitLab-arbejdsgang.
+Nævn `@jollicode` i en kommentar, og Jolli Code vil udføre opgaver i din GitLab CI-pipeline.
 
 ---
 
 ### Funktioner
 
-- **Triageproblemer**: Bed OpenCode om at undersøge et problem og forklare dig det.
-- **Ret og implementer**: Bed OpenCode om at løse et problem eller implementere en funktion.
+- **Triageproblemer**: Bed Jolli Code om at undersøge et problem og forklare dig det.
+- **Ret og implementer**: Bed Jolli Code om at løse et problem eller implementere en funktion.
   Det vil oprette en ny branch og rejse en Merge Request med ændringer.
-- **Sikker**: OpenCode kører på dine GitLab-løbere.
+- **Sikker**: Jolli Code kører på dine GitLab-løbere.
 
 ---
 
 ### Opsætning
 
-OpenCode kører i din GitLab CI/CD pipeline, her er hvad du skal bruge for at konfigurere det:
+Jolli Code kører i din GitLab CI/CD pipeline, her er hvad du skal bruge for at konfigurere det:
 
 :::tip
 Tjek [**GitLab docs**](https://docs.gitlab.com/user/duo_agent_platform/agent_assistant/) for opdaterede instruktioner.
@@ -82,7 +82,7 @@ Tjek [**GitLab docs**](https://docs.gitlab.com/user/duo_agent_platform/agent_ass
     ```yaml
     image: node:22-slim
     commands:
-      - echo "Installing opencode"
+      - echo "Installing jollicode"
       - npm install --global opencode-ai
       - echo "Installing glab"
       - export GITLAB_TOKEN=$GITLAB_TOKEN_OPENCODE
@@ -91,7 +91,7 @@ Tjek [**GitLab docs**](https://docs.gitlab.com/user/duo_agent_platform/agent_ass
       - apt-get install --yes glab
       - echo "Configuring glab"
       - echo $GITLAB_HOST
-      - echo "Creating OpenCode auth configuration"
+      - echo "Creating Jolli Code auth configuration"
       - mkdir --parents ~/.local/share/jollicode
       - |
         cat > ~/.local/share/jollicode/auth.json << EOF
@@ -103,13 +103,13 @@ Tjek [**GitLab docs**](https://docs.gitlab.com/user/duo_agent_platform/agent_ass
         }
         EOF
       - echo "Configuring git"
-      - git config --global user.email "opencode@gitlab.com"
-      - git config --global user.name "OpenCode"
+      - git config --global user.email "jollicode@gitlab.com"
+      - git config --global user.name "Jolli Code"
       - echo "Testing glab"
       - glab issue list
-      - echo "Running OpenCode"
+      - echo "Running Jolli Code"
       - |
-        opencode run "
+        jollicode run "
         You are an AI assistant helping with GitLab operations.
 
         Context: $AI_FLOW_CONTEXT
@@ -158,10 +158,10 @@ Du kan henvise til [GitLab CLI agents docs](https://docs.gitlab.com/user/duo_age
 
 ### Eksempler
 
-Her er nogle eksempler på, hvordan du kan bruge OpenCode i GitLab.
+Her er nogle eksempler på, hvordan du kan bruge Jolli Code i GitLab.
 
 :::tip
-Du kan konfigurere til at bruge en anden udløsersætning end `@opencode`.
+Du kan konfigurere til at bruge en anden udløsersætning end `@jollicode`.
 :::
 
 - **Forklar et problem**
@@ -169,27 +169,27 @@ Du kan konfigurere til at bruge en anden udløsersætning end `@opencode`.
   Tilføj denne kommentar i et GitLab-problem.
 
   ```
-  @opencode explain this issue
+  @jollicode explain this issue
   ```
 
-  OpenCode vil læse spørgsmålet og svare med en klar forklaring.
+  Jolli Code vil læse spørgsmålet og svare med en klar forklaring.
 
 - **Løs et problem**
 
   I et GitLab-nummer skal du sige:
 
   ```
-  @opencode fix this
+  @jollicode fix this
   ```
 
-  OpenCode vil oprette en ny branch, implementere ændringer og åbne en Merge Request med ændringer.
+  Jolli Code vil oprette en ny branch, implementere ændringer og åbne en Merge Request med ændringer.
 
 - **Gennemgå Merge Requests**
 
   Efterlad følgende kommentar til en GitLab-Merge Request.
 
   ```
-  @opencode review this merge request
+  @jollicode review this merge request
   ```
 
-  OpenCode vil gennemgå din Merge Request og give feedback.
+  Jolli Code vil gennemgå din Merge Request og give feedback.

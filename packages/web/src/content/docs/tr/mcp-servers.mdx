@@ -3,7 +3,7 @@ title: MCP sunucuları
 description: Yerel ve uzak MCP araçlarını ekleyin.
 ---
 
-_Model Bağlam Protokolü_ veya MCP kullanarak opencode'a harici araçlar ekleyebilirsiniz. opencode hem yerel hem de uzak sunucuları destekler.
+_Model Bağlam Protokolü_ veya MCP kullanarak jollicode'a harici araçlar ekleyebilirsiniz. jollicode hem yerel hem de uzak sunucuları destekler.
 
 MCP araçları eklendikten sonra yerleşik araçların yanı sıra LLM tarafından otomatik olarak kullanılabilir.
 
@@ -23,7 +23,7 @@ GitHub MCP sunucusu gibi belirli MCP sunucuları çok sayıda belirteç ekleme e
 
 ## Etkinleştirme
 
-MCP sunucularını [opencode Config](https://opencode.ai/docs/config/)'nizde `mcp` altında tanımlayabilirsiniz. Her MCP'ü benzersiz bir adla ekleyin. LLM isteminde bulunurken bu MCP adına başvurabilirsiniz.
+MCP sunucularını [jollicode Config](https://opencode.ai/docs/config/)'nizde `mcp` altında tanımlayabilirsiniz. Her MCP'ü benzersiz bir adla ekleyin. LLM isteminde bulunurken bu MCP adına başvurabilirsiniz.
 
 ```jsonc title="opencode.jsonc" {6}
 {
@@ -165,7 +165,7 @@ Yerel bir MCP sunucusunu yapılandırmak için tüm seçenekler burada verilmiş
 
 ## OAuth
 
-opencode, uzak MCP sunucuları için OAuth kimlik doğrulamasını otomatik olarak yönetir. Bir sunucu kimlik doğrulaması gerektirdiğinde opencode şunları yapar:
+jollicode, uzak MCP sunucuları için OAuth kimlik doğrulamasını otomatik olarak yönetir. Bir sunucu kimlik doğrulaması gerektirdiğinde jollicode şunları yapar:
 
 1. 401 yanıtını tespit edin ve OAuth akışını başlatın
 2. Sunucu tarafından destekleniyorsa **Dinamik İstemci Kaydı (RFC 7591)** kullanın
@@ -189,7 +189,7 @@ OAuth'un etkin olduğu çoğu MCP sunucusu için özel bir yapılandırmaya gere
 }
 ```
 
-Sunucu kimlik doğrulama gerektiriyorsa opencode, onu ilk kez kullanmaya çalıştığınızda kimlik doğrulamanızı isteyecektir. Değilse, `opencode mcp auth <server-name>` ile [manually trigger the flow](#authenticating) yapabilirsiniz.
+Sunucu kimlik doğrulama gerektiriyorsa jollicode, onu ilk kez kullanmaya çalıştığınızda kimlik doğrulamanızı isteyecektir. Değilse, `jollicode mcp auth <server-name>` ile [manually trigger the flow](#authenticating) yapabilirsiniz.
 
 ---
 
@@ -223,22 +223,22 @@ Kimlik doğrulamayı manuel olarak tetikleyebilir veya kimlik bilgilerini yönet
 Belirli bir MCP sunucusuyla kimlik doğrulaması yapın:
 
 ```bash
-opencode mcp auth my-oauth-server
+jollicode mcp auth my-oauth-server
 ```
 
 Tüm MCP sunucularını ve kimlik doğrulama durumlarını listeleyin:
 
 ```bash
-opencode mcp list
+jollicode mcp list
 ```
 
 Remove stored credentials:
 
 ```bash
-opencode mcp logout my-oauth-server
+jollicode mcp logout my-oauth-server
 ```
 
-`mcp auth` komutu tarayıcınızı yetkilendirme için açacaktır. Yetkilendirmenizin ardından opencode, belirteçleri `~/.local/share/jollicode/mcp-auth.json`'de güvenli bir şekilde saklar.
+`mcp auth` komutu tarayıcınızı yetkilendirme için açacaktır. Yetkilendirmenizin ardından jollicode, belirteçleri `~/.local/share/jollicode/mcp-auth.json`'de güvenli bir şekilde saklar.
 
 ---
 
@@ -279,10 +279,10 @@ Uzak bir MCP sunucusunun kimlik doğrulaması başarısız olursa aşağıdakile
 
 ```bash
 # View auth status for all OAuth-capable servers
-opencode mcp auth list
+jollicode mcp auth list
 
 # Debug connection and OAuth flow for a specific server
-opencode mcp debug my-oauth-server
+jollicode mcp debug my-oauth-server
 ```
 
 `mcp debug` komutu mevcut kimlik doğrulama durumunu gösterir, HTTP bağlantısını test eder ve OAuth bulma akışını dener.
@@ -291,7 +291,7 @@ opencode mcp debug my-oauth-server
 
 ## Yönetim
 
-MCP'leriniz yerleşik araçların yanı sıra opencode'da araç olarak mevcuttur. Böylece bunları diğer araçlar gibi opencode yapılandırması aracılığıyla yönetebilirsiniz.
+MCP'leriniz yerleşik araçların yanı sıra jollicode'da araç olarak mevcuttur. Böylece bunları diğer araçlar gibi jollicode yapılandırması aracılığıyla yönetebilirsiniz.
 
 ---
 
@@ -420,10 +420,10 @@ Sentry projelerinizle ve sorunlarınızla etkileşimde bulunmak için [Sentry MC
 Yapılandırmayı ekledikten sonra Sentry ile kimlik doğrulaması yapın:
 
 ```bash
-opencode mcp auth sentry
+jollicode mcp auth sentry
 ```
 
-Bu, OAuth akışını tamamlamak ve opencode'u Sentry hesabınıza bağlamak için bir tarayıcı penceresi açacaktır.
+Bu, OAuth akışını tamamlamak ve jollicode'u Sentry hesabınıza bağlamak için bir tarayıcı penceresi açacaktır.
 
 Kimlik doğrulaması yapıldıktan sonra sorunları, projeleri ve hata verilerini sorgulamak için istemlerinizde Sentry araçlarını kullanabilirsiniz.
 

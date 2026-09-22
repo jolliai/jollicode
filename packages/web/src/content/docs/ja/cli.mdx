@@ -1,30 +1,30 @@
 ---
 title: CLI
-description: OpenCode CLI のオプションとコマンド。
+description: Jolli Code CLI のオプションとコマンド。
 ---
 
 import { Tabs, TabItem } from "@astrojs/starlight/components"
 
-OpenCode CLI は、引数なしで実行すると、デフォルトで [TUI](/docs/tui) を開始します。
+Jolli Code CLI は、引数なしで実行すると、デフォルトで [TUI](/docs/tui) を開始します。
 
 ```bash
-opencode
+jollicode
 ```
 
-ただし、このページに記載されているようにコマンドも受け入れます。これにより、OpenCode をプログラム的に操作できるようになります。
+ただし、このページに記載されているようにコマンドも受け入れます。これにより、Jolli Code をプログラム的に操作できるようになります。
 
 ```bash
-opencode run "Explain how closures work in JavaScript"
+jollicode run "Explain how closures work in JavaScript"
 ```
 
 ---
 
 ### tui
 
-OpenCode ターミナルユーザーインターフェイスを開始します。
+Jolli Code ターミナルユーザーインターフェイスを開始します。
 
 ```bash
-opencode [project]
+jollicode [project]
 ```
 
 #### フラグ
@@ -44,36 +44,36 @@ opencode [project]
 
 ## コマンド
 
-OpenCode CLI には次のコマンドもあります。
+Jolli Code CLI には次のコマンドもあります。
 
 ---
 
 ### agent
 
-OpenCode のエージェントを管理します。
+Jolli Code のエージェントを管理します。
 
 ```bash
-opencode agent [command]
+jollicode agent [command]
 ```
 
 ---
 
 ### attach
 
-`serve` または `web` コマンドを使用して起動された、すでに実行中の OpenCode バックエンドサーバーにターミナルを接続します。
+`serve` または `web` コマンドを使用して起動された、すでに実行中の Jolli Code バックエンドサーバーにターミナルを接続します。
 
 ```bash
-opencode attach [url]
+jollicode attach [url]
 ```
 
-これにより、リモート OpenCode バックエンドで TUI を使用できるようになります。例えば：
+これにより、リモート Jolli Code バックエンドで TUI を使用できるようになります。例えば：
 
 ```bash
 # Start the backend server for web/mobile access
-opencode web --port 4096 --hostname 0.0.0.0
+jollicode web --port 4096 --hostname 0.0.0.0
 
 # In another terminal, attach the TUI to the running backend
-opencode attach http://10.20.30.40:4096
+jollicode attach http://10.20.30.40:4096
 ```
 
 #### フラグ
@@ -85,7 +85,7 @@ opencode attach http://10.20.30.40:4096
 | <nobr><code>{"--session"}</code></nobr>  | `-s`     | 続行するセッション ID                                                             |
 | <nobr><code>{"--fork"}</code></nobr>     |          | 続行時にセッションをフォーク（`--continue` または `--session` と使用）            |
 | <nobr><code>{"--password"}</code></nobr> | `-p`     | Basic 認証パスワード（デフォルトは `OPENCODE_SERVER_PASSWORD`）                   |
-| <nobr><code>{"--username"}</code></nobr> | `-u`     | Basic 認証ユーザー名（デフォルトは `OPENCODE_SERVER_USERNAME` または `opencode`） |
+| <nobr><code>{"--username"}</code></nobr> | `-u`     | Basic 認証ユーザー名（デフォルトは `OPENCODE_SERVER_USERNAME` または `jollicode`） |
 
 ---
 
@@ -94,7 +94,7 @@ opencode attach http://10.20.30.40:4096
 カスタム構成で新しいエージェントを作成します。
 
 ```bash
-opencode agent create
+jollicode agent create
 ```
 
 このコマンドは、カスタムシステムプロンプトとツール構成を使用して新しいエージェントを作成する手順を示します。
@@ -106,7 +106,7 @@ opencode agent create
 利用可能なエージェントをすべてリストします。
 
 ```bash
-opencode agent list
+jollicode agent list
 ```
 
 ---
@@ -116,20 +116,20 @@ opencode agent list
 プロバイダーの資格情報とログインを管理するコマンド。
 
 ```bash
-opencode auth [command]
+jollicode auth [command]
 ```
 
 ---
 
 #### login
 
-OpenCode は [Models.dev](https://models.dev) のプロバイダーリストを利用しているため、`opencode auth login` を使用して、使用したいプロバイダーの API キーを構成できます。これは `~/.local/share/jollicode/auth.json` に保存されます。
+Jolli Code は [Models.dev](https://models.dev) のプロバイダーリストを利用しているため、`jollicode auth login` を使用して、使用したいプロバイダーの API キーを構成できます。これは `~/.local/share/jollicode/auth.json` に保存されます。
 
 ```bash
-opencode auth login
+jollicode auth login
 ```
 
-OpenCode が起動すると、認証情報ファイルからプロバイダーがロードされます。また、環境またはプロジェクト内の `.env` ファイルで定義されたキーがあるかどうかも確認します。
+Jolli Code が起動すると、認証情報ファイルからプロバイダーがロードされます。また、環境またはプロジェクト内の `.env` ファイルで定義されたキーがあるかどうかも確認します。
 
 ---
 
@@ -138,13 +138,13 @@ OpenCode が起動すると、認証情報ファイルからプロバイダー�
 認証情報ファイルに保存されているすべての認証されたプロバイダーをリストします。
 
 ```bash
-opencode auth list
+jollicode auth list
 ```
 
 またはショートバージョン。
 
 ```bash
-opencode auth ls
+jollicode auth ls
 ```
 
 ---
@@ -154,7 +154,7 @@ opencode auth ls
 資格情報ファイルからプロバイダーをクリアすることで、プロバイダーからログアウトします。
 
 ```bash
-opencode auth logout
+jollicode auth logout
 ```
 
 ---
@@ -164,7 +164,7 @@ opencode auth logout
 リポジトリ自動化のための GitHub エージェントを管理します。
 
 ```bash
-opencode github [command]
+jollicode github [command]
 ```
 
 ---
@@ -174,7 +174,7 @@ opencode github [command]
 GitHub エージェントをリポジトリにインストールします。
 
 ```bash
-opencode github install
+jollicode github install
 ```
 
 これにより、必要な GitHub Actions ワークフローが設定され、構成プロセスがガイドされます。 [詳細はこちら](/docs/github)。
@@ -186,7 +186,7 @@ opencode github install
 GitHub エージェントを実行します。これは通常、GitHub Actions で使用されます。
 
 ```bash
-opencode github run
+jollicode github run
 ```
 
 ##### フラグ
@@ -203,7 +203,7 @@ opencode github run
 モデルコンテキストプロトコルサーバーを管理します。
 
 ```bash
-opencode mcp [command]
+jollicode mcp [command]
 ```
 
 ---
@@ -213,7 +213,7 @@ opencode mcp [command]
 MCP サーバーを構成に追加します。
 
 ```bash
-opencode mcp add
+jollicode mcp add
 ```
 
 このコマンドは、ローカルまたはリモートの MCP サーバーを追加する手順を示します。
@@ -225,13 +225,13 @@ opencode mcp add
 構成されているすべての MCP サーバーとその接続ステータスをリストします。
 
 ```bash
-opencode mcp list
+jollicode mcp list
 ```
 
 または、短いバージョンを使用してください。
 
 ```bash
-opencode mcp ls
+jollicode mcp ls
 ```
 
 ---
@@ -241,7 +241,7 @@ opencode mcp ls
 OAuth 対応の MCP サーバーで認証します。
 
 ```bash
-opencode mcp auth [name]
+jollicode mcp auth [name]
 ```
 
 サーバー名を指定しない場合は、利用可能な OAuth 対応サーバーから選択するように求められます。
@@ -249,13 +249,13 @@ opencode mcp auth [name]
 OAuth 対応サーバーとその認証ステータスを一覧表示することもできます。
 
 ```bash
-opencode mcp auth list
+jollicode mcp auth list
 ```
 
 または、短いバージョンを使用してください。
 
 ```bash
-opencode mcp auth ls
+jollicode mcp auth ls
 ```
 
 ---
@@ -265,7 +265,7 @@ opencode mcp auth ls
 MCP サーバーの OAuth 資格情報を削除します。
 
 ```bash
-opencode mcp logout [name]
+jollicode mcp logout [name]
 ```
 
 ---
@@ -275,7 +275,7 @@ opencode mcp logout [name]
 MCP サーバーの OAuth 接続の問題をデバッグします。
 
 ```bash
-opencode mcp debug <name>
+jollicode mcp debug <name>
 ```
 
 ---
@@ -285,7 +285,7 @@ opencode mcp debug <name>
 構成されたプロバイダーから利用可能なすべてのモデルをリストします。
 
 ```bash
-opencode models [provider]
+jollicode models [provider]
 ```
 
 このコマンドは、構成されたプロバイダー全体で利用可能なすべてのモデルを `provider/model` の形式で表示します。
@@ -295,7 +295,7 @@ opencode models [provider]
 オプションでプロバイダー ID を渡して、そのプロバイダーによってモデルをフィルターできます。
 
 ```bash
-opencode models anthropic
+jollicode models anthropic
 ```
 
 #### フラグ
@@ -305,36 +305,36 @@ opencode models anthropic
 | <nobr><code>{"--refresh"}</code></nobr> | models.dev からモデルキャッシュを更新します。                   |
 | <nobr><code>{"--verbose"}</code></nobr> | より詳細なモデル出力を使用します (コストなどのメタデータを含む) |
 
-`--refresh` フラグを使用して、キャッシュされたモデルリストを更新します。これは、新しいモデルがプロバイダーに追加され、それを OpenCode で確認したい場合に便利です。
+`--refresh` フラグを使用して、キャッシュされたモデルリストを更新します。これは、新しいモデルがプロバイダーに追加され、それを Jolli Code で確認したい場合に便利です。
 
 ```bash
-opencode models --refresh
+jollicode models --refresh
 ```
 
 ---
 
 ### run
 
-プロンプトを直接渡して、非対話モードで opencode を実行します。
+プロンプトを直接渡して、非対話モードで jollicode を実行します。
 
 ```bash
-opencode run [message..]
+jollicode run [message..]
 ```
 
 これは、スクリプト作成、自動化、または完全な TUI を起動せずに迅速な回答が必要な場合に便利です。例えば。
 
-```bash "opencode run"
-opencode run Explain the use of context in Go
+```bash "jollicode run"
+jollicode run Explain the use of context in Go
 ```
 
-実行中の `opencode serve` インスタンスにアタッチして、実行ごとの MCP サーバーのコールドブート時間を回避することもできます。
+実行中の `jollicode serve` インスタンスにアタッチして、実行ごとの MCP サーバーのコールドブート時間を回避することもできます。
 
 ```bash
 # Start a headless server in one terminal
-opencode serve
+jollicode serve
 
 # In another terminal, run commands that attach to it
-opencode run --attach http://localhost:4096 "Explain async/await in JavaScript"
+jollicode run --attach http://localhost:4096 "Explain async/await in JavaScript"
 ```
 
 #### フラグ
@@ -351,9 +351,9 @@ opencode run --attach http://localhost:4096 "Explain async/await in JavaScript"
 | <nobr><code>{"--file"}</code></nobr>     | `-f`     | メッセージに添付するファイル                                                              |
 | <nobr><code>{"--format"}</code></nobr>   |          | 形式: デフォルト (フォーマット済み) または json (生の JSON イベント)                      |
 | <nobr><code>{"--title"}</code></nobr>    |          | セッションのタイトル (値が指定されていない場合は、切り詰められたプロンプトが使用されます) |
-| <nobr><code>{"--attach"}</code></nobr>   |          | 実行中の opencode サーバー (http://localhost:4096 など) に接続します。                    |
+| <nobr><code>{"--attach"}</code></nobr>   |          | 実行中の jollicode サーバー (http://localhost:4096 など) に接続します。                    |
 | <nobr><code>{"--password"}</code></nobr> | `-p`     | Basic 認証パスワード（デフォルトは `OPENCODE_SERVER_PASSWORD`）                           |
-| <nobr><code>{"--username"}</code></nobr> | `-u`     | Basic 認証ユーザー名（デフォルトは `OPENCODE_SERVER_USERNAME` または `opencode`）         |
+| <nobr><code>{"--username"}</code></nobr> | `-u`     | Basic 認証ユーザー名（デフォルトは `OPENCODE_SERVER_USERNAME` または `jollicode`）         |
 | <nobr><code>{"--dir"}</code></nobr>      |          | 実行ディレクトリ、またはアタッチ時のリモートサーバー上のパス                              |
 | <nobr><code>{"--variant"}</code></nobr>  |          | モデルバリアント（プロバイダー固有の推論レベル）                                          |
 | <nobr><code>{"--thinking"}</code></nobr> |          | 思考ブロックを表示                                                                        |
@@ -363,13 +363,13 @@ opencode run --attach http://localhost:4096 "Explain async/await in JavaScript"
 
 ### serve
 
-API アクセスのためにヘッドレス OpenCode サーバーを起動します。完全な HTTP インターフェイスについては、[サーバーのドキュメント](/docs/server) を確認してください。
+API アクセスのためにヘッドレス Jolli Code サーバーを起動します。完全な HTTP インターフェイスについては、[サーバーのドキュメント](/docs/server) を確認してください。
 
 ```bash
-opencode serve
+jollicode serve
 ```
 
-これにより、TUI インターフェイスを使用せずに opencode 機能への API アクセスを提供する HTTP サーバーが起動します。 `OPENCODE_SERVER_PASSWORD` を設定して HTTP 基本認証を有効にします (ユーザー名のデフォルトは `opencode`)。
+これにより、TUI インターフェイスを使用せずに jollicode 機能への API アクセスを提供する HTTP サーバーが起動します。 `OPENCODE_SERVER_PASSWORD` を設定して HTTP 基本認証を有効にします (ユーザー名のデフォルトは `jollicode`)。
 
 #### フラグ
 
@@ -384,20 +384,20 @@ opencode serve
 
 ### session
 
-OpenCode セッションを管理します。
+Jolli Code セッションを管理します。
 
 ```bash
-opencode session [command]
+jollicode session [command]
 ```
 
 ---
 
 #### list
 
-すべての OpenCode セッションをリストします。
+すべての Jolli Code セッションをリストします。
 
 ```bash
-opencode session list
+jollicode session list
 ```
 
 ##### フラグ
@@ -411,10 +411,10 @@ opencode session list
 
 ### stats
 
-OpenCode セッションのトークンの使用状況とコストの統計を表示します。
+Jolli Code セッションのトークンの使用状況とコストの統計を表示します。
 
 ```bash
-opencode stats
+jollicode stats
 ```
 
 #### フラグ
@@ -433,7 +433,7 @@ opencode stats
 セッションデータを JSON としてエクスポートします。
 
 ```bash
-opencode export [sessionID]
+jollicode export [sessionID]
 ```
 
 セッション ID を指定しない場合は、利用可能なセッションから選択するように求められます。
@@ -442,30 +442,30 @@ opencode export [sessionID]
 
 ### import
 
-JSON ファイルまたは OpenCode 共有 URL からセッションデータをインポートします。
+JSON ファイルまたは Jolli Code 共有 URL からセッションデータをインポートします。
 
 ```bash
-opencode import <file>
+jollicode import <file>
 ```
 
-ローカルファイルまたは OpenCode 共有 URL からインポートできます。
+ローカルファイルまたは Jolli Code 共有 URL からインポートできます。
 
 ```bash
-opencode import session.json
-opencode import https://opncd.ai/s/abc123
+jollicode import session.json
+jollicode import https://opncd.ai/s/abc123
 ```
 
 ---
 
 ### web
 
-Web インターフェイスを使用してヘッドレス OpenCode サーバーを起動します。
+Web インターフェイスを使用してヘッドレス Jolli Code サーバーを起動します。
 
 ```bash
-opencode web
+jollicode web
 ```
 
-これにより、HTTP サーバーが起動し、Web ブラウザが開き、Web インターフェイスを通じて OpenCode にアクセスします。 `OPENCODE_SERVER_PASSWORD` を設定して HTTP 基本認証を有効にします (ユーザー名のデフォルトは `opencode`)。
+これにより、HTTP サーバーが起動し、Web ブラウザが開き、Web インターフェイスを通じて Jolli Code にアクセスします。 `OPENCODE_SERVER_PASSWORD` を設定して HTTP 基本認証を有効にします (ユーザー名のデフォルトは `jollicode`)。
 
 #### フラグ
 
@@ -483,7 +483,7 @@ opencode web
 ACP (エージェントクライアントプロトコル) サーバーを起動します。
 
 ```bash
-opencode acp
+jollicode acp
 ```
 
 このコマンドは、nd-JSON を使用して stdin/stdout 経由で通信する ACP サーバーを起動します。
@@ -500,10 +500,10 @@ opencode acp
 
 ### uninstall
 
-OpenCode をアンインストールし、関連ファイルをすべて削除します。
+Jolli Code をアンインストールし、関連ファイルをすべて削除します。
 
 ```bash
-opencode uninstall
+jollicode uninstall
 ```
 
 #### フラグ
@@ -519,22 +519,22 @@ opencode uninstall
 
 ### upgrade
 
-opencode を最新バージョンまたは特定のバージョンに更新します。
+jollicode を最新バージョンまたは特定のバージョンに更新します。
 
 ```bash
-opencode upgrade [target]
+jollicode upgrade [target]
 ```
 
 最新バージョンにアップグレードするには。
 
 ```bash
-opencode upgrade
+jollicode upgrade
 ```
 
 特定のバージョンにアップグレードするには。
 
 ```bash
-opencode upgrade v0.1.48
+jollicode upgrade v0.1.48
 ```
 
 #### フラグ
@@ -547,7 +547,7 @@ opencode upgrade v0.1.48
 
 ## グローバルフラグ
 
-opencode CLI は次のグローバルフラグを受け取ります。
+jollicode CLI は次のグローバルフラグを受け取ります。
 
 | フラグ                                     | ショート | 説明                                  |
 | ------------------------------------------ | -------- | ------------------------------------- |
@@ -560,7 +560,7 @@ opencode CLI は次のグローバルフラグを受け取ります。
 
 ## 環境変数
 
-OpenCode は環境変数を使用して構成できます。
+Jolli Code は環境変数を使用して構成できます。
 
 | 変数                                  | タイプ   | 説明                                                                |
 | ------------------------------------- | -------- | ------------------------------------------------------------------- |
@@ -585,7 +585,7 @@ OpenCode は環境変数を使用して構成できます。
 | `OPENCODE_CLIENT`                     | 文字列   | クライアント識別子 (デフォルトは `cli`)                             |
 | `OPENCODE_ENABLE_EXA`                 | ブール値 | Exa Web 検索ツールを有効にする                                      |
 | `OPENCODE_SERVER_PASSWORD`            | 文字列   | `serve`/`web` の基本認証を有効にする                                |
-| `OPENCODE_SERVER_USERNAME`            | 文字列   | 基本認証ユーザー名 (デフォルト `opencode`) をオーバーライドします。 |
+| `OPENCODE_SERVER_USERNAME`            | 文字列   | 基本認証ユーザー名 (デフォルト `jollicode`) をオーバーライドします。 |
 | `OPENCODE_MODELS_URL`                 | 文字列   | モデル設定を取得するためのカスタム URL                              |
 
 ---

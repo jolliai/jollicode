@@ -6,7 +6,7 @@ description: Korzystanie z dowolnego dostawcy LLM w opencode.
 import config from "../../../../config.mjs"
 export const console = config.console
 
-opencode używa [AI SDK](https://ai-sdk.dev/) i [Models.dev](https://models.dev) do obsługi **ponad 75 dostawców LLM** i obsługuje uruchamianie modeli lokalnych.
+jollicode używa [AI SDK](https://ai-sdk.dev/) i [Models.dev](https://models.dev) do obsługi **ponad 75 dostawców LLM** i obsługuje uruchamianie modeli lokalnych.
 
 Aby dodać dostawcę należy:
 
@@ -24,7 +24,7 @@ w `~/.local/share/jollicode/auth.json`.
 
 ### Konfiguracja
 
-Możesz dostosować dostawców za pomocą sekcji `provider` w swoim opencode
+Możesz dostosować dostawców za pomocą sekcji `provider` w swoim jollicode
 config.
 
 ---
@@ -50,7 +50,7 @@ Możesz dostosować podstawowy adres URL dla dowolnego dostawcy, ustawiając opc
 
 ## OpenCode Zen
 
-OpenCode Zen to lista modeli dostarczonych przez zespół opencode, które zostały
+OpenCode Zen to lista modeli dostarczonych przez zespół jollicode, które zostały
 przetestowane i zweryfikowane, aby dobrze współpracować z opencode. [Dowiedz się więcej](/docs/zen).
 
 :::tip
@@ -80,15 +80,15 @@ Jeśli jesteś nowy, zalecamy rozpoczęcie od OpenCode Zen.
    /models
    ```
 
-Działa jak każdy inny dostawca w opencode i jest całkowicie opcjonalny w użyciu.
+Działa jak każdy inny dostawca w jollicode i jest całkowicie opcjonalny w użyciu.
 
 ---
 
-## OpenCode Go
+## Jolli Code Go
 
-OpenCode Go to tani plan subskrypcji, który zapewnia niezawodny dostęp do popularnych modeli open coding dostarczanych przez zespół opencode, które zostały przetestowane i zweryfikowane pod kątem dobrej współpracy z opencode.
+Jolli Code Go to tani plan subskrypcji, który zapewnia niezawodny dostęp do popularnych modeli open coding dostarczanych przez zespół jollicode, które zostały przetestowane i zweryfikowane pod kątem dobrej współpracy z opencode.
 
-1. Uruchom polecenie `/connect` w TUI, wybierz `OpenCode Go` i przejdź do [opencode.ai/auth](https://opencode.ai/zen).
+1. Uruchom polecenie `/connect` w TUI, wybierz `Jolli Code Go` i przejdź do [opencode.ai/auth](https://opencode.ai/zen).
 
    ```txt
    /connect
@@ -111,7 +111,7 @@ OpenCode Go to tani plan subskrypcji, który zapewnia niezawodny dostęp do popu
    /models
    ```
 
-Działa jak każdy inny dostawca w opencode i jest całkowicie opcjonalny w użyciu.
+Działa jak każdy inny dostawca w jollicode i jest całkowicie opcjonalny w użyciu.
 
 ---
 
@@ -155,7 +155,7 @@ Nie widzisz tutaj dostawcy? Prześlij PR.
 
 ### Amazon Bedrock
 
-Aby używać Amazon Bedrock z opencode:
+Aby używać Amazon Bedrock z jollicode:
 
 1. Przejdź do **Katalogu modeli** w konsoli Amazon Bedrock i poproś
    dostęp do wybranych modeli.
@@ -168,17 +168,17 @@ Aby używać Amazon Bedrock z opencode:
 
    #### Zmienne środowiskowe (Szybki start)
 
-   Ustaw jedną z tych zmiennych środowiskowych podczas uruchamiania opencode:
+   Ustaw jedną z tych zmiennych środowiskowych podczas uruchamiania jollicode:
 
    ```bash
    # Option 1: Using AWS access keys
-   AWS_ACCESS_KEY_ID=XXX AWS_SECRET_ACCESS_KEY=YYY opencode
+   AWS_ACCESS_KEY_ID=XXX AWS_SECRET_ACCESS_KEY=YYY jollicode
 
    # Option 2: Using named AWS profile
-   AWS_PROFILE=my-profile opencode
+   AWS_PROFILE=my-profile jollicode
 
    # Option 3: Using Bedrock bearer token
-   AWS_BEARER_TOKEN_BEDROCK=XXX opencode
+   AWS_BEARER_TOKEN_BEDROCK=XXX jollicode
    ```
 
    Lub dodaj je do swojego profilu bash:
@@ -310,7 +310,7 @@ W przypadku niestandardowych profili wnioskowania użyj nazwy modelu i dostawcy 
    ```
 
 :::info
-Korzystanie z subskrypcji Claude Pro/Max w opencode nie jest oficjalnie obsługiwane przez [Anthropic](https://anthropic.com).
+Korzystanie z subskrypcji Claude Pro/Max w jollicode nie jest oficjalnie obsługiwane przez [Anthropic](https://anthropic.com).
 :::
 
 ##### Użycie kluczy API
@@ -323,7 +323,7 @@ Lub jeśli masz już klucz API, możesz wybrać **Wprowadź klucz API ręcznie**
 
 ### Atomic Chat
 
-Możesz skonfigurować opencode do korzystania z modeli lokalnych przez [Atomic Chat](https://atomic.chat) — aplikację desktopową uruchamiającą lokalne LLM-y za serwerem API zgodnym z OpenAI (domyślny endpoint `http://127.0.0.1:1337/v1`).
+Możesz skonfigurować jollicode do korzystania z modeli lokalnych przez [Atomic Chat](https://atomic.chat) — aplikację desktopową uruchamiającą lokalne LLM-y za serwerem API zgodnym z OpenAI (domyślny endpoint `http://127.0.0.1:1337/v1`).
 
 ```json title="opencode.json" "atomic-chat" {5, 6, 8, 10-14}
 {
@@ -372,7 +372,7 @@ Jeśli napotkasz błędy „Przykro mi, ale nie mogę pomóc w tej prośbie”, 
 2. Przejdź do [Azure AI Foundry](https://ai.azure.com/) i wdróż model.
 
    :::note
-   Aby kod opencode działał poprawnie, nazwa wdrożenia musi być zgodna z nazwą modelu.
+   Aby kod jollicode działał poprawnie, nazwa wdrożenia musi być zgodna z nazwą modelu.
    :::
 
 3. Uruchom polecenie `/connect` i wyszukaj **Azure**.
@@ -393,7 +393,7 @@ Jeśli napotkasz błędy „Przykro mi, ale nie mogę pomóc w tej prośbie”, 
 5. Ustaw nazwę zasobu jako zmienną środowiskową:
 
    ```bash
-   AZURE_RESOURCE_NAME=XXX opencode
+   AZURE_RESOURCE_NAME=XXX jollicode
    ```
 
    Lub dodaj go do swojego profilu bash:
@@ -419,7 +419,7 @@ Jeśli napotkasz błędy „Przykro mi, ale nie mogę pomóc w tej prośbie”, 
 2. Przejdź do [Azure AI Foundry](https://ai.azure.com/) i wdróż model.
 
    :::note
-   Aby kod opencode działał poprawnie, nazwa wdrożenia musi być zgodna z nazwą modelu.
+   Aby kod jollicode działał poprawnie, nazwa wdrożenia musi być zgodna z nazwą modelu.
    :::
 
 3. Uruchom polecenie `/connect` i wyszukaj **Azure Cognitive Services**.
@@ -440,7 +440,7 @@ Jeśli napotkasz błędy „Przykro mi, ale nie mogę pomóc w tej prośbie”, 
 5. Ustaw nazwę zasobu jako zmienną środowiskową:
 
    ```bash
-   AZURE_COGNITIVE_SERVICES_RESOURCE_NAME=XXX opencode
+   AZURE_COGNITIVE_SERVICES_RESOURCE_NAME=XXX jollicode
    ```
 
    Lub dodaj go do swojego profilu bash:
@@ -731,7 +731,7 @@ GitLab Duo zapewnia czat agentowy oparty na sztucznej inteligencji z natywnymi m
    #### Użycie osobistego tokenu dostępu
    1. Przejdź do [Ustawienia użytkownika GitLab > Tokeny dostępu](https://gitlab.com/-/user_settings/personal_access_tokens)
    2. Click **Add new token**
-   3. Name: `OpenCode`, Scopes: `api`
+   3. Name: `Jolli Code`, Scopes: `api`
    4. Skopiuj token (zaczyna się od `glpat-`)
    5. Wpisz go w terminalu
 
@@ -748,14 +748,14 @@ GitLab Duo zapewnia czat agentowy oparty na sztucznej inteligencji z natywnymi m
 
 :::note
 Jeśli nie chcesz, możesz także określić zmienną środowiskową „GITLAB_TOKEN”.
-to store token in opencode auth storage.
+to store token in jollicode auth storage.
 :::
 
 ##### Self-Hosted GitLab
 
 :::note[compliance note]
-opencode używa małego modelu do niektórych zadań AI, takich jak generowanie tytułu sesji.
-Domyślnie jest skonfigurowany do używania gpt-5-nano, hostowanego przez Zen. Aby zablokować opencode
+jollicode używa małego modelu do niektórych zadań AI, takich jak generowanie tytułu sesji.
+Domyślnie jest skonfigurowany do używania gpt-5-nano, hostowanego przez Zen. Aby zablokować jollicode
 aby używać tylko własnej instancji hostowanej przez GitLab, dodaj następujące elementy do pliku
 `opencode.json` plik. Zalecane jest również wyłączenie udostępniania sesji.
 
@@ -851,7 +851,7 @@ Ta wtyczka zapewnia kompleksowe możliwości zarządzania repozytorium GitLab, w
 
 ### GitHub Copilot
 
-Aby korzystać z subskrypcji GitHub Copilot z kodem opencode:
+Aby korzystać z subskrypcji GitHub Copilot z kodem jollicode:
 
 :::note
 Niektóre modele mogą wymagać [subskrypcji Pro+](https://github.com/features/Copilot/plans), aby z nich korzystać.
@@ -887,7 +887,7 @@ Niektóre modele należy włączyć ręcznie w [ustawieniach GitHub Copilot](htt
 
 ### Google Vertex AI
 
-Aby używać Google Vertex AI z opencode:
+Aby używać Google Vertex AI z jollicode:
 
 1. Przejdź do **Model Garden** w Google Cloud Console i sprawdź
    modele dostępne w Twoim regionie.
@@ -906,7 +906,7 @@ Aby używać Google Vertex AI z opencode:
    Ustaw je podczas uruchamiania opencode.
 
    ```bash
-   GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json GOOGLE_CLOUD_PROJECT=your-project-id opencode
+   GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json GOOGLE_CLOUD_PROJECT=your-project-id jollicode
    ```
 
    Lub dodaj je do swojego profilu bash.
@@ -1016,7 +1016,7 @@ Więcej dostawców i zaawansowanych funkcji, takich jak buforowanie i ograniczan
 
 #### Opcjonalna konfiguracja
 
-Jeśli zobaczysz funkcję lub model firmy Helicone, która nie jest konfigurowana automatycznie za pomocą opencode, zawsze możesz ją skonfigurować samodzielnie.
+Jeśli zobaczysz funkcję lub model firmy Helicone, która nie jest konfigurowana automatycznie za pomocą jollicode, zawsze możesz ją skonfigurować samodzielnie.
 
 Oto [Katalog modeli Helicone](https://helicone.ai/models), będziesz go potrzebować, aby pobrać identyfikatory modeli, które chcesz dodać.
 
@@ -1059,7 +1059,7 @@ Helicone obsługuje niestandardowe nagłówki dla funkcji takich jak buforowanie
         "baseURL": "https://ai-gateway.helicone.ai",
         "headers": {
           "Helicone-Cache-Enabled": "true",
-          "Helicone-User-Id": "opencode",
+          "Helicone-User-Id": "jollicode",
         },
       },
     },
@@ -1069,7 +1069,7 @@ Helicone obsługuje niestandardowe nagłówki dla funkcji takich jak buforowanie
 
 ##### Śledzenie sesji
 
-Funkcja [Sesje](https://docs.helicone.ai/features/sessions) firmy Helicone umożliwia grupowanie powiązanych żądań LLM. Użyj wtyczki [opencode-helicone-session](https://github.com/H2Shami/opencode-helicone-session), aby automatycznie rejestrować każdą konwersację opencode jako sesję w Helicone.
+Funkcja [Sesje](https://docs.helicone.ai/features/sessions) firmy Helicone umożliwia grupowanie powiązanych żądań LLM. Użyj wtyczki [opencode-helicone-session](https://github.com/H2Shami/opencode-helicone-session), aby automatycznie rejestrować każdą konwersację jollicode jako sesję w Helicone.
 
 ```bash
 npm install -g opencode-helicone-session
@@ -1083,7 +1083,7 @@ Dodaj go do swojej konfiguracji.
 }
 ```
 
-Wtyczka wstawia nagłówki `Helicone-Session-Id` i `Helicone-Session-Name` do Twoich żądań. Na stronie Sesje Helicone każda konwersacja opencode będzie wymieniona jako osobna sesja.
+Wtyczka wstawia nagłówki `Helicone-Session-Id` i `Helicone-Session-Name` do Twoich żądań. Na stronie Sesje Helicone każda konwersacja jollicode będzie wymieniona jako osobna sesja.
 
 ##### Najczęstsze nagłówki Helicone
 
@@ -1100,7 +1100,7 @@ Zobacz [Katalog nagłówków Helicone](https://docs.helicone.ai/helicone-headers
 
 ### llama.cpp
 
-Możesz skonfigurować opencode tak, aby korzystał z modeli lokalnych, za pomocą narzędzia llama-server [llama.cpp](https://github.com/ggml-org/llama.cpp)
+Możesz skonfigurować jollicode tak, aby korzystał z modeli lokalnych, za pomocą narzędzia llama-server [llama.cpp](https://github.com/ggml-org/llama.cpp)
 
 ```json title="opencode.json" "llama.cpp" {5, 6, 8, 10-15}
 {
@@ -1167,7 +1167,7 @@ IO.NET oferuje 17 modeli zoptymalizowanych pod kątem różnych zastosowań:
 
 ### LM Studio
 
-Możesz skonfigurować opencode tak, aby korzystał z modeli lokalnych poprzez LM Studio.
+Możesz skonfigurować jollicode tak, aby korzystał z modeli lokalnych poprzez LM Studio.
 
 ```json title="opencode.json" "lmstudio" {5, 6, 8, 10-14}
 {
@@ -1284,7 +1284,7 @@ Aby użyć Kimi K2 z Moonshot AI:
 
 ### Ollama
 
-Możesz skonfigurować opencode tak, aby korzystał z modeli lokalnych poprzez Ollamę.
+Możesz skonfigurować jollicode tak, aby korzystał z modeli lokalnych poprzez Ollamę.
 
 :::tip
 Ollama może automatycznie skonfigurować się pod kątem opencode. Aby uzyskać szczegółowe informacje, zobacz [dokumentację integracji Ollama](https://docs.ollama.com/integrations/opencode).
@@ -1326,7 +1326,7 @@ Jeśli wywołania narzędzi nie działają, spróbuj zwiększyć `num_ctx` w Oll
 
 ### Ollama Cloud
 
-Aby korzystać z Ollama Cloud z opencode:
+Aby korzystać z Ollama Cloud z jollicode:
 
 1. Udaj się do [https://ollama.com/](https://ollama.com/) i zaloguj się lub utwórz konto.
 
@@ -1349,7 +1349,7 @@ Aby korzystać z Ollama Cloud z opencode:
    └ enter
    ```
 
-6. **Ważne**: Przed użyciem modeli chmurowych w opencode musisz pobrać informacje o modelu lokalnie:
+6. **Ważne**: Przed użyciem modeli chmurowych w jollicode musisz pobrać informacje o modelu lokalnie:
 
    ```bash
    ollama pull gpt-oss:20b-cloud
@@ -1517,7 +1517,7 @@ SAP AI Core zapewnia dostęp do ponad 40 modeli z OpenAI, Anthropic, Google, Ama
    Lub ustaw zmienną środowiskową `AICORE_SERVICE_KEY`:
 
    ```bash
-   AICORE_SERVICE_KEY='{"clientid":"...","clientsecret":"...","url":"...","serviceurls":{"AI_API_URL":"..."}}' opencode
+   AICORE_SERVICE_KEY='{"clientid":"...","clientsecret":"...","url":"...","serviceurls":{"AI_API_URL":"..."}}' jollicode
    ```
 
    Lub dodaj go do swojego profilu bash:
@@ -1529,7 +1529,7 @@ SAP AI Core zapewnia dostęp do ponad 40 modeli z OpenAI, Anthropic, Google, Ama
 4. Opcjonalnie ustaw identyfikator wdrożenia i grupę zasobów:
 
    ```bash
-   AICORE_DEPLOYMENT_ID=your-deployment-id AICORE_RESOURCE_GROUP=your-resource-group opencode
+   AICORE_DEPLOYMENT_ID=your-deployment-id AICORE_RESOURCE_GROUP=your-resource-group jollicode
    ```
 
    :::note
@@ -1606,7 +1606,7 @@ STACKIT AI Model Serving zapewnia w pełni zarządzane suwerenne środowisko hos
 
 ### Scaleway
 
-Aby używać [generatywnych interfejsów API Scaleway](https://www.scaleway.com/en/docs/generative-apis/) z opencode:
+Aby używać [generatywnych interfejsów API Scaleway](https://www.scaleway.com/en/docs/generative-apis/) z jollicode:
 
 1. Przejdź do [Ustawień uprawnień konsoli Scaleway](https://console.scaleway.com/iam/api-keys), aby wygenerować nowy klucz API.
 
@@ -1967,7 +1967,7 @@ Szczegóły konfiguracji:
 - **limit.context**: Maksymalna liczba tokenów wejściowych akceptowanych przez model.
 - **limit.output**: Maksymalna liczba tokenów, które model może wygenerować.
 
-Pola `limit` pozwalają opencode zrozumieć, ile kontekstu pozostało. Standardowi dostawcy pobierają je automatycznie z models.dev.
+Pola `limit` pozwalają jollicode zrozumieć, ile kontekstu pozostało. Standardowi dostawcy pobierają je automatycznie z models.dev.
 
 ---
 
@@ -1975,12 +1975,12 @@ Pola `limit` pozwalają opencode zrozumieć, ile kontekstu pozostało. Standardo
 
 Jeśli masz problemy z konfiguracją dostawcy, sprawdź następujące elementy:
 
-1. **Sprawdź konfigurację uwierzytelniania**: Uruchom `opencode auth list`, aby sprawdzić, czy poświadczenia
+1. **Sprawdź konfigurację uwierzytelniania**: Uruchom `jollicode auth list`, aby sprawdzić, czy poświadczenia
    dla dostawcy są dodawane do Twojej konfiguracji.
 
    Nie dotyczy to dostawców takich jak Amazon Bedrock, którzy w procesie uwierzytelniania opierają się na zmiennych środowiskowych.
 
-2. W przypadku dostawców niestandardowych sprawdź konfigurację opencode i:
+2. W przypadku dostawców niestandardowych sprawdź konfigurację jollicode i:
    - Upewnij się, że identyfikator dostawcy użyty w poleceniu `/connect` jest zgodny z identyfikatorem w konfiguracji opencode.
    - Dla dostawcy używany jest właściwy pakiet npm. Na przykład użyj `@ai-sdk/cerebras` dla Cerebras. W przypadku wszystkich innych dostawców zgodnych z OpenAI użyj `@ai-sdk/openai-compatible`.
    - Sprawdź, czy w polu `options.baseURL` użyto prawidłowego punktu końcowego API.

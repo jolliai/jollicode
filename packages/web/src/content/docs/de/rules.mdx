@@ -1,25 +1,25 @@
 ---
 title: Regeln
-description: Lege eigene Anweisungen fuer opencode fest.
+description: Lege eigene Anweisungen fuer jollicode fest.
 ---
 
-Du kannst opencode ueber eine `AGENTS.md`-Datei mit eigenen Anweisungen steuern.
+Du kannst jollicode ueber eine `AGENTS.md`-Datei mit eigenen Anweisungen steuern.
 Das ist aehnlich zu den Regeln in Cursor und wird direkt in den LLM-Kontext geladen.
 
 ---
 
 ## Initialisierung
 
-Um eine neue `AGENTS.md` zu erstellen, fuehre in opencode den Befehl `/init` aus.
+Um eine neue `AGENTS.md` zu erstellen, fuehre in jollicode den Befehl `/init` aus.
 
 :::tip
 Du solltest die `AGENTS.md` deines Projekts in Git committen.
 :::
 
 Der Befehl scannt dein Projekt und erzeugt daraus eine passende `AGENTS.md`.
-So kann opencode sich in deinem Code besser orientieren.
+So kann jollicode sich in deinem Code besser orientieren.
 
-Wenn bereits eine `AGENTS.md` existiert, versucht opencode sie zu erweitern.
+Wenn bereits eine `AGENTS.md` existiert, versucht jollicode sie zu erweitern.
 
 ---
 
@@ -57,7 +57,7 @@ Hier hinterlegst du projektspezifische Regeln, die dein Team gemeinsam nutzt.
 
 ## Typen
 
-opencode kann `AGENTS.md` aus mehreren Orten lesen.
+jollicode kann `AGENTS.md` aus mehreren Orten lesen.
 Die Orte haben unterschiedliche Zwecke.
 
 ### Projekt
@@ -74,7 +74,7 @@ Da diese Datei nicht in Git landet und nicht mit dem Team geteilt wird, eignet s
 
 ### Claude Code-Kompatibilität
 
-Wenn du von Claude Code kommst, unterstuetzt OpenCode dessen Dateikonventionen als Fallback:
+Wenn du von Claude Code kommst, unterstuetzt Jolli Code dessen Dateikonventionen als Fallback:
 
 - **Projektregeln**: `CLAUDE.md` im Projekt (wenn keine `AGENTS.md` existiert)
 - **Globale Regeln**: `~/.claude/CLAUDE.md` (wenn keine `~/.config/jollicode/AGENTS.md` existiert)
@@ -92,7 +92,7 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ## Rangfolge
 
-Beim Start sucht opencode in dieser Reihenfolge nach Regeldateien:
+Beim Start sucht jollicode in dieser Reihenfolge nach Regeldateien:
 
 1. **Lokale Dateien** beim Hochlaufen ab dem aktuellen Verzeichnis (`AGENTS.md`, `CLAUDE.md`)
 2. **Globale Datei** unter `~/.config/jollicode/AGENTS.md`
@@ -134,7 +134,7 @@ Alle Anweisungsdateien werden mit deinen `AGENTS.md`-Dateien kombiniert.
 
 ## Externe Dateien referenzieren
 
-opencode parst Datei-Referenzen in `AGENTS.md` nicht automatisch.
+jollicode parst Datei-Referenzen in `AGENTS.md` nicht automatisch.
 Du erreichst aehnliches Verhalten auf zwei Wegen.
 
 ### Mit opencode.json
@@ -150,7 +150,7 @@ Empfohlen ist das `instructions`-Feld in der `opencode.json`:
 
 ### Manuelle Anweisungen in AGENTS.md
 
-Du kannst opencode explizit anweisen, externe Dateien zu lesen.
+Du kannst jollicode explizit anweisen, externe Dateien zu lesen.
 Hier ein praxisnahes Beispiel:
 
 ```markdown title="AGENTS.md"

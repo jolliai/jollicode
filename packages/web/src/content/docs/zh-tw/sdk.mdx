@@ -1,13 +1,13 @@
 ---
 title: SDK
-description: opencode 伺服器的型別安全 JS 用戶端。
+description: jollicode 伺服器的型別安全 JS 用戶端。
 ---
 
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-opencode JS/TS SDK 提供了一個型別安全的用戶端，用於與伺服器進行互動。
-您可以用它來建構整合方案，並以程式化方式控制 opencode。
+jollicode JS/TS SDK 提供了一個型別安全的用戶端，用於與伺服器進行互動。
+您可以用它來建構整合方案，並以程式化方式控制 jollicode。
 
 [了解更多](/docs/server)關於伺服器的運作原理。如需範例，請查看社群建構的[專案](/docs/ecosystem#projects)。
 
@@ -25,7 +25,7 @@ npm install @opencode-ai/sdk
 
 ## 建立用戶端
 
-建立一個 opencode 實例：
+建立一個 jollicode 實例：
 
 ```javascript
 import { createOpencode } from "@opencode-ai/sdk"
@@ -54,7 +54,7 @@ const { client } = await createOpencode()
 ```javascript
 import { createOpencode } from "@opencode-ai/sdk"
 
-const opencode = await createOpencode({
+const jollicode = await createOpencode({
   hostname: "127.0.0.1",
   port: 4096,
   config: {
@@ -69,7 +69,7 @@ opencode.server.close()
 
 ## 僅用戶端模式
 
-如果您已經有一個正在執行的 opencode 實例，可以建立一個用戶端實例來連線：
+如果您已經有一個正在執行的 jollicode 實例，可以建立一個用戶端實例來連線：
 
 ```javascript
 import { createOpencodeClient } from "@opencode-ai/sdk"
@@ -376,7 +376,7 @@ await client.session.prompt({
 ```javascript
 // 搜尋和讀取檔案
 const textResults = await client.find.text({
-  query: { pattern: "function.*opencode" },
+  query: { pattern: "function.*jollicode" },
 })
 
 const files = await client.find.files({
