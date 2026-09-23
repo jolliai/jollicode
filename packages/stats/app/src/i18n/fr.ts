@@ -43,7 +43,7 @@ export const dict = {
   "footer.youtube": "YouTube",
   "footer.homeAria": "Accueil Jolli Code",
   "footer.status": "Tous les systèmes sont opérationnels",
-  "footer.copyright": "© 2026 Anomaly Innovations Inc.",
+  "footer.copyright": "© 2026 Jolli, Inc.",
   "bridge.learnMore": "EN SAVOIR PLUS",
   "modal.closeNewsletter": "Fermer l'inscription à la newsletter",
   "modal.title": "Newsletter Jolli Code",

@@ -62,7 +62,7 @@ const en = {
   "footer.youtube": "YouTube",
   "footer.homeAria": "Jolli Code home",
   "footer.status": "All systems Operational",
-  "footer.copyright": "© 2026 Anomaly Innovations Inc.",
+  "footer.copyright": "© 2026 Jolli, Inc.",
   "bridge.learnMore": "LEARN MORE",
   "modal.closeNewsletter": "Close newsletter signup",
   "modal.title": "Jolli Code Newsletter",

@@ -45,7 +45,7 @@ export const dict = {
   "footer.youtube": "YouTube",
   "footer.homeAria": "Jolli Codeホーム",
   "footer.status": "すべてのシステムは正常稼働中",
-  "footer.copyright": "© 2026 Anomaly Innovations Inc.",
+  "footer.copyright": "© 2026 Jolli, Inc.",
   "bridge.learnMore": "詳しく見る",
   "modal.closeNewsletter": "ニュースレター登録を閉じる",
   "modal.title": "Jolli Codeニュースレター",
