@@ -3,7 +3,7 @@ title: GitHub
 description: 在 GitHub Issue 和 Pull Request 中使用 Jolli Code。
 ---
 
-Jolli Code 可以与你的 GitHub 工作流集成。在评论中提及 `/opencode` 或 `/oc`，Jolli Code 就会在你的 GitHub Actions 运行器中执行任务。
+Jolli Code 可以与你的 GitHub 工作流集成。在评论中提及 `/jollicode` 或 `/jc`，Jolli Code 就会在你的 GitHub Actions 运行器中执行任务。
 
 ---
 
@@ -33,13 +33,13 @@ jollicode github install
 
 1. **安装 GitHub App**
 
-   前往 [**github.com/apps/opencode-agent**](https://github.com/apps/opencode-agent)，确保已在目标仓库中安装该应用。
+   前往 [**github.com/apps/jolli-agent**](https://github.com/apps/jolli-agent)，确保已在目标仓库中安装该应用。
 
 2. **添加工作流**
 
-   将以下工作流文件添加到仓库的 `.github/workflows/opencode.yml` 中。请确保在 `env` 中设置合适的 `model` 及所需的 API 密钥。
+   将以下工作流文件添加到仓库的 `.github/workflows/jollicode.yml` 中。请确保在 `env` 中设置合适的 `model` 及所需的 API 密钥。
 
-   ```yml title=".github/workflows/opencode.yml" {24,26}
+   ```yml title=".github/workflows/jollicode.yml" {24,26}
    name: jollicode
 
    on:
@@ -51,8 +51,8 @@ jollicode github install
    jobs:
      jollicode:
        if: |
-         contains(github.event.comment.body, '/oc') ||
-         contains(github.event.comment.body, '/opencode')
+         contains(github.event.comment.body, '/jc') ||
+         contains(github.event.comment.body, '/jollicode')
        runs-on: ubuntu-latest
        permissions:
          id-token: write
@@ -64,7 +64,7 @@ jollicode github install
               persist-credentials: false
 
           - name: Run Jolli Code
-           uses: anomalyco/opencode/github@latest
+           uses: jolliai/jollicode/github@latest
            env:
              ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
            with:
@@ -107,8 +107,8 @@ Jolli Code 可以由以下 GitHub 事件触发：
 
 | 事件类型                      | 触发方式                     | 详情                                                                                      |
 | ----------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------- |
-| `issue_comment`               | 在 Issue 或 PR 上发表评论    | 在评论中提及 `/opencode` 或 `/oc`。Jolli Code 会读取上下文，并可创建分支、提交 PR 或回复。  |
-| `pull_request_review_comment` | 在 PR 中对特定代码行发表评论 | 在代码审查时提及 `/opencode` 或 `/oc`。Jolli Code 会接收文件路径、行号和 diff 上下文。      |
+| `issue_comment`               | 在 Issue 或 PR 上发表评论    | 在评论中提及 `/jollicode` 或 `/jc`。Jolli Code 会读取上下文，并可创建分支、提交 PR 或回复。  |
+| `pull_request_review_comment` | 在 PR 中对特定代码行发表评论 | 在代码审查时提及 `/jollicode` 或 `/jc`。Jolli Code 会接收文件路径、行号和 diff 上下文。      |
 | `issues`                      | Issue 被创建或编辑           | 在 Issue 创建或修改时自动触发 Jolli Code。需要提供 `prompt` 输入。                          |
 | `pull_request`                | PR 被创建或更新              | 在 PR 被打开、同步或重新打开时自动触发 Jolli Code。适用于自动化审查场景。                   |
 | `schedule`                    | 基于 Cron 的定时任务         | 按计划运行 Jolli Code。需要提供 `prompt` 输入。输出会写入日志和 PR（没有 Issue 可供评论）。 |
@@ -118,7 +118,7 @@ Jolli Code 可以由以下 GitHub 事件触发：
 
 按计划运行 Jolli Code 以执行自动化任务：
 
-```yaml title=".github/workflows/opencode-scheduled.yml"
+```yaml title=".github/workflows/jollicode-scheduled.yml"
 name: Scheduled Jolli Code Task
 
 on:
@@ -140,7 +140,7 @@ jobs:
           persist-credentials: false
 
       - name: Run Jolli Code
-        uses: anomalyco/opencode/github@latest
+        uses: jolliai/jollicode/github@latest
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
@@ -158,8 +158,8 @@ jobs:
 
 在 PR 被创建或更新时自动进行审查：
 
-```yaml title=".github/workflows/opencode-review.yml"
-name: opencode-review
+```yaml title=".github/workflows/jollicode-review.yml"
+name: jollicode-review
 
 on:
   pull_request:
@@ -177,7 +177,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: anomalyco/opencode/github@latest
+      - uses: jolliai/jollicode/github@latest
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -199,7 +199,7 @@ jobs:
 
 自动分类新建的 Issue。以下示例会过滤掉注册不满 30 天的账户以减少垃圾信息：
 
-```yaml title=".github/workflows/opencode-triage.yml"
+```yaml title=".github/workflows/jollicode-triage.yml"
 name: Issue Triage
 
 on:
@@ -233,7 +233,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: anomalyco/opencode/github@latest
+      - uses: jolliai/jollicode/github@latest
         if: steps.check.outputs.result == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -254,8 +254,8 @@ jobs:
 
 覆盖默认提示词，以便为你的工作流自定义 Jolli Code 的行为。
 
-```yaml title=".github/workflows/opencode.yml"
-- uses: anomalyco/opencode/github@latest
+```yaml title=".github/workflows/jollicode.yml"
+- uses: jolliai/jollicode/github@latest
   with:
     model: anthropic/claude-sonnet-4-5
     prompt: |
@@ -278,7 +278,7 @@ jobs:
   在 GitHub Issue 中添加以下评论：
 
   ```
-  /opencode explain this issue
+  /jollicode explain this issue
   ```
 
   Jolli Code 会阅读整个讨论串（包括所有评论），并回复一份清晰的解释。
@@ -288,7 +288,7 @@ jobs:
   在 GitHub Issue 中输入：
 
   ```
-  /opencode fix this
+  /jollicode fix this
   ```
 
   Jolli Code 会创建一个新分支，实现变更，并提交一个包含所有修改的 PR。
@@ -298,7 +298,7 @@ jobs:
   在 GitHub PR 上留下以下评论：
 
   ```
-  Delete the attachment from S3 when the note is removed /oc
+  Delete the attachment from S3 when the note is removed /jc
   ```
 
   Jolli Code 会实现所请求的变更并将其提交到同一个 PR 中。
@@ -309,7 +309,7 @@ jobs:
 
   ```
   [Comment on specific lines in Files tab]
-  /oc add error handling here
+  /jc add error handling here
   ```
 
   当你对特定代码行发表评论时，Jolli Code 会接收到：

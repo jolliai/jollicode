@@ -47,7 +47,7 @@ const VERSION = await (async () => {
   return `${major}.${minor}.${patch + 1}`
 })()
 
-const bot = ["actions-user", "opencode", "opencode-agent[bot]"]
+const bot = ["actions-user", "jollicode", "jolli-agent[bot]"]
 const team = [...bot]
 
 export const Script = {

@@ -3,7 +3,7 @@ title: GitHub
 description: Brug Jolli Code i GitHub-problemer og Pull Requests.
 ---
 
-Jolli Code integreres med din GitHub arbejdsgang. Nævn `/opencode` eller `/oc` i din kommentar, og Jolli Code vil udføre opgaver i din GitHub Actions-løber.
+Jolli Code integreres med din GitHub arbejdsgang. Nævn `/jollicode` eller `/jc` i din kommentar, og Jolli Code vil udføre opgaver i din GitHub Actions-løber.
 
 ---
 
@@ -33,13 +33,13 @@ Eller du kan indstille det manuelt.
 
 1. **Installationsprogrammet GitHub-appen**
 
-   Gå over til [**github.com/apps/opencode-agent**](https://github.com/apps/opencode-agent). Sørg for, at det er installeret på mållageret.
+   Gå over til [**github.com/apps/jolli-agent**](https://github.com/apps/jolli-agent). Sørg for, at det er installeret på mållageret.
 
 2. **Tilføj arbejdsgangen**
 
-   Tilføj følgende workflow-fil til `.github/workflows/opencode.yml` i din repo. Sørg for at indstille de relevante `model` og nødvendige API-nøgler i `env`.
+   Tilføj følgende workflow-fil til `.github/workflows/jollicode.yml` i din repo. Sørg for at indstille de relevante `model` og nødvendige API-nøgler i `env`.
 
-   ```yml title=".github/workflows/opencode.yml" {24,26}
+   ```yml title=".github/workflows/jollicode.yml" {24,26}
    name: jollicode
 
    on:
@@ -51,8 +51,8 @@ Eller du kan indstille det manuelt.
    jobs:
      jollicode:
        if: |
-         contains(github.event.comment.body, '/oc') ||
-         contains(github.event.comment.body, '/opencode')
+         contains(github.event.comment.body, '/jc') ||
+         contains(github.event.comment.body, '/jollicode')
        runs-on: ubuntu-latest
        permissions:
          id-token: write
@@ -64,7 +64,7 @@ Eller du kan indstille det manuelt.
               persist-credentials: false
 
           - name: Run Jolli Code
-           uses: anomalyco/opencode/github@latest
+           uses: jolliai/jollicode/github@latest
            env:
              ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
            with:
@@ -107,8 +107,8 @@ Jolli Code kan udløses af følgende GitHub hændelser:
 
 | Begivenhedstype               | Udløst af                               | Detaljer                                                                                                                |
 | ----------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `issue_comment`               | Kommentarer og problemer eller PR       | Nævn `/opencode` eller `/oc` i din kommentar. Jolli Code læser kontekst og kan oprette brancher, åbne PR'er eller svare.  |
-| `pull_request_review_comment` | Kommenter specifikke kodelinjer i en PR | Nævn `/opencode` eller `/oc`, mens du gennemgår koden. Jolli Code modtager filsti, linjenumre og diff-kontekst.           |
+| `issue_comment`               | Kommentarer og problemer eller PR       | Nævn `/jollicode` eller `/jc` i din kommentar. Jolli Code læser kontekst og kan oprette brancher, åbne PR'er eller svare.  |
+| `pull_request_review_comment` | Kommenter specifikke kodelinjer i en PR | Nævn `/jollicode` eller `/jc`, mens du gennemgår koden. Jolli Code modtager filsti, linjenumre og diff-kontekst.           |
 | `issues`                      | Udgave åbnet eller redigeret            | Udløs automatisk Jolli Code, når problemer oprettes eller ændres. Kræver `prompt` input.                                  |
 | `pull_request`                | PR åbnet eller opdateret                | Udløs automatisk Jolli Code, når PR'er åbnes, synkroniseres eller genåbnes. Nyttigt til automatiserede kodegennemgange.   |
 | `schedule`                    | Cron-baseret tidsplan                   | Kør Jolli Code efter en tidsplan. Kræver `prompt` input. Output går til logfiler og PR'er (intet problem ved kommentere). |
@@ -118,7 +118,7 @@ Jolli Code kan udløses af følgende GitHub hændelser:
 
 Kør Jolli Code efter en tidsplan for at udføre automatiske opgaver:
 
-```yaml title=".github/workflows/opencode-scheduled.yml"
+```yaml title=".github/workflows/jollicode-scheduled.yml"
 name: Scheduled Jolli Code Task
 
 on:
@@ -140,7 +140,7 @@ jobs:
           persist-credentials: false
 
       - name: Run Jolli Code
-        uses: anomalyco/opencode/github@latest
+        uses: jolliai/jollicode/github@latest
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
@@ -158,8 +158,8 @@ For planlagte begivenheder er `prompt` input **påkrævet**, da der ikke er noge
 
 Gennemgå automatisk PR'er, når de åbnes eller opdateres:
 
-```yaml title=".github/workflows/opencode-review.yml"
-name: opencode-review
+```yaml title=".github/workflows/jollicode-review.yml"
+name: jollicode-review
 
 on:
   pull_request:
@@ -177,7 +177,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: anomalyco/opencode/github@latest
+      - uses: jolliai/jollicode/github@latest
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -199,7 +199,7 @@ For `pull_request` hændelser, hvis der ikke er angivet nogen `prompt`, vil Joll
 
 Triage automatisk nye problemer. Dette eksempel filtrerer til konti ældre end 30 dage for at reducere spam:
 
-```yaml title=".github/workflows/opencode-triage.yml"
+```yaml title=".github/workflows/jollicode-triage.yml"
 name: Issue Triage
 
 on:
@@ -233,7 +233,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: anomalyco/opencode/github@latest
+      - uses: jolliai/jollicode/github@latest
         if: steps.check.outputs.result == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -252,10 +252,10 @@ For `issues` begivenheder er `prompt` input **påkrævet**, da der ikke er nogen
 
 ## Brugerdefinerede prompter
 
-Tilsidesæt standardprompten for at tilpasse OpenCodes adfærd til din arbejdsgang.
+Tilsidesæt standardprompten for at tilpasse Jolli Codes adfærd til din arbejdsgang.
 
-```yaml title=".github/workflows/opencode.yml"
-- uses: anomalyco/opencode/github@latest
+```yaml title=".github/workflows/jollicode.yml"
+- uses: jolliai/jollicode/github@latest
   with:
     model: anthropic/claude-sonnet-4-5
     prompt: |
@@ -278,7 +278,7 @@ Her er nogle eksempler på, hvordan du kan bruge Jolli Code i GitHub.
   Tilføj denne kommentar i et GitHub-nummer.
 
   ```
-  /opencode explain this issue
+  /jollicode explain this issue
   ```
 
   Jolli Code vil læse hele tråden, inklusive alle kommentarer, og svare med en klar forklaring.
@@ -288,7 +288,7 @@ Her er nogle eksempler på, hvordan du kan bruge Jolli Code i GitHub.
   I et GitHub-problem skal du sige:
 
   ```
-  /opencode fix this
+  /jollicode fix this
   ```
 
   Og Jolli Code vil oprette en ny branch, implementere ændringer og åbne en PR med ændringer.
@@ -298,7 +298,7 @@ Her er nogle eksempler på, hvordan du kan bruge Jolli Code i GitHub.
   Efterlad følgende kommentar på en GitHub PR.
 
   ```
-  Delete the attachment from S3 when the note is removed /oc
+  Delete the attachment from S3 when the note is removed /jc
   ```
 
   Jolli Code vil implementere den ønskede ændring og forpligtelse til den samme PR.
@@ -309,7 +309,7 @@ Her er nogle eksempler på, hvordan du kan bruge Jolli Code i GitHub.
 
   ```
   [Comment on specific lines in Files tab]
-  /oc add error handling here
+  /jc add error handling here
   ```
 
   Når du kommenterer på specifikke linjer, modtager Jolli Code:

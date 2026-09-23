@@ -3,7 +3,7 @@ title: GitHub
 description: GitHub の問題とプルリクエストで Jolli Code を使用します。
 ---
 
-Jolli Code は GitHub ワークフローと統合します。コメントで `/opencode` または `/oc` に言及すると、Jolli Code が GitHub Actions ランナー内でタスクを実行します。
+Jolli Code は GitHub ワークフローと統合します。コメントで `/jollicode` または `/jc` に言及すると、Jolli Code が GitHub Actions ランナー内でタスクを実行します。
 
 ---
 
@@ -33,13 +33,13 @@ jollicode github install
 
 1. **GitHub アプリをインストールします**
 
-[**github.com/apps/opencode-agent**](https://github.com/apps/opencode-agent) にアクセスしてください。ターゲットリポジトリにインストールされていることを確認してください。
+[**github.com/apps/jolli-agent**](https://github.com/apps/jolli-agent) にアクセスしてください。ターゲットリポジトリにインストールされていることを確認してください。
 
 2. **ワークフローを追加**
 
-次のワークフローファイルをリポジトリの `.github/workflows/opencode.yml` に追加します。適切な `model` と必要な API キーを `env` に設定してください。
+次のワークフローファイルをリポジトリの `.github/workflows/jollicode.yml` に追加します。適切な `model` と必要な API キーを `env` に設定してください。
 
-```yml title=".github/workflows/opencode.yml" {24,26}
+```yml title=".github/workflows/jollicode.yml" {24,26}
    name: jollicode
 
    on:
@@ -51,8 +51,8 @@ jollicode github install
    jobs:
      jollicode:
        if: |
-         contains(github.event.comment.body, '/oc') ||
-         contains(github.event.comment.body, '/opencode')
+         contains(github.event.comment.body, '/jc') ||
+         contains(github.event.comment.body, '/jollicode')
        runs-on: ubuntu-latest
        permissions:
          id-token: write
@@ -64,7 +64,7 @@ jollicode github install
               persist-credentials: false
 
           - name: Run Jolli Code
-           uses: anomalyco/opencode/github@latest
+           uses: jolliai/jollicode/github@latest
            env:
              ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
            with:
@@ -107,8 +107,8 @@ Jolli Code は、次の GitHub イベントによってトリガーできます�
 
 | イベントの種類                | トリガー                            | 詳細                                                                                                                                                        |
 | ----------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `issue_comment`               | 問題または PR についてコメントする  | コメントで `/opencode` または `/oc` について言及してください。 Jolli Code はコンテキストを読み取り、ブランチを作成したり、PR を開いたり、返信したりできます。 |
-| `pull_request_review_comment` | PR 内の特定のコード行にコメントする | コードをレビューするときに、`/opencode` または `/oc` について言及します。 Jolli Code は、ファイルパス、行番号、および diff コンテキストを受け取ります。       |
+| `issue_comment`               | 問題または PR についてコメントする  | コメントで `/jollicode` または `/jc` について言及してください。 Jolli Code はコンテキストを読み取り、ブランチを作成したり、PR を開いたり、返信したりできます。 |
+| `pull_request_review_comment` | PR 内の特定のコード行にコメントする | コードをレビューするときに、`/jollicode` または `/jc` について言及します。 Jolli Code は、ファイルパス、行番号、および diff コンテキストを受け取ります。       |
 | `issues`                      | 問題がオープンまたは編集されました  | 問題が作成または変更されると、Jolli Code が自動的にトリガーされます。 `prompt` 入力が必要です。                                                               |
 | `pull_request`                | PR がオープンまたは更新されました   | PR が開かれる、同期される、または再度開かれるときに、Jolli Code を自動的にトリガーします。自動レビューに役立ちます。                                          |
 | `schedule`                    | Cron ベースのスケジュール           | スケジュールに従って Jolli Code を実行します。 `prompt` 入力が必要です。出力はログと PR に送られます (コメントする問題はありません)。                         |
@@ -118,7 +118,7 @@ Jolli Code は、次の GitHub イベントによってトリガーできます�
 
 スケジュールに従って Jolli Code を実行し、自動化されたタスクを実行します。
 
-```yaml title=".github/workflows/opencode-scheduled.yml"
+```yaml title=".github/workflows/jollicode-scheduled.yml"
 name: Scheduled Jolli Code Task
 
 on:
@@ -140,7 +140,7 @@ jobs:
           persist-credentials: false
 
       - name: Run Jolli Code
-        uses: anomalyco/opencode/github@latest
+        uses: jolliai/jollicode/github@latest
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
@@ -158,8 +158,8 @@ jobs:
 
 PR が開かれるか更新されるときに、PR を自動的にレビューします。
 
-```yaml title=".github/workflows/opencode-review.yml"
-name: opencode-review
+```yaml title=".github/workflows/jollicode-review.yml"
+name: jollicode-review
 
 on:
   pull_request:
@@ -177,7 +177,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: anomalyco/opencode/github@latest
+      - uses: jolliai/jollicode/github@latest
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -199,7 +199,7 @@ jobs:
 
 新しい問題を自動的に優先順位付けします。この例では、スパムを減らすために 30 日より古いアカウントにフィルターを適用します。
 
-```yaml title=".github/workflows/opencode-triage.yml"
+```yaml title=".github/workflows/jollicode-triage.yml"
 name: Issue Triage
 
 on:
@@ -233,7 +233,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: anomalyco/opencode/github@latest
+      - uses: jolliai/jollicode/github@latest
         if: steps.check.outputs.result == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -254,8 +254,8 @@ jobs:
 
 デフォルトのプロンプトをオーバーライドして、ワークフローに合わせて Jolli Code の動作をカスタマイズします。
 
-```yaml title=".github/workflows/opencode.yml"
-- uses: anomalyco/opencode/github@latest
+```yaml title=".github/workflows/jollicode.yml"
+- uses: jolliai/jollicode/github@latest
   with:
     model: anthropic/claude-sonnet-4-5
     prompt: |
@@ -278,7 +278,7 @@ GitHub で Jolli Code を使用する方法の例をいくつか示します。
 このコメントを GitHub の問題に追加します。
 
 ```
-  /opencode explain this issue
+  /jollicode explain this issue
 ```
 
 Jolli Code は、すべてのコメントを含むスレッド全体を読み取り、明確な説明を返信します。
@@ -288,7 +288,7 @@ Jolli Code は、すべてのコメントを含むスレッド全体を読み取
 GitHub の問題で次のように言います。
 
 ```
-  /opencode fix this
+  /jollicode fix this
 ```
 
 そして、Jolli Code は新しいブランチを作成し、変更を実装し、変更を含む PR を開きます。
@@ -298,7 +298,7 @@ GitHub の問題で次のように言います。
 GitHub PR に次のコメントを残してください。
 
 ```
-  Delete the attachment from S3 when the note is removed /oc
+  Delete the attachment from S3 when the note is removed /jc
 ```
 
 Jolli Code は要求された変更を実装し、同じ PR にコミットします。
@@ -309,7 +309,7 @@ PR の「ファイル」タブのコード行に直接コメントを残しま�
 
 ```
   [Comment on specific lines in Files tab]
-  /oc add error handling here
+  /jc add error handling here
 ```
 
 特定の行にコメントすると、Jolli Code は以下を受け取ります。
