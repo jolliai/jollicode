@@ -14,6 +14,7 @@ import everforestThemeJson from "./themes/everforest.json"
 import flexokiThemeJson from "./themes/flexoki.json"
 import githubThemeJson from "./themes/github.json"
 import gruvboxThemeJson from "./themes/gruvbox.json"
+import jollicodeThemeJson from "./themes/jollicode.json"
 import kanagawaThemeJson from "./themes/kanagawa.json"
 import lucentOrngThemeJson from "./themes/lucent-orng.json"
 import materialThemeJson from "./themes/material.json"
@@ -24,7 +25,6 @@ import nightowlThemeJson from "./themes/nightowl.json"
 import nordThemeJson from "./themes/nord.json"
 import oneDarkThemeJson from "./themes/one-dark.json"
 import oneDarkProThemeJson from "./themes/onedarkpro.json"
-import opencodeThemeJson from "./themes/opencode.json"
 import orngThemeJson from "./themes/orng.json"
 import osakaJadeThemeJson from "./themes/osaka-jade.json"
 import palenightThemeJson from "./themes/palenight.json"
@@ -52,6 +52,7 @@ export const everforestTheme = everforestThemeJson as DesktopTheme
 export const flexokiTheme = flexokiThemeJson as DesktopTheme
 export const githubTheme = githubThemeJson as DesktopTheme
 export const gruvboxTheme = gruvboxThemeJson as DesktopTheme
+export const jollicodeTheme = jollicodeThemeJson as DesktopTheme
 export const kanagawaTheme = kanagawaThemeJson as DesktopTheme
 export const lucentOrngTheme = lucentOrngThemeJson as DesktopTheme
 export const materialTheme = materialThemeJson as DesktopTheme
@@ -62,7 +63,6 @@ export const nightowlTheme = nightowlThemeJson as DesktopTheme
 export const nordTheme = nordThemeJson as DesktopTheme
 export const oneDarkTheme = oneDarkThemeJson as DesktopTheme
 export const oneDarkProTheme = oneDarkProThemeJson as DesktopTheme
-export const opencodeTheme = opencodeThemeJson as DesktopTheme
 export const orngTheme = orngThemeJson as DesktopTheme
 export const osakaJadeTheme = osakaJadeThemeJson as DesktopTheme
 export const palenightTheme = palenightThemeJson as DesktopTheme
@@ -91,6 +91,7 @@ export const DEFAULT_THEMES: Record<string, DesktopTheme> = {
   flexoki: flexokiTheme,
   github: githubTheme,
   gruvbox: gruvboxTheme,
+  jollicode: jollicodeTheme,
   kanagawa: kanagawaTheme,
   "lucent-orng": lucentOrngTheme,
   material: materialTheme,
@@ -101,7 +102,6 @@ export const DEFAULT_THEMES: Record<string, DesktopTheme> = {
   nord: nordTheme,
   "one-dark": oneDarkTheme,
   onedarkpro: oneDarkProTheme,
-  opencode: opencodeTheme,
   orng: orngTheme,
   "osaka-jade": osakaJadeTheme,
   palenight: palenightTheme,
