@@ -45,7 +45,7 @@ export const dict = {
   "footer.youtube": "YouTube",
   "footer.homeAria": "Jolli Code 首頁",
   "footer.status": "所有系統運作正常",
-  "footer.copyright": "© 2026 Anomaly Innovations Inc.",
+  "footer.copyright": "© 2026 Jolli, Inc.",
   "bridge.learnMore": "了解更多",
   "modal.closeNewsletter": "關閉電子報註冊",
   "modal.title": "Jolli Code 電子報",
