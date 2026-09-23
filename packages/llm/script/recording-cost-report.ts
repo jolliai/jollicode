@@ -2,7 +2,8 @@ import * as fs from "node:fs/promises"
 import * as path from "node:path"
 
 const RECORDINGS_DIR = path.resolve(import.meta.dir, "..", "test", "fixtures", "recordings")
-const MODELS_DEV_URL = "https://models.jolli.ai/api.json"
+// TODO: point back at models.jolli.ai once infra/stage.ts provisions that subdomain.
+const MODELS_DEV_URL = "https://models.opencode.ai/api.json"
 
 type JsonRecord = Record<string, unknown>
 

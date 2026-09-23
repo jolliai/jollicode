@@ -45,7 +45,8 @@ function providerIconsPlugin() {
 }
 
 async function fetchProviderIcons() {
-  const url = process.env.OPENCODE_MODELS_URL || "https://models.jolli.ai"
+  // TODO: point back at models.jolli.ai once infra/stage.ts provisions that subdomain.
+  const url = process.env.OPENCODE_MODELS_URL || "https://models.opencode.ai"
   const providers = await fetch(`${url}/api.json`)
     .then((res) => res.json())
     .then((json) => Object.keys(json))
