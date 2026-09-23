@@ -3,11 +3,11 @@ title: Tuş atamaları
 description: Tuş bağlantılarınızı özelleştirin.
 ---
 
-jollicode, `tui.json` aracılığıyla özelleştirebileceğiniz bir tuş bağlantıları listesine sahiptir.
+Jolli Code, `tui.json` aracılığıyla özelleştirebileceğiniz bir tuş bağlantıları listesine sahiptir.
 
 ```json title="tui.json"
 {
-  "$schema": "https://opencode.ai/tui.json",
+  "$schema": "https://jolli.ai/tui.json",
   "keybinds": {
     "leader": "ctrl+x",
     "app_exit": "ctrl+c,ctrl+d,<leader>q",
@@ -109,7 +109,7 @@ jollicode, `tui.json` aracılığıyla özelleştirebileceğiniz bir tuş bağla
 
 ## Leader tuşu
 
-jollicode çoğu tuş ataması için `leader` anahtarını kullanır. Bu, terminalinizdeki çakışmaları önler.
+Jolli Code çoğu tuş ataması için `leader` anahtarını kullanır. Bu, terminalinizdeki çakışmaları önler.
 
 Varsayılan olarak `ctrl+x` lider tuştur ve çoğu eylem önce lider tuşa, ardından kısayola basmanızı gerektirir. Örneğin, yeni bir oturum başlatmak için önce `ctrl+x` tuşuna, ardından `n` tuşuna basarsınız.
 
@@ -123,7 +123,7 @@ Anahtarı yapılandırmanıza "none" değeriyle ekleyerek bir tuş atamasını d
 
 ```json title="tui.json"
 {
-  "$schema": "https://opencode.ai/tui.json",
+  "$schema": "https://jolli.ai/tui.json",
   "keybinds": {
     "session_compact": "none"
   }
@@ -134,7 +134,7 @@ Anahtarı yapılandırmanıza "none" değeriyle ekleyerek bir tuş atamasını d
 
 ## Masaüstü istemi kısayolları
 
-jollicode masaüstü uygulaması bilgi istemi girişi, metni düzenlemek için yaygın Readline/Emacs tarzı kısayolları destekler. Bunlar yerleşiktir ve şu anda `opencode.json` aracılığıyla yapılandırılamaz.
+Jolli Code masaüstü uygulaması bilgi istemi girişi, metni düzenlemek için yaygın Readline/Emacs tarzı kısayolları destekler. Bunlar yerleşiktir ve şu anda `opencode.json` aracılığıyla yapılandırılamaz.
 
 | Shortcut | Action                                              |
 | -------- | --------------------------------------------------- |

@@ -5,10 +5,10 @@ description: Execute o jollicode no Windows com WSL para melhor experiência.
 
 import { Steps } from "@astrojs/starlight/components"
 
-Embora o jollicode possa rodar direto no Windows, recomendamos usar [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) para a melhor experiência. O WSL oferece um ambiente Linux que funciona de forma integrada com os recursos do opencode.
+Embora o Jolli Code possa rodar direto no Windows, recomendamos usar [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) para a melhor experiência. O WSL oferece um ambiente Linux que funciona de forma integrada com os recursos do Jolli Code.
 
 :::tip[Por que WSL?]
-O WSL oferece melhor desempenho de sistema de arquivos, suporte completo a terminal e compatibilidade com as ferramentas de desenvolvimento das quais o jollicode depende.
+O WSL oferece melhor desempenho de sistema de arquivos, suporte completo a terminal e compatibilidade com as ferramentas de desenvolvimento das quais o Jolli Code depende.
 :::
 
 ---
@@ -21,17 +21,17 @@ O WSL oferece melhor desempenho de sistema de arquivos, suporte completo a termi
 
    Se ainda não instalou, [instale o WSL](https://learn.microsoft.com/en-us/windows/wsl/install) usando o guia oficial da Microsoft.
 
-2. **Instale o jollicode no WSL**
+2. **Instale o Jolli Code no WSL**
 
-   Depois de configurar o WSL, abra o terminal do WSL e instale o jollicode usando um dos [métodos de instalação](/docs/).
+   Depois de configurar o WSL, abra o terminal do WSL e instale o Jolli Code usando um dos [métodos de instalação](/docs/).
 
    ```bash
-   curl -fsSL https://opencode.ai/install | bash
+   curl -fsSL https://jolli.ai/install | bash
    ```
 
-3. **Use o jollicode pelo WSL**
+3. **Use o Jolli Code pelo WSL**
 
-   Vá para o diretório do seu projeto (acesse arquivos do Windows via `/mnt/c/`, `/mnt/d/` etc.) e execute o opencode.
+   Vá para o diretório do seu projeto (acesse arquivos do Windows via `/mnt/c/`, `/mnt/d/` etc.) e execute o Jolli Code.
 
    ```bash
    cd /mnt/c/Users/YourName/project
@@ -44,7 +44,7 @@ O WSL oferece melhor desempenho de sistema de arquivos, suporte completo a termi
 
 ## App desktop + servidor WSL
 
-Se você prefere usar o app desktop do jollicode, mas quer rodar o servidor no WSL:
+Se você prefere usar o app desktop do Jolli Code, mas quer rodar o servidor no WSL:
 
 1. **Inicie o servidor no WSL** com `--hostname 0.0.0.0` para permitir conexões externas:
 
@@ -79,7 +79,7 @@ Para a melhor experiência web no Windows:
    jollicode web --hostname 0.0.0.0
    ```
 
-2. **Acesse pelo navegador do Windows** em `http://localhost:<port>` (o jollicode mostra a URL)
+2. **Acesse pelo navegador do Windows** em `http://localhost:<port>` (o Jolli Code mostra a URL)
 
 Executar `jollicode web` a partir do WSL garante acesso correto ao sistema de arquivos e integração com o terminal, continuando acessível no navegador do Windows.
 
@@ -101,13 +101,13 @@ jollicode
 ```
 
 :::tip
-Para uma experiência mais fluida, considere clonar/copiar seu repositório para o sistema de arquivos do WSL (por exemplo em `~/code/`) e executar o jollicode por lá.
+Para uma experiência mais fluida, considere clonar/copiar seu repositório para o sistema de arquivos do WSL (por exemplo em `~/code/`) e executar o Jolli Code por lá.
 :::
 
 ---
 
 ## Dicas
 
-- Mantenha o jollicode rodando no WSL para projetos armazenados em unidades do Windows - o acesso aos arquivos fica fluido
-- Use a [extensão WSL do VS Code](https://code.visualstudio.com/docs/remote/wsl) junto com o jollicode para um fluxo de desenvolvimento integrado
-- Sua configuração e suas sessões do jollicode ficam armazenadas no ambiente WSL em `~/.local/share/jollicode/`
+- Mantenha o Jolli Code rodando no WSL para projetos armazenados em unidades do Windows - o acesso aos arquivos fica fluido
+- Use a [extensão WSL do VS Code](https://code.visualstudio.com/docs/remote/wsl) junto com o Jolli Code para um fluxo de desenvolvimento integrado
+- Sua configuração e suas sessões do Jolli Code ficam armazenadas no ambiente WSL em `~/.local/share/jollicode/`

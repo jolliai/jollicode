@@ -35,7 +35,7 @@ Možete prilagoditi osnovni URL za bilo kojeg provajdera postavljanjem opcije `b
 
 ```json title="opencode.json" {6}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "anthropic": {
       "options": {
@@ -57,7 +57,7 @@ testirano i potvrđeno da dobro radi sa Jolli Code. [Saznajte više](/docs/zen).
 Ako ste novi, preporučujemo da počnete sa OpenCode Zen.
 :::
 
-1. Pokrenite naredbu `/connect` u TUI-u, odaberite opencode i idite na [opencode.ai/auth](https://opencode.ai/auth).
+1. Pokrenite naredbu `/connect` u TUI-u, odaberite opencode i idite na [jolli.ai/auth](https://jolli.ai/auth).
 
 ```txt
    /connect
@@ -88,7 +88,7 @@ Radi kao i svaki drugi provajder u Jolli Code i potpuno je opcionalan za korišt
 
 Jolli Code Go je jeftin plan pretplate koji pruža pouzdan pristup popularnim modelima otvorenog kodiranja koje pruža Jolli Code tim i koji su testirani i verificirani da dobro rade s Jolli Code-om.
 
-1. Pokrenite naredbu `/connect` u TUI-u, odaberite `Jolli Code Go` i idite na [opencode.ai/auth](https://opencode.ai/zen).
+1. Pokrenite naredbu `/connect` u TUI-u, odaberite `Jolli Code Go` i idite na [jolli.ai/auth](https://jolli.ai/zen).
 
    ```txt
    /connect
@@ -168,7 +168,7 @@ Da biste koristili Amazon Bedrock s Jolli Code:
 
    #### Varijable okruženja (Brzi početak)
 
-   Postavite jednu od ovih varijabli okruženja dok pokrećete jollicode:
+   Postavite jednu od ovih varijabli okruženja dok pokrećete Jolli Code:
 
 ```bash
    # Option 1: Using AWS access keys
@@ -194,7 +194,7 @@ Za konfiguraciju specifičnu za projekat ili trajnu konfiguraciju, koristite `op
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "amazon-bedrock": {
       "options": {
@@ -222,7 +222,7 @@ Ako koristite VPC krajnje tačke za Bedrock:
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "amazon-bedrock": {
       "options": {
@@ -268,7 +268,7 @@ Za prilagođene profile zaključivanja, koristite ime modela i dobavljača u klj
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "amazon-bedrock": {
       // ...
@@ -326,11 +326,11 @@ Ili ako već imate API ključ, možete odabrati **Ručno unesite API ključ** i 
 
 ### Atomic Chat
 
-Možete konfigurirati jollicode za korištenje lokalnih modela preko [Atomic Chata](https://atomic.chat) — desktop aplikacije koja pokreće lokalne LLM-ove iza OpenAI-kompatibilnog API servera (zadana krajnja tačka `http://127.0.0.1:1337/v1`).
+Možete konfigurirati Jolli Code za korištenje lokalnih modela preko [Atomic Chata](https://atomic.chat) — desktop aplikacije koja pokreće lokalne LLM-ove iza OpenAI-kompatibilnog API servera (zadana krajnja tačka `http://127.0.0.1:1337/v1`).
 
 ```json title="opencode.json" "atomic-chat" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "atomic-chat": {
       "npm": "@ai-sdk/openai-compatible",
@@ -375,7 +375,7 @@ Ako naiđete na greške "Žao mi je, ali ne mogu pomoći s tim zahtjevom", poku�
 2. Idite na [Azure AI Foundry](https://ai.azure.com/) i implementirajte model.
 
    :::note
-   Ime implementacije mora odgovarati imenu modela da bi jollicode ispravno radio.
+   Ime implementacije mora odgovarati imenu modela da bi Jolli Code ispravno radio.
    :::
 
 3. Pokrenite naredbu `/connect` i potražite **Azure**.
@@ -422,7 +422,7 @@ Ili ga dodajte na svoj bash profil:
 2. Idite na [Azure AI Foundry](https://ai.azure.com/) i implementirajte model.
 
    :::note
-   Ime implementacije mora odgovarati imenu modela da bi jollicode ispravno radio.
+   Ime implementacije mora odgovarati imenu modela da bi Jolli Code ispravno radio.
    :::
 
 3. Pokrenite naredbu `/connect` i potražite **Azure kognitivne usluge**.
@@ -554,11 +554,11 @@ Ili ga postavite kao varijablu okruženja.
    /models
 ```
 
-Također možete dodati modele kroz svoju jollicode konfiguraciju.
+Također možete dodati modele kroz svoju Jolli Code konfiguraciju.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "cloudflare-ai-gateway": {
       "models": {
@@ -753,7 +753,7 @@ Dostupna su tri modela bazirana na Claudeu:
 
 :::note
 Također možete odrediti 'GITLAB_TOKEN' varijablu okruženja ako ne želite
-da pohrani token u jollicode auth memoriju.
+da pohrani token u Jolli Code auth memoriju.
 :::
 
 ##### Samostalni GitLab
@@ -766,7 +766,7 @@ da biste koristili samo svoju vlastitu instancu koju hostuje GitLab, dodajte slj
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "small_model": "gitlab/duo-chat-haiku-4-5",
   "share": "disabled"
 }
@@ -828,7 +828,7 @@ Prilagodite putem `opencode.json`:
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "gitlab": {
       "options": {
@@ -845,7 +845,7 @@ Za pristup GitLab alatima (zahtjevi za spajanje, problemi, cjevovodi, CI/CD, itd
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-gitlab-plugin"]
 }
 ```
@@ -856,7 +856,7 @@ Ovaj dodatak pruža sveobuhvatne mogućnosti upravljanja GitLab repozitorijumom,
 
 ### GitHub Copilot
 
-Da biste koristili svoju GitHub Copilot pretplatu s jollicode:
+Da biste koristili svoju GitHub Copilot pretplatu s Jolli Code:
 
 :::note
 Neki modeli će možda trebati [Pro+
@@ -909,7 +909,7 @@ Za korištenje Google Vertex AI s Jolli Code:
      - `GOOGLE_APPLICATION_CREDENTIALS`: Put do JSON ključnog fajla vašeg naloga usluge
      - Autentifikacija koristeći gcloud CLI: `gcloud auth application-default login`
 
-   Postavite ih dok se pokreće opencode.
+   Postavite ih dok se pokreće Jolli Code.
 
 ```bash
    GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json GOOGLE_CLOUD_PROJECT=your-project-id jollicode
@@ -1028,7 +1028,7 @@ Evo [Heliconeov katalog modela](https://helicone.ai/models), ovo će vam trebati
 
 ```jsonc title="~/.config/jollicode/opencode.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1056,7 +1056,7 @@ Helicone podržava prilagođena zaglavlja za funkcije kao što su keširanje, pr
 
 ```jsonc title="~/.config/jollicode/opencode.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1106,11 +1106,11 @@ Pogledajte [Helicone Header Directory](https://docs.helicone.ai/helicone-headers
 
 ### llama.cpp
 
-Možete konfigurirati jollicode za korištenje lokalnih modela putem [llama.cpp's](https://github.com/ggml-org/llama.cpp) uslužnog programa llama-server
+Možete konfigurirati Jolli Code za korištenje lokalnih modela putem [llama.cpp's](https://github.com/ggml-org/llama.cpp) uslužnog programa llama-server
 
 ```json title="opencode.json" "llama.cpp" {5, 6, 8, 10-15}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "llama.cpp": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1173,11 +1173,11 @@ IO.NET nudi 17 modela optimiziranih za različite slučajeve upotrebe:
 
 ### LM Studio
 
-Možete konfigurirati jollicode za korištenje lokalnih modela preko LM Studio.
+Možete konfigurirati Jolli Code za korištenje lokalnih modela preko LM Studio.
 
 ```json title="opencode.json" "lmstudio" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "lmstudio": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1290,7 +1290,7 @@ Da biste koristili Kimi K2 iz Moonshot AI:
 
 ### Ollama
 
-Možete konfigurirati jollicode za korištenje lokalnih modela putem Ollame.
+Možete konfigurirati Jolli Code za korištenje lokalnih modela putem Ollame.
 
 :::tip
 Ollama se može automatski konfigurirati za Jolli Code. Pogledajte [Ollama integracijske dokumente](https://docs.ollama.com/integrations/opencode) za detalje.
@@ -1298,7 +1298,7 @@ Ollama se može automatski konfigurirati za Jolli Code. Pogledajte [Ollama integ
 
 ```json title="opencode.json" "ollama" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1456,11 +1456,11 @@ OpenCode Zen je lista testiranih i verifikovanih modela koju je obezbedio Jolli 
    /models
 ```
 
-Također možete dodati dodatne modele putem vaše jollicode konfiguracije.
+Također možete dodati dodatne modele putem vaše Jolli Code konfiguracije.
 
 ```json title="opencode.json" {6}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "openrouter": {
       "models": {
@@ -1471,11 +1471,11 @@ Također možete dodati dodatne modele putem vaše jollicode konfiguracije.
 }
 ```
 
-5. Također ih možete prilagoditi putem vaše jollicode konfiguracije. Evo primjera navođenja provajdera
+5. Također ih možete prilagoditi putem vaše Jolli Code konfiguracije. Evo primjera navođenja provajdera
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "openrouter": {
       "models": {
@@ -1720,11 +1720,11 @@ Vercel AI Gateway vam omogućava da pristupite modelima iz OpenAI, Anthropic, Go
    /models
 ```
 
-Također možete prilagoditi modele kroz svoju jollicode konfiguraciju. Evo primjera specificiranja redoslijeda usmjeravanja dobavljača.
+Također možete prilagoditi modele kroz svoju Jolli Code konfiguraciju. Evo primjera specificiranja redoslijeda usmjeravanja dobavljača.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "vercel": {
       "models": {
@@ -1830,11 +1830,11 @@ Ako ste pretplaćeni na **GLM plan kodiranja**, odaberite **Z.AI plan kodiranja*
    /models
 ```
 
-Također možete dodati dodatne modele putem vaše jollicode konfiguracije.
+Također možete dodati dodatne modele putem vaše Jolli Code konfiguracije.
 
 ```json title="opencode.json" {6}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "zenmux": {
       "models": {
@@ -1902,7 +1902,7 @@ Odaberite ID koji se pamti, to ćete koristiti u svom konfiguracijskom fajlu.
 
 ```json title="opencode.json" ""myprovider"" {5-15}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "myprovider": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1941,7 +1941,7 @@ Evo primjera postavljanja opcija `apiKey`, `headers` i modela `limit`.
 
 ```json title="opencode.json" {9,11,17-20}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "myprovider": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1988,6 +1988,6 @@ Ako imate problema s konfiguracijom provajdera, provjerite sljedeće:
    Ovo se ne odnosi na dobavljače kao što je Amazon Bedrock, koji se oslanjaju na varijable okruženja za svoju autentifikaciju.
 
 2. Za prilagođene provajdere, provjerite Jolli Code konfiguraciju i:
-   - Uvjerite se da ID provajdera korišten u naredbi `/connect` odgovara ID-u u vašoj jollicode konfiguraciji.
+   - Uvjerite se da ID provajdera korišten u naredbi `/connect` odgovara ID-u u vašoj Jolli Code konfiguraciji.
    - Za provajdera se koristi pravi npm paket. Na primjer, koristite `@ai-sdk/cerebras` za Cerebras. A za sve ostale OpenAI kompatibilne provajdere, koristite `@ai-sdk/openai-compatible`.
    - Provjerite da li se ispravna krajnja tačka API-ja koristi u polju `options.baseURL`.

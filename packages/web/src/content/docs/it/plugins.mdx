@@ -32,7 +32,7 @@ Specifica i pacchetti npm nel tuo file di configurazione.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
 }
 ```
@@ -117,7 +117,7 @@ La funzione del plugin riceve:
 - `project`: informazioni sul progetto corrente.
 - `directory`: la working directory corrente.
 - `worktree`: il path del worktree git.
-- `client`: un client SDK di jollicode per interagire con l'AI.
+- `client`: un client SDK di Jolli Code per interagire con l'AI.
 - `$`: la [shell API](https://bun.com/docs/runtime/shell) di Bun per eseguire comandi.
 
 ---
@@ -210,7 +210,7 @@ I plugin possono sottoscrivere eventi come mostrato sotto nella sezione Esempi. 
 
 ## Esempi
 
-Ecco alcuni esempi di plugin che puoi usare per estendere opencode.
+Ecco alcuni esempi di plugin che puoi usare per estendere Jolli Code.
 
 ---
 
@@ -241,7 +241,7 @@ Se usi l'app desktop di Jolli Code, può inviare automaticamente notifiche di si
 
 ### Protezione .env
 
-Impedisci a jollicode di leggere i file `.env`:
+Impedisci a Jolli Code di leggere i file `.env`:
 
 ```javascript title=".jollicode/plugins/env-protection.js"
 export const EnvProtection = async ({ project, client, $, directory, worktree }) => {
@@ -276,7 +276,7 @@ export const InjectEnvPlugin = async () => {
 
 ### Strumenti personalizzati
 
-I plugin possono anche aggiungere strumenti personalizzati a jollicode:
+I plugin possono anche aggiungere strumenti personalizzati a Jolli Code:
 
 ```ts title=".jollicode/plugins/custom-tools.ts"
 import { type Plugin, tool } from "@opencode-ai/plugin"
@@ -299,13 +299,13 @@ export const CustomToolsPlugin: Plugin = async (ctx) => {
 }
 ```
 
-L'helper `tool` crea uno strumento personalizzato che jollicode può chiamare. Accetta una funzione di schema Zod e restituisce una definizione di tool con:
+L'helper `tool` crea uno strumento personalizzato che Jolli Code può chiamare. Accetta una funzione di schema Zod e restituisce una definizione di tool con:
 
 - `description`: cosa fa lo strumento
 - `args`: schema Zod per gli argomenti dello strumento
 - `execute`: funzione eseguita quando lo strumento viene chiamato
 
-I tuoi strumenti personalizzati saranno disponibili in jollicode insieme agli strumenti integrati.
+I tuoi strumenti personalizzati saranno disponibili in Jolli Code insieme agli strumenti integrati.
 
 :::note
 Se uno strumento di un plugin usa lo stesso nome di uno strumento integrato, lo strumento del plugin ha la precedenza.
@@ -330,7 +330,7 @@ export const MyPlugin = async ({ client }) => {
 }
 ```
 
-Livelli: `debug`, `info`, `warn`, `error`. Vedi la [documentazione SDK](https://opencode.ai/docs/sdk) per i dettagli.
+Livelli: `debug`, `info`, `warn`, `error`. Vedi la [documentazione SDK](https://jolli.ai/docs/sdk) per i dettagli.
 
 ---
 

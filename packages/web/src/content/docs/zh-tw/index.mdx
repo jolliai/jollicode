@@ -9,7 +9,7 @@ export const console = config.console
 
 [**Jolli Code**](/) 是一個開源的 AI 編碼代理。它提供終端機介面、桌面應用程式和 IDE 擴充功能等多種使用方式。
 
-![使用 Jolli Code 主題的 Jolli Code TUI](../../../assets/lander/screenshot.png)
+![使用 jollicode 主題的 Jolli Code TUI](../../../assets/lander/screenshot.png)
 
 讓我們開始吧。
 
@@ -34,7 +34,7 @@ export const console = config.console
 安裝 Jolli Code 最簡單的方法是透過安裝指令碼。
 
 ```bash
-curl -fsSL https://opencode.ai/install | bash
+curl -fsSL https://jolli.ai/install | bash
 ```
 
 您也可以使用以下方式安裝：
@@ -45,28 +45,28 @@ curl -fsSL https://opencode.ai/install | bash
 
       <TabItem label="npm">
       ```bash
-      npm install -g opencode-ai
+      npm install -g @jolli.ai/jollicode
       ```
 
           </TabItem>
 
         <TabItem label="Bun">
         ```bash
-        bun install -g opencode-ai
+        bun install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="pnpm">
         ```bash
-        pnpm install -g opencode-ai
+        pnpm install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="Yarn">
         ```bash
-        yarn global add opencode-ai
+        yarn global add @jolli.ai/jollicode
         ```
 
       </TabItem>
@@ -76,16 +76,13 @@ curl -fsSL https://opencode.ai/install | bash
 - **在 macOS 和 Linux 上使用 Homebrew**
 
   ```bash
-  brew install anomalyco/tap/opencode
+  brew install jolliai/tap/jollicode
   ```
-
-  > 我們推薦使用 Jolli Code tap 以取得最新版本。官方的 `brew install jollicode` formula 由 Homebrew 團隊維護，更新頻率較低。
 
 - **在 Arch Linux 上安裝**
 
   ```bash
-  sudo pacman -S jollicode           # Arch Linux (Stable)
-  paru -S opencode-bin              # Arch Linux (Latest from AUR)
+  paru -S jollicode-bin
   ```
 
 #### Windows
@@ -94,22 +91,10 @@ curl -fsSL https://opencode.ai/install | bash
 為了在 Windows 上獲得最佳體驗，我們推薦使用 [Windows Subsystem for Linux (WSL)](/docs/windows-wsl)。它提供更好的效能，並完全相容 Jolli Code 的所有功能。
 :::
 
-- **使用 Chocolatey**
-
-  ```bash
-  choco install jollicode
-  ```
-
-- **使用 Scoop**
-
-  ```bash
-  scoop install jollicode
-  ```
-
 - **使用 NPM**
 
   ```bash
-  npm install -g opencode-ai
+  npm install -g @jolli.ai/jollicode
   ```
 
 - **使用 Mise**
@@ -136,7 +121,7 @@ curl -fsSL https://opencode.ai/install | bash
 
 如果您剛開始接觸 LLM 供應商，我們推薦使用 [OpenCode Zen](/docs/zen)。這是一組經過 Jolli Code 團隊測試和驗證的精選模型。
 
-1. 在 TUI 中執行 `/connect` 指令，選擇 opencode，然後前往 [opencode.ai/auth](https://opencode.ai/auth)。
+1. 在 TUI 中執行 `/connect` 指令，選擇 opencode，然後前往 [jolli.ai/auth](https://jolli.ai/auth)。
 
    ```txt
    /connect
@@ -332,7 +317,7 @@ Can you refactor the function in @packages/functions/src/api/index.ts?
 對話預設不會被分享。
 :::
 
-這是一個與 Jolli Code 的[範例對話](https://opencode.ai/s/4XP1fce5)。
+這是一個與 Jolli Code 的[範例對話](https://jolli.ai/s/4XP1fce5)。
 
 ---
 

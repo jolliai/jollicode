@@ -3,31 +3,31 @@ title: GitLab
 description: użyj jollicode w problemach z GitLabem i zastosujch scalania.
 ---
 
-jollicode integruje się z przepływem pracy GitLab poprzez potok GitLab CI/CD lub z GitLab Duo.
+Jolli Code integruje się z przepływem pracy GitLab poprzez potok GitLab CI/CD lub z GitLab Duo.
 
-W obu przypadkach jollicode będzie modułem GitLab.
+W obu przypadkach Jolli Code będzie modułem GitLab.
 
 ---
 
 ## GitLab CI
 
-jollicode działa w zwykłym potoku GitLab. Możesz wbudować go w potok jako [komponent CI](https://docs.gitlab.com/ee/ci/components/)
+Jolli Code działa w zwykłym potoku GitLab. Możesz wbudować go w potok jako [komponent CI](https://docs.gitlab.com/ee/ci/components/)
 
-Tutaj obowiązkowego przez społeczność komponentu CI/CD dla jollicode — [nagyv/gitlab-opencode](https://gitlab.com/nagyv/gitlab-opencode).
+Tutaj obowiązkowego przez społeczność komponentu CI/CD dla Jolli Code — [nagyv/gitlab-opencode](https://gitlab.com/nagyv/gitlab-opencode).
 
 ---
 
 ### Cechy
 
-- **Użyj konfiguracji dla każdego zadania**: Skonfiguruj jollicode z niestandardowym katalogiem konfiguracyjnym, na przykładzie `./config/#custom-directory`, aby włączyć lub funkcjonalności na każde wywołanie opencode.
-- **Konfiguracja minimalna**: Komponent CI konfiguruje jollicode w tle, wystarczy skonfigurować jollicode i początkowy monit.
+- **Użyj konfiguracji dla każdego zadania**: Skonfiguruj Jolli Code z niestandardowym katalogiem konfiguracyjnym, na przykładzie `./config/#custom-directory`, aby włączyć lub funkcjonalności na każde wywołanie Jolli Code.
+- **Konfiguracja minimalna**: Komponent CI konfiguruje Jolli Code w tle, wystarczy skonfigurować Jolli Code i początkowy monit.
 - **Elastyczny**: Komponent CI obsługuje kilka danych, które są stosowane w celu dostosowania jego zachowania
 
 ---
 
 ### Organizować coś
 
-1. Przechowuj dane uwierzytelniające jollicode w formacie JSON jako zmienne parametry CI typu pliku w specyfikacji **Ustawienia** > **CI/CD** > **Zmienne**. Zachowaj, aby być oznaczony jako „Zamaskowane i ukryte”.
+1. Przechowuj dane uwierzytelniające Jolli Code w formacie JSON jako zmienne parametry CI typu pliku w specyfikacji **Ustawienia** > **CI/CD** > **Zmienne**. Zachowaj, aby być oznaczony jako „Zamaskowane i ukryte”.
 2. Dodaj elementy do swojego pliku `.gitlab-ci.yml`.
 
    ```yaml title=".gitlab-ci.yml"
@@ -46,23 +46,23 @@ Więcej danych dotyczących użycia [sprawdź opis](https://gitlab.com/explore/c
 
 ## Duet GitLab
 
-jollicode integruje się z przepływem pracy GitLab.
-Wspomnij o `@jollicode` w komentarzu, a jollicode wykonaj zadania w ramach swojego potoku GitLab CI.
+Jolli Code integruje się z przepływem pracy GitLab.
+Wspomnij o `@jollicode` w komentarzu, a Jolli Code wykonaj zadania w ramach swojego potoku GitLab CI.
 
 ---
 
 ### Cechy
 
-- **Problem związany z segregacją**: Poproś jollicode o szczegółowe wyjaśnienie problemu i wyjaśnienie go.
-- **Napraw i zaimplementuj**: Poproś jollicode o naprawienie problemu lub zaimplementowanie funkcji.
+- **Problem związany z segregacją**: Poproś Jolli Code o szczegółowe wyjaśnienie problemu i wyjaśnienie go.
+- **Napraw i zaimplementuj**: Poproś Jolli Code o naprawienie problemu lub zaimplementowanie funkcji.
   Utworzył nowy oddział i zgłosi ataku ze sobą.
-- **Bezpieczny**: jollicode działa na modułach GitLab.
+- **Bezpieczny**: Jolli Code działa na modułach GitLab.
 
 ---
 
 ### Organizować coś
 
-jollicode działa w potoku CI/CD GitLab. Oto, czego potrzebujesz, aby przejść do:
+Jolli Code działa w potoku CI/CD GitLab. Oto, czego potrzebujesz, aby przejść do:
 
 :::tip
 Aktualne instrukcje dotyczące [**dokumentacji GitLab**](https://docs.gitlab.com/user/duo_agent_platform/agent_assistant/).
@@ -83,7 +83,7 @@ Aktualne instrukcje dotyczące [**dokumentacji GitLab**](https://docs.gitlab.com
     image: node:22-slim
     commands:
       - echo "Installing jollicode"
-      - npm install --global opencode-ai
+      - npm install --global @jolli.ai/jollicode
       - echo "Installing glab"
       - export GITLAB_TOKEN=$GITLAB_TOKEN_OPENCODE
       - apt-get update --quiet && apt-get install --yes curl wget gpg git && rm --recursive --force /var/lib/apt/lists/*
@@ -158,7 +158,7 @@ Szczegółowe instrukcje w [dokumentacji agentów GitLab CLI](https://docs.gitla
 
 ### Przykłady
 
-Oto kilka możliwości wykorzystania jollicode w GitLabie.
+Oto kilka możliwości wykorzystania Jolli Code w GitLabie.
 
 :::tip
 Można zastosować inną metodę ograniczającą niż `@jollicode`.
@@ -172,7 +172,7 @@ Można zastosować inną metodę ograniczającą niż `@jollicode`.
   @jollicode explain this issue
   ```
 
-  jollicode przeczytaj problem i odpowiedź z wyjaśnieniem.
+  Jolli Code przeczytaj problem i odpowiedź z wyjaśnieniem.
 
 - **Napraw problem**
 
@@ -182,7 +182,7 @@ Można zastosować inną metodę ograniczającą niż `@jollicode`.
   @jollicode fix this
   ```
 
-  jollicode utworzy nową podstawę, zaimplementuje zmiany i spowoduje, że skalowanie będzie możliwe.
+  Jolli Code utworzy nową podstawę, zaimplementuje zmiany i spowoduje, że skalowanie będzie możliwe.
 
 - **Przejrzyj prośby o połączenie**
 
@@ -192,4 +192,4 @@ Można zastosować inną metodę ograniczającą niż `@jollicode`.
   @jollicode review this merge request
   ```
 
-  jollicode sprawdzenie rozwiązania i przepuszczenie.
+  Jolli Code sprawdzenie rozwiązania i przepuszczenie.

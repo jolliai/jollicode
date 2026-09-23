@@ -6,7 +6,7 @@ description: Interagisci con il server jollicode via HTTP.
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-Il comando `jollicode serve` avvia un server HTTP headless che espone un endpoint OpenAPI utilizzabile da un client opencode.
+Il comando `jollicode serve` avvia un server HTTP headless che espone un endpoint OpenAPI utilizzabile da un client Jolli Code.
 
 ---
 
@@ -49,12 +49,12 @@ OPENCODE_SERVER_PASSWORD=your-password jollicode serve
 Quando esegui `jollicode` avvia una TUI e un server. La TUI e il client che parla col server. Il server espone un endpoint con specifica OpenAPI 3.1. Questo endpoint viene anche usato per generare un [SDK](/docs/sdk).
 
 :::tip
-Usa il server jollicode per interagire con jollicode in modo programmatico.
+Usa il server Jolli Code per interagire con Jolli Code in modo programmatico.
 :::
 
-Questa architettura permette a jollicode di supportare piu client e di essere usato in modo programmatico.
+Questa architettura permette a Jolli Code di supportare piu client e di essere usato in modo programmatico.
 
-Puoi eseguire `jollicode serve` per avviare un server standalone. Se la TUI di jollicode e gia in esecuzione, `jollicode serve` avviera un nuovo server.
+Puoi eseguire `jollicode serve` per avviare un server standalone. Se la TUI di Jolli Code e gia in esecuzione, `jollicode serve` avviera un nuovo server.
 
 ---
 
@@ -80,7 +80,7 @@ Per esempio, `http://localhost:4096/doc`. Usa la spec per generare client o ispe
 
 ## API
 
-Il server jollicode espone le seguenti API.
+Il server Jolli Code espone le seguenti API.
 
 ---
 

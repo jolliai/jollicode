@@ -35,7 +35,7 @@ Puoi personalizzare l'URL base per qualsiasi provider impostando l'opzione `base
 
 ```json title="opencode.json" {6}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "anthropic": {
       "options": {
@@ -57,7 +57,7 @@ verificati per funzionare bene con Jolli Code. [Scopri di piu](/docs/zen).
 Se sei all'inizio, ti consigliamo di partire da OpenCode Zen.
 :::
 
-1. Esegui `/connect` nella TUI, seleziona opencode e vai su [opencode.ai/auth](https://opencode.ai/auth).
+1. Esegui `/connect` nella TUI, seleziona opencode e vai su [jolli.ai/auth](https://jolli.ai/auth).
 
    ```txt
    /connect
@@ -139,7 +139,7 @@ Per usare Amazon Bedrock con Jolli Code:
 
    #### Variabili d'ambiente (Avvio rapido)
 
-   Imposta una di queste variabili d'ambiente mentre esegui jollicode:
+   Imposta una di queste variabili d'ambiente mentre esegui Jolli Code:
 
    ```bash
    # Option 1: Using AWS access keys
@@ -167,7 +167,7 @@ Per usare Amazon Bedrock con Jolli Code:
 
    ```json title="opencode.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -196,7 +196,7 @@ Per usare Amazon Bedrock con Jolli Code:
 
    ```json title="opencode.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -245,7 +245,7 @@ Per profili di inferenza personalizzati, usa il nome del modello e del provider 
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "amazon-bedrock": {
       // ...
@@ -301,11 +301,11 @@ Oppure se hai già una chiave API, puoi selezionare **Manually enter API Key** e
 
 ### Atomic Chat
 
-Puoi configurare jollicode per utilizzare modelli locali tramite [Atomic Chat](https://atomic.chat), un'applicazione desktop che esegue LLM locali dietro un server API compatibile OpenAI (endpoint predefinito `http://127.0.0.1:1337/v1`).
+Puoi configurare Jolli Code per utilizzare modelli locali tramite [Atomic Chat](https://atomic.chat), un'applicazione desktop che esegue LLM locali dietro un server API compatibile OpenAI (endpoint predefinito `http://127.0.0.1:1337/v1`).
 
 ```json title="opencode.json" "atomic-chat" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "atomic-chat": {
       "npm": "@ai-sdk/openai-compatible",
@@ -350,7 +350,7 @@ Se incontri errori "I'm sorry, but I cannot assist with that request", prova a c
 2. Vai su [Azure AI Foundry](https://ai.azure.com/) e fai il deploy di un modello.
 
    :::note
-   Il nome del deployment deve corrispondere al nome del modello affinché jollicode funzioni correttamente.
+   Il nome del deployment deve corrispondere al nome del modello affinché Jolli Code funzioni correttamente.
    :::
 
 3. Esegui il comando `/connect` e cerca **Azure**.
@@ -397,7 +397,7 @@ Se incontri errori "I'm sorry, but I cannot assist with that request", prova a c
 2. Vai su [Azure AI Foundry](https://ai.azure.com/) e fai il deploy di un modello.
 
    :::note
-   Il nome del deployment deve corrispondere al nome del modello affinché jollicode funzioni correttamente.
+   Il nome del deployment deve corrispondere al nome del modello affinché Jolli Code funzioni correttamente.
    :::
 
 3. Esegui il comando `/connect` e cerca **Azure Cognitive Services**.
@@ -529,11 +529,11 @@ Cloudflare AI Gateway ti permette di accedere a modelli di OpenAI, Anthropic, Wo
    /models
    ```
 
-   Puoi anche aggiungere modelli tramite la tua configurazione di opencode.
+   Puoi anche aggiungere modelli tramite la tua configurazione di Jolli Code.
 
    ```json title="opencode.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "cloudflare-ai-gateway": {
          "models": {
@@ -726,7 +726,7 @@ GitLab Duo fornisce una chat agentic basata su AI con capacità di chiamata stru
 
 :::note
 Puoi anche specificare la variabile d'ambiente 'GITLAB_TOKEN' se non vuoi
-salvare il token nello storage di auth di opencode.
+salvare il token nello storage di auth di Jolli Code.
 :::
 
 ##### GitLab Self-Hosted
@@ -739,7 +739,7 @@ file `opencode.json`. Si raccomanda anche di disabilitare la condivisione sessio
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "small_model": "gitlab/duo-chat-haiku-4-5",
   "share": "disabled"
 }
@@ -801,7 +801,7 @@ Personalizza tramite `opencode.json`:
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "gitlab": {
       "options": {
@@ -818,7 +818,7 @@ Per accedere agli strumenti GitLab (merge requests, issues, pipelines, CI/CD, ec
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-gitlab-plugin"]
 }
 ```
@@ -829,7 +829,7 @@ Questo plugin offre funzionalita complete per la gestione dei repository GitLab,
 
 ### GitHub Copilot
 
-Per usare il tuo abbonamento GitHub Copilot con jollicode:
+Per usare il tuo abbonamento GitHub Copilot con Jolli Code:
 
 :::note
 Alcuni modelli potrebbero richiedere un [abbonamento Pro+](https://github.com/features/copilot/plans) per essere utilizzati.
@@ -881,7 +881,7 @@ Per usare Google Vertex AI con Jolli Code:
      - `GOOGLE_APPLICATION_CREDENTIALS`: Percorso al file JSON della chiave del tuo service account
      - Autenticati usando la CLI gcloud: `gcloud auth application-default login`
 
-   Impostale mentre esegui opencode.
+   Impostale mentre esegui Jolli Code.
 
    ```bash
    GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json GOOGLE_CLOUD_PROJECT=your-project-id jollicode
@@ -994,13 +994,13 @@ Per altri provider e funzionalità avanzate come caching e rate limiting, contro
 
 #### Config opzionali
 
-Nel caso vedessi una funzionalità o un modello di Helicone che non viene configurato automaticamente da jollicode, puoi sempre configurarlo tu stesso.
+Nel caso vedessi una funzionalità o un modello di Helicone che non viene configurato automaticamente da Jolli Code, puoi sempre configurarlo tu stesso.
 
 Ecco la [Model Directory di Helicone](https://helicone.ai/models), ti servirà per recuperare gli ID dei modelli che vuoi aggiungere.
 
 ```jsonc title="~/.config/jollicode/opencode.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1028,7 +1028,7 @@ Helicone supporta header personalizzati per funzionalità come caching, user tra
 
 ```jsonc title="~/.config/jollicode/opencode.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1078,11 +1078,11 @@ Vedi la [Helicone Header Directory](https://docs.helicone.ai/helicone-headers/he
 
 ### llama.cpp
 
-Puoi configurare jollicode per usare modelli locali tramite l'utility llama-server di [llama.cpp](https://github.com/ggml-org/llama.cpp)
+Puoi configurare Jolli Code per usare modelli locali tramite l'utility llama-server di [llama.cpp](https://github.com/ggml-org/llama.cpp)
 
 ```json title="opencode.json" "llama.cpp" {5, 6, 8, 10-15}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "llama.cpp": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1145,11 +1145,11 @@ IO.NET offre 17 modelli ottimizzati per vari casi d'uso:
 
 ### LM Studio
 
-Puoi configurare jollicode per usare modelli locali tramite LM Studio.
+Puoi configurare Jolli Code per usare modelli locali tramite LM Studio.
 
 ```json title="opencode.json" "lmstudio" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "lmstudio": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1262,7 +1262,7 @@ Per usare Kimi K2 di Moonshot AI:
 
 ### Ollama
 
-Puoi configurare jollicode per usare modelli locali tramite Ollama.
+Puoi configurare Jolli Code per usare modelli locali tramite Ollama.
 
 :::tip
 Ollama può auto-configurarsi per Jolli Code. Vedi la [documentazione di integrazione Ollama](https://docs.ollama.com/integrations/opencode) per dettagli.
@@ -1270,7 +1270,7 @@ Ollama può auto-configurarsi per Jolli Code. Vedi la [documentazione di integra
 
 ```json title="opencode.json" "ollama" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1428,11 +1428,11 @@ OpenCode Zen è una lista di modelli testati e verificati forniti dal team Jolli
    /models
    ```
 
-   Puoi anche aggiungere modelli addizionali tramite la tua configurazione di opencode.
+   Puoi anche aggiungere modelli addizionali tramite la tua configurazione di Jolli Code.
 
    ```json title="opencode.json" {6}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1443,11 +1443,11 @@ OpenCode Zen è una lista di modelli testati e verificati forniti dal team Jolli
    }
    ```
 
-5. Puoi anche personalizzarli tramite la configurazione di opencode. Ecco un esempio di specifica di un provider
+5. Puoi anche personalizzarli tramite la configurazione di Jolli Code. Ecco un esempio di specifica di un provider
 
    ```json title="opencode.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1584,7 +1584,7 @@ STACKIT AI Model Serving fornisce un ambiente di hosting completamente gestito e
 
 ### Scaleway
 
-Per usare le [Scaleway Generative APIs](https://www.scaleway.com/en/docs/generative-apis/) con Opencode:
+Per usare le [Scaleway Generative APIs](https://www.scaleway.com/en/docs/generative-apis/) con Jolli Code:
 
 1. Vai alle [impostazioni IAM della Console Scaleway](https://console.scaleway.com/iam/api-keys) per generare una nuova chiave API.
 
@@ -1692,11 +1692,11 @@ Vercel AI Gateway ti permette di accedere a modelli di OpenAI, Anthropic, Google
    /models
    ```
 
-Puoi anche personalizzare i modelli tramite la tua configurazione di opencode. Ecco un esempio di come specificare l'ordine di routing dei provider.
+Puoi anche personalizzare i modelli tramite la tua configurazione di Jolli Code. Ecco un esempio di come specificare l'ordine di routing dei provider.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "vercel": {
       "models": {
@@ -1802,11 +1802,11 @@ Alcune opzioni di routing utili:
    /models
    ```
 
-   Puoi anche aggiungere modelli addizionali tramite la tua configurazione di opencode.
+   Puoi anche aggiungere modelli addizionali tramite la tua configurazione di Jolli Code.
 
    ```json title="opencode.json" {6}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "zenmux": {
          "models": {
@@ -1824,7 +1824,7 @@ Alcune opzioni di routing utili:
 Per aggiungere qualsiasi provider **OpenAI-compatible** non elencato nel comando `/connect`:
 
 :::tip
-Puoi usare qualsiasi provider OpenAI-compatible con opencode. La maggior parte dei provider AI moderni offre API OpenAI-compatible.
+Puoi usare qualsiasi provider OpenAI-compatible con Jolli Code. La maggior parte dei provider AI moderni offre API OpenAI-compatible.
 :::
 
 1. Esegui il comando `/connect` e scorri fino a **Other**.
@@ -1874,7 +1874,7 @@ Puoi usare qualsiasi provider OpenAI-compatible con opencode. La maggior parte d
 
    ```json title="opencode.json" ""myprovider"" {5-15}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "myprovider": {
          "npm": "@ai-sdk/openai-compatible",
@@ -1912,7 +1912,7 @@ Ecco un esempio che imposta le opzioni `apiKey`, `headers` e `limit` del modello
 
 ```json title="opencode.json" {9,11,17-20}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "myprovider": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1958,7 +1958,7 @@ Se hai problemi con la configurazione di un provider, controlla quanto segue:
 
    Questo non si applica a provider come Amazon Bedrock, che si basano su variabili d'ambiente per l'autenticazione.
 
-2. Per provider personalizzati, controlla la config di jollicode e:
+2. Per provider personalizzati, controlla la config di Jolli Code e:
    - Assicurati che l'ID provider usato nel comando `/connect` corrisponda all'ID nella tua config opencode.
    - Che sia usato il pacchetto npm corretto per il provider. Per esempio, usa `@ai-sdk/cerebras` per Cerebras. E per tutti gli altri provider OpenAI-compatible, usa `@ai-sdk/openai-compatible`.
    - Controlla che sia usato l'endpoint API corretto nel campo `options.baseURL`.

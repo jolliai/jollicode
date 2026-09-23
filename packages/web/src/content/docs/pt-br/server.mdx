@@ -6,7 +6,7 @@ description: Interaja com o servidor jollicode via HTTP.
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-O comando `jollicode serve` executa um servidor HTTP sem cabeça que expõe um endpoint OpenAPI que um cliente jollicode pode usar.
+O comando `jollicode serve` executa um servidor HTTP sem cabeça que expõe um endpoint OpenAPI que um cliente Jolli Code pode usar.
 
 ---
 
@@ -49,12 +49,12 @@ OPENCODE_SERVER_PASSWORD=your-password jollicode serve
 Quando você executa `jollicode`, ele inicia um TUI e um servidor. Onde o TUI é o cliente que se comunica com o servidor. O servidor expõe um endpoint de especificação OpenAPI 3.1. Este endpoint também é usado para gerar um [SDK](/docs/sdk).
 
 :::tip
-Use o servidor jollicode para interagir com o jollicode programaticamente.
+Use o servidor Jolli Code para interagir com o Jolli Code programaticamente.
 :::
 
-Essa arquitetura permite que o jollicode suporte múltiplos clientes e permite que você interaja com o jollicode programaticamente.
+Essa arquitetura permite que o Jolli Code suporte múltiplos clientes e permite que você interaja com o Jolli Code programaticamente.
 
-Você pode executar `jollicode serve` para iniciar um servidor autônomo. Se você tiver o TUI do jollicode em execução, `jollicode serve` iniciará um novo servidor.
+Você pode executar `jollicode serve` para iniciar um servidor autônomo. Se você tiver o TUI do Jolli Code em execução, `jollicode serve` iniciará um novo servidor.
 
 ---
 
@@ -62,7 +62,7 @@ Você pode executar `jollicode serve` para iniciar um servidor autônomo. Se voc
 
 Quando você inicia o TUI, ele atribui aleatoriamente uma porta e um nome de host. Você pode passar os [flags](/docs/cli) `--hostname` e `--port`. Em seguida, use isso para se conectar ao seu servidor.
 
-O endpoint [`/tui`](#tui) pode ser usado para controlar o TUI através do servidor. Por exemplo, você pode preencher ou executar um prompt. Essa configuração é usada pelos plugins do jollicode [IDE](/docs/ide).
+O endpoint [`/tui`](#tui) pode ser usado para controlar o TUI através do servidor. Por exemplo, você pode preencher ou executar um prompt. Essa configuração é usada pelos plugins do Jolli Code [IDE](/docs/ide).
 
 ---
 
@@ -80,7 +80,7 @@ Por exemplo, `http://localhost:4096/doc`. Use a especificação para gerar clien
 
 ## APIs
 
-O servidor jollicode expõe as seguintes APIs.
+O servidor Jolli Code expõe as seguintes APIs.
 
 ---
 

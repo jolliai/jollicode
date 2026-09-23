@@ -3,7 +3,7 @@ title: Modele
 description: Konfigurowanie dostawcy i modelu LLM.
 ---
 
-jollicode używa [AI SDK](https://ai-sdk.dev/) i [Models.dev](https://models.dev) do obsługi **ponad 75 dostawców LLM** i obsługi uruchamiania modeli pierwszych.
+Jolli Code używa [AI SDK](https://ai-sdk.dev/) i [Models.dev](https://models.dev) do obsługi **ponad 75 dostawców LLM** i obsługi uruchamiania modeli pierwszych.
 
 ---
 
@@ -35,7 +35,7 @@ Rozważ skorzystanie z jednego z rekomendowanych przez nas modeli.
 
 Jednak tylko kilka z nich jest dobrych przy generowaniu kodu, jak i wywołaniu narzędzia.
 
-Oto kilka modeli, które dobrze współpracują z jollicode, w kolejności. (Nie jest to lista wyczerpująca i nie jest konieczna aktualna):
+Oto kilka modeli, które dobrze współpracują z Jolli Code, w kolejności. (Nie jest to lista wyczerpująca i nie jest konieczna aktualna):
 
 - GPT 5.2
 - Kodeks GPT 5.1
@@ -49,11 +49,11 @@ Oto kilka modeli, które dobrze współpracują z jollicode, w kolejności. (Nie
 ## Ustaw wartość domyślną
 
 Aby zainstalować jeden z nich jako model domyślny, możesz zainstalować klucz `model` w swoim
-jollicode konfiguracja
+Jolli Code konfiguracja
 
 ```json title="opencode.json" {3}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "model": "lmstudio/google/gemma-3n-e4b"
 }
 ```
@@ -70,7 +70,7 @@ Można globalnie skorzystać z opcji modelu poprzez plik config.
 
 ```jsonc title="opencode.jsonc" {7-12,19-24}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "openai": {
       "models": {
@@ -109,7 +109,7 @@ Można również zastosować alternatywne warianty, które wykluczają. Warianty
 
 ```jsonc title="opencode.jsonc" {6-21}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "opencode": {
       "models": {
@@ -137,11 +137,11 @@ Można również zastosować alternatywne warianty, które wykluczają. Warianty
 
 ## Warianty
 
-Wiele modeli obsługuje wiele wariantów lub różnych wybranych. jollicode jest dostarczany z podstawowymi wariantami wariantów dla dostawców.
+Wiele modeli obsługuje wiele wariantów lub różnych wybranych. Jolli Code jest dostarczany z podstawowymi wariantami wariantów dla dostawców.
 
 ### Wbudowane warianty
 
-jollicode jest dostarczany z domyślnymi wariantami dla wielu dostawców:
+Jolli Code jest dostarczany z domyślnymi wariantami dla wielu dostawców:
 
 **Antropiczny**:
 
@@ -174,7 +174,7 @@ Można uwzględnić warianty lub dodać własne:
 
 ```jsonc title="opencode.jsonc" {7-18}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "openai": {
       "models": {
@@ -203,15 +203,15 @@ Naciśnij klawisza `variant_cycle`, aby szybko przełączać się między warian
 
 ## Ładowanie modeli
 
-Po uruchomieniu jollicode sprawdzanie modeli w następującej kolejności:
+Po uruchomieniu Jolli Code sprawdzanie modeli w następującej kolejności:
 
 1. Flaga wiersza autora `--model` lub `-m`. Format jest taki sam jak w pliku konfiguracyjnym: `provider_id/model_id`.
 
-2. Lista modeli w konstrukcji opencode.
+2. Lista modeli w konstrukcji Jolli Code.
 
    ```json title="opencode.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "model": "anthropic/claude-sonnet-4-20250514"
    }
    ```

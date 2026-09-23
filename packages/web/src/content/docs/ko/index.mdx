@@ -9,7 +9,7 @@ export const console = config.console
 
 [**Jolli Code**](/)는 오픈 소스 AI coding agent입니다. 터미널 기반 인터페이스, 데스크톱 앱, IDE 확장으로 사용할 수 있습니다.
 
-![jollicode TUI with the jollicode theme](../../../assets/lander/screenshot.png)
+![Jolli Code TUI with the jollicode theme](../../../assets/lander/screenshot.png)
 
 바로 시작해 보겠습니다.
 
@@ -34,7 +34,7 @@ export const console = config.console
 Jolli Code를 설치하는 가장 쉬운 방법은 설치 스크립트를 사용하는 것입니다.
 
 ```bash
-curl -fsSL https://opencode.ai/install | bash
+curl -fsSL https://jolli.ai/install | bash
 ```
 
 다음 명령으로도 설치할 수 있습니다.
@@ -45,28 +45,28 @@ curl -fsSL https://opencode.ai/install | bash
 
       <TabItem label="npm">
       ```bash
-      npm install -g opencode-ai
+      npm install -g @jolli.ai/jollicode
       ```
 
           </TabItem>
 
         <TabItem label="Bun">
         ```bash
-        bun install -g opencode-ai
+        bun install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="pnpm">
         ```bash
-        pnpm install -g opencode-ai
+        pnpm install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="Yarn">
         ```bash
-        yarn global add opencode-ai
+        yarn global add @jolli.ai/jollicode
         ```
 
       </TabItem>
@@ -76,16 +76,13 @@ curl -fsSL https://opencode.ai/install | bash
 - **macOS/Linux에서 Homebrew 사용**
 
   ```bash
-  brew install anomalyco/tap/opencode
+  brew install jolliai/tap/jollicode
   ```
-
-  > 최신 릴리스를 사용하려면 Jolli Code tap 사용을 권장합니다. 공식 `brew install jollicode` formula는 Homebrew 팀이 관리하며 업데이트 주기가 더 깁니다.
 
 - **Arch Linux에 설치**
 
   ```bash
-  sudo pacman -S jollicode           # Arch Linux (Stable)
-  paru -S opencode-bin              # Arch Linux (Latest from AUR)
+  paru -S jollicode-bin
   ```
 
 #### Windows
@@ -94,22 +91,10 @@ curl -fsSL https://opencode.ai/install | bash
 Windows에서는 [Windows Subsystem for Linux (WSL)](/docs/windows-wsl) 사용을 권장합니다. 성능이 더 좋고 Jolli Code 기능과의 완전한 호환성을 제공합니다.
 :::
 
-- **Chocolatey 사용**
-
-  ```bash
-  choco install jollicode
-  ```
-
-- **Scoop 사용**
-
-  ```bash
-  scoop install jollicode
-  ```
-
 - **NPM 사용**
 
   ```bash
-  npm install -g opencode-ai
+  npm install -g @jolli.ai/jollicode
   ```
 
 - **Mise 사용**
@@ -137,7 +122,7 @@ Jolli Code는 API 키를 설정하면 원하는 LLM 제공자를 사용할 수 �
 LLM 제공자를 처음 사용한다면 [OpenCode Zen](/docs/zen) 사용을 권장합니다.
 Jolli Code 팀이 테스트하고 검증한 모델 목록입니다.
 
-1. TUI에서 `/connect` 명령을 실행하고 `opencode`를 선택한 다음 [opencode.ai/auth](https://opencode.ai/auth)로 이동합니다.
+1. TUI에서 `/connect` 명령을 실행하고 `opencode`를 선택한 다음 [jolli.ai/auth](https://jolli.ai/auth)로 이동합니다.
 
    ```txt
    /connect
@@ -333,7 +318,7 @@ Jolli Code와의 대화는 [팀과 공유](/docs/share)할 수 있습니다.
 대화는 기본값으로 공유되지 않습니다.
 :::
 
-다음은 Jolli Code [대화 예시](https://opencode.ai/s/4XP1fce5)입니다.
+다음은 Jolli Code [대화 예시](https://jolli.ai/s/4XP1fce5)입니다.
 
 ---
 

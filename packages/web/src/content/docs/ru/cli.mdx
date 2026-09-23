@@ -5,13 +5,13 @@ description: Параметры и команда jollicode CLI.
 
 import { Tabs, TabItem } from "@astrojs/starlight/components"
 
-CLI jollicode по умолчанию запускает [TUI](/docs/tui) при запуске без каких-либо аргументов.
+CLI Jolli Code по умолчанию запускает [TUI](/docs/tui) при запуске без каких-либо аргументов.
 
 ```bash
 jollicode
 ```
 
-Но он также принимает команды, описанные на этой странице. Это позволяет вам программно взаимодействовать с opencode.
+Но он также принимает команды, описанные на этой странице. Это позволяет вам программно взаимодействовать с Jolli Code.
 
 ```bash
 jollicode run "Explain how closures work in JavaScript"
@@ -21,7 +21,7 @@ jollicode run "Explain how closures work in JavaScript"
 
 ### tui
 
-Запустите TUI opencode.
+Запустите TUI Jolli Code.
 
 ```bash
 jollicode [project]
@@ -44,13 +44,13 @@ jollicode [project]
 
 ## Команды
 
-CLI jollicode также имеет следующие команды.
+CLI Jolli Code также имеет следующие команды.
 
 ---
 
 ### agent
 
-Управляйте агентами для opencode.
+Управляйте агентами для Jolli Code.
 
 ```bash
 jollicode agent [command]
@@ -60,13 +60,13 @@ jollicode agent [command]
 
 ### attach
 
-Подключите терминал к уже работающему внутреннему серверу jollicode, запущенному с помощью команд `serve` или `web`.
+Подключите терминал к уже работающему внутреннему серверу Jolli Code, запущенному с помощью команд `serve` или `web`.
 
 ```bash
 jollicode attach [url]
 ```
 
-Это позволяет использовать TUI с удаленным сервером opencode. Например:
+Это позволяет использовать TUI с удаленным сервером Jolli Code. Например:
 
 ```bash
 # Start the backend server for web/mobile access
@@ -123,13 +123,13 @@ jollicode auth [command]
 
 #### login
 
-jollicode использует список провайдеров с [Models.dev](https://models.dev), поэтому вы можете использовать `jollicode auth login` для настройки ключей API для любого поставщика, которого вы хотите использовать. Это хранится в `~/.local/share/jollicode/auth.json`.
+Jolli Code использует список провайдеров с [Models.dev](https://models.dev), поэтому вы можете использовать `jollicode auth login` для настройки ключей API для любого поставщика, которого вы хотите использовать. Это хранится в `~/.local/share/jollicode/auth.json`.
 
 ```bash
 jollicode auth login
 ```
 
-Когда jollicode запускается, он загружает поставщиков из файла учетных данных. И если в ваших средах определены какие-либо ключи или файл `.env` в вашем проекте.
+Когда Jolli Code запускается, он загружает поставщиков из файла учетных данных. И если в ваших средах определены какие-либо ключи или файл `.env` в вашем проекте.
 
 ---
 
@@ -305,7 +305,7 @@ jollicode models anthropic
 | <nobr><code>{"--refresh"}</code></nobr> | Обновите кеш моделей на сайте models.dev.                                         |
 | <nobr><code>{"--verbose"}</code></nobr> | Используйте более подробный вывод модели (включая метаданные, такие как затраты). |
 
-Используйте флаг `--refresh` для обновления списка кэшированных моделей. Это полезно, когда к поставщику добавлены новые модели и вы хотите увидеть их в opencode.
+Используйте флаг `--refresh` для обновления списка кэшированных моделей. Это полезно, когда к поставщику добавлены новые модели и вы хотите увидеть их в Jolli Code.
 
 ```bash
 jollicode models --refresh
@@ -315,7 +315,7 @@ jollicode models --refresh
 
 ### run
 
-Запустите jollicode в неинтерактивном режиме, передав приглашение напрямую.
+Запустите Jolli Code в неинтерактивном режиме, передав приглашение напрямую.
 
 ```bash
 jollicode run [message..]
@@ -351,7 +351,7 @@ jollicode run --attach http://localhost:4096 "Explain async/await in JavaScript"
 | <nobr><code>{"--file"}</code></nobr>     | `-f`     | Файл(ы) для прикрепления к сообщению                                                             |
 | <nobr><code>{"--format"}</code></nobr>   |          | Формат: по умолчанию (отформатированный) или json (необработанные события JSON).                 |
 | <nobr><code>{"--title"}</code></nobr>    |          | Название сеанса (использует усеченное приглашение, если значение не указано)                     |
-| <nobr><code>{"--attach"}</code></nobr>   |          | Подключитесь к работающему серверу jollicode (например, http://localhost:4096)                    |
+| <nobr><code>{"--attach"}</code></nobr>   |          | Подключитесь к работающему серверу Jolli Code (например, http://localhost:4096)                    |
 | <nobr><code>{"--password"}</code></nobr> | `-p`     | Пароль базовой аутентификации (по умолчанию `OPENCODE_SERVER_PASSWORD`)                          |
 | <nobr><code>{"--username"}</code></nobr> | `-u`     | Имя пользователя базовой аутентификации (по умолчанию `OPENCODE_SERVER_USERNAME` или `jollicode`) |
 | <nobr><code>{"--dir"}</code></nobr>      |          | Каталог для выполнения или путь на удалённом сервере при подключении                             |
@@ -363,13 +363,13 @@ jollicode run --attach http://localhost:4096 "Explain async/await in JavaScript"
 
 ### serve
 
-Запустите автономный сервер jollicode для доступа к API. Полный HTTP-интерфейс можно найти в [server docs](/docs/server).
+Запустите автономный сервер Jolli Code для доступа к API. Полный HTTP-интерфейс можно найти в [server docs](/docs/server).
 
 ```bash
 jollicode serve
 ```
 
-При этом запускается HTTP-сервер, который обеспечивает доступ API к функциям jollicode без интерфейса TUI. Установите `OPENCODE_SERVER_PASSWORD`, чтобы включить базовую аутентификацию HTTP (имя пользователя по умолчанию — `jollicode`).
+При этом запускается HTTP-сервер, который обеспечивает доступ API к функциям Jolli Code без интерфейса TUI. Установите `OPENCODE_SERVER_PASSWORD`, чтобы включить базовую аутентификацию HTTP (имя пользователя по умолчанию — `jollicode`).
 
 #### Флаги
 
@@ -384,7 +384,7 @@ jollicode serve
 
 ### session
 
-Управляйте сессиями opencode.
+Управляйте сессиями Jolli Code.
 
 ```bash
 jollicode session [command]
@@ -394,7 +394,7 @@ jollicode session [command]
 
 #### list
 
-Перечислите все сеансы opencode.
+Перечислите все сеансы Jolli Code.
 
 ```bash
 jollicode session list
@@ -411,7 +411,7 @@ jollicode session list
 
 ### stats
 
-Покажите статистику использования токенов и затрат для ваших сеансов opencode.
+Покажите статистику использования токенов и затрат для ваших сеансов Jolli Code.
 
 ```bash
 jollicode stats
@@ -442,13 +442,13 @@ jollicode export [sessionID]
 
 ### import
 
-Импортируйте данные сеанса из файла JSON или URL-адреса общего ресурса opencode.
+Импортируйте данные сеанса из файла JSON или URL-адреса общего ресурса Jolli Code.
 
 ```bash
 jollicode import <file>
 ```
 
-Вы можете импортировать из локального файла или URL-адреса общего ресурса opencode.
+Вы можете импортировать из локального файла или URL-адреса общего ресурса Jolli Code.
 
 ```bash
 jollicode import session.json
@@ -459,13 +459,13 @@ jollicode import https://opncd.ai/s/abc123
 
 ### web
 
-Запустите автономный сервер jollicode с веб-интерфейсом.
+Запустите автономный сервер Jolli Code с веб-интерфейсом.
 
 ```bash
 jollicode web
 ```
 
-При этом запускается HTTP-сервер и открывается веб-браузер для доступа к jollicode через веб-интерфейс. Установите `OPENCODE_SERVER_PASSWORD`, чтобы включить базовую аутентификацию HTTP (имя пользователя по умолчанию — `jollicode`).
+При этом запускается HTTP-сервер и открывается веб-браузер для доступа к Jolli Code через веб-интерфейс. Установите `OPENCODE_SERVER_PASSWORD`, чтобы включить базовую аутентификацию HTTP (имя пользователя по умолчанию — `jollicode`).
 
 #### Флаги
 
@@ -500,7 +500,7 @@ jollicode acp
 
 ### uninstall
 
-Удалите jollicode и удалите все связанные файлы.
+Удалите Jolli Code и удалите все связанные файлы.
 
 ```bash
 jollicode uninstall
@@ -519,7 +519,7 @@ jollicode uninstall
 
 ### upgrade
 
-Обновляет jollicode до последней версии или определенной версии.
+Обновляет Jolli Code до последней версии или определенной версии.
 
 ```bash
 jollicode upgrade [target]
@@ -547,7 +547,7 @@ jollicode upgrade v0.1.48
 
 ## Глобальные флаги
 
-CLI jollicode принимает следующие глобальные флаги.
+CLI Jolli Code принимает следующие глобальные флаги.
 
 | Флаг                                       | Короткий | Описание                                   |
 | ------------------------------------------ | -------- | ------------------------------------------ |
@@ -560,7 +560,7 @@ CLI jollicode принимает следующие глобальные фла�
 
 ## Переменные среды
 
-jollicode можно настроить с помощью переменных среды.
+Jolli Code можно настроить с помощью переменных среды.
 
 | Переменная                            | Тип                 | Описание                                                                         |
 | ------------------------------------- | ------------------- | -------------------------------------------------------------------------------- |

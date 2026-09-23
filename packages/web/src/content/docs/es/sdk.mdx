@@ -6,8 +6,8 @@ description: Cliente JS con seguridad de tipos para el servidor opencode.
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-El SDK jollicode JS/TS proporciona un cliente con seguridad de tipos para interactuar con el servidor.
-Úselo para crear integraciones y controlar jollicode mediante programación.
+El SDK Jolli Code JS/TS proporciona un cliente con seguridad de tipos para interactuar con el servidor.
+Úselo para crear integraciones y controlar Jolli Code mediante programación.
 
 [Más información](/docs/server) sobre cómo funciona el servidor. Para ver ejemplos, consulte los [proyectos](/docs/ecosystem#projects) creados por la comunidad.
 
@@ -25,7 +25,7 @@ npm install @opencode-ai/sdk
 
 ## Crear cliente
 
-Cree una instancia de jollicode:
+Cree una instancia de Jolli Code:
 
 ```javascript
 import { createOpencode } from "@opencode-ai/sdk"
@@ -62,14 +62,14 @@ const jollicode = await createOpencode({
   },
 })
 
-console.log(`Server running at ${opencode.server.url}`)
+console.log(`Server running at ${jollicode.server.url}`)
 
-opencode.server.close()
+jollicode.server.close()
 ```
 
 ## Solo cliente
 
-Si ya tiene una instancia en ejecución de jollicode, puede crear una instancia de cliente para conectarse a ella:
+Si ya tiene una instancia en ejecución de Jolli Code, puede crear una instancia de cliente para conectarse a ella:
 
 ```javascript
 import { createOpencodeClient } from "@opencode-ai/sdk"

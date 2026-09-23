@@ -3,19 +3,19 @@ title: กฎ
 description: ตั้งค่าคำแนะนำที่กำหนดเองสำหรับ jollicode
 ---
 
-คุณสามารถให้คำแนะนำที่กำหนดเองแก่ jollicode ได้โดยการสร้างไฟล์ `AGENTS.md` ซึ่งคล้ายกับกฎของเคอร์เซอร์ ประกอบด้วยคำแนะนำที่จะรวมอยู่ในบริบทของ LLM เพื่อปรับแต่งลักษณะการทำงานสำหรับโครงการเฉพาะของคุณ
+คุณสามารถให้คำแนะนำที่กำหนดเองแก่ Jolli Code ได้โดยการสร้างไฟล์ `AGENTS.md` ซึ่งคล้ายกับกฎของเคอร์เซอร์ ประกอบด้วยคำแนะนำที่จะรวมอยู่ในบริบทของ LLM เพื่อปรับแต่งลักษณะการทำงานสำหรับโครงการเฉพาะของคุณ
 
 ---
 
 ## เริ่มต้น
 
-หากต้องการสร้างไฟล์ `AGENTS.md` ใหม่ คุณสามารถเรียกใช้คำสั่ง `/init` ใน jollicode
+หากต้องการสร้างไฟล์ `AGENTS.md` ใหม่ คุณสามารถเรียกใช้คำสั่ง `/init` ใน Jolli Code
 
 :::tip
 คุณควรคอมมิตไฟล์ `AGENTS.md` ของโปรเจ็กต์ของคุณไปที่ Git
 :::
 
-การดำเนินการนี้จะสแกนโปรเจ็กต์ของคุณและเนื้อหาทั้งหมดเพื่อทำความเข้าใจว่าโปรเจ็กต์เกี่ยวกับอะไร และสร้างไฟล์ `AGENTS.md` ด้วย สิ่งนี้ช่วยให้ jollicode นำทางโครงการได้ดีขึ้น
+การดำเนินการนี้จะสแกนโปรเจ็กต์ของคุณและเนื้อหาทั้งหมดเพื่อทำความเข้าใจว่าโปรเจ็กต์เกี่ยวกับอะไร และสร้างไฟล์ `AGENTS.md` ด้วย สิ่งนี้ช่วยให้ Jolli Code นำทางโครงการได้ดีขึ้น
 
 หากคุณมีไฟล์ `AGENTS.md` อยู่แล้ว ระบบจะพยายามเพิ่มไฟล์ดังกล่าว
 
@@ -54,7 +54,7 @@ This is an SST v3 monorepo with TypeScript. The project uses bun workspaces for 
 
 ## ประเภท
 
-jollicode ยังรองรับการอ่านไฟล์ `AGENTS.md` จากหลาย ๆ ที่ และสิ่งนี้มีจุดประสงค์ที่แตกต่างกัน
+Jolli Code ยังรองรับการอ่านไฟล์ `AGENTS.md` จากหลาย ๆ ที่ และสิ่งนี้มีจุดประสงค์ที่แตกต่างกัน
 
 ### โครงการ
 
@@ -62,7 +62,7 @@ jollicode ยังรองรับการอ่านไฟล์ `AGENTS.m
 
 ### ทั่วโลก
 
-คุณยังสามารถมีกฎสากลในไฟล์ `~/.config/jollicode/AGENTS.md` สิ่งนี้จะนำไปใช้กับเซสชัน jollicode ทั้งหมด
+คุณยังสามารถมีกฎสากลในไฟล์ `~/.config/jollicode/AGENTS.md` สิ่งนี้จะนำไปใช้กับเซสชัน Jolli Code ทั้งหมด
 
 เนื่องจากสิ่งนี้ไม่ได้ผูกมัดกับ Git หรือแชร์กับทีมของคุณ เราขอแนะนำให้ใช้สิ่งนี้เพื่อระบุกฎส่วนบุคคลที่ LLM ควรปฏิบัติตาม
 
@@ -86,7 +86,7 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ## ลำดับความสำคัญ
 
-เมื่อ jollicode เริ่มต้นขึ้น มันจะค้นหาไฟล์กฎตามลำดับนี้:
+เมื่อ Jolli Code เริ่มต้นขึ้น มันจะค้นหาไฟล์กฎตามลำดับนี้:
 
 1. **ไฟล์ในเครื่อง** โดยการสำรวจจากไดเรกทอรีปัจจุบัน (`AGENTS.md`, `CLAUDE.md`)
 2. **ไฟล์ทั่วโลก** ที่ `~/.config/jollicode/AGENTS.md`
@@ -104,7 +104,7 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
 }
 ```
@@ -113,7 +113,7 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["https://raw.githubusercontent.com/my-org/shared-rules/main/style.md"]
 }
 ```
@@ -126,7 +126,7 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ## การอ้างอิงไฟล์ภายนอก
 
-แม้ว่า jollicode จะไม่แยกวิเคราะห์การอ้างอิงไฟล์ใน `AGENTS.md` โดยอัตโนมัติ แต่คุณสามารถใช้ฟังก์ชันที่คล้ายกันได้สองวิธี:
+แม้ว่า Jolli Code จะไม่แยกวิเคราะห์การอ้างอิงไฟล์ใน `AGENTS.md` โดยอัตโนมัติ แต่คุณสามารถใช้ฟังก์ชันที่คล้ายกันได้สองวิธี:
 
 ### ใช้ opencode.json
 
@@ -134,14 +134,14 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["docs/development-standards.md", "test/testing-guidelines.md", "packages/*/AGENTS.md"]
 }
 ```
 
 ### คำแนะนำแบบแมนนวลใน AGENTS.md
 
-คุณสามารถสอนให้ jollicode อ่านไฟล์ภายนอกได้โดยการให้คำแนะนำที่ชัดเจนใน `AGENTS.md` ของคุณ นี่เป็นตัวอย่างที่เป็นประโยชน์:
+คุณสามารถสอนให้ Jolli Code อ่านไฟล์ภายนอกได้โดยการให้คำแนะนำที่ชัดเจนใน `AGENTS.md` ของคุณ นี่เป็นตัวอย่างที่เป็นประโยชน์:
 
 ```markdown title="AGENTS.md"
 # TypeScript Project Rules
@@ -173,7 +173,7 @@ Read the following file immediately as it's relevant to all workflows: @rules/ge
 - สร้างไฟล์กฎแบบโมดูลาร์ที่สามารถนำมาใช้ซ้ำได้
 - แชร์กฎระหว่างโปรเจ็กต์ผ่าน symlink หรือโมดูลย่อย git
 - เขียน AGENTS.md ให้กระชับโดยอ้างอิงหลักเกณฑ์โดยละเอียด
-- ตรวจสอบให้แน่ใจว่า jollicode จะโหลดไฟล์เมื่อจำเป็นสำหรับงานเฉพาะเท่านั้น
+- ตรวจสอบให้แน่ใจว่า Jolli Code จะโหลดไฟล์เมื่อจำเป็นสำหรับงานเฉพาะเท่านั้น
 
 :::tip
 สำหรับ monorepos หรือโปรเจ็กต์ที่มีมาตรฐานร่วมกัน การใช้ `opencode.json` ที่มีรูปแบบ glob (เช่น `packages/*/AGENTS.md`) จะสามารถบำรุงรักษาได้ดีกว่าคำสั่งแบบแมนนวล

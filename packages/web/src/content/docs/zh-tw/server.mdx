@@ -6,7 +6,7 @@ description: 透過 HTTP 與 jollicode 伺服器互動。
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-`jollicode serve` 指令執行一個無介面的 HTTP 伺服器，暴露一個 OpenAPI 端點供 jollicode 客戶端使用。
+`jollicode serve` 指令執行一個無介面的 HTTP 伺服器，暴露一個 OpenAPI 端點供 Jolli Code 客戶端使用。
 
 ---
 
@@ -49,12 +49,12 @@ OPENCODE_SERVER_PASSWORD=your-password jollicode serve
 當你執行 `jollicode` 時，它會啟動一個 TUI 和一個伺服器。TUI 是與伺服器通訊的客戶端。伺服器暴露一個 OpenAPI 3.1 規範端點。該端點也用於產生 [SDK](/docs/sdk)。
 
 :::tip
-使用 jollicode 伺服器以程式化方式與 jollicode 互動。
+使用 Jolli Code 伺服器以程式化方式與 Jolli Code 互動。
 :::
 
-這種架構讓 jollicode 支援多個客戶端，並允許你以程式化方式與 jollicode 互動。
+這種架構讓 Jolli Code 支援多個客戶端，並允許你以程式化方式與 Jolli Code 互動。
 
-你可以執行 `jollicode serve` 來啟動一個獨立的伺服器。如果你已經在執行 jollicode TUI，`jollicode serve` 會啟動一個新的伺服器。
+你可以執行 `jollicode serve` 來啟動一個獨立的伺服器。如果你已經在執行 Jolli Code TUI，`jollicode serve` 會啟動一個新的伺服器。
 
 ---
 
@@ -80,7 +80,7 @@ http://<hostname>:<port>/doc
 
 ## API
 
-jollicode 伺服器暴露以下 API。
+Jolli Code 伺服器暴露以下 API。
 
 ---
 

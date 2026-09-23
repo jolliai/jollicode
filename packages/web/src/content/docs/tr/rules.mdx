@@ -3,19 +3,19 @@ title: Kurallar
 description: jollicode için özel talimatları ayarlayın.
 ---
 
-Bir `AGENTS.md` dosyası oluşturarak jollicode için özel talimatlar verebilirsiniz. Bu, Cursor rules yaklaşımına benzer. Özel projeniz için davranışını özelleştirmek amacıyla LLM'in içeriğine dahil edilecek talimatları içerir.
+Bir `AGENTS.md` dosyası oluşturarak Jolli Code için özel talimatlar verebilirsiniz. Bu, Cursor rules yaklaşımına benzer. Özel projeniz için davranışını özelleştirmek amacıyla LLM'in içeriğine dahil edilecek talimatları içerir.
 
 ---
 
 ## Başlat
 
-Yeni bir `AGENTS.md` dosyası oluşturmak için `/init` komutunu jollicode'da çalıştırabilirsiniz.
+Yeni bir `AGENTS.md` dosyası oluşturmak için `/init` komutunu Jolli Code'da çalıştırabilirsiniz.
 
 :::tip
 Projenizin `AGENTS.md` dosyasını Git'e göndermelisiniz.
 :::
 
-Bu, projenin neyle ilgili olduğunu anlamak için projenizi ve tüm içeriğini tarayacak ve onunla bir `AGENTS.md` dosyası oluşturacaktır. Bu, jollicode'un projede daha iyi gezinmesine yardımcı olur.
+Bu, projenin neyle ilgili olduğunu anlamak için projenizi ve tüm içeriğini tarayacak ve onunla bir `AGENTS.md` dosyası oluşturacaktır. Bu, Jolli Code'un projede daha iyi gezinmesine yardımcı olur.
 
 Mevcut bir `AGENTS.md` dosyanız varsa, bu dosyaya eklemeye çalışacaktır.
 
@@ -54,7 +54,7 @@ Buraya projeye özel talimatlar ekliyoruz ve bu, ekibiniz arasında paylaşılac
 
 ## Türler
 
-jollicode ayrıca `AGENTS.md` dosyasının birden fazla konumdan okunmasını da destekler. Ve bu farklı amaçlara hizmet ediyor.
+Jolli Code ayrıca `AGENTS.md` dosyasının birden fazla konumdan okunmasını da destekler. Ve bu farklı amaçlara hizmet ediyor.
 
 ### Proje
 
@@ -62,13 +62,13 @@ Projeye özel kurallar için proje kökünüze bir `AGENTS.md` yerleştirin. Bun
 
 ### Global
 
-Ayrıca `~/.config/jollicode/AGENTS.md` dosyasında genel kurallara sahip olabilirsiniz. Bu, tüm jollicode oturumlarına uygulanır.
+Ayrıca `~/.config/jollicode/AGENTS.md` dosyasında genel kurallara sahip olabilirsiniz. Bu, tüm Jolli Code oturumlarına uygulanır.
 
 Bu Git'e kaydedilmediği veya ekibinizle paylaşılmadığı için, LLM'ın uyması gereken kişisel kuralları belirtmek için bunu kullanmanızı öneririz.
 
 ### Claude Code uyumluluğu
 
-jollicode, Claude Code'dan geçiş yapan kullanıcılar için yedek olarak Claude Code'un dosya kurallarını destekler:
+Jolli Code, Claude Code'dan geçiş yapan kullanıcılar için yedek olarak Claude Code'un dosya kurallarını destekler:
 
 - **Proje kuralları**: Proje dizininizdeki `CLAUDE.md` (`AGENTS.md` yoksa kullanılır)
 - **Global kurallar**: `~/.claude/CLAUDE.md` (`~/.config/jollicode/AGENTS.md` yoksa kullanılır)
@@ -86,7 +86,7 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ## Öncelik
 
-Opencode başlatıldığında kural dosyalarını şu sırayla arar:
+Jolli Code başlatıldığında kural dosyalarını şu sırayla arar:
 
 1. **Yerel dosyalar** geçerli dizinden yukarıya doğru giderek (`AGENTS.md`, `CLAUDE.md`)
 2. **Global dosya** `~/.config/jollicode/AGENTS.md` adresinde
@@ -104,7 +104,7 @@ Her kategoride ilk eşleşen dosya kazanır. Örneğin, hem `AGENTS.md` hem de `
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
 }
 ```
@@ -113,7 +113,7 @@ Web'den talimatlar yüklemek için uzak URL'leri de kullanabilirsiniz.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["https://raw.githubusercontent.com/my-org/shared-rules/main/style.md"]
 }
 ```
@@ -126,7 +126,7 @@ Tüm talimat dosyaları `AGENTS.md` dosyalarınızla birleştirilir.
 
 ## Harici Dosyalara Referans Verme
 
-Opencode, `AGENTS.md`'daki dosya referanslarını otomatik olarak ayrıştırmasa da, benzer işlevleri iki şekilde elde edebilirsiniz:
+Jolli Code, `AGENTS.md`'daki dosya referanslarını otomatik olarak ayrıştırmasa da, benzer işlevleri iki şekilde elde edebilirsiniz:
 
 ### opencode.json'u kullanma
 
@@ -134,14 +134,14 @@ Opencode, `AGENTS.md`'daki dosya referanslarını otomatik olarak ayrıştırmas
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["docs/development-standards.md", "test/testing-guidelines.md", "packages/*/AGENTS.md"]
 }
 ```
 
 ### AGENTS.md içinde manuel talimatlar
 
-`AGENTS.md`'nizde açık talimatlar sağlayarak jollicode'u harici dosyaları okumayı öğretebilirsiniz. İşte pratik bir örnek:
+`AGENTS.md`'nizde açık talimatlar sağlayarak Jolli Code'u harici dosyaları okumayı öğretebilirsiniz. İşte pratik bir örnek:
 
 ```markdown title="AGENTS.md"
 # TypeScript Project Rules
@@ -173,7 +173,7 @@ Bu yaklaşım şunları yapmanızı sağlar:
 - Modüler, yeniden kullanılabilir kural dosyaları oluşturun
 - Sembolik bağlantılar veya git alt modülleri aracılığıyla kuralları projeler arasında paylaşın
 - AGENTS.md dosyasını kısa tutarken ayrıntılı kılavuzlara referans verin
-- jollicode'un dosyaları yalnızca belirli bir görev için gerektiğinde yüklediğinden emin olun
+- Jolli Code'un dosyaları yalnızca belirli bir görev için gerektiğinde yüklediğinden emin olun
 
 :::tip
 Monorepo'lar veya ortak standartlara sahip projeler için, `opencode.json`'yi glob desenleriyle (`packages/*/AGENTS.md` gibi) kullanmak, manuel talimatlara göre daha sürdürülebilirdir.

@@ -3,7 +3,7 @@ title: Plugins
 description: Escreva seus próprios plugins para estender o opencode.
 ---
 
-Plugins permitem que você estenda o jollicode conectando-se a vários eventos e personalizando o comportamento. Você pode criar plugins para adicionar novos recursos, integrar-se a serviços externos ou modificar o comportamento padrão do opencode.
+Plugins permitem que você estenda o Jolli Code conectando-se a vários eventos e personalizando o comportamento. Você pode criar plugins para adicionar novos recursos, integrar-se a serviços externos ou modificar o comportamento padrão do Jolli Code.
 
 Para exemplos, confira os [plugins](/docs/ecosystem#plugins) criados pela comunidade.
 
@@ -32,7 +32,7 @@ Especifique pacotes npm no seu arquivo de configuração.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
 }
 ```
@@ -82,7 +82,7 @@ Plugins locais e ferramentas personalizadas podem usar pacotes npm externos. Adi
 }
 ```
 
-O jollicode executa `bun install` na inicialização para instalar esses pacotes. Seus plugins e ferramentas podem então importá-los.
+O Jolli Code executa `bun install` na inicialização para instalar esses pacotes. Seus plugins e ferramentas podem então importá-los.
 
 ```ts title=".jollicode/plugins/my-plugin.ts"
 import { escape } from "shescape"
@@ -117,7 +117,7 @@ A função do plugin recebe:
 - `project`: As informações do projeto atual.
 - `directory`: O diretório de trabalho atual.
 - `worktree`: O caminho do worktree do git.
-- `client`: Um cliente SDK do jollicode para interagir com a AI.
+- `client`: Um cliente SDK do Jolli Code para interagir com a AI.
 - `$`: A [API shell](https://bun.com/docs/runtime/shell) do Bun para executar comandos.
 
 ---
@@ -210,7 +210,7 @@ Plugins podem se inscrever em eventos como visto abaixo na seção Exemplos. Aqu
 
 ## Exemplos
 
-Aqui estão alguns exemplos de plugins que você pode usar para estender o opencode.
+Aqui estão alguns exemplos de plugins que você pode usar para estender o Jolli Code.
 
 ---
 
@@ -234,14 +234,14 @@ export const NotificationPlugin = async ({ project, client, $, directory, worktr
 Estamos usando `osascript` para executar AppleScript no macOS. Aqui estamos usando para enviar notificações.
 
 :::note
-Se você estiver usando o aplicativo desktop jollicode, ele pode enviar notificações do sistema automaticamente quando uma resposta estiver pronta ou quando ocorrer um erro na sessão.
+Se você estiver usando o aplicativo desktop Jolli Code, ele pode enviar notificações do sistema automaticamente quando uma resposta estiver pronta ou quando ocorrer um erro na sessão.
 :::
 
 ---
 
 ### Proteção .env
 
-Impeça o jollicode de ler arquivos `.env`:
+Impeça o Jolli Code de ler arquivos `.env`:
 
 ```javascript title=".jollicode/plugins/env-protection.js"
 export const EnvProtection = async ({ project, client, $, directory, worktree }) => {
@@ -276,7 +276,7 @@ export const InjectEnvPlugin = async () => {
 
 ### Ferramentas personalizadas
 
-Plugins também podem adicionar ferramentas personalizadas ao jollicode:
+Plugins também podem adicionar ferramentas personalizadas ao Jolli Code:
 
 ```ts title=".jollicode/plugins/custom-tools.ts"
 import { type Plugin, tool } from "@opencode-ai/plugin"
@@ -299,13 +299,13 @@ export const CustomToolsPlugin: Plugin = async (ctx) => {
 }
 ```
 
-O helper `tool` cria uma ferramenta personalizada que o jollicode pode chamar. Ele aceita uma função de esquema Zod e retorna uma definição de ferramenta com:
+O helper `tool` cria uma ferramenta personalizada que o Jolli Code pode chamar. Ele aceita uma função de esquema Zod e retorna uma definição de ferramenta com:
 
 - `description`: O que a ferramenta faz
 - `args`: Esquema Zod para os argumentos da ferramenta
 - `execute`: Função que é executada quando a ferramenta é chamada
 
-Suas ferramentas personalizadas estarão disponíveis para o jollicode junto com as ferramentas integradas.
+Suas ferramentas personalizadas estarão disponíveis para o Jolli Code junto com as ferramentas integradas.
 
 :::note
 Se uma ferramenta de plugin usar o mesmo nome que uma ferramenta integrada, a ferramenta de plugin tem precedência.
@@ -330,7 +330,7 @@ export const MyPlugin = async ({ client }) => {
 }
 ```
 
-Níveis: `debug`, `info`, `warn`, `error`. Veja a [documentação do SDK](https://opencode.ai/docs/sdk) para detalhes.
+Níveis: `debug`, `info`, `warn`, `error`. Veja a [documentação do SDK](https://jolli.ai/docs/sdk) para detalhes.
 
 ---
 

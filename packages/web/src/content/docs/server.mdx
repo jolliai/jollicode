@@ -6,7 +6,7 @@ description: Interact with jollicode server over HTTP.
 import config from "../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-The `jollicode serve` command runs a headless HTTP server that exposes an OpenAPI endpoint that an jollicode client can use.
+The `jollicode serve` command runs a headless HTTP server that exposes an OpenAPI endpoint that a Jolli Code client can use.
 
 ---
 
@@ -51,13 +51,13 @@ client that talks to the server. The server exposes an OpenAPI 3.1 spec
 endpoint. This endpoint is also used to generate an [SDK](/docs/sdk).
 
 :::tip
-Use the jollicode server to interact with jollicode programmatically.
+Use the Jolli Code server to interact with Jolli Code programmatically.
 :::
 
-This architecture lets jollicode support multiple clients and allows you to interact with jollicode programmatically.
+This architecture lets Jolli Code support multiple clients and allows you to interact with Jolli Code programmatically.
 
 You can run `jollicode serve` to start a standalone server. If you have the
-jollicode TUI running, `jollicode serve` will start a new server.
+Jolli Code TUI running, `jollicode serve` will start a new server.
 
 ---
 
@@ -83,7 +83,7 @@ For example, `http://localhost:4096/doc`. Use the spec to generate clients or in
 
 ## APIs
 
-The jollicode server exposes the following APIs.
+The Jolli Code server exposes the following APIs.
 
 ---
 

@@ -34,7 +34,7 @@ export const console = config.console
 安装 Jolli Code 最简单的方法是通过安装脚本。
 
 ```bash
-curl -fsSL https://opencode.ai/install | bash
+curl -fsSL https://jolli.ai/install | bash
 ```
 
 你也可以使用以下方式安装：
@@ -45,28 +45,28 @@ curl -fsSL https://opencode.ai/install | bash
 
       <TabItem label="npm">
       ```bash
-      npm install -g opencode-ai
+      npm install -g @jolli.ai/jollicode
       ```
 
           </TabItem>
 
         <TabItem label="Bun">
         ```bash
-        bun install -g opencode-ai
+        bun install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="pnpm">
         ```bash
-        pnpm install -g opencode-ai
+        pnpm install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="Yarn">
         ```bash
-        yarn global add opencode-ai
+        yarn global add @jolli.ai/jollicode
         ```
 
       </TabItem>
@@ -76,16 +76,13 @@ curl -fsSL https://opencode.ai/install | bash
 - **在 macOS 和 Linux 上使用 Homebrew**
 
   ```bash
-  brew install anomalyco/tap/opencode
+  brew install jolliai/tap/jollicode
   ```
-
-  > 我们推荐使用 Jolli Code tap 以获取最新版本。官方的 `brew install jollicode` formula 由 Homebrew 团队维护，更新频率较低。
 
 - **在 Arch Linux 上安装**
 
   ```bash
-  sudo pacman -S jollicode           # Arch Linux (Stable)
-  paru -S opencode-bin              # Arch Linux (Latest from AUR)
+  paru -S jollicode-bin
   ```
 
 #### Windows
@@ -94,22 +91,10 @@ curl -fsSL https://opencode.ai/install | bash
 为了在 Windows 上获得最佳体验，我们推荐使用 [Windows Subsystem for Linux (WSL)](/docs/windows-wsl)。它提供更好的性能，并完全兼容 Jolli Code 的所有功能。
 :::
 
-- **使用 Chocolatey**
-
-  ```bash
-  choco install jollicode
-  ```
-
-- **使用 Scoop**
-
-  ```bash
-  scoop install jollicode
-  ```
-
 - **使用 NPM**
 
   ```bash
-  npm install -g opencode-ai
+  npm install -g @jolli.ai/jollicode
   ```
 
 - **使用 Mise**
@@ -136,7 +121,7 @@ curl -fsSL https://opencode.ai/install | bash
 
 如果你刚开始接触 LLM 提供商，我们推荐使用 [OpenCode Zen](/docs/zen)。这是一组经过 Jolli Code 团队测试和验证的精选模型。
 
-1. 在 TUI 中运行 `/connect` 命令，选择 opencode，然后前往 [opencode.ai/auth](https://opencode.ai/auth)。
+1. 在 TUI 中运行 `/connect` 命令，选择 opencode，然后前往 [jolli.ai/auth](https://jolli.ai/auth)。
 
    ```txt
    /connect
@@ -332,7 +317,7 @@ Can you refactor the function in @packages/functions/src/api/index.ts?
 对话默认不会被分享。
 :::
 
-这是一个与 Jolli Code 的[示例对话](https://opencode.ai/s/4XP1fce5)。
+这是一个与 Jolli Code 的[示例对话](https://jolli.ai/s/4XP1fce5)。
 
 ---
 

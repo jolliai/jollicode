@@ -6,8 +6,8 @@ description: Type-safe JS client for jollicode server.
 import config from "../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-The jollicode JS/TS SDK provides a type-safe client for interacting with the server.
-Use it to build integrations and control jollicode programmatically.
+The Jolli Code JS/TS SDK provides a type-safe client for interacting with the server.
+Use it to build integrations and control Jolli Code programmatically.
 
 [Learn more](/docs/server) about how the server works. For examples, check out the [projects](/docs/ecosystem#projects) built by the community.
 
@@ -25,7 +25,7 @@ npm install @opencode-ai/sdk
 
 ## Create client
 
-Create an instance of jollicode:
+Create an instance of Jolli Code:
 
 ```javascript
 import { createOpencode } from "@opencode-ai/sdk"
@@ -62,14 +62,14 @@ const jollicode = await createOpencode({
   },
 })
 
-console.log(`Server running at ${opencode.server.url}`)
+console.log(`Server running at ${jollicode.server.url}`)
 
-opencode.server.close()
+jollicode.server.close()
 ```
 
 ## Client only
 
-If you already have a running instance of jollicode, you can create a client instance to connect to it:
+If you already have a running instance of Jolli Code, you can create a client instance to connect to it:
 
 ```javascript
 import { createOpencodeClient } from "@opencode-ai/sdk"

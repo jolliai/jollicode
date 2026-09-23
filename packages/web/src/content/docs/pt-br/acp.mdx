@@ -3,7 +3,7 @@ title: Suporte ACP
 description: Use o jollicode em qualquer editor compatível com ACP.
 ---
 
-O jollicode suporta o [Agent Client Protocol](https://agentclientprotocol.com) ou (ACP), permitindo que você o utilize diretamente em editores e IDEs compatíveis.
+O Jolli Code suporta o [Agent Client Protocol](https://agentclientprotocol.com) ou (ACP), permitindo que você o utilize diretamente em editores e IDEs compatíveis.
 
 :::tip
 Para uma lista de editores e ferramentas que suportam ACP, confira o [relatório de progresso do ACP](https://zed.dev/blog/acp-progress-report#available-now).
@@ -15,9 +15,9 @@ O ACP é um protocolo aberto que padroniza a comunicação entre editores de có
 
 ## Configuração
 
-Para usar jollicode via ACP, configure seu editor para executar o comando `jollicode acp`.
+Para usar Jolli Code via ACP, configure seu editor para executar o comando `jollicode acp`.
 
-Este comando inicia o jollicode como um subprocesso compatível com ACP que se comunica com seu editor via JSON-RPC através do stdio.
+Este comando inicia o Jolli Code como um subprocesso compatível com ACP que se comunica com seu editor via JSON-RPC através do stdio.
 
 Abaixo estão exemplos para editores populares que suportam ACP.
 
@@ -85,7 +85,7 @@ Adicione ao seu acp.json do [JetBrains IDE](https://www.jetbrains.com/) de acord
 }
 ```
 
-Para abri-lo, use o novo agente 'jollicode' no seletor de agentes do AI Chat.
+Para abri-lo, use o novo agente 'Jolli Code' no seletor de agentes do AI Chat.
 
 ---
 
@@ -124,7 +124,7 @@ Se você precisar passar variáveis de ambiente:
 
 ### CodeCompanion.nvim
 
-Para usar jollicode como um agente ACP no [CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim), adicione o seguinte à sua configuração do Neovim:
+Para usar Jolli Code como um agente ACP no [CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim), adicione o seguinte à sua configuração do Neovim:
 
 ```lua
 require("codecompanion").setup({
@@ -139,13 +139,13 @@ require("codecompanion").setup({
 })
 ```
 
-Esta configuração configura o CodeCompanion para usar jollicode como o agente ACP para chat.
+Esta configuração configura o CodeCompanion para usar Jolli Code como o agente ACP para chat.
 
 Se você precisar passar variáveis de ambiente (como `OPENCODE_API_KEY`), consulte [Configurando Adaptadores: Variáveis de Ambiente](https://codecompanion.olimorris.dev/getting-started#setting-an-api-key) na documentação do CodeCompanion.nvim para detalhes completos.
 
 ## Suporte
 
-O jollicode funciona da mesma forma via ACP como funciona no terminal. Todos os recursos são suportados:
+O Jolli Code funciona da mesma forma via ACP como funciona no terminal. Todos os recursos são suportados:
 
 :::note
 Alguns comandos de barra integrados, como `/undo` e `/redo`, atualmente não são suportados.
@@ -153,7 +153,7 @@ Alguns comandos de barra integrados, como `/undo` e `/redo`, atualmente não sã
 
 - Ferramentas integradas (operações de arquivo, comandos de terminal, etc.)
 - Ferramentas personalizadas e comandos de barra
-- Servidores MCP configurados na sua configuração do jollicode
+- Servidores MCP configurados na sua configuração do Jolli Code
 - Regras específicas do projeto do `AGENTS.md`
 - Formatadores e linters personalizados
 - Sistema de agentes e permissões

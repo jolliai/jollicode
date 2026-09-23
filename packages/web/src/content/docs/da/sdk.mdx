@@ -7,7 +7,7 @@ import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
 Åpenkoden JS/TS SDK gir en typesikker klient for samhandling med serveren.
-Brug den til at bygge integrasjoner og kontrollere jollicode programmatisk.
+Brug den til at bygge integrasjoner og kontrollere Jolli Code programmatisk.
 
 [Finn ut mer](/docs/server) om hvordan serveren fungerer. For eksempler, tjek ut [prosjektene](/docs/ecosystem#projects) bygget av fellesskapet.
 
@@ -25,7 +25,7 @@ npm install @opencode-ai/sdk
 
 ## Opret klient
 
-Opret en forekomst av jollicode:
+Opret en forekomst av Jolli Code:
 
 ```javascript
 import { createOpencode } from "@opencode-ai/sdk"
@@ -62,14 +62,14 @@ const jollicode = await createOpencode({
   },
 })
 
-console.log(`Server running at ${opencode.server.url}`)
+console.log(`Server running at ${jollicode.server.url}`)
 
-opencode.server.close()
+jollicode.server.close()
 ```
 
 ## Kun klient
 
-Hvis du allerede har en kjørende forekomst av jollicode, kan du oprete en klientforekomst for at koble til den:
+Hvis du allerede har en kjørende forekomst av Jolli Code, kan du oprete en klientforekomst for at koble til den:
 
 ```javascript
 import { createOpencodeClient } from "@opencode-ai/sdk"

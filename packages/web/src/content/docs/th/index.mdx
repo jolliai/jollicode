@@ -34,7 +34,7 @@ export const console = config.console
 วิธีที่ง่ายที่สุดในการติดตั้ง Jolli Code คือการใช้สคริปต์การติดตั้ง
 
 ```bash
-curl -fsSL https://opencode.ai/install | bash
+curl -fsSL https://jolli.ai/install | bash
 ```
 
 คุณยังสามารถติดตั้งได้ด้วยคำสั่งต่อไปนี้:
@@ -45,28 +45,28 @@ curl -fsSL https://opencode.ai/install | bash
 
       <TabItem label="npm">
       ```bash
-      npm install -g opencode-ai
+      npm install -g @jolli.ai/jollicode
       ```
 
           </TabItem>
 
         <TabItem label="Bun">
         ```bash
-        bun install -g opencode-ai
+        bun install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="pnpm">
         ```bash
-        pnpm install -g opencode-ai
+        pnpm install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="Yarn">
         ```bash
-        yarn global add opencode-ai
+        yarn global add @jolli.ai/jollicode
         ```
 
       </TabItem>
@@ -76,16 +76,13 @@ curl -fsSL https://opencode.ai/install | bash
 - **ใช้ Homebrew บน macOS และ Linux**
 
   ```bash
-  brew install anomalyco/tap/opencode
+  brew install jolliai/tap/jollicode
   ```
-
-  > เราขอแนะนำให้ใช้ Jolli Code tap เพื่อเผยแพร่ข้อมูลล่าสุด สูตร `brew install jollicode` อย่างเป็นทางการได้รับการดูแลโดยทีมงาน Homebrew และมีการอัปเดตไม่บ่อยนัก
 
 - **ใช้ Paru บน Arch Linux**
 
   ```bash
-  sudo pacman -S jollicode           # Arch Linux (Stable)
-  paru -S opencode-bin              # Arch Linux (Latest from AUR)
+  paru -S jollicode-bin
   ```
 
 #### Windows
@@ -94,22 +91,10 @@ curl -fsSL https://opencode.ai/install | bash
 เพื่อประสบการณ์ที่ดีที่สุดบน Windows เราขอแนะนำให้ใช้ [ระบบย่อย Windows สำหรับ Linux (WSL)](/docs/windows-wsl) ให้ประสิทธิภาพที่ดีขึ้นและความเข้ากันได้เต็มรูปแบบกับคุณสมบัติของ Jolli Code
 :::
 
-- **ใช้ Chocolatey**
-
-  ```bash
-  choco install jollicode
-  ```
-
-- **ใช้ Scoop**
-
-  ```bash
-  scoop install jollicode
-  ```
-
 - **การใช้ NPM**
 
   ```bash
-  npm install -g opencode-ai
+  npm install -g @jolli.ai/jollicode
   ```
 
 - **ใช้ Mise**
@@ -138,7 +123,7 @@ curl -fsSL https://opencode.ai/install | bash
 เป็นรายการโมเดลที่ได้รับการดูแลจัดการซึ่งได้รับการทดสอบและตรวจสอบโดย Jolli Code
 ทีม.
 
-1. เรียกใช้คำสั่ง `/connect` ใน TUI เลือก opencode และไปที่ [opencode.ai/auth](https://opencode.ai/auth)
+1. เรียกใช้คำสั่ง `/connect` ใน TUI เลือก opencode และไปที่ [jolli.ai/auth](https://jolli.ai/auth)
 
    ```txt
    /connect
@@ -349,7 +334,7 @@ Can you refactor the function in @packages/functions/src/api/index.ts?
 การสนทนาจะไม่ถูกแชร์โดยค่าเริ่มต้น
 :::
 
-นี่คือ [ตัวอย่างการสนทนา](https://opencode.ai/s/4XP1fce5) กับ Jolli Code
+นี่คือ [ตัวอย่างการสนทนา](https://jolli.ai/s/4XP1fce5) กับ Jolli Code
 
 ---
 

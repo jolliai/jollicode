@@ -42,17 +42,17 @@ Focus on the failing tests and suggest fixes.
 
 ## Yapılandırma
 
-jollicode işlemleri aracılığıyla veya `commands/` dizininde işaretleme dosyalarının oluşturulması özel komutlar ile yapılabilir.
+Jolli Code işlemleri aracılığıyla veya `commands/` dizininde işaretleme dosyalarının oluşturulması özel komutlar ile yapılabilir.
 
 ---
 
 ### JSON
 
-jollicode [config](/docs/config)'deki `command` seçeneğini kullanın:
+Jolli Code [config](/docs/config)'deki `command` seçeneğini kullanın:
 
 ```json title="opencode.jsonc" {4-12}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "command": {
     // This becomes the name of the command
     "test": {
@@ -314,7 +314,7 @@ Bu **isteğe bağlı** bir yapılandırma seçeneğidir.
 
 ## Yerleşik
 
-jollicode, `/init`, `/undo`, `/redo`, `/share`, `/help` gibi çeşitli yerleşik komutlar içerir; [learn more](/docs/tui#commands).
+Jolli Code, `/init`, `/undo`, `/redo`, `/share`, `/help` gibi çeşitli yerleşik komutlar içerir; [learn more](/docs/tui#commands).
 
 :::note
 Özel komutlar yerleşik komutları geçersiz kılabilir.

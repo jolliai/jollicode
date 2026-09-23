@@ -3,19 +3,19 @@ title: Regole
 description: Imposta istruzioni personalizzate per opencode.
 ---
 
-Puoi fornire istruzioni personalizzate a jollicode creando un file `AGENTS.md`. E' simile alle regole di Cursor. Contiene istruzioni che verranno incluse nel contesto dell'LLM per personalizzarne il comportamento per il tuo progetto.
+Puoi fornire istruzioni personalizzate a Jolli Code creando un file `AGENTS.md`. E' simile alle regole di Cursor. Contiene istruzioni che verranno incluse nel contesto dell'LLM per personalizzarne il comportamento per il tuo progetto.
 
 ---
 
 ## Inizializza
 
-Per creare un nuovo file `AGENTS.md`, puoi eseguire il comando `/init` in opencode.
+Per creare un nuovo file `AGENTS.md`, puoi eseguire il comando `/init` in Jolli Code.
 
 :::tip
 Dovresti committare il file `AGENTS.md` del progetto in Git.
 :::
 
-Questo scansiona il progetto e tutti i suoi contenuti per capire di cosa si tratta e generare un file `AGENTS.md`. Questo aiuta jollicode a orientarsi meglio nel progetto.
+Questo scansiona il progetto e tutti i suoi contenuti per capire di cosa si tratta e generare un file `AGENTS.md`. Questo aiuta Jolli Code a orientarsi meglio nel progetto.
 
 Se hai gia' un file `AGENTS.md` esistente, cerchera' di aggiungervi contenuti.
 
@@ -54,7 +54,7 @@ Qui stiamo aggiungendo istruzioni specifiche del progetto e saranno condivise co
 
 ## Tipi
 
-jollicode supporta anche la lettura del file `AGENTS.md` da piu' posizioni, e questo serve a scopi diversi.
+Jolli Code supporta anche la lettura del file `AGENTS.md` da piu' posizioni, e questo serve a scopi diversi.
 
 ### Progetto
 
@@ -62,7 +62,7 @@ Metti un `AGENTS.md` nella root del progetto per regole specifiche del progetto.
 
 ### Globale
 
-Puoi anche avere regole globali in un file `~/.config/jollicode/AGENTS.md`. Queste si applicano a tutte le sessioni di opencode.
+Puoi anche avere regole globali in un file `~/.config/jollicode/AGENTS.md`. Queste si applicano a tutte le sessioni di Jolli Code.
 
 Dato che questo non viene committato in Git o condiviso con il team, consigliamo di usarlo per specificare regole personali che l'LLM deve seguire.
 
@@ -86,7 +86,7 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ## Priorita
 
-Quando jollicode si avvia, cerca i file di regole in questo ordine:
+Quando Jolli Code si avvia, cerca i file di regole in questo ordine:
 
 1. **File locali** risalendo dalla directory corrente (`AGENTS.md`, `CLAUDE.md`)
 2. **File globale** in `~/.config/jollicode/AGENTS.md`
@@ -104,7 +104,7 @@ Esempio:
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
 }
 ```
@@ -113,7 +113,7 @@ Puoi anche usare URL remoti per caricare istruzioni dal web.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["https://raw.githubusercontent.com/my-org/shared-rules/main/style.md"]
 }
 ```
@@ -126,7 +126,7 @@ Tutti i file di istruzioni vengono combinati con i tuoi file `AGENTS.md`.
 
 ## Riferisci file esterni
 
-Anche se jollicode non interpreta automaticamente i riferimenti a file in `AGENTS.md`, puoi ottenere una funzionalita' simile in due modi:
+Anche se Jolli Code non interpreta automaticamente i riferimenti a file in `AGENTS.md`, puoi ottenere una funzionalita' simile in due modi:
 
 ### Usa opencode.json
 
@@ -134,14 +134,14 @@ L'approccio consigliato e' usare il campo `instructions` in `opencode.json`:
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["docs/development-standards.md", "test/testing-guidelines.md", "packages/*/AGENTS.md"]
 }
 ```
 
 ### Istruzioni manuali in AGENTS.md
 
-Puoi insegnare a jollicode a leggere file esterni fornendo istruzioni esplicite nel tuo `AGENTS.md`. Ecco un esempio pratico:
+Puoi insegnare a Jolli Code a leggere file esterni fornendo istruzioni esplicite nel tuo `AGENTS.md`. Ecco un esempio pratico:
 
 ```markdown title="AGENTS.md"
 # TypeScript Project Rules
@@ -173,7 +173,7 @@ Questo approccio ti permette di:
 - Crea file di regole modulari e riutilizzabili
 - Condividi regole tra progetti con symlink o submodule Git
 - Mantieni AGENTS.md conciso riferendoti a linee guida dettagliate
-- Assicurati che jollicode carichi file solo quando servono per il task specifico
+- Assicurati che Jolli Code carichi file solo quando servono per il task specifico
 
 :::tip
 Per monorepo o progetti con standard condivisi, usare `opencode.json` con pattern glob (come `packages/*/AGENTS.md`) e' piu' manutenibile rispetto alle istruzioni manuali.
