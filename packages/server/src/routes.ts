@@ -1,3 +1,4 @@
+import { Brand } from "@opencode-ai/core/brand"
 import { Database } from "@opencode-ai/core/database/database"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { httpClient } from "@opencode-ai/core/effect/app-node-platform"
@@ -39,13 +40,13 @@ const applicationServices = LayerNode.group([
 export function createRoutes(password?: string) {
   return makeRoutes(
     password
-      ? ServerAuth.Config.configLayer({ username: "opencode", password: Option.some(password) })
+      ? ServerAuth.Config.configLayer({ username: Brand.bin, password: Option.some(password) })
       : ServerAuth.Config.layer,
   )
 }
 
 export function createEmbeddedRoutes() {
-  return makeRoutes(ServerAuth.Config.configLayer({ username: "opencode", password: Option.none() }))
+  return makeRoutes(ServerAuth.Config.configLayer({ username: Brand.bin, password: Option.none() }))
 }
 
 function makeRoutes<AuthError, AuthServices>(auth: Layer.Layer<ServerAuth.Config, AuthError, AuthServices>) {

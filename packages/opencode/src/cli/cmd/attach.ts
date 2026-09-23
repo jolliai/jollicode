@@ -40,7 +40,7 @@ export const AttachCommand = cmd({
       .option("username", {
         alias: ["u"],
         type: "string",
-        describe: "basic auth username (defaults to OPENCODE_SERVER_USERNAME or 'opencode')",
+        describe: "basic auth username (defaults to OPENCODE_SERVER_USERNAME or 'jollicode')",
       })
       .option("mini", {
         type: "boolean",
