@@ -7,11 +7,11 @@
   "license": "UNLICENSED",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anomalyco/opencode.git",
+    "url": "git+https://github.com/jolliai/jollicode.git",
     "directory": "packages/http-recorder"
   },
-  "homepage": "https://github.com/anomalyco/opencode/tree/dev/packages/http-recorder",
-  "bugs": "https://github.com/anomalyco/opencode/issues",
+  "homepage": "https://github.com/jolliai/jollicode/tree/dev/packages/http-recorder",
+  "bugs": "https://github.com/jolliai/jollicode/issues",
   "keywords": [
     "effect",
     "http",
