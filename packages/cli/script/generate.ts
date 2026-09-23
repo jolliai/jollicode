@@ -1,4 +1,5 @@
-const modelsUrl = process.env.OPENCODE_MODELS_URL || "https://models.jolli.ai"
+// TODO: point back at models.jolli.ai once infra/stage.ts provisions that subdomain.
+const modelsUrl = process.env.OPENCODE_MODELS_URL || "https://models.opencode.ai"
 
 export const modelsData = process.env.MODELS_DEV_API_JSON
   ? await Bun.file(process.env.MODELS_DEV_API_JSON).text()

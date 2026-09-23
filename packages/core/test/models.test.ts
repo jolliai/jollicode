@@ -287,4 +287,59 @@ describe("ModelsDev Service", () => {
       expect(final.calls.length).toBeGreaterThanOrEqual(1)
     }),
   )
+
+  it.live("get() degrades to an empty catalog when the host serves HTML instead of the catalog", () =>
+    Effect.gen(function* () {
+      const state = yield* Ref.make({ ...initialState, body: "<!doctype html>\n<html><body>Jolli</body></html>" })
+      const context = yield* Layer.build(buildLayer(state))
+      const result = yield* Effect.acquireUseRelease(
+        Effect.sync(() => {
+          Flag.OPENCODE_DISABLE_MODELS_FETCH = false
+        }),
+        () => ModelsDev.Service.use((s) => s.get()).pipe(Effect.provide(context)),
+        () =>
+          Effect.sync(() => {
+            Flag.OPENCODE_DISABLE_MODELS_FETCH = true
+          }),
+      )
+      expect(result).toEqual({})
+      // The HTML shell must never be persisted as if it were a catalog.
+      expect(yield* Effect.promise(() => Bun.file(cacheFile).exists())).toBe(false)
+    }),
+  )
+
+  it.live("get() degrades to an empty catalog when the host is unreachable", () =>
+    Effect.gen(function* () {
+      const state = yield* Ref.make({ ...initialState, status: 500, body: "boom" })
+      const context = yield* Layer.build(buildLayer(state))
+      const result = yield* Effect.acquireUseRelease(
+        Effect.sync(() => {
+          Flag.OPENCODE_DISABLE_MODELS_FETCH = false
+        }),
+        () => ModelsDev.Service.use((s) => s.get()).pipe(Effect.provide(context)),
+        () =>
+          Effect.sync(() => {
+            Flag.OPENCODE_DISABLE_MODELS_FETCH = true
+          }),
+      )
+      expect(result).toEqual({})
+    }),
+  )
+
+  it.live("refresh(true) leaves a good cache intact when the host serves HTML", () =>
+    Effect.gen(function* () {
+      yield* writeCache(fixture)
+      const state = yield* Ref.make({ ...initialState, body: "<!doctype html>\n<html><body>Jolli</body></html>" })
+      const result = yield* provided(
+        state,
+        Effect.gen(function* () {
+          const svc = yield* ModelsDev.Service
+          yield* svc.refresh(true)
+          return yield* svc.get()
+        }),
+      )
+      expect(result).toEqual(fixture)
+      expect(yield* Effect.promise(() => readFile(cacheFile, "utf8"))).toBe(JSON.stringify(fixture))
+    }),
+  )
 })

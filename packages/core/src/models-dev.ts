@@ -22,6 +22,10 @@ const InterleavedField = Schema.Union([
 
 const USER_AGENT = `opencode/${InstallationChannel}/${InstallationVersion}/${Flag.OPENCODE_CLIENT}`
 
+// TODO: point back at https://models.jolli.ai once infra/stage.ts provisions that subdomain. It
+// currently answers /api.json with the jolli.ai site shell (200 text/html), not the catalog.
+const DEFAULT_SOURCE = "https://models.opencode.ai"
+
 const CostTier = Schema.Struct({
   input: Schema.Finite,
   output: Schema.Finite,
@@ -135,6 +139,14 @@ export const Event = ModelsDev.Event
 
 declare const OPENCODE_MODELS_DEV: Record<string, Provider> | undefined
 
+export class CatalogResponseError extends Schema.TaggedErrorClass<CatalogResponseError>()("CatalogResponseError", {
+  source: Schema.String,
+}) {
+  override get message() {
+    return `Model catalog at ${this.source}/api.json did not return JSON`
+  }
+}
+
 export interface Interface {
   readonly get: () => Effect.Effect<Record<string, Provider>>
   readonly refresh: (force?: boolean) => Effect.Effect<void>
@@ -157,10 +169,10 @@ const layer = Layer.effect(
       ),
     )
 
-    const source = Flag.OPENCODE_MODELS_URL || "https://models.jolli.ai"
+    const source = Flag.OPENCODE_MODELS_URL || DEFAULT_SOURCE
     const filepath = path.join(
       Global.Path.cache,
-      source === "https://models.jolli.ai" ? "models.json" : `models-${Hash.fast(source)}.json`,
+      source === DEFAULT_SOURCE ? "models.json" : `models-${Hash.fast(source)}.json`,
     )
     const ttl = Duration.minutes(5)
     const lockKey = `models-dev:${filepath}`
@@ -201,6 +213,10 @@ const layer = Layer.effect(
 
     const fetchAndWrite = Effect.fn("ModelsDev.fetchAndWrite")(function* () {
       const text = yield* fetchApi()
+      // An unprovisioned catalog host (or a captive portal) answers 200 with an HTML shell.
+      // Reject it before it can overwrite a good cache file.
+      const parsed = Schema.decodeUnknownOption(Schema.UnknownFromJsonString)(text)
+      if (Option.isNone(parsed)) return yield* Effect.fail(new CatalogResponseError({ source }))
       const tempfile = `${filepath}.${process.pid}.${Date.now()}.tmp`
       yield* fs.writeWithDirs(tempfile, text).pipe(
         Effect.andThen(fs.rename(tempfile, filepath)),
@@ -211,7 +227,7 @@ const layer = Layer.effect(
           }),
         ),
       )
-      return text
+      return parsed.value as Record<string, Provider>
     })
 
     const populate = Effect.gen(function* () {
@@ -221,13 +237,17 @@ const layer = Layer.effect(
       if (snapshot) return snapshot
       if (Flag.OPENCODE_DISABLE_MODELS_FETCH) return {}
       // Flock is cross-process: concurrent opencode CLIs can race on this cache file.
-      const text = yield* Effect.scoped(
+      return yield* Effect.scoped(
         Effect.gen(function* () {
           yield* Flock.effect(lockKey)
           return yield* fetchAndWrite()
         }),
+      ).pipe(
+        // The catalog is advisory: a host that is down, slow, or serving the wrong content must
+        // leave the app with an empty catalog, not fail every request that resolves a provider.
+        Effect.tapCause((cause) => Effect.logError("Failed to fetch models.dev", { source, cause })),
+        Effect.orElseSucceed(() => ({}) as Record<string, Provider>),
       )
-      return JSON.parse(text) as Record<string, Provider>
     }).pipe(Effect.withSpan("ModelsDev.populate"), Effect.orDie)
 
     const [cachedGet, invalidate] = yield* Effect.cachedInvalidateWithTTL(populate, Duration.infinity)
