@@ -5,6 +5,7 @@ import path from "path"
 import { fileURLToPath } from "url"
 import { UI } from "@/cli/ui"
 import { errorMessage } from "@opencode-ai/tui/util/error"
+import { Brand } from "@opencode-ai/core/brand"
 import { withTimeout } from "@/util/timeout"
 import { withNetworkOptions, resolveNetworkOptionsNoConfig, hasArg } from "@/cli/network"
 import { Filesystem } from "@/util/filesystem"
@@ -71,12 +72,12 @@ export function resolveThreadDirectory(project?: string, envPWD = process.env.PW
 
 export const TuiThreadCommand = cmd({
   command: "$0 [project]",
-  describe: "start opencode tui",
+  describe: `start ${Brand.bin} tui`,
   builder: (yargs) =>
     withNetworkOptions(yargs)
       .positional("project", {
         type: "string",
-        describe: "path to start opencode in",
+        describe: `path to start ${Brand.bin} in`,
       })
       .option("model", {
         type: "string",

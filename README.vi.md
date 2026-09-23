@@ -98,4 +98,3 @@ Nếu bạn muốn đóng góp cho Jolli Code, vui lòng đọc [tài liệu hư
 ### Xây dựng trên nền tảng Jolli Code
 
 Nếu bạn đang làm việc trên một dự án liên quan đến Jolli Code và sử dụng "jollicode" như một phần của tên dự án, ví dụ "jollicode-dashboard" hoặc "jollicode-mobile", vui lòng thêm một ghi chú vào README của bạn để làm rõ rằng dự án đó không được xây dựng bởi đội ngũ Jolli Code và không liên kết với chúng tôi dưới bất kỳ hình thức nào.
-

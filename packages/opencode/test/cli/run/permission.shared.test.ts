@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { PermissionRequest } from "@opencode-ai/sdk/v2"
+import { Brand } from "@opencode-ai/core/brand"
 import {
   createPermissionBodyState,
   permissionAlwaysLines,
@@ -132,11 +133,11 @@ describe("run permission shared", () => {
 
   test("formats always-allow copy for wildcard and explicit patterns", () => {
     expect(permissionAlwaysLines(req({ permission: "bash", always: ["*"] }))).toEqual([
-      "This will allow bash until OpenCode is restarted.",
+      `This will allow bash until ${Brand.name} is restarted.`,
     ])
 
     expect(permissionAlwaysLines(req({ always: ["src/**/*.ts", "src/**/*.tsx"] }))).toEqual([
-      "This will allow the following patterns until OpenCode is restarted.",
+      `This will allow the following patterns until ${Brand.name} is restarted.`,
       "- src/**/*.ts",
       "- src/**/*.tsx",
     ])

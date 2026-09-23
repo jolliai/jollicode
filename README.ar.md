@@ -98,4 +98,3 @@ paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 ### البناء فوق Jolli Code
 
 اذا كنت تعمل على مشروع مرتبط بـ Jolli Code ويستخدم "jollicode" كجزء من اسمه (مثل "jollicode-dashboard" او "jollicode-mobile")، يرجى اضافة ملاحظة في README توضح انه ليس مبنيا بواسطة فريق Jolli Code ولا يرتبط بنا بأي شكل.
-

@@ -98,4 +98,3 @@ Jolli Code に貢献したい場合は、Pull Request を送る前に [contribut
 ### Jolli Code の上に構築する
 
 Jolli Code に関連するプロジェクトで、名前に "jollicode"（例: "jollicode-dashboard" や "jollicode-mobile"）を含める場合は、そのプロジェクトが Jolli Code チームによって作られたものではなく、いかなる形でも関係がないことを README に明記してください。
-

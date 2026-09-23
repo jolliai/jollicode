@@ -98,4 +98,3 @@ If you're interested in contributing to Jolli Code, please read our [contributin
 ### Building on Jolli Code
 
 If you are working on a project that's related to Jolli Code and is using "jollicode" as part of its name, for example "jollicode-dashboard" or "jollicode-mobile", please add a note to your README to clarify that it is not built by the Jolli Code team and is not affiliated with us in any way.
-
