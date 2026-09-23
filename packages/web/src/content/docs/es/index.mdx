@@ -34,7 +34,7 @@ Para usar Jolli Code en la terminal, necesitará:
 La forma más sencilla de instalar Jolli Code es mediante el script de instalación.
 
 ```bash
-curl -fsSL https://opencode.ai/install | bash
+curl -fsSL https://jolli.ai/install | bash
 ```
 
 También puedes instalarlo con alguno de los siguientes métodos:
@@ -45,28 +45,28 @@ También puedes instalarlo con alguno de los siguientes métodos:
 
       <TabItem label="npm">
       ```bash
-      npm install -g opencode-ai
+      npm install -g @jolli.ai/jollicode
       ```
 
           </TabItem>
 
         <TabItem label="Bun">
         ```bash
-        bun install -g opencode-ai
+        bun install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="pnpm">
         ```bash
-        pnpm install -g opencode-ai
+        pnpm install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="Yarn">
         ```bash
-        yarn global add opencode-ai
+        yarn global add @jolli.ai/jollicode
         ```
 
       </TabItem>
@@ -76,16 +76,13 @@ También puedes instalarlo con alguno de los siguientes métodos:
 - **Usando Homebrew en macOS y Linux**
 
   ```bash
-  brew install anomalyco/tap/opencode
+  brew install jolliai/tap/jollicode
   ```
-
-  > Recomendamos utilizar el tap Jolli Code para las versiones más actualizadas. La fórmula oficial `brew install jollicode` la mantiene el equipo Homebrew y se actualiza con menos frecuencia.
 
 - **Usando Paru en Arch Linux**
 
   ```bash
-  sudo pacman -S jollicode           # Arch Linux (Stable)
-  paru -S opencode-bin              # Arch Linux (Latest from AUR)
+  paru -S jollicode-bin
   ```
 
 #### Windows
@@ -94,22 +91,10 @@ También puedes instalarlo con alguno de los siguientes métodos:
 Para obtener la mejor experiencia en Windows, recomendamos utilizar [Windows Subsystem for Linux (WSL)](/docs/windows-wsl). Ofrece mejor rendimiento y compatibilidad total con las funciones de Jolli Code.
 :::
 
-- **Usando Chocolatey**
-
-  ```bash
-  choco install jollicode
-  ```
-
-- **Usando Scoop**
-
-  ```bash
-  scoop install jollicode
-  ```
-
 - **Usando NPM**
 
   ```bash
-  npm install -g opencode-ai
+  npm install -g @jolli.ai/jollicode
   ```
 
 - **Usando Mise**
@@ -137,7 +122,7 @@ Con Jolli Code, puede usar cualquier proveedor de LLM configurando sus claves de
 Si es nuevo en el uso de proveedores de LLM, le recomendamos usar [OpenCode Zen](/docs/zen).
 Es una selección de modelos probados y verificados por el equipo de Jolli Code.
 
-1. Ejecute el comando `/connect` en la TUI, seleccione opencode y diríjase a [opencode.ai/auth](https://opencode.ai/auth).
+1. Ejecute el comando `/connect` en la TUI, seleccione opencode y diríjase a [jolli.ai/auth](https://jolli.ai/auth).
 
    ```txt
    /connect
@@ -334,7 +319,7 @@ Esto creará un enlace a la conversación actual y lo copiará en su portapapele
 Las conversaciones no se comparten de forma predeterminada.
 :::
 
-Aquí tiene una [conversación de ejemplo](https://opencode.ai/s/4XP1fce5) con Jolli Code.
+Aquí tiene una [conversación de ejemplo](https://jolli.ai/s/4XP1fce5) con Jolli Code.
 
 ---
 

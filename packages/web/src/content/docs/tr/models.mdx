@@ -3,13 +3,13 @@ title: Modeller
 description: LLM sağlayıcılarını ve model seçimlerini yapılandırın.
 ---
 
-jollicode, **75+ LLM sağlayıcısını** desteklemek için [AI SDK](https://ai-sdk.dev/) ve [Models.dev](https://models.dev) kullanır ve yerel modellerin çalıştırılmasını destekler.
+Jolli Code, **75+ LLM sağlayıcısını** desteklemek için [AI SDK](https://ai-sdk.dev/) ve [Models.dev](https://models.dev) kullanır ve yerel modellerin çalıştırılmasını destekler.
 
 ---
 
 ## Sağlayıcılar
 
-Çoğu popüler sağlayıcı varsayılan olarak önceden yüklenmiştir. Bir sağlayıcının kimlik bilgilerini `/connect` komutu aracılığıyla eklediyseniz, bunlar jollicode'u başlattığınızda kullanılabilir olacaktır.
+Çoğu popüler sağlayıcı varsayılan olarak önceden yüklenmiştir. Bir sağlayıcının kimlik bilgilerini `/connect` komutu aracılığıyla eklediyseniz, bunlar Jolli Code'u başlattığınızda kullanılabilir olacaktır.
 
 [Sağlayıcılar](/docs/providers) hakkında daha fazla bilgi edinin.
 
@@ -35,7 +35,7 @@ Piyasada pek çok model var ve her hafta yeni modeller çıkıyor.
 
 Ancak, hem kod oluşturmada hem de araç çağırmada iyi olan yalnızca birkaçı var.
 
-Burada, jollicode ile belirli bir sıraya göre iyi çalışan birkaç model yer almaktadır. (Bu kapsamlı bir liste değildir ve mutlaka güncel olması da gerekmez):
+Burada, Jolli Code ile belirli bir sıraya göre iyi çalışan birkaç model yer almaktadır. (Bu kapsamlı bir liste değildir ve mutlaka güncel olması da gerekmez):
 
 - GPT 5.2
 - GPT 5.1 Codex
@@ -49,11 +49,11 @@ Burada, jollicode ile belirli bir sıraya göre iyi çalışan birkaç model yer
 ## Varsayılan ayarlama
 
 Bunlardan birini varsayılan model olarak ayarlamak için `model` anahtarınızı telefonunuzudan ayarlayabilirsiniz.
-jollicode yapılandırması
+Jolli Code yapılandırması
 
 ```json title="opencode.json" {3}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "model": "lmstudio/google/gemma-3n-e4b"
 }
 ```
@@ -70,7 +70,7 @@ Bir modelin seçeneklerini genel olarak yapılandırma aracılığıyla yapılan
 
 ```jsonc title="opencode.jsonc" {7-12,19-24}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "openai": {
       "models": {
@@ -109,7 +109,7 @@ Ayrıca yerleşik çeşitleri genişleten özel varyantlar da tanımlayabilirsin
 
 ```jsonc title="opencode.jsonc" {6-21}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "opencode": {
       "models": {
@@ -137,11 +137,11 @@ Ayrıca yerleşik çeşitleri genişleten özel varyantlar da tanımlayabilirsin
 
 ## Varyantlar
 
-Birçok model, farklı konfigürasyonlara sahip birden fazla kapasiteye sahip. jollicode, popüler sağlayıcılar için sunulan değişkenlerle birlikte gelir.
+Birçok model, farklı konfigürasyonlara sahip birden fazla kapasiteye sahip. Jolli Code, popüler sağlayıcılar için sunulan değişkenlerle birlikte gelir.
 
 ### Yerleşik çeşitler
 
-jollicode birçok sağlayıcı için varsayılan değişkenlerle birlikte gelir:
+Jolli Code birçok sağlayıcı için varsayılan değişkenlerle birlikte gelir:
 
 **Antropik**:
 
@@ -174,7 +174,7 @@ Mevcut varyantları geçersiz kılabilir veya kendinizinkini ekleyebilirsiniz:
 
 ```jsonc title="opencode.jsonc" {7-18}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "openai": {
       "models": {
@@ -203,15 +203,15 @@ Mevcut varyantları geçersiz kılabilir veya kendinizinkini ekleyebilirsiniz:
 
 ## Modelleri yükleme
 
-jollicode başlatıldığında modelleri aşağıdaki öncelik sırasına göre kontrol eder:
+Jolli Code başlatıldığında modelleri aşağıdaki öncelik sırasına göre kontrol eder:
 
 1. `--model` veya `-m` komut satırı bayrağı. Biçim, yapılandırma dosyasındakiyle aynıdır: `provider_id/model_id`.
 
-2. jollicode yapılandırmasındaki model listesi.
+2. Jolli Code yapılandırmasındaki model listesi.
 
    ```json title="opencode.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "model": "anthropic/claude-sonnet-4-20250514"
    }
    ```

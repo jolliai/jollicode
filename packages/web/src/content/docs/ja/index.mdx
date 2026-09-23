@@ -9,7 +9,7 @@ export const console = config.console
 
 [**Jolli Code**](/) は、オープンソースの AI コーディングエージェントです。これは、ターミナルベースのインターフェイス、デスクトップアプリ、または IDE 拡張機能として利用できます。
 
-![opencodeテーマ](../../../assets/lander/screenshot.png)を使用したJolli Code TUI
+![jollicodeテーマ](../../../assets/lander/screenshot.png)を使用したJolli Code TUI
 
 始めましょう。
 
@@ -34,7 +34,7 @@ export const console = config.console
 Jolli Code をインストールする最も簡単な方法は、インストールスクリプトを使用することです。
 
 ```bash
-curl -fsSL https://opencode.ai/install | bash
+curl -fsSL https://jolli.ai/install | bash
 ```
 
 次のコマンドを使用してインストールすることもできます。
@@ -45,28 +45,28 @@ curl -fsSL https://opencode.ai/install | bash
 
       <TabItem label="npm">
       ```bash
-      npm install -g opencode-ai
+      npm install -g @jolli.ai/jollicode
       ```
 
           </TabItem>
 
         <TabItem label="Bun">
         ```bash
-        bun install -g opencode-ai
+        bun install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="pnpm">
         ```bash
-        pnpm install -g opencode-ai
+        pnpm install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="Yarn">
         ```bash
-        yarn global add opencode-ai
+        yarn global add @jolli.ai/jollicode
         ```
 
       </TabItem>
@@ -76,16 +76,13 @@ curl -fsSL https://opencode.ai/install | bash
 - **macOS および Linux での Homebrew の使用**
 
   ```bash
-  brew install anomalyco/tap/opencode
+  brew install jolliai/tap/jollicode
   ```
-
-  > 最新のリリースには Jolli Code タップを使用することをお勧めします。公式の `brew install jollicode` 式は Homebrew チームによって維持されており、更新頻度は低くなります。
 
 - **Arch Linux での Paru の使用**
 
   ```bash
-  sudo pacman -S jollicode           # Arch Linux (Stable)
-  paru -S opencode-bin              # Arch Linux (Latest from AUR)
+  paru -S jollicode-bin
   ```
 
 #### Windows
@@ -94,22 +91,10 @@ curl -fsSL https://opencode.ai/install | bash
 Windows で最高のエクスペリエンスを得るには、[Windows Subsystem for Linux (WSL)](/docs/windows-wsl) を使用することをお勧めします。これにより、パフォーマンスが向上し、Jolli Code の機能との完全な互換性が提供されます。
 :::
 
-- **Chocolatey の使用**
-
-  ```bash
-  choco install jollicode
-  ```
-
-- **Scoop の使用**
-
-  ```bash
-  scoop install jollicode
-  ```
-
 - **npm の使用**
 
   ```bash
-  npm install -g opencode-ai
+  npm install -g @jolli.ai/jollicode
   ```
 
 - **Mise の使用**
@@ -137,7 +122,7 @@ Jolli Code を使用すると、API キーを構成することで任意の LLM 
 LLM プロバイダーを初めて使用する場合は、[OpenCode Zen](/docs/zen) をお勧めします。
 これは、Jolli Code チームによってテストおよび検証されたモデルの厳選されたリストです。
 
-1. TUI で `/connect` コマンドを実行し、opencode を選択して、[opencode.ai/auth](https://opencode.ai/auth) で認証します。
+1. TUI で `/connect` コマンドを実行し、opencode を選択して、[jolli.ai/auth](https://jolli.ai/auth) で認証します。
 
    ```txt
    /connect
@@ -339,7 +324,7 @@ Jolli Code との会話は [他のチームメンバーと共有できます](/d
 会話はデフォルトでは共有されません。
 :::
 
-これは [Jolli Code を使用した会話 ](https://opencode.ai/s/4XP1fce5) の例です。
+これは [Jolli Code を使用した会話 ](https://jolli.ai/s/4XP1fce5) の例です。
 
 ---
 

@@ -6,7 +6,7 @@ description: Interakcja z serwerem jollicode za pośrednictwem protokołu HTTP.
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-Komenda `jollicode serve` uruchamia bezgłowy serwer HTTP, który udostępnia punkt końcowy OpenAPI, z którego może korzystać klient opencode.
+Komenda `jollicode serve` uruchamia bezgłowy serwer HTTP, który udostępnia punkt końcowy OpenAPI, z którego może korzystać klient Jolli Code.
 
 ---
 
@@ -51,13 +51,13 @@ klient komunikujący się z serwerem. Serwer udostępnia specyfikację OpenAPI 3
 punkt końcowy. Ten punkt końcowy jest również używany do generowania [SDK](/docs/sdk).
 
 :::tip
-Użyj serwera jollicode do programowej interakcji z opencode.
+Użyj serwera Jolli Code do programowej interakcji z Jolli Code.
 :::
 
-Ta architektura umożliwia obsługę wielu klientów przez jollicode i programową interakcję z kodem otwartym.
+Ta architektura umożliwia obsługę wielu klientów przez Jolli Code i programową interakcję z kodem otwartym.
 
 Możesz uruchomić `jollicode serve`, aby uruchomić samodzielny serwer. Jeśli masz
-jollicode TUI działa, `jollicode serve` uruchomi nowy serwer.
+Jolli Code TUI działa, `jollicode serve` uruchomi nowy serwer.
 
 ---
 
@@ -65,7 +65,7 @@ jollicode TUI działa, `jollicode serve` uruchomi nowy serwer.
 
 Po uruchomieniu TUI losowo przypisuje port i nazwę hosta. Zamiast tego możesz przekazać `--hostname` i `--port` [flagi](/docs/cli). Następnie użyj tego, aby połączyć się z serwerem.
 
-Punktu końcowego [`/tui`](#TUI) można użyć do sterowania TUI przez serwer. Można na przykład wstępnie wypełnić lub uruchomić monit. Ta konfiguracja jest używana przez wtyczki jollicode [IDE](/docs/ide).
+Punktu końcowego [`/tui`](#TUI) można użyć do sterowania TUI przez serwer. Można na przykład wstępnie wypełnić lub uruchomić monit. Ta konfiguracja jest używana przez wtyczki Jolli Code [IDE](/docs/ide).
 
 ---
 
@@ -83,7 +83,7 @@ Na przykład `http://localhost:4096/doc`. Użyj specyfikacji, aby wygenerować k
 
 ## API
 
-Serwer jollicode udostępnia następujące interfejsy API.
+Serwer Jolli Code udostępnia następujące interfejsy API.
 
 ---
 

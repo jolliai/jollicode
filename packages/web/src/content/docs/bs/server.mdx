@@ -6,7 +6,7 @@ description: Komunicirajte s jollicode serverom preko HTTP-a.
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-Komanda `jollicode serve` pokrece headless HTTP server koji izlaže OpenAPI endpoint koji jollicode klijent moze koristiti.
+Komanda `jollicode serve` pokrece headless HTTP server koji izlaže OpenAPI endpoint koji Jolli Code klijent moze koristiti.
 
 ---
 
@@ -49,12 +49,12 @@ OPENCODE_SERVER_PASSWORD=your-password jollicode serve
 Kada pokrenete `jollicode`, pokrecu se TUI i server. TUI je klijent koji komunicira sa serverom. Server izlaže OpenAPI 3.1 spec endpoint koji se koristi i za generisanje [SDK-a](/docs/sdk).
 
 :::tip
-Koristite jollicode server za programsku interakciju sa opencode-om.
+Koristite Jolli Code server za programsku interakciju sa opencode-om.
 :::
 
-Ova arhitektura omogucava jollicode podrsku za vise klijenata i programsku interakciju.
+Ova arhitektura omogucava Jolli Code podrsku za vise klijenata i programsku interakciju.
 
-Mozete pokrenuti `jollicode serve` da startate standalone server. Ako je jollicode TUI vec pokrenut, `jollicode serve` ce pokrenuti novi server.
+Mozete pokrenuti `jollicode serve` da startate standalone server. Ako je Jolli Code TUI vec pokrenut, `jollicode serve` ce pokrenuti novi server.
 
 ---
 
@@ -80,7 +80,7 @@ Na primjer, `http://localhost:4096/doc`. Koristite specifikaciju da generisete k
 
 ## API-ji
 
-jollicode server izlaže sljedece API-je.
+Jolli Code server izlaže sljedece API-je.
 
 ---
 

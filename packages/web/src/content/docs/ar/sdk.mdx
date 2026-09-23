@@ -6,8 +6,8 @@ description: عميل JavaScript آمن الأنواع لخادم opencode.
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-توفر SDK الخاصة بـ jollicode لـ JS/TS عميلا آمنا للأنواع للتفاعل مع الخادم.
-استخدمها لبناء التكاملات والتحكم في jollicode برمجيا.
+توفر SDK الخاصة بـ Jolli Code لـ JS/TS عميلا آمنا للأنواع للتفاعل مع الخادم.
+استخدمها لبناء التكاملات والتحكم في Jolli Code برمجيا.
 
 [اعرف المزيد](/docs/server) حول كيفية عمل الخادم. للاطلاع على أمثلة، تفقد [المشاريع](/docs/ecosystem#projects) التي أنشأها المجتمع.
 
@@ -25,7 +25,7 @@ npm install @opencode-ai/sdk
 
 ## إنشاء عميل
 
-أنشئ مثيلا من jollicode:
+أنشئ مثيلا من Jolli Code:
 
 ```javascript
 import { createOpencode } from "@opencode-ai/sdk"
@@ -62,14 +62,14 @@ const jollicode = await createOpencode({
   },
 })
 
-console.log(`Server running at ${opencode.server.url}`)
+console.log(`Server running at ${jollicode.server.url}`)
 
-opencode.server.close()
+jollicode.server.close()
 ```
 
 ## العميل فقط
 
-إذا كان لديك مثيل jollicode يعمل بالفعل، يمكنك إنشاء مثيل عميل للاتصال به:
+إذا كان لديك مثيل Jolli Code يعمل بالفعل، يمكنك إنشاء مثيل عميل للاتصال به:
 
 ```javascript
 import { createOpencodeClient } from "@opencode-ai/sdk"

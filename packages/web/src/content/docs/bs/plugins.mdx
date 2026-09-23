@@ -28,7 +28,7 @@ Navedite npm pakete u vašoj konfiguracijskoj datoteci.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
 }
 ```
@@ -111,7 +111,7 @@ Funkcija dodatka prima:
 - `project`: Trenutne informacije o projektu.
 - `directory`: Trenutni radni direktorij.
 - `worktree`: Putanja git radnog stabla.
-- `client`: Opencode SDK klijent za interakciju sa AI.
+- `client`: Jolli Code SDK klijent za interakciju sa AI.
 - `$`: Bun's [shell API](https://bun.com/docs/runtime/shell) za izvršavanje naredbi.
 
 ---
@@ -232,7 +232,7 @@ Ako alat dodatka koristi isto ime kao ugrađeni alat, alat dodatka ima prednost.
 
 ### .env zaštita
 
-Spriječite jollicode da čita `.env` fajlove:
+Spriječite Jolli Code da čita `.env` fajlove:
 
 ```javascript title=".jollicode/plugins/env-protection.js"
 export const EnvProtection = async ({ project, client, $, directory, worktree }) => {
@@ -267,7 +267,7 @@ export const InjectEnvPlugin = async () => {
 
 ### Prilagođeni alati
 
-Dodaci također mogu dodati prilagođene alate u jollicode:
+Dodaci također mogu dodati prilagođene alate u Jolli Code:
 
 ```ts title=".jollicode/plugins/custom-tools.ts"
 import { type Plugin, tool } from "@opencode-ai/plugin"
@@ -290,12 +290,12 @@ export const CustomToolsPlugin: Plugin = async (ctx) => {
 }
 ```
 
-Pomoćnik `tool` kreira prilagođeni alat koji jollicode može pozvati. Uzima funkciju Zod sheme i vraća definiciju alata sa:
+Pomoćnik `tool` kreira prilagođeni alat koji Jolli Code može pozvati. Uzima funkciju Zod sheme i vraća definiciju alata sa:
 
 - `description`: Šta alat radi
 - `args`: Zod šema za argumente alata
 - `execute`: Funkcija koja se pokreće kada se pozove alat
-  Vaši prilagođeni alati će biti dostupni za jollicode zajedno sa ugrađenim alatima.
+  Vaši prilagođeni alati će biti dostupni za Jolli Code zajedno sa ugrađenim alatima.
 
 ---
 
@@ -316,7 +316,7 @@ export const MyPlugin = async ({ client }) => {
 }
 ```
 
-Nivoi su: `debug`, `info`, `warn`, `error`. Pogledajte [SDK dokumentaciju](https://opencode.ai/docs/sdk) za detalje.
+Nivoi su: `debug`, `info`, `warn`, `error`. Pogledajte [SDK dokumentaciju](https://jolli.ai/docs/sdk) za detalje.
 
 ### Kuke za sažimanje
 

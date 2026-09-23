@@ -3,17 +3,17 @@ title: Конфигурация
 description: Использование конфигурации jollicode JSON.
 ---
 
-Вы можете настроить jollicode, используя файл конфигурации JSON.
+Вы можете настроить Jolli Code, используя файл конфигурации JSON.
 
 ---
 
 ## Формат
 
-jollicode поддерживает форматы **JSON** и **JSONC** (JSON с комментариями).
+Jolli Code поддерживает форматы **JSON** и **JSONC** (JSON с комментариями).
 
 ```jsonc title="opencode.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   // Theme configuration
   "theme": "jollicode",
   "model": "anthropic/claude-sonnet-4-5",
@@ -95,7 +95,7 @@ jollicode поддерживает форматы **JSON** и **JSONC** (JSON с
 
 ### Глобальная
 
-Поместите глобальную конфигурацию jollicode в `~/.config/jollicode/opencode.json`. Используйте глобальную конфигурацию для общепользовательских настроек, таких как темы, поставщики или привязки клавиш.
+Поместите глобальную конфигурацию Jolli Code в `~/.config/jollicode/opencode.json`. Используйте глобальную конфигурацию для общепользовательских настроек, таких как темы, поставщики или привязки клавиш.
 
 Для настроек, специфичных для TUI, используйте `~/.config/jollicode/tui.json`.
 
@@ -113,7 +113,7 @@ jollicode поддерживает форматы **JSON** и **JSONC** (JSON с
 Поместите конфигурацию конкретного проекта в корень вашего проекта.
 :::
 
-Когда jollicode запускается, он ищет файл конфигурации в текущем каталоге или переходит к ближайшему каталогу Git.
+Когда Jolli Code запускается, он ищет файл конфигурации в текущем каталоге или переходит к ближайшему каталогу Git.
 
 Его также можно безопасно зарегистрировать в Git, и он использует ту же схему, что и глобальная.
 
@@ -147,9 +147,9 @@ jollicode run "Hello world"
 
 ## Схема
 
-Файл конфигурации имеет схему, определенную в [**`opencode.ai/config.json`**](https://opencode.ai/config.json).
+Файл конфигурации имеет схему, определенную в [**`jolli.ai/config.json`**](https://jolli.ai/config.json).
 
-Конфигурация TUI использует [**`opencode.ai/tui.json`**](https://opencode.ai/tui.json).
+Конфигурация TUI использует [**`jolli.ai/tui.json`**](https://jolli.ai/tui.json).
 
 Ваш редактор должен иметь возможность проверять и автозаполнять данные на основе схемы.
 
@@ -161,7 +161,7 @@ jollicode run "Hello world"
 
 ```json title="tui.json"
 {
-  "$schema": "https://opencode.ai/tui.json",
+  "$schema": "https://jolli.ai/tui.json",
   "scroll_speed": 3,
   "scroll_acceleration": {
     "enabled": true
@@ -184,7 +184,7 @@ jollicode run "Hello world"
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "server": {
     "port": 4096,
     "hostname": "0.0.0.0",
@@ -199,7 +199,7 @@ jollicode run "Hello world"
 
 - `port` — порт для прослушивания.
 - `hostname` — имя хоста для прослушивания. Если `mdns` включен и имя хоста не задано, по умолчанию используется `0.0.0.0`.
-- `mdns` — включить обнаружение службы mDNS. Это позволит другим устройствам в сети обнаружить ваш сервер opencode.
+- `mdns` — включить обнаружение службы mDNS. Это позволит другим устройствам в сети обнаружить ваш сервер Jolli Code.
 - `mdnsDomain` — собственное доменное имя для службы mDNS. По умолчанию `opencode.local`. Полезно для запуска нескольких экземпляров в одной сети.
 - `cors` — дополнительные источники, позволяющие использовать CORS при использовании HTTP-сервера из браузерного клиента. Значения должны быть полными источниками (схема + хост + дополнительный порт), например `https://app.example.com`.
 
@@ -213,7 +213,7 @@ jollicode run "Hello world"
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "tools": {
     "write": false,
     "bash": false
@@ -227,24 +227,24 @@ jollicode run "Hello world"
 
 ### models
 
-Вы можете настроить поставщиков и модели, которые хотите использовать в своей конфигурации jollicode, с помощью параметров `provider`, `model` и `small_model`.
+Вы можете настроить поставщиков и модели, которые хотите использовать в своей конфигурации Jolli Code, с помощью параметров `provider`, `model` и `small_model`.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {},
   "model": "anthropic/claude-sonnet-4-5",
   "small_model": "anthropic/claude-haiku-4-5"
 }
 ```
 
-Опция `small_model` настраивает отдельную модель для облегченных задач, таких как создание заголовков. По умолчанию jollicode пытается использовать более дешевую модель, если она доступна у вашего провайдера, в противном случае он возвращается к вашей основной модели.
+Опция `small_model` настраивает отдельную модель для облегченных задач, таких как создание заголовков. По умолчанию Jolli Code пытается использовать более дешевую модель, если она доступна у вашего провайдера, в противном случае он возвращается к вашей основной модели.
 
 Опции провайдера могут включать `timeout` и `setCacheKey`:
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "anthropic": {
       "options": {
@@ -273,7 +273,7 @@ Amazon Bedrock поддерживает конфигурацию, специфи
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "amazon-bedrock": {
       "options": {
@@ -304,7 +304,7 @@ Amazon Bedrock поддерживает конфигурацию, специфи
 
 ```json title="tui.json"
 {
-  "$schema": "https://opencode.ai/tui.json",
+  "$schema": "https://jolli.ai/tui.json",
   "theme": "tokyonight"
 }
 ```
@@ -319,7 +319,7 @@ Amazon Bedrock поддерживает конфигурацию, специфи
 
 ```jsonc title="opencode.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "agent": {
     "code-reviewer": {
       "description": "Reviews code for best practices and potential issues",
@@ -345,12 +345,12 @@ Amazon Bedrock поддерживает конфигурацию, специфи
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "default_agent": "plan"
 }
 ```
 
-Агент по умолчанию должен быть основным агентом (а не субагентом). Это может быть встроенный агент, например `"build"` или `"plan"`, или [пользовательский агент](/docs/agents), который вы определили. Если указанный агент не существует или является субагентом, jollicode вернется к `"build"` с предупреждением.
+Агент по умолчанию должен быть основным агентом (а не субагентом). Это может быть встроенный агент, например `"build"` или `"plan"`, или [пользовательский агент](/docs/agents), который вы определили. Если указанный агент не существует или является субагентом, Jolli Code вернется к `"build"` с предупреждением.
 
 Этот параметр применяется ко всем интерфейсам: TUI, CLI (`jollicode run`), настольному приложению и действию GitHub.
 
@@ -362,7 +362,7 @@ Amazon Bedrock поддерживает конфигурацию, специфи
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "share": "manual"
 }
 ```
@@ -383,7 +383,7 @@ Amazon Bedrock поддерживает конфигурацию, специфи
 
 ```jsonc title="opencode.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "command": {
     "test": {
       "template": "Run the full test suite with coverage report and show any failures.\nFocus on the failing tests and suggest fixes.",
@@ -409,7 +409,7 @@ Amazon Bedrock поддерживает конфигурацию, специфи
 
 ```json title="tui.json"
 {
-  "$schema": "https://opencode.ai/tui.json",
+  "$schema": "https://jolli.ai/tui.json",
   "keybinds": {}
 }
 ```
@@ -420,11 +420,11 @@ Amazon Bedrock поддерживает конфигурацию, специфи
 
 ### Автообновление
 
-jollicode автоматически загрузит все новые обновления при запуске. Вы можете отключить это с помощью опции `autoupdate`.
+Jolli Code автоматически загрузит все новые обновления при запуске. Вы можете отключить это с помощью опции `autoupdate`.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "autoupdate": false
 }
 ```
@@ -440,7 +440,7 @@ jollicode автоматически загрузит все новые обно
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "formatter": {
     "prettier": {
       "disabled": true
@@ -462,13 +462,13 @@ jollicode автоматически загрузит все новые обно
 
 ### permission
 
-По умолчанию jollicode **разрешает все операции**, не требуя явного разрешения. Вы можете изменить это, используя опцию `permission`.
+По умолчанию Jolli Code **разрешает все операции**, не требуя явного разрешения. Вы можете изменить это, используя опцию `permission`.
 
 Например, чтобы гарантировать, что инструменты `edit` и `bash` требуют одобрения пользователя:
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "permission": {
     "edit": "ask",
     "bash": "ask"
@@ -486,7 +486,7 @@ jollicode автоматически загрузит все новые обно
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "compaction": {
     "auto": true,
     "prune": false,
@@ -507,7 +507,7 @@ jollicode автоматически загрузит все новые обно
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "watcher": {
     "ignore": ["node_modules/**", "dist/**", ".git/**"]
   }
@@ -524,7 +524,7 @@ jollicode автоматически загрузит все новые обно
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {}
 }
 ```
@@ -535,13 +535,13 @@ jollicode автоматически загрузит все новые обно
 
 ### Плагины
 
-[Плагины](/docs/plugins) расширяют jollicode с помощью пользовательских инструментов, перехватчиков и интеграций.
+[Плагины](/docs/plugins) расширяют Jolli Code с помощью пользовательских инструментов, перехватчиков и интеграций.
 
 Поместите файлы плагина в `.jollicode/plugins/` или `~/.config/jollicode/plugins/`. Вы также можете загружать плагины из npm с помощью опции `plugin`.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "@my-org/custom-plugin"]
 }
 ```
@@ -556,7 +556,7 @@ jollicode автоматически загрузит все новые обно
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
 }
 ```
@@ -571,7 +571,7 @@ jollicode автоматически загрузит все новые обно
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "disabled_providers": ["openai", "gemini"]
 }
 ```
@@ -594,12 +594,12 @@ jollicode автоматически загрузит все новые обно
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "enabled_providers": ["anthropic", "openai"]
 }
 ```
 
-Это полезно, если вы хотите ограничить jollicode использованием только определенных поставщиков, а не отключать их по одному.
+Это полезно, если вы хотите ограничить Jolli Code использованием только определенных поставщиков, а не отключать их по одному.
 
 :::note
 `disabled_providers` имеет приоритет над `enabled_providers`.
@@ -615,7 +615,7 @@ jollicode автоматически загрузит все новые обно
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "experimental": {}
 }
 ```
@@ -638,7 +638,7 @@ jollicode автоматически загрузит все новые обно
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "model": "{env:OPENCODE_MODEL}",
   "provider": {
     "anthropic": {
@@ -661,7 +661,7 @@ jollicode автоматически загрузит все новые обно
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["./custom-instructions.md"],
   "provider": {
     "openai": {

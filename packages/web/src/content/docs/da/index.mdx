@@ -9,7 +9,7 @@ export const console = config.console
 
 [**Jolli Code**](/) er en open source AI-kodningsagent. Den er tilgængelig som en terminalbaseret grænseflade, desktop-app eller IDE-udvidelse.
 
-![Jolli Code TUI med opencode-temaet](../../../assets/lander/screenshot.png)
+![Jolli Code TUI med jollicode-temaet](../../../assets/lander/screenshot.png)
 
 Lad os komme i gang.
 
@@ -34,7 +34,7 @@ For at bruge Jolli Code i din terminal skal du bruge:
 Den nemmeste måde at installere Jolli Code på er gennem installationsscriptet.
 
 ```bash
-curl -fsSL https://opencode.ai/install | bash
+curl -fsSL https://jolli.ai/install | bash
 ```
 
 Du kan også installere det med følgende kommandoer:
@@ -45,28 +45,28 @@ Du kan også installere det med følgende kommandoer:
 
       <TabItem label="npm">
       ```bash
-      npm install -g opencode-ai
+      npm install -g @jolli.ai/jollicode
       ```
 
           </TabItem>
 
         <TabItem label="Bun">
         ```bash
-        bun install -g opencode-ai
+        bun install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="pnpm">
         ```bash
-        pnpm install -g opencode-ai
+        pnpm install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="Yarn">
         ```bash
-        yarn global add opencode-ai
+        yarn global add @jolli.ai/jollicode
         ```
 
       </TabItem>
@@ -76,16 +76,13 @@ Du kan også installere det med følgende kommandoer:
 - **Brug af Homebrew på macOS og Linux**
 
   ```bash
-  brew install anomalyco/tap/opencode
+  brew install jolliai/tap/jollicode
   ```
-
-  > Vi anbefaler at bruge Jolli Code-tap for at få de mest opdaterede udgivelser. Den officielle `brew install jollicode`-formel vedligeholdes af Homebrew-teamet og opdateret sjældnere.
 
 - **Brug af Paru på Arch Linux**
 
   ```bash
-  sudo pacman -S jollicode           # Arch Linux (Stable)
-  paru -S opencode-bin              # Arch Linux (Latest from AUR)
+  paru -S jollicode-bin
   ```
 
 #### Windows
@@ -94,22 +91,10 @@ Du kan også installere det med følgende kommandoer:
 For at få den bedste oplevelse på Windows anbefaler vi at bruge [Windows Subsystem for Linux (WSL)](/docs/windows-wsl). Det giver bedre ydeevne og fuld kompatibilitet med OpenCodes funktioner.
 :::
 
-- **Brug af Chocolatey**
-
-  ```bash
-  choco install jollicode
-  ```
-
-- **Brug af Scoop**
-
-  ```bash
-  scoop install jollicode
-  ```
-
 - **Bruger NPM**
 
   ```bash
-  npm install -g opencode-ai
+  npm install -g @jolli.ai/jollicode
   ```
 
 - **Brug af Mise**
@@ -138,7 +123,7 @@ Hvis du er ny til at bruge LLM-udbydere, anbefaler vi at bruge [OpenCode Zen](/d
 Det er en udvalgt liste over modeller, der er blevet testet og verificeret af Jolli Code
 holde.
 
-1. Kør kommandoen `/connect` i TUI, vælg opencode, og gå til [opencode.ai/auth](https://opencode.ai/auth).
+1. Kør kommandoen `/connect` i TUI, vælg opencode, og gå til [jolli.ai/auth](https://jolli.ai/auth).
 
    ```txt
    /connect
@@ -349,7 +334,7 @@ Dette vil oprette et link til den aktuelle samtale og kopiere det til denne udkl
 Samtaler dele ikke som standard.
 :::
 
-Her er en [eksempelsamtale](https://opencode.ai/s/4XP1fce5) med Jolli Code.
+Her er en [eksempelsamtale](https://jolli.ai/s/4XP1fce5) med Jolli Code.
 
 ---
 

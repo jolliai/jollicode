@@ -3,7 +3,7 @@ title: Модели
 description: Настройка поставщика и модели LLM.
 ---
 
-jollicode использует [AI SDK](https://ai-sdk.dev/) и [Models.dev](https://models.dev) для поддержки **более 75 поставщиков LLM** и поддерживает запуск локальных моделей.
+Jolli Code использует [AI SDK](https://ai-sdk.dev/) и [Models.dev](https://models.dev) для поддержки **более 75 поставщиков LLM** и поддерживает запуск локальных моделей.
 
 ---
 
@@ -35,7 +35,7 @@ jollicode использует [AI SDK](https://ai-sdk.dev/) и [Models.dev](htt
 
 Однако лишь немногие из них хороши как в генерации кода, так и в вызове инструментов.
 
-Вот несколько моделей, которые хорошо работают с jollicode (в произвольном порядке). (Это не исчерпывающий список и не обязательно актуальный):
+Вот несколько моделей, которые хорошо работают с Jolli Code (в произвольном порядке). (Это не исчерпывающий список и не обязательно актуальный):
 
 - GPT 5.2
 - Кодекс GPT 5.1
@@ -49,11 +49,11 @@ jollicode использует [AI SDK](https://ai-sdk.dev/) и [Models.dev](htt
 ## Установить значение по умолчанию
 
 Чтобы установить одну из них в качестве модели по умолчанию, вы можете установить ключ `model` в вашем
-Конфигурация opencode.
+Конфигурация Jolli Code.
 
 ```json title="opencode.json" {3}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "model": "lmstudio/google/gemma-3n-e4b"
 }
 ```
@@ -70,7 +70,7 @@ jollicode использует [AI SDK](https://ai-sdk.dev/) и [Models.dev](htt
 
 ```jsonc title="opencode.jsonc" {7-12,19-24}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "openai": {
       "models": {
@@ -109,7 +109,7 @@ jollicode использует [AI SDK](https://ai-sdk.dev/) и [Models.dev](htt
 
 ```jsonc title="opencode.jsonc" {6-21}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "opencode": {
       "models": {
@@ -137,11 +137,11 @@ jollicode использует [AI SDK](https://ai-sdk.dev/) и [Models.dev](htt
 
 ## Варианты
 
-Многие модели поддерживают несколько вариантов с разными конфигурациями. jollicode поставляется со встроенными вариантами по умолчанию для популярных провайдеров.
+Многие модели поддерживают несколько вариантов с разными конфигурациями. Jolli Code поставляется со встроенными вариантами по умолчанию для популярных провайдеров.
 
 ### Встроенные варианты
 
-jollicode поставляется с вариантами по умолчанию для многих провайдеров:
+Jolli Code поставляется с вариантами по умолчанию для многих провайдеров:
 
 **Anthropic**:
 
@@ -174,7 +174,7 @@ jollicode поставляется с вариантами по умолчани
 
 ```jsonc title="opencode.jsonc" {7-18}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "openai": {
       "models": {
@@ -203,15 +203,15 @@ jollicode поставляется с вариантами по умолчани
 
 ## Загрузка моделей
 
-Когда jollicode запускается, он проверяет модели в следующем порядке приоритета:
+Когда Jolli Code запускается, он проверяет модели в следующем порядке приоритета:
 
 1. CLI-флаг `--model` или `-m`. Формат тот же, что и в файле конфигурации: `provider_id/model_id`.
 
-2. Список моделей в конфигурации opencode.
+2. Список моделей в конфигурации Jolli Code.
 
    ```json title="opencode.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "model": "anthropic/claude-sonnet-4-20250514"
    }
    ```

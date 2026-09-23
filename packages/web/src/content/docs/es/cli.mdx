@@ -315,7 +315,7 @@ jollicode models --refresh
 
 ### run
 
-Ejecute jollicode en modo no interactivo pasando un mensaje directamente.
+Ejecute Jolli Code en modo no interactivo pasando un mensaje directamente.
 
 ```bash
 jollicode run [message..]
@@ -351,7 +351,7 @@ jollicode run --attach http://localhost:4096 "Explain async/await in JavaScript"
 | <nobr><code>{"--file"}</code></nobr>     | `-f`  | Archivo(s) para adjuntar al mensaje                                                       |
 | <nobr><code>{"--format"}</code></nobr>   |       | Formato: predeterminado (formateado) o json (eventos JSON sin formato)                    |
 | <nobr><code>{"--title"}</code></nobr>    |       | Título de la sesión (utiliza un mensaje truncado si no se proporciona ningún valor)       |
-| <nobr><code>{"--attach"}</code></nobr>   |       | Adjuntar a un servidor jollicode en ejecución (por ejemplo, http://localhost:4096)         |
+| <nobr><code>{"--attach"}</code></nobr>   |       | Adjuntar a un servidor Jolli Code en ejecución (por ejemplo, http://localhost:4096)         |
 | <nobr><code>{"--password"}</code></nobr> | `-p`  | Contraseña de autenticación básica (predeterminada: `OPENCODE_SERVER_PASSWORD`)           |
 | <nobr><code>{"--username"}</code></nobr> | `-u`  | Usuario de autenticación básica (predeterminado: `OPENCODE_SERVER_USERNAME` u `jollicode`) |
 | <nobr><code>{"--dir"}</code></nobr>      |       | Directorio de ejecución, o ruta en el servidor remoto al adjuntar                         |
@@ -369,7 +369,7 @@ Inicie un servidor Jolli Code sin cabeza para acceso API. Consulte los [document
 jollicode serve
 ```
 
-Esto inicia un servidor HTTP que proporciona acceso API a la funcionalidad jollicode sin la interfaz TUI. Configure `OPENCODE_SERVER_PASSWORD` para habilitar la autenticación básica HTTP (el nombre de usuario predeterminado es `jollicode`).
+Esto inicia un servidor HTTP que proporciona acceso API a la funcionalidad Jolli Code sin la interfaz TUI. Configure `OPENCODE_SERVER_PASSWORD` para habilitar la autenticación básica HTTP (el nombre de usuario predeterminado es `jollicode`).
 
 #### Opciones
 
@@ -519,7 +519,7 @@ jollicode uninstall
 
 ### upgrade
 
-Actualiza jollicode a la última versión o a una versión específica.
+Actualiza Jolli Code a la última versión o a una versión específica.
 
 ```bash
 jollicode upgrade [target]

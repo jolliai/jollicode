@@ -3,19 +3,19 @@ title: القواعد
 description: اضبط تعليمات مخصصة لـ opencode.
 ---
 
-يمكنك تزويد jollicode بتعليمات مخصصة عبر إنشاء ملف `AGENTS.md`. هذا مشابه لقواعد Cursor. يحتوي هذا الملف على تعليمات تُضاف إلى سياق نموذج اللغة (LLM) لتخصيص سلوكه لمشروعك المحدد.
+يمكنك تزويد Jolli Code بتعليمات مخصصة عبر إنشاء ملف `AGENTS.md`. هذا مشابه لقواعد Cursor. يحتوي هذا الملف على تعليمات تُضاف إلى سياق نموذج اللغة (LLM) لتخصيص سلوكه لمشروعك المحدد.
 
 ---
 
 ## التهيئة
 
-لإنشاء ملف `AGENTS.md` جديد، يمكنك تشغيل الأمر `/init` في opencode.
+لإنشاء ملف `AGENTS.md` جديد، يمكنك تشغيل الأمر `/init` في Jolli Code.
 
 :::tip
 يُستحسن عمل commit لملف `AGENTS.md` الخاص بمشروعك إلى Git.
 :::
 
-سيقوم ذلك بفحص مشروعك وكل محتوياته لفهم طبيعة المشروع وتوليد ملف `AGENTS.md` بناءً على ذلك. يساعد هذا jollicode على التنقّل داخل المشروع بشكل أفضل.
+سيقوم ذلك بفحص مشروعك وكل محتوياته لفهم طبيعة المشروع وتوليد ملف `AGENTS.md` بناءً على ذلك. يساعد هذا Jolli Code على التنقّل داخل المشروع بشكل أفضل.
 
 إذا كان لديك ملف `AGENTS.md` موجود بالفعل، فسيحاول هذا إضافة محتوى إليه.
 
@@ -54,7 +54,7 @@ This is an SST v3 monorepo with TypeScript. The project uses bun workspaces for 
 
 ## الأنواع
 
-يدعم jollicode أيضًا قراءة ملف `AGENTS.md` من مواقع متعددة، ولكل موقع غرض مختلف.
+يدعم Jolli Code أيضًا قراءة ملف `AGENTS.md` من مواقع متعددة، ولكل موقع غرض مختلف.
 
 ### المشروع
 
@@ -62,7 +62,7 @@ This is an SST v3 monorepo with TypeScript. The project uses bun workspaces for 
 
 ### عام
 
-يمكنك أيضًا وضع قواعد عامة في ملف `~/.config/jollicode/AGENTS.md`. تُطبَّق هذه القواعد على جميع جلسات opencode.
+يمكنك أيضًا وضع قواعد عامة في ملف `~/.config/jollicode/AGENTS.md`. تُطبَّق هذه القواعد على جميع جلسات Jolli Code.
 
 وبما أن هذا الملف لا يتم عمل commit له إلى Git ولا تتم مشاركته مع فريقك، نوصي باستخدامه لتحديد أي قواعد شخصية يجب أن يلتزم بها نموذج اللغة.
 
@@ -86,7 +86,7 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ## الأولوية
 
-عند بدء jollicode، يبحث عن ملفات القواعد بهذا الترتيب:
+عند بدء Jolli Code، يبحث عن ملفات القواعد بهذا الترتيب:
 
 1. **ملفات محلية** عبر التنقّل صعودًا من الدليل الحالي (`AGENTS.md`, `CLAUDE.md`)
 2. **ملف عام** في `~/.config/jollicode/AGENTS.md`
@@ -104,7 +104,7 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
 }
 ```
@@ -113,7 +113,7 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["https://raw.githubusercontent.com/my-org/shared-rules/main/style.md"]
 }
 ```
@@ -126,7 +126,7 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ## الإشارة إلى ملفات خارجية
 
-على الرغم من أن jollicode لا يقوم تلقائيًا بتحليل مراجع الملفات داخل `AGENTS.md`، يمكنك تحقيق وظيفة مشابهة بطريقتين:
+على الرغم من أن Jolli Code لا يقوم تلقائيًا بتحليل مراجع الملفات داخل `AGENTS.md`، يمكنك تحقيق وظيفة مشابهة بطريقتين:
 
 ### استخدام opencode.json
 
@@ -134,14 +134,14 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["docs/development-standards.md", "test/testing-guidelines.md", "packages/*/AGENTS.md"]
 }
 ```
 
 ### تعليمات يدوية في AGENTS.md
 
-يمكنك تعليم jollicode قراءة ملفات خارجية عبر تقديم تعليمات صريحة داخل `AGENTS.md`. إليك مثالًا عمليًا:
+يمكنك تعليم Jolli Code قراءة ملفات خارجية عبر تقديم تعليمات صريحة داخل `AGENTS.md`. إليك مثالًا عمليًا:
 
 ```markdown title="AGENTS.md"
 # TypeScript Project Rules
@@ -173,7 +173,7 @@ Read the following file immediately as it's relevant to all workflows: @rules/ge
 - إنشاء ملفات قواعد معيارية قابلة لإعادة الاستخدام
 - مشاركة القواعد عبر المشاريع باستخدام symlinks أو git submodules
 - إبقاء AGENTS.md موجزًا مع الإشارة إلى إرشادات تفصيلية
-- ضمان أن jollicode يحمّل الملفات فقط عند الحاجة للمهمة المحددة
+- ضمان أن Jolli Code يحمّل الملفات فقط عند الحاجة للمهمة المحددة
 
 :::tip
 بالنسبة للمستودعات متعددة الحزم (monorepos) أو المشاريع ذات المعايير المشتركة، فإن استخدام `opencode.json` مع أنماط glob (مثل `packages/*/AGENTS.md`) أسهل للصيانة من التعليمات اليدوية.

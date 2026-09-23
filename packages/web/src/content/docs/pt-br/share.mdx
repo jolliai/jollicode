@@ -3,7 +3,7 @@ title: Compartilhar
 description: Compartilhe suas conversas do opencode.
 ---
 
-O recurso de compartilhamento do jollicode permite que você crie links públicos para suas conversas do jollicode, para que você possa colaborar com colegas de equipe ou obter ajuda de outros.
+O recurso de compartilhamento do Jolli Code permite que você crie links públicos para suas conversas do Jolli Code, para que você possa colaborar com colegas de equipe ou obter ajuda de outros.
 
 :::note
 Conversas compartilhadas são acessíveis publicamente para qualquer pessoa com o link.
@@ -13,7 +13,7 @@ Conversas compartilhadas são acessíveis publicamente para qualquer pessoa com 
 
 ## Como funciona
 
-Quando você compartilha uma conversa, o jollicode:
+Quando você compartilha uma conversa, o Jolli Code:
 
 1. Cria uma URL pública única para sua sessão
 2. Sincroniza seu histórico de conversas com nossos servidores
@@ -23,13 +23,13 @@ Quando você compartilha uma conversa, o jollicode:
 
 ## Compartilhamento
 
-O jollicode suporta três modos de compartilhamento que controlam como as conversas são compartilhadas:
+O Jolli Code suporta três modos de compartilhamento que controlam como as conversas são compartilhadas:
 
 ---
 
 ### Manual (padrão)
 
-Por padrão, o jollicode usa o modo de compartilhamento manual. As sessões não são compartilhadas automaticamente, mas você pode compartilhá-las manualmente usando o comando `/share`:
+Por padrão, o Jolli Code usa o modo de compartilhamento manual. As sessões não são compartilhadas automaticamente, mas você pode compartilhá-las manualmente usando o comando `/share`:
 
 ```
 /share
@@ -41,7 +41,7 @@ Para definir explicitamente o modo manual em seu [arquivo de configuração](/do
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "share": "manual"
 }
 ```
@@ -54,7 +54,7 @@ Você pode habilitar o compartilhamento automático para todas as novas conversa
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "share": "auto"
 }
 ```
@@ -69,7 +69,7 @@ Você pode desativar o compartilhamento completamente definindo a opção `share
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "share": "disabled"
 }
 ```
@@ -124,4 +124,4 @@ Para implantações empresariais, o recurso de compartilhamento pode ser:
 - **Restrito** a usuários autenticados apenas através de SSO
 - **Auto-hospedado** em sua própria infraestrutura
 
-[Saiba mais](/docs/enterprise) sobre como usar o jollicode em sua organização.
+[Saiba mais](/docs/enterprise) sobre como usar o Jolli Code em sua organização.

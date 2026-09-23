@@ -32,7 +32,7 @@ Spécifiez les packages npm dans votre fichier de configuration.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
 }
 ```
@@ -117,7 +117,7 @@ La fonction plugin reçoit :
 - `project` : informations sur le projet actuel.
 - `directory` : le répertoire de travail actuel.
 - `worktree` : le chemin de l'arbre de travail git.
-- `client` : un client SDK jollicode pour interagir avec l'IA.
+- `client` : un client SDK Jolli Code pour interagir avec l'IA.
 - `$` : [shell API](https://bun.com/docs/runtime/shell) de Bun pour l'exécution de commandes.
 
 ---
@@ -210,7 +210,7 @@ Les plugins peuvent s'abonner à des événements comme indiqué ci-dessous dans
 
 ## Exemples
 
-Voici quelques exemples de plugins que vous pouvez utiliser pour étendre opencode.
+Voici quelques exemples de plugins que vous pouvez utiliser pour étendre Jolli Code.
 
 ---
 
@@ -241,7 +241,7 @@ Si vous utilisez l'application de bureau Jolli Code, elle peut envoyer automatiq
 
 ### Protection .env
 
-Empêchez jollicode de lire les fichiers `.env` :
+Empêchez Jolli Code de lire les fichiers `.env` :
 
 ```javascript title=".jollicode/plugins/env-protection.js"
 export const EnvProtection = async ({ project, client, $, directory, worktree }) => {
@@ -276,7 +276,7 @@ export const InjectEnvPlugin = async () => {
 
 ### Outils personnalisés
 
-Les plugins peuvent également ajouter des outils personnalisés à jollicode :
+Les plugins peuvent également ajouter des outils personnalisés à Jolli Code :
 
 ```ts title=".jollicode/plugins/custom-tools.ts"
 import { type Plugin, tool } from "@opencode-ai/plugin"
@@ -299,13 +299,13 @@ export const CustomToolsPlugin: Plugin = async (ctx) => {
 }
 ```
 
-L'assistant `tool` crée un outil personnalisé que jollicode peut appeler. Il prend une fonction de schéma Zod et renvoie une définition d'outil avec :
+L'assistant `tool` crée un outil personnalisé que Jolli Code peut appeler. Il prend une fonction de schéma Zod et renvoie une définition d'outil avec :
 
 - `description` : ce que fait l'outil
 - `args` : schéma Zod pour les arguments de l'outil
 - `execute` : Fonction qui s'exécute lorsque l'outil est appelé
 
-Vos outils personnalisés seront disponibles pour jollicode aux côtés des outils intégrés.
+Vos outils personnalisés seront disponibles pour Jolli Code aux côtés des outils intégrés.
 
 ---
 
@@ -326,7 +326,7 @@ export const MyPlugin = async ({ client }) => {
 }
 ```
 
-Niveaux : `debug`, `info`, `warn`, `error`. Voir la [documentation du SDK](https://opencode.ai/docs/sdk) pour plus de détails.
+Niveaux : `debug`, `info`, `warn`, `error`. Voir la [documentation du SDK](https://jolli.ai/docs/sdk) pour plus de détails.
 
 ---
 

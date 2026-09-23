@@ -6,13 +6,13 @@ description: Usando o jollicode com segurança em sua organização.
 import config from "../../../../config.mjs"
 export const email = `mailto:${config.email}`
 
-O jollicode Enterprise é para organizações que desejam garantir que seu código e dados nunca deixem sua infraestrutura. Isso pode ser feito usando uma configuração centralizada que se integra ao seu SSO e gateway de IA interno.
+O Jolli Code Enterprise é para organizações que desejam garantir que seu código e dados nunca deixem sua infraestrutura. Isso pode ser feito usando uma configuração centralizada que se integra ao seu SSO e gateway de IA interno.
 
 :::note
-O jollicode não armazena nenhum de seus códigos ou dados de contexto.
+O Jolli Code não armazena nenhum de seus códigos ou dados de contexto.
 :::
 
-Para começar com o jollicode Enterprise:
+Para começar com o Jolli Code Enterprise:
 
 1. Faça um teste internamente com sua equipe.
 2. **<a href={email}>Entre em contato conosco</a>** para discutir opções de preços e implementação.
@@ -21,15 +21,15 @@ Para começar com o jollicode Enterprise:
 
 ## Teste
 
-O jollicode é de código aberto e não armazena nenhum de seus códigos ou dados de contexto, então seus desenvolvedores podem simplesmente [começar](/docs/) e realizar um teste.
+O Jolli Code é de código aberto e não armazena nenhum de seus códigos ou dados de contexto, então seus desenvolvedores podem simplesmente [começar](/docs/) e realizar um teste.
 
 ---
 
 ### Manipulação de dados
 
-**O jollicode não armazena seu código ou dados de contexto.** Todo o processamento acontece localmente ou através de chamadas diretas de API para seu provedor de IA.
+**O Jolli Code não armazena seu código ou dados de contexto.** Todo o processamento acontece localmente ou através de chamadas diretas de API para seu provedor de IA.
 
-Isso significa que, enquanto você estiver usando um provedor em quem confia, ou um gateway de IA interno, você pode usar o jollicode com segurança.
+Isso significa que, enquanto você estiver usando um provedor em quem confia, ou um gateway de IA interno, você pode usar o Jolli Code com segurança.
 
 A única ressalva aqui é o recurso opcional `/share`.
 
@@ -37,7 +37,7 @@ A única ressalva aqui é o recurso opcional `/share`.
 
 #### Compartilhando conversas
 
-Se um usuário habilitar o recurso `/share`, a conversa e os dados associados a ela são enviados para o serviço que usamos para hospedar essas páginas de compartilhamento em opencode.ai.
+Se um usuário habilitar o recurso `/share`, a conversa e os dados associados a ela são enviados para o serviço que usamos para hospedar essas páginas de compartilhamento em jolli.ai.
 
 Os dados são atualmente servidos através da rede de borda do nosso CDN e são armazenados em cache na borda perto de seus usuários.
 
@@ -45,7 +45,7 @@ Recomendamos que você desative isso para seu teste.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "share": "disabled"
 }
 ```
@@ -56,25 +56,25 @@ Recomendamos que você desative isso para seu teste.
 
 ### Propriedade do código
 
-**Você possui todo o código produzido pelo opencode.** Não há restrições de licenciamento ou reivindicações de propriedade.
+**Você possui todo o código produzido pelo Jolli Code.** Não há restrições de licenciamento ou reivindicações de propriedade.
 
 ---
 
 ## Preços
 
-Usamos um modelo por assento para o jollicode Enterprise. Se você tiver seu próprio gateway LLM, não cobramos pelos tokens usados. Para mais detalhes sobre preços e opções de implementação, **<a href={email}>entre em contato conosco</a>**.
+Usamos um modelo por assento para o Jolli Code Enterprise. Se você tiver seu próprio gateway LLM, não cobramos pelos tokens usados. Para mais detalhes sobre preços e opções de implementação, **<a href={email}>entre em contato conosco</a>**.
 
 ---
 
 ## Implantação
 
-Uma vez que você tenha concluído seu teste e esteja pronto para usar o jollicode em sua organização, você pode **<a href={email}>entrar em contato conosco</a>** para discutir preços e opções de implementação.
+Uma vez que você tenha concluído seu teste e esteja pronto para usar o Jolli Code em sua organização, você pode **<a href={email}>entrar em contato conosco</a>** para discutir preços e opções de implementação.
 
 ---
 
 ### Configuração Central
 
-Podemos configurar o jollicode para usar uma única configuração central para toda a sua organização.
+Podemos configurar o Jolli Code para usar uma única configuração central para toda a sua organização.
 
 Essa configuração centralizada pode se integrar ao seu provedor de SSO e garante que todos os usuários acessem apenas seu gateway de IA interno.
 
@@ -82,15 +82,15 @@ Essa configuração centralizada pode se integrar ao seu provedor de SSO e garan
 
 ### Integração SSO
 
-Através da configuração central, o jollicode pode se integrar ao provedor de SSO de sua organização para autenticação.
+Através da configuração central, o Jolli Code pode se integrar ao provedor de SSO de sua organização para autenticação.
 
-Isso permite que o jollicode obtenha credenciais para seu gateway de IA interno através do seu sistema de gerenciamento de identidade existente.
+Isso permite que o Jolli Code obtenha credenciais para seu gateway de IA interno através do seu sistema de gerenciamento de identidade existente.
 
 ---
 
 ### Gateway de IA Interno
 
-Com a configuração central, o jollicode também pode ser configurado para usar apenas seu gateway de IA interno.
+Com a configuração central, o Jolli Code também pode ser configurado para usar apenas seu gateway de IA interno.
 
 Você também pode desativar todos os outros provedores de IA, garantindo que todas as solicitações passem pela infraestrutura aprovada de sua organização.
 
@@ -107,16 +107,16 @@ Isso está atualmente em nosso roadmap. Se você estiver interessado, **<a href=
 ## FAQ
 
 <details>
-<summary>O que é o jollicode Enterprise?</summary>
+<summary>O que é o Jolli Code Enterprise?</summary>
 
-O jollicode Enterprise é para organizações que desejam garantir que seu código e dados nunca deixem sua infraestrutura. Isso pode ser feito usando uma configuração centralizada que se integra ao seu SSO e gateway de IA interno.
+O Jolli Code Enterprise é para organizações que desejam garantir que seu código e dados nunca deixem sua infraestrutura. Isso pode ser feito usando uma configuração centralizada que se integra ao seu SSO e gateway de IA interno.
 
 </details>
 
 <details>
-<summary>Como posso começar com o jollicode Enterprise?</summary>
+<summary>Como posso começar com o Jolli Code Enterprise?</summary>
 
-Basta começar com um teste interno com sua equipe. O jollicode, por padrão, não armazena seu código ou dados de contexto, facilitando o início.
+Basta começar com um teste interno com sua equipe. O Jolli Code, por padrão, não armazena seu código ou dados de contexto, facilitando o início.
 
 Depois, **<a href={email}>entre em contato conosco</a>** para discutir opções de preços e implementação.
 
@@ -130,16 +130,16 @@ Oferecemos preços empresariais por assento. Se você tiver seu próprio gateway
 </details>
 
 <details>
-<summary>Meus dados estão seguros com o jollicode Enterprise?</summary>
+<summary>Meus dados estão seguros com o Jolli Code Enterprise?</summary>
 
-Sim. O jollicode não armazena seu código ou dados de contexto. Todo o processamento acontece localmente ou através de chamadas diretas de API para seu provedor de IA. Com a configuração central e a integração SSO, seus dados permanecem seguros dentro da infraestrutura de sua organização.
+Sim. O Jolli Code não armazena seu código ou dados de contexto. Todo o processamento acontece localmente ou através de chamadas diretas de API para seu provedor de IA. Com a configuração central e a integração SSO, seus dados permanecem seguros dentro da infraestrutura de sua organização.
 
 </details>
 
 <details>
 <summary>Podemos usar nosso próprio registro NPM privado?</summary>
 
-O jollicode suporta registros npm privados através do suporte nativo do arquivo `.npmrc` do Bun. Se sua organização usa um registro privado, como JFrog Artifactory, Nexus ou similar, certifique-se de que os desenvolvedores estejam autenticados antes de executar o opencode.
+O Jolli Code suporta registros npm privados através do suporte nativo do arquivo `.npmrc` do Bun. Se sua organização usa um registro privado, como JFrog Artifactory, Nexus ou similar, certifique-se de que os desenvolvedores estejam autenticados antes de executar o Jolli Code.
 
 Para configurar a autenticação com seu registro privado:
 
@@ -147,11 +147,11 @@ Para configurar a autenticação com seu registro privado:
 npm login --registry=https://your-company.jfrog.io/api/npm/npm-virtual/
 ```
 
-Isso cria `~/.npmrc` com os detalhes de autenticação. O jollicode irá automaticamente
+Isso cria `~/.npmrc` com os detalhes de autenticação. O Jolli Code irá automaticamente
 capturar isso.
 
 :::caution
-Você deve estar logado no registro privado antes de executar o opencode.
+Você deve estar logado no registro privado antes de executar o Jolli Code.
 :::
 
 Alternativamente, você pode configurar manualmente um arquivo `.npmrc`:
@@ -161,6 +161,6 @@ registry=https://your-company.jfrog.io/api/npm/npm-virtual/
 //your-company.jfrog.io/api/npm/npm-virtual/:_authToken=${NPM_AUTH_TOKEN}
 ```
 
-Os desenvolvedores devem estar logados no registro privado antes de executar o jollicode para garantir que os pacotes possam ser instalados a partir do seu registro empresarial.
+Os desenvolvedores devem estar logados no registro privado antes de executar o Jolli Code para garantir que os pacotes possam ser instalados a partir do seu registro empresarial.
 
 </details>

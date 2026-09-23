@@ -6,12 +6,12 @@ description: jollicode'da herhangi bir LLM sağlayıcısını kullanma.
 import config from "../../../../config.mjs"
 export const console = config.console
 
-jollicode, **75'ten fazla LLM sağlayıcısını** desteklemek için [AI SDK](https://ai-sdk.dev/) ve [Models.dev](https://models.dev) kullanır ve yerel modellerin çalıştırılmasını destekler.
+Jolli Code, **75'ten fazla LLM sağlayıcısını** desteklemek için [AI SDK](https://ai-sdk.dev/) ve [Models.dev](https://models.dev) kullanır ve yerel modellerin çalıştırılmasını destekler.
 
 Bir sağlayıcı eklemek için şunları yapmanız gerekir:
 
 1. `/connect` komutunu kullanarak sağlayıcı için API anahtarlarını ekleyin.
-2. Sağlayıcıyı jollicode yapılandırmanızda yapılandırın.
+2. Sağlayıcıyı Jolli Code yapılandırmanızda yapılandırın.
 
 ---
 
@@ -24,7 +24,7 @@ Bir sağlayıcının API anahtarlarını `/connect` komutuyla eklediğinizde, bu
 
 ### Yapılandırma
 
-Sağlayıcıları jollicode'unuzdaki `provider` bölümü aracılığıyla özelleştirebilirsiniz.
+Sağlayıcıları Jolli Code'unuzdaki `provider` bölümü aracılığıyla özelleştirebilirsiniz.
 config.
 
 ---
@@ -35,7 +35,7 @@ config.
 
 ```json title="opencode.json" {6}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "anthropic": {
       "options": {
@@ -50,14 +50,14 @@ config.
 
 ## OpenCode Zen
 
-OpenCode Zen, jollicode ekibi tarafından sağlanan modellerin bir listesidir.
-jollicode ile iyi çalıştığı test edilip doğrulandı. [Daha fazla bilgi](/docs/zen).
+OpenCode Zen, Jolli Code ekibi tarafından sağlanan modellerin bir listesidir.
+Jolli Code ile iyi çalıştığı test edilip doğrulandı. [Daha fazla bilgi](/docs/zen).
 
 :::tip
 Yeniyseniz OpenCode Zen ile başlamanızı öneririz.
 :::
 
-1. TUI'de `/connect` komutunu çalıştırın, opencode'u seçin ve [opencode.ai/auth](https://opencode.ai/auth)'ye gidin.
+1. TUI'de `/connect` komutunu çalıştırın, opencode'u seçin ve [jolli.ai/auth](https://jolli.ai/auth)'ye gidin.
 
    ```txt
    /connect
@@ -80,15 +80,15 @@ Yeniyseniz OpenCode Zen ile başlamanızı öneririz.
    /models
    ```
 
-jollicode'daki diğer sağlayıcılar gibi çalışır ve kullanımı tamamen isteğe bağlıdır.
+Jolli Code'daki diğer sağlayıcılar gibi çalışır ve kullanımı tamamen isteğe bağlıdır.
 
 ---
 
 ## Jolli Code Go
 
-Jolli Code Go, jollicode ile iyi çalıştığı test edilmiş ve doğrulanmış, jollicode ekibi tarafından sağlanan popüler açık kodlama modellerine güvenilir erişim sağlayan düşük maliyetli bir abonelik planıdır.
+Jolli Code Go, Jolli Code ile iyi çalıştığı test edilmiş ve doğrulanmış, Jolli Code ekibi tarafından sağlanan popüler açık kodlama modellerine güvenilir erişim sağlayan düşük maliyetli bir abonelik planıdır.
 
-1. TUI'de `/connect` komutunu çalıştırın, `Jolli Code Go`'yu seçin ve [opencode.ai/auth](https://opencode.ai/zen) adresine gidin.
+1. TUI'de `/connect` komutunu çalıştırın, `Jolli Code Go`'yu seçin ve [jolli.ai/auth](https://jolli.ai/zen) adresine gidin.
 
    ```txt
    /connect
@@ -111,7 +111,7 @@ Jolli Code Go, jollicode ile iyi çalıştığı test edilmiş ve doğrulanmış
    /models
    ```
 
-jollicode'daki diğer sağlayıcılar gibi çalışır ve kullanımı tamamen isteğe bağlıdır.
+Jolli Code'daki diğer sağlayıcılar gibi çalışır ve kullanımı tamamen isteğe bağlıdır.
 
 ---
 
@@ -155,7 +155,7 @@ Burada bir sağlayıcı göremiyor musunuz? Bir PR gönderin.
 
 ### Amazon Bedrock
 
-Amazon Bedrock'u jollicode ile kullanmak için:
+Amazon Bedrock'u Jolli Code ile kullanmak için:
 
 1. Amazon Bedrock konsolundaki **Model kataloğuna** gidin ve istekte bulunun
    Dilediğiniz modellere ulaşabilirsiniz.
@@ -168,7 +168,7 @@ Amazon Bedrock'u jollicode ile kullanmak için:
 
    #### Ortam Değişkenleri (Hızlı Başlangıç)
 
-   jollicode'u çalıştırırken bu ortam değişkenlerinden birini ayarlayın:
+   Jolli Code'u çalıştırırken bu ortam değişkenlerinden birini ayarlayın:
 
    ```bash
    # Option 1: Using AWS access keys
@@ -194,7 +194,7 @@ Amazon Bedrock'u jollicode ile kullanmak için:
 
    ```json title="opencode.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -221,7 +221,7 @@ Bedrock için VPC uç noktaları kullanıyorsanız:
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "amazon-bedrock": {
       "options": {
@@ -267,7 +267,7 @@ Bir taşıyıcı belirteç ayarlandığında (`/connect` veya `AWS_BEARER_TOKEN_
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "amazon-bedrock": {
       // ...
@@ -312,7 +312,7 @@ Bir taşıyıcı belirteç ayarlandığında (`/connect` veya `AWS_BEARER_TOKEN_
    ```
 
 :::info
-Claude Pro/Max aboneliğinizi jollicode'da kullanmak [Anthropic](https://anthropic.com) tarafından resmi olarak desteklenmemektedir.
+Claude Pro/Max aboneliğinizi Jolli Code'da kullanmak [Anthropic](https://anthropic.com) tarafından resmi olarak desteklenmemektedir.
 :::
 
 ##### API anahtarlarını kullanma
@@ -325,11 +325,11 @@ Veya zaten bir API anahtarınız varsa **API Anahtarını Manuel Olarak Girin** 
 
 ### Atomic Chat
 
-jollicode'u, yerel LLM'leri OpenAI uyumlu bir API sunucusunun arkasında çalıştıran bir masaüstü uygulaması olan [Atomic Chat](https://atomic.chat) aracılığıyla yerel modelleri kullanacak şekilde yapılandırabilirsiniz (varsayılan uç nokta `http://127.0.0.1:1337/v1`).
+Jolli Code'u, yerel LLM'leri OpenAI uyumlu bir API sunucusunun arkasında çalıştıran bir masaüstü uygulaması olan [Atomic Chat](https://atomic.chat) aracılığıyla yerel modelleri kullanacak şekilde yapılandırabilirsiniz (varsayılan uç nokta `http://127.0.0.1:1337/v1`).
 
 ```json title="opencode.json" "atomic-chat" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "atomic-chat": {
       "npm": "@ai-sdk/openai-compatible",
@@ -374,7 +374,7 @@ Araç çağrıları iyi çalışmıyorsa, tool calling desteği güçlü olan y�
 2. [Azure AI Foundry](https://ai.azure.com/)'a gidin ve bir model dağıtın.
 
    :::note
-   jollicode'un düzgün çalışması için dağıtım adının model adıyla eşleşmesi gerekir.
+   Jolli Code'un düzgün çalışması için dağıtım adının model adıyla eşleşmesi gerekir.
    :::
 
 3. `/connect` komutunu çalıştırın ve **Azure**'u arayın.
@@ -421,7 +421,7 @@ Araç çağrıları iyi çalışmıyorsa, tool calling desteği güçlü olan y�
 2. [Azure AI Foundry](https://ai.azure.com/)'a gidin ve bir model dağıtın.
 
    :::note
-   jollicode'un düzgün çalışması için dağıtım adının model adıyla eşleşmesi gerekir.
+   Jolli Code'un düzgün çalışması için dağıtım adının model adıyla eşleşmesi gerekir.
    :::
 
 3. `/connect` komutunu çalıştırın ve **Azure Cognitive Services**'i arayın.
@@ -553,11 +553,11 @@ Cloudflare AI Gateway, OpenAI, Anthropic, Workers AI ve daha fazlasındaki model
    /models
    ```
 
-   Opencode yapılandırmanız aracılığıyla da modeller ekleyebilirsiniz.
+   Jolli Code yapılandırmanız aracılığıyla da modeller ekleyebilirsiniz.
 
    ```json title="opencode.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "cloudflare-ai-gateway": {
          "models": {
@@ -750,20 +750,20 @@ GitLab Duo, GitLab'ın Anthropic proxy'si aracılığıyla yerel araç çağırm
 
 :::note
 İstemiyorsanız 'GITLAB_TOKEN' ortam değişkenini de belirtebilirsiniz.
-to store token in jollicode auth storage.
+to store token in Jolli Code auth storage.
 :::
 
 ##### Kendi Kendine Barındırılan GitLab
 
 :::note[uyumluluk notu]
-jollicode, oturum başlığını oluşturmak gibi bazı AI görevleri için küçük bir model kullanır.
-Varsayılan olarak Zen tarafından barındırılan gpt-5-nano'yu kullanacak şekilde yapılandırılmıştır. jollicode'u kilitlemek için
+Jolli Code, oturum başlığını oluşturmak gibi bazı AI görevleri için küçük bir model kullanır.
+Varsayılan olarak Zen tarafından barındırılan gpt-5-nano'yu kullanacak şekilde yapılandırılmıştır. Jolli Code'u kilitlemek için
 yalnızca kendi GitLab tarafından barındırılan örneğinizi kullanmak için aşağıdakileri ekleyin:
 `opencode.json` dosyası. Ayrıca oturum paylaşımını devre dışı bırakmanız da önerilir.
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "small_model": "gitlab/duo-chat-haiku-4-5",
   "share": "disabled"
 }
@@ -825,7 +825,7 @@ Daha fazla belge [opencode-gitlab-auth](https://www.npmjs.com/package/opencode-g
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "gitlab": {
       "options": {
@@ -842,7 +842,7 @@ GitLab araçlarına (birleştirme istekleri, sorunlar, işlem hatları, CI/CD vb
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-gitlab-plugin"]
 }
 ```
@@ -853,7 +853,7 @@ Bu eklenti, MR incelemeleri, sorun izleme, işlem hattı izleme ve daha fazlası
 
 ### GitHub Copilot
 
-GitHub Copilot aboneliğinizi jollicode'la kullanmak için:
+GitHub Copilot aboneliğinizi Jolli Code'la kullanmak için:
 
 :::note
 Bazı modelleri kullanmak için [Pro+ aboneliği](https://github.com/features/copilot/plans) gerekebilir.
@@ -889,7 +889,7 @@ Bazı modellerin [GitHub Copilot settings](https://docs.github.com/en/copilot/ho
 
 ### Google Vertex AI
 
-Google Vertex AI'yi jollicode ile kullanmak için:
+Google Vertex AI'yi Jolli Code ile kullanmak için:
 
 1. Google Cloud Console'daki **Model Bahçesi**'ne gidin ve şunları kontrol edin:
    Bölgenizde mevcut modeller.
@@ -905,7 +905,7 @@ Google Vertex AI'yi jollicode ile kullanmak için:
      - `GOOGLE_APPLICATION_CREDENTIALS`: Hizmet hesabınızın yolu JSON anahtar dosyası
      - gcloud kullanarak kimlik doğrulaması yapın CLI: `gcloud auth application-default login`
 
-   Bunları jollicode çalıştırılırken ayarlayın.
+   Bunları Jolli Code çalıştırılırken ayarlayın.
 
    ```bash
    GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json GOOGLE_CLOUD_PROJECT=your-project-id jollicode
@@ -1018,13 +1018,13 @@ Daha fazla sağlayıcı ve önbelleğe alma ve hız sınırlama gibi gelişmiş 
 
 #### İsteğe Bağlı Yapılandırmalar
 
-Helicone'un jollicode aracılığıyla otomatik olarak yapılandırılmayan bir özelliği veya modelini görmeniz durumunda bunu her zaman kendiniz yapılandırabilirsiniz.
+Helicone'un Jolli Code aracılığıyla otomatik olarak yapılandırılmayan bir özelliği veya modelini görmeniz durumunda bunu her zaman kendiniz yapılandırabilirsiniz.
 
 İşte [Helicone's Model Directory](https://helicone.ai/models), eklemek istediğiniz modellerin kimliklerini almak için buna ihtiyacınız olacak.
 
 ```jsonc title="~/.config/jollicode/opencode.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1052,7 +1052,7 @@ Helicone, önbelleğe alma, kullanıcı izleme ve oturum yönetimi gibi özellik
 
 ```jsonc title="~/.config/jollicode/opencode.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1071,7 +1071,7 @@ Helicone, önbelleğe alma, kullanıcı izleme ve oturum yönetimi gibi özellik
 
 ##### Oturum izleme
 
-Helicone'un [Sessions](https://docs.helicone.ai/features/sessions) özelliği, ilgili LLM isteklerini birlikte gruplandırmanıza olanak tanır. Her jollicode görüşmesini Helicone'da bir oturum olarak otomatik olarak kaydetmek için [opencode-helicone-session](https://github.com/H2Shami/opencode-helicone-session) eklentisini kullanın.
+Helicone'un [Sessions](https://docs.helicone.ai/features/sessions) özelliği, ilgili LLM isteklerini birlikte gruplandırmanıza olanak tanır. Her Jolli Code görüşmesini Helicone'da bir oturum olarak otomatik olarak kaydetmek için [opencode-helicone-session](https://github.com/H2Shami/opencode-helicone-session) eklentisini kullanın.
 
 ```bash
 npm install -g opencode-helicone-session
@@ -1085,7 +1085,7 @@ Yapılandırmanıza ekleyin.
 }
 ```
 
-Eklenti isteklerinize `Helicone-Session-Id` ve `Helicone-Session-Name` başlıklarını enjekte eder. Helicone'un Oturumlar sayfasında her jollicode görüşmesinin ayrı bir oturum olarak listelendiğini göreceksiniz.
+Eklenti isteklerinize `Helicone-Session-Id` ve `Helicone-Session-Name` başlıklarını enjekte eder. Helicone'un Oturumlar sayfasında her Jolli Code görüşmesinin ayrı bir oturum olarak listelendiğini göreceksiniz.
 
 ##### Yaygın Helicone başlıkları
 
@@ -1102,11 +1102,11 @@ Mevcut tüm başlıklar için [Helicone Header Directory](https://docs.helicone.
 
 ### llama.cpp
 
-jollicode'u yerel modelleri kullanacak şekilde [llama.cpp's](https://github.com/ggml-org/llama.cpp) llama-server yardımcı programını kullanarak yapılandırabilirsiniz.
+Jolli Code'u yerel modelleri kullanacak şekilde [llama.cpp's](https://github.com/ggml-org/llama.cpp) llama-server yardımcı programını kullanarak yapılandırabilirsiniz.
 
 ```json title="opencode.json" "llama.cpp" {5, 6, 8, 10-15}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "llama.cpp": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1169,11 +1169,11 @@ IO.NET, çeşitli kullanım durumları için optimize edilmiş 17 model sunar:
 
 ### LM Studio
 
-LM Studio aracılığıyla jollicode'u yerel modelleri kullanacak şekilde yapılandırabilirsiniz.
+LM Studio aracılığıyla Jolli Code'u yerel modelleri kullanacak şekilde yapılandırabilirsiniz.
 
 ```json title="opencode.json" "lmstudio" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "lmstudio": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1286,15 +1286,15 @@ Moonshot AI'dan Kimi K2'yi kullanmak için:
 
 ### Ollama
 
-Ollama aracılığıyla jollicode'u yerel modelleri kullanacak şekilde yapılandırabilirsiniz.
+Ollama aracılığıyla Jolli Code'u yerel modelleri kullanacak şekilde yapılandırabilirsiniz.
 
 :::tip
-Ollama kendisini jollicode için otomatik olarak yapılandırabilir. Ayrıntılar için [Ollama integration docs](https://docs.ollama.com/integrations/opencode)'a bakın.
+Ollama kendisini Jolli Code için otomatik olarak yapılandırabilir. Ayrıntılar için [Ollama integration docs](https://docs.ollama.com/integrations/opencode)'a bakın.
 :::
 
 ```json title="opencode.json" "ollama" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1328,13 +1328,13 @@ Araç çağrıları çalışmıyorsa Ollama'da `num_ctx` değerini artırmayı d
 
 ### Ollama Cloud
 
-Ollama Cloud'u jollicode ile kullanmak için:
+Ollama Cloud'u Jolli Code ile kullanmak için:
 
 1. [https://ollama.com/](https://ollama.com/) adresine gidin ve oturum açın veya bir hesap oluşturun.
 
 2. **Ayarlar** > **Anahtarlar**'a gidin ve yeni bir API anahtarı oluşturmak için **API Anahtarı Ekle**'yi tıklayın.
 
-3. jollicode'da kullanmak için API anahtarını kopyalayın.
+3. Jolli Code'da kullanmak için API anahtarını kopyalayın.
 
 4. `/connect` komutunu çalıştırın ve **Ollama Cloud**'u arayın.
 
@@ -1351,7 +1351,7 @@ Ollama Cloud'u jollicode ile kullanmak için:
    └ enter
    ```
 
-6. **Önemli**: jollicode'da bulut modellerini kullanmadan önce model bilgilerini yerel olarak almanız gerekir:
+6. **Önemli**: Jolli Code'da bulut modellerini kullanmadan önce model bilgilerini yerel olarak almanız gerekir:
 
    ```bash
    ollama pull gpt-oss:20b-cloud
@@ -1400,7 +1400,7 @@ Zaten bir API anahtarınız varsa, **API Anahtarını Manuel Olarak Girin** seç
 
 ### OpenCode Zen
 
-OpenCode Zen, jollicode ekibinin test edip doğruladığı modellerin bir listesidir. [Daha fazla bilgi](/docs/zen).
+OpenCode Zen, Jolli Code ekibinin test edip doğruladığı modellerin bir listesidir. [Daha fazla bilgi](/docs/zen).
 
 1. **<a href={console}>OpenCode Zen</a>**'de oturum açın ve **API Anahtarı Oluştur**'u tıklayın.
 
@@ -1410,7 +1410,7 @@ OpenCode Zen, jollicode ekibinin test edip doğruladığı modellerin bir listes
    /connect
    ```
 
-3. jollicode API anahtarınızı girin.
+3. Jolli Code API anahtarınızı girin.
 
    ```txt
    ┌ API key
@@ -1452,11 +1452,11 @@ OpenCode Zen, jollicode ekibinin test edip doğruladığı modellerin bir listes
    /models
    ```
 
-   jollicode yapılandırmanız aracılığıyla ek modeller de ekleyebilirsiniz.
+   Jolli Code yapılandırmanız aracılığıyla ek modeller de ekleyebilirsiniz.
 
    ```json title="opencode.json" {6}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1467,11 +1467,11 @@ OpenCode Zen, jollicode ekibinin test edip doğruladığı modellerin bir listes
    }
    ```
 
-5. Bunları ayrıca jollicode yapılandırmanız aracılığıyla da özelleştirebilirsiniz. Burada bir sağlayıcı belirtmeye ilişkin bir örnek verilmiştir
+5. Bunları ayrıca Jolli Code yapılandırmanız aracılığıyla da özelleştirebilirsiniz. Burada bir sağlayıcı belirtmeye ilişkin bir örnek verilmiştir
 
    ```json title="opencode.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1608,7 +1608,7 @@ STACKIT AI Model Serving, Llama, Mistral ve Qwen gibi LLM'lere odaklanarak, Avru
 
 ### Scaleway
 
-[Scaleway Generative APIs](https://www.scaleway.com/en/docs/generative-apis/)'yi Opencode ile kullanmak için:
+[Scaleway Generative APIs](https://www.scaleway.com/en/docs/generative-apis/)'yi Jolli Code ile kullanmak için:
 
 1. Yeni bir API anahtarı oluşturmak için [Scaleway Console IAM settings](https://console.scaleway.com/iam/api-keys)'a gidin.
 
@@ -1716,11 +1716,11 @@ Vercel AI Gateway, OpenAI, Anthropic, Google, xAI ve daha fazlasındaki modeller
    /models
    ```
 
-Modelleri jollicode yapılandırmanız aracılığıyla da özelleştirebilirsiniz. Sağlayıcı yönlendirme sırasını belirtmeye ilişkin bir örneği burada bulabilirsiniz.
+Modelleri Jolli Code yapılandırmanız aracılığıyla da özelleştirebilirsiniz. Sağlayıcı yönlendirme sırasını belirtmeye ilişkin bir örneği burada bulabilirsiniz.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "vercel": {
       "models": {
@@ -1826,11 +1826,11 @@ Bazı yararlı yönlendirme seçenekleri:
    /models
    ```
 
-   jollicode yapılandırmanız aracılığıyla ek modeller de ekleyebilirsiniz.
+   Jolli Code yapılandırmanız aracılığıyla ek modeller de ekleyebilirsiniz.
 
    ```json title="opencode.json" {6}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "zenmux": {
          "models": {
@@ -1848,7 +1848,7 @@ Bazı yararlı yönlendirme seçenekleri:
 `/connect` komutunda listelenmeyen herhangi bir **OpenAI uyumlu** sağlayıcıyı eklemek için:
 
 :::tip
-OpenAI uyumlu herhangi bir sağlayıcıyı jollicode ile kullanabilirsiniz. Çoğu modern yapay zeka sağlayıcısı OpenAI uyumlu API'ler sunar.
+OpenAI uyumlu herhangi bir sağlayıcıyı Jolli Code ile kullanabilirsiniz. Çoğu modern yapay zeka sağlayıcısı OpenAI uyumlu API'ler sunar.
 :::
 
 1. `/connect` komutunu çalıştırın ve **Diğer** seçeneğine ilerleyin.
@@ -1898,7 +1898,7 @@ OpenAI uyumlu herhangi bir sağlayıcıyı jollicode ile kullanabilirsiniz. Ço�
 
    ```json title="opencode.json" ""myprovider"" {5-15}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "myprovider": {
          "npm": "@ai-sdk/openai-compatible",
@@ -1936,7 +1936,7 @@ Burada `apiKey`, `headers` ve model `limit` seçeneklerini ayarlayan bir örnek 
 
 ```json title="opencode.json" {9,11,17-20}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "myprovider": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1969,7 +1969,7 @@ Yapılandırma ayrıntıları:
 - **limit.context**: Modelin kabul ettiği maksimum giriş tokenları.
 - **limit.output**: Modelin üretebileceği maksimum token sayısı.
 
-`limit` alanları jollicode'un ne kadar bağlamınız kaldığını anlamasını sağlar. Standart sağlayıcılar bunları models.dev'den otomatik olarak alır.
+`limit` alanları Jolli Code'un ne kadar bağlamınız kaldığını anlamasını sağlar. Standart sağlayıcılar bunları models.dev'den otomatik olarak alır.
 
 ---
 
@@ -1982,7 +1982,7 @@ Sağlayıcıyı yapılandırma konusunda sorun yaşıyorsanız aşağıdakileri 
 
    Bu, kimlik doğrulaması için ortam değişkenlerine güvenen Amazon Bedrock gibi sağlayıcılar için geçerli değildir.
 
-2. Özel sağlayıcılar için jollicode yapılandırmasını kontrol edin ve:
-   - `/connect` komutunda kullanılan sağlayıcı kimliğinin, jollicode yapılandırmanızdaki kimlikle eşleştiğinden emin olun.
+2. Özel sağlayıcılar için Jolli Code yapılandırmasını kontrol edin ve:
+   - `/connect` komutunda kullanılan sağlayıcı kimliğinin, Jolli Code yapılandırmanızdaki kimlikle eşleştiğinden emin olun.
    - Sağlayıcı için doğru npm paketi kullanılıyor. Örneğin Cerebras için `@ai-sdk/cerebras` kullanın. Diğer tüm OpenAI uyumlu sağlayıcılar için `@ai-sdk/openai-compatible` kullanın.
    - `options.baseURL` alanında doğru API bitiş noktasının kullanıldığını kontrol edin.

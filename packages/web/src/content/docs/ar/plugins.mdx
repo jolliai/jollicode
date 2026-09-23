@@ -32,7 +32,7 @@ description: اكتب إضافاتك الخاصة لتوسيع Jolli Code.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
 }
 ```
@@ -118,7 +118,7 @@ export const MyPlugin = async ({ project, client, $, directory, worktree }) => {
 - `project`: معلومات المشروع الحالي.
 - `directory`: دليل العمل الحالي.
 - `worktree`: مسار git worktree.
-- `client`: عميل SDK لـ jollicode للتفاعل مع الذكاء الاصطناعي.
+- `client`: عميل SDK لـ Jolli Code للتفاعل مع الذكاء الاصطناعي.
 - `$`: واجهة [shell API](https://bun.com/docs/runtime/shell) الخاصة بـ Bun لتنفيذ الأوامر.
 
 ---
@@ -211,7 +211,7 @@ export const MyPlugin: Plugin = async ({ project, client, $, directory, worktree
 
 ## أمثلة
 
-فيما يلي بعض أمثلة الإضافات التي يمكنك استخدامها لتوسيع opencode.
+فيما يلي بعض أمثلة الإضافات التي يمكنك استخدامها لتوسيع Jolli Code.
 
 ---
 
@@ -242,7 +242,7 @@ export const NotificationPlugin = async ({ project, client, $, directory, worktr
 
 ### حماية .env
 
-امنع jollicode من قراءة ملفات `.env`:
+امنع Jolli Code من قراءة ملفات `.env`:
 
 ```javascript title=".jollicode/plugins/env-protection.js"
 export const EnvProtection = async ({ project, client, $, directory, worktree }) => {
@@ -277,7 +277,7 @@ export const InjectEnvPlugin = async () => {
 
 ### أدوات مخصصة
 
-يمكن للإضافات أيضا إضافة أدوات مخصصة إلى jollicode:
+يمكن للإضافات أيضا إضافة أدوات مخصصة إلى Jolli Code:
 
 ```ts title=".jollicode/plugins/custom-tools.ts"
 import { type Plugin, tool } from "@opencode-ai/plugin"
@@ -300,13 +300,13 @@ export const CustomToolsPlugin: Plugin = async (ctx) => {
 }
 ```
 
-تقوم الدالة المساعدة `tool` بإنشاء أداة مخصصة يمكن لـ jollicode استدعاؤها. تأخذ دالة مخطط Zod وتعيد تعريف أداة يتضمن:
+تقوم الدالة المساعدة `tool` بإنشاء أداة مخصصة يمكن لـ Jolli Code استدعاؤها. تأخذ دالة مخطط Zod وتعيد تعريف أداة يتضمن:
 
 - `description`: ما الذي تفعله الأداة
 - `args`: مخطط Zod لوسائط الأداة
 - `execute`: الدالة التي تُشغَّل عند استدعاء الأداة
 
-ستكون أدواتك المخصصة متاحة لـ jollicode إلى جانب الأدوات المضمنة.
+ستكون أدواتك المخصصة متاحة لـ Jolli Code إلى جانب الأدوات المضمنة.
 
 ---
 
@@ -327,7 +327,7 @@ export const MyPlugin = async ({ client }) => {
 }
 ```
 
-المستويات: `debug`, `info`, `warn`, `error`. راجع [توثيق SDK](https://opencode.ai/docs/sdk) للتفاصيل.
+المستويات: `debug`, `info`, `warn`, `error`. راجع [توثيق SDK](https://jolli.ai/docs/sdk) للتفاصيل.
 
 ---
 

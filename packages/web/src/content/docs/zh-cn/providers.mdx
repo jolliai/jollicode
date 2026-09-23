@@ -34,7 +34,7 @@ Jolli Code 使用 [AI SDK](https://ai-sdk.dev/) 和 [Models.dev](https://models.
 
 ```json title="opencode.json" {6}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "anthropic": {
       "options": {
@@ -55,7 +55,7 @@ OpenCode Zen 是由 Jolli Code 团队提供的模型列表，这些模型已经�
 如果你是新用户，我们建议从 OpenCode Zen 开始。
 :::
 
-1. 在 TUI 中执行 `/connect` 命令，选择 opencode，然后前往 [opencode.ai/auth](https://opencode.ai/auth)。
+1. 在 TUI 中执行 `/connect` 命令，选择 opencode，然后前往 [jolli.ai/auth](https://jolli.ai/auth)。
 
    ```txt
    /connect
@@ -135,7 +135,7 @@ OpenCode Zen 是由 Jolli Code 团队提供的模型列表，这些模型已经�
 
    #### 环境变量（快速上手）
 
-   运行 jollicode 时设置以下环境变量之一：
+   运行 Jolli Code 时设置以下环境变量之一：
 
    ```bash
    # Option 1: Using AWS access keys
@@ -163,7 +163,7 @@ OpenCode Zen 是由 Jolli Code 团队提供的模型列表，这些模型已经�
 
    ```json title="opencode.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -192,7 +192,7 @@ OpenCode Zen 是由 Jolli Code 团队提供的模型列表，这些模型已经�
 
    ```json title="opencode.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -240,7 +240,7 @@ OpenCode Zen 是由 Jolli Code 团队提供的模型列表，这些模型已经�
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "amazon-bedrock": {
       // ...
@@ -297,11 +297,11 @@ OpenCode Zen 是由 Jolli Code 团队提供的模型列表，这些模型已经�
 
 ### Atomic Chat
 
-你可以通过 [Atomic Chat](https://atomic.chat) 配置 jollicode 以使用本地模型。Atomic Chat 是一款桌面应用程序，它在 OpenAI 兼容的 API 服务器后面运行本地 LLM（默认端点 `http://127.0.0.1:1337/v1`）。
+你可以通过 [Atomic Chat](https://atomic.chat) 配置 Jolli Code 以使用本地模型。Atomic Chat 是一款桌面应用程序，它在 OpenAI 兼容的 API 服务器后面运行本地 LLM（默认端点 `http://127.0.0.1:1337/v1`）。
 
 ```json title="opencode.json" "atomic-chat" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "atomic-chat": {
       "npm": "@ai-sdk/openai-compatible",
@@ -529,7 +529,7 @@ Cloudflare AI Gateway 允许你通过统一端点访问来自 OpenAI、Anthropic
 
    ```json title="opencode.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "cloudflare-ai-gateway": {
          "models": {
@@ -731,7 +731,7 @@ Jolli Code 会使用一个小模型来执行部分 AI 任务，例如生成会�
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "small_model": "gitlab/duo-chat-haiku-4-5",
   "share": "disabled"
 }
@@ -791,7 +791,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "gitlab": {
       "options": {
@@ -808,7 +808,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-gitlab-plugin"]
 }
 ```
@@ -868,7 +868,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
      - `GOOGLE_APPLICATION_CREDENTIALS`：服务账户 JSON 密钥文件的路径
      - 使用 gcloud CLI 进行身份验证：`gcloud auth application-default login`
 
-   在运行 jollicode 时设置：
+   在运行 Jolli Code 时设置：
 
    ```bash
    GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json GOOGLE_CLOUD_PROJECT=your-project-id jollicode
@@ -987,7 +987,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ```jsonc title="~/.config/jollicode/opencode.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1015,7 +1015,7 @@ Helicone 支持用于缓存、用户跟踪和会话管理等功能的自定义�
 
 ```jsonc title="~/.config/jollicode/opencode.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1069,7 +1069,7 @@ npm install -g opencode-helicone-session
 
 ```json title="opencode.json" "llama.cpp" {5, 6, 8, 10-15}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "llama.cpp": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1136,7 +1136,7 @@ IO.NET 提供 17 个针对不同用例优化的模型：
 
 ```json title="opencode.json" "lmstudio" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "lmstudio": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1257,7 +1257,7 @@ Ollama 可以自动为 Jolli Code 进行配置。详见 [Ollama 集成文档](ht
 
 ```json title="opencode.json" "ollama" {5, 6, 8, 10-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1418,7 +1418,7 @@ OpenCode Zen 是由 Jolli Code 团队提供的经过测试和验证的模型列�
 
    ```json title="opencode.json" {6}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1433,7 +1433,7 @@ OpenCode Zen 是由 Jolli Code 团队提供的经过测试和验证的模型列�
 
    ```json title="opencode.json"
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1682,7 +1682,7 @@ Vercel AI Gateway 允许你通过统一端点访问来自 OpenAI、Anthropic、G
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "vercel": {
       "models": {
@@ -1792,7 +1792,7 @@ Vercel AI Gateway 允许你通过统一端点访问来自 OpenAI、Anthropic、G
 
    ```json title="opencode.json" {6}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "zenmux": {
          "models": {
@@ -1860,7 +1860,7 @@ Vercel AI Gateway 允许你通过统一端点访问来自 OpenAI、Anthropic、G
 
    ```json title="opencode.json" ""myprovider"" {5-15}
    {
-     "$schema": "https://opencode.ai/config.json",
+     "$schema": "https://jolli.ai/config.json",
      "provider": {
        "myprovider": {
          "npm": "@ai-sdk/openai-compatible",
@@ -1898,7 +1898,7 @@ Vercel AI Gateway 允许你通过统一端点访问来自 OpenAI、Anthropic、G
 
 ```json title="opencode.json" {9,11,17-20}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "provider": {
     "myprovider": {
       "npm": "@ai-sdk/openai-compatible",

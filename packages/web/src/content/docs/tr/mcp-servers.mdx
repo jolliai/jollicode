@@ -3,7 +3,7 @@ title: MCP sunucuları
 description: Yerel ve uzak MCP araçlarını ekleyin.
 ---
 
-_Model Bağlam Protokolü_ veya MCP kullanarak jollicode'a harici araçlar ekleyebilirsiniz. jollicode hem yerel hem de uzak sunucuları destekler.
+_Model Bağlam Protokolü_ veya MCP kullanarak Jolli Code'a harici araçlar ekleyebilirsiniz. Jolli Code hem yerel hem de uzak sunucuları destekler.
 
 MCP araçları eklendikten sonra yerleşik araçların yanı sıra LLM tarafından otomatik olarak kullanılabilir.
 
@@ -23,11 +23,11 @@ GitHub MCP sunucusu gibi belirli MCP sunucuları çok sayıda belirteç ekleme e
 
 ## Etkinleştirme
 
-MCP sunucularını [jollicode Config](https://opencode.ai/docs/config/)'nizde `mcp` altında tanımlayabilirsiniz. Her MCP'ü benzersiz bir adla ekleyin. LLM isteminde bulunurken bu MCP adına başvurabilirsiniz.
+MCP sunucularını [Jolli Code Config](https://jolli.ai/docs/config/)'nizde `mcp` altında tanımlayabilirsiniz. Her MCP'ü benzersiz bir adla ekleyin. LLM isteminde bulunurken bu MCP adına başvurabilirsiniz.
 
 ```jsonc title="opencode.jsonc" {6}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {
     "name-of-mcp-server": {
       // ...
@@ -52,7 +52,7 @@ Kuruluşunuzun uzak yapılandırmasından belirli bir sunucuyu etkinleştirmek i
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {
     "jira": {
       "type": "remote",
@@ -73,7 +73,7 @@ Yerel yapılandırma değerleriniz uzak varsayılanları geçersiz kılar. Daha 
 
 ```jsonc title="opencode.jsonc" {15}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {
     "my-local-mcp-server": {
       "type": "local",
@@ -94,7 +94,7 @@ Komut, yerel MCP sunucusunun nasıl başlatıldığıdır. Ayrıca ortam değiş
 
 ```jsonc title="opencode.jsonc"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {
     "mcp_everything": {
       "type": "local",
@@ -132,7 +132,7 @@ Yerel bir MCP sunucusunu yapılandırmak için tüm seçenekler burada verilmiş
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {
     "my-remote-mcp": {
       "type": "remote",
@@ -165,7 +165,7 @@ Yerel bir MCP sunucusunu yapılandırmak için tüm seçenekler burada verilmiş
 
 ## OAuth
 
-jollicode, uzak MCP sunucuları için OAuth kimlik doğrulamasını otomatik olarak yönetir. Bir sunucu kimlik doğrulaması gerektirdiğinde jollicode şunları yapar:
+Jolli Code, uzak MCP sunucuları için OAuth kimlik doğrulamasını otomatik olarak yönetir. Bir sunucu kimlik doğrulaması gerektirdiğinde Jolli Code şunları yapar:
 
 1. 401 yanıtını tespit edin ve OAuth akışını başlatın
 2. Sunucu tarafından destekleniyorsa **Dinamik İstemci Kaydı (RFC 7591)** kullanın
@@ -179,7 +179,7 @@ OAuth'un etkin olduğu çoğu MCP sunucusu için özel bir yapılandırmaya gere
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {
     "my-oauth-server": {
       "type": "remote",
@@ -189,7 +189,7 @@ OAuth'un etkin olduğu çoğu MCP sunucusu için özel bir yapılandırmaya gere
 }
 ```
 
-Sunucu kimlik doğrulama gerektiriyorsa jollicode, onu ilk kez kullanmaya çalıştığınızda kimlik doğrulamanızı isteyecektir. Değilse, `jollicode mcp auth <server-name>` ile [manually trigger the flow](#authenticating) yapabilirsiniz.
+Sunucu kimlik doğrulama gerektiriyorsa Jolli Code, onu ilk kez kullanmaya çalıştığınızda kimlik doğrulamanızı isteyecektir. Değilse, `jollicode mcp auth <server-name>` ile [manually trigger the flow](#authenticating) yapabilirsiniz.
 
 ---
 
@@ -199,7 +199,7 @@ MCP sunucu sağlayıcısından istemci kimlik bilgileriniz varsa, bunları yapı
 
 ```json title="opencode.json" {7-11}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {
     "my-oauth-server": {
       "type": "remote",
@@ -238,7 +238,7 @@ Remove stored credentials:
 jollicode mcp logout my-oauth-server
 ```
 
-`mcp auth` komutu tarayıcınızı yetkilendirme için açacaktır. Yetkilendirmenizin ardından jollicode, belirteçleri `~/.local/share/jollicode/mcp-auth.json`'de güvenli bir şekilde saklar.
+`mcp auth` komutu tarayıcınızı yetkilendirme için açacaktır. Yetkilendirmenizin ardından Jolli Code, belirteçleri `~/.local/share/jollicode/mcp-auth.json`'de güvenli bir şekilde saklar.
 
 ---
 
@@ -248,7 +248,7 @@ Bir sunucu için otomatik OAuth'u devre dışı bırakmak istiyorsanız (örneğ
 
 ```json title="opencode.json" {7}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {
     "my-api-key-server": {
       "type": "remote",
@@ -291,7 +291,7 @@ jollicode mcp debug my-oauth-server
 
 ## Yönetim
 
-MCP'leriniz yerleşik araçların yanı sıra jollicode'da araç olarak mevcuttur. Böylece bunları diğer araçlar gibi jollicode yapılandırması aracılığıyla yönetebilirsiniz.
+MCP'leriniz yerleşik araçların yanı sıra Jolli Code'da araç olarak mevcuttur. Böylece bunları diğer araçlar gibi Jolli Code yapılandırması aracılığıyla yönetebilirsiniz.
 
 ---
 
@@ -301,7 +301,7 @@ Bu, bunları global olarak etkinleştirebileceğiniz veya devre dışı bırakab
 
 ```json title="opencode.json" {14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {
     "my-mcp-foo": {
       "type": "local",
@@ -322,7 +322,7 @@ Eşleşen tüm MCP'leri devre dışı bırakmak için bir glob modeli de kullana
 
 ```json title="opencode.json" {14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {
     "my-mcp-foo": {
       "type": "local",
@@ -352,7 +352,7 @@ Burada tüm MCP'leri devre dışı bırakmak için `my-mcp*` glob modelini kulla
 
 ```json title="opencode.json" {11, 14-18}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {
     "my-mcp": {
       "type": "local",
@@ -406,7 +406,7 @@ Sentry projelerinizle ve sorunlarınızla etkileşimde bulunmak için [Sentry MC
 
 ```json title="opencode.json" {4-8}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {
     "sentry": {
       "type": "remote",
@@ -423,7 +423,7 @@ Yapılandırmayı ekledikten sonra Sentry ile kimlik doğrulaması yapın:
 jollicode mcp auth sentry
 ```
 
-Bu, OAuth akışını tamamlamak ve jollicode'u Sentry hesabınıza bağlamak için bir tarayıcı penceresi açacaktır.
+Bu, OAuth akışını tamamlamak ve Jolli Code'u Sentry hesabınıza bağlamak için bir tarayıcı penceresi açacaktır.
 
 Kimlik doğrulaması yapıldıktan sonra sorunları, projeleri ve hata verilerini sorgulamak için istemlerinizde Sentry araçlarını kullanabilirsiniz.
 
@@ -439,7 +439,7 @@ Dokumanlar arasında arama yapmak için [Context7 MCP server](https://github.com
 
 ```json title="opencode.json" {4-7}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {
     "context7": {
       "type": "remote",
@@ -453,7 +453,7 @@ Dokumanlar arasında arama yapmak için [Context7 MCP server](https://github.com
 
 ```json title="opencode.json" {7-9}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {
     "context7": {
       "type": "remote",
@@ -488,7 +488,7 @@ GitHub'daki kod parçacıkları arasında arama yapmak için [Grep by Vercel](ht
 
 ```json title="opencode.json" {4-7}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "mcp": {
     "gh_grep": {
       "type": "remote",

@@ -3,23 +3,23 @@ title: Regeln
 description: Lege eigene Anweisungen fuer jollicode fest.
 ---
 
-Du kannst jollicode ueber eine `AGENTS.md`-Datei mit eigenen Anweisungen steuern.
+Du kannst Jolli Code ueber eine `AGENTS.md`-Datei mit eigenen Anweisungen steuern.
 Das ist aehnlich zu den Regeln in Cursor und wird direkt in den LLM-Kontext geladen.
 
 ---
 
 ## Initialisierung
 
-Um eine neue `AGENTS.md` zu erstellen, fuehre in jollicode den Befehl `/init` aus.
+Um eine neue `AGENTS.md` zu erstellen, fuehre in Jolli Code den Befehl `/init` aus.
 
 :::tip
 Du solltest die `AGENTS.md` deines Projekts in Git committen.
 :::
 
 Der Befehl scannt dein Projekt und erzeugt daraus eine passende `AGENTS.md`.
-So kann jollicode sich in deinem Code besser orientieren.
+So kann Jolli Code sich in deinem Code besser orientieren.
 
-Wenn bereits eine `AGENTS.md` existiert, versucht jollicode sie zu erweitern.
+Wenn bereits eine `AGENTS.md` existiert, versucht Jolli Code sie zu erweitern.
 
 ---
 
@@ -57,7 +57,7 @@ Hier hinterlegst du projektspezifische Regeln, die dein Team gemeinsam nutzt.
 
 ## Typen
 
-jollicode kann `AGENTS.md` aus mehreren Orten lesen.
+Jolli Code kann `AGENTS.md` aus mehreren Orten lesen.
 Die Orte haben unterschiedliche Zwecke.
 
 ### Projekt
@@ -92,7 +92,7 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ## Rangfolge
 
-Beim Start sucht jollicode in dieser Reihenfolge nach Regeldateien:
+Beim Start sucht Jolli Code in dieser Reihenfolge nach Regeldateien:
 
 1. **Lokale Dateien** beim Hochlaufen ab dem aktuellen Verzeichnis (`AGENTS.md`, `CLAUDE.md`)
 2. **Globale Datei** unter `~/.config/jollicode/AGENTS.md`
@@ -112,7 +112,7 @@ Beispiel:
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
 }
 ```
@@ -121,7 +121,7 @@ Du kannst auch Remote-URLs nutzen, um Regeln aus dem Web zu laden.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["https://raw.githubusercontent.com/my-org/shared-rules/main/style.md"]
 }
 ```
@@ -134,7 +134,7 @@ Alle Anweisungsdateien werden mit deinen `AGENTS.md`-Dateien kombiniert.
 
 ## Externe Dateien referenzieren
 
-jollicode parst Datei-Referenzen in `AGENTS.md` nicht automatisch.
+Jolli Code parst Datei-Referenzen in `AGENTS.md` nicht automatisch.
 Du erreichst aehnliches Verhalten auf zwei Wegen.
 
 ### Mit opencode.json
@@ -143,14 +143,14 @@ Empfohlen ist das `instructions`-Feld in der `opencode.json`:
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "instructions": ["docs/development-standards.md", "test/testing-guidelines.md", "packages/*/AGENTS.md"]
 }
 ```
 
 ### Manuelle Anweisungen in AGENTS.md
 
-Du kannst jollicode explizit anweisen, externe Dateien zu lesen.
+Du kannst Jolli Code explizit anweisen, externe Dateien zu lesen.
 Hier ein praxisnahes Beispiel:
 
 ```markdown title="AGENTS.md"

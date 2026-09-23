@@ -3,7 +3,7 @@ title: Udostępnianie
 description: Udostępnij swoje rozmowy dotyczące opencode.
 ---
 
-Funkcja udostępniania jollicode umożliwia tworzenie publicznych linków do konwersacji jollicode, dzięki czemu możesz współpracować z członkami zespołu lub uzyskać pomoc od innych.
+Funkcja udostępniania Jolli Code umożliwia tworzenie publicznych linków do konwersacji Jolli Code, dzięki czemu możesz współpracować z członkami zespołu lub uzyskać pomoc od innych.
 
 :::note
 Udostępnione konwersacje są publicznie dostępne dla każdej osoby mającej link.
@@ -13,7 +13,7 @@ Udostępnione konwersacje są publicznie dostępne dla każdej osoby mającej li
 
 ## Jak to działa
 
-Kiedy udostępniasz rozmowę, jollicode:
+Kiedy udostępniasz rozmowę, Jolli Code:
 
 1. Tworzy unikalny publiczny adres URL sesji
 2. Synchronizuje historię rozmów z naszymi serwerami
@@ -23,13 +23,13 @@ Kiedy udostępniasz rozmowę, jollicode:
 
 ## Udostępnianie
 
-jollicode obsługuje trzy tryby udostępniania, które kontrolują sposób udostępniania rozmów:
+Jolli Code obsługuje trzy tryby udostępniania, które kontrolują sposób udostępniania rozmów:
 
 ---
 
 ### Ręczne (domyślne)
 
-Domyślnie jollicode korzysta z ręcznego trybu udostępniania. Sesje nie są udostępniane automatycznie, ale możesz je udostępnić ręcznie za pomocą polecenia `/share`:
+Domyślnie Jolli Code korzysta z ręcznego trybu udostępniania. Sesje nie są udostępniane automatycznie, ale możesz je udostępnić ręcznie za pomocą polecenia `/share`:
 
 ```
 /share
@@ -41,7 +41,7 @@ Aby jawnie ustawić tryb ręczny w [pliku konfiguracyjnym] (./config):
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "share": "manual"
 }
 ```
@@ -54,7 +54,7 @@ Możesz włączyć automatyczne udostępnianie dla wszystkich nowych rozmów, us
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "share": "auto"
 }
 ```
@@ -69,7 +69,7 @@ Możesz całkowicie wyłączyć udostępnianie, ustawiając opcję `share` na `"
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "share": "disabled"
 }
 ```
@@ -125,4 +125,4 @@ W przypadku wdrożeń korporacyjnych funkcją udostępniania może być:
 - **Restricted** to users authenticated through SSO only
 - **Własny hosting** na własnej infrastrukturze
 
-[Dowiedz się więcej](/docs/enterprise) o używaniu jollicode w Twojej organizacji.
+[Dowiedz się więcej](/docs/enterprise) o używaniu Jolli Code w Twojej organizacji.

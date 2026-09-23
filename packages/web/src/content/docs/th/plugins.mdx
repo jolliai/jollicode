@@ -32,7 +32,7 @@ description: เขียนปลั๊กอินของคุณเอง�
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
 }
 ```
@@ -118,7 +118,7 @@ export const MyPlugin = async ({ project, client, $, directory, worktree }) => {
 - `project`: ข้อมูลโครงการปัจจุบัน
 - `directory`: ไดเร็กทอรีการทำงานปัจจุบัน
 - `worktree`: เส้นทางเวิร์กทรีคอมไพล์
-- `client`: ไคลเอนต์ jollicode SDK สำหรับการโต้ตอบกับ AI
+- `client`: ไคลเอนต์ Jolli Code SDK สำหรับการโต้ตอบกับ AI
 - `$`: [shell API](https://bun.com/docs/runtime/shell) ของ Bun สำหรับการดำเนินการคำสั่ง
 
 ---
@@ -211,7 +211,7 @@ export const MyPlugin: Plugin = async ({ project, client, $, directory, worktree
 
 ## ตัวอย่าง
 
-นี่คือตัวอย่างบางส่วนของปลั๊กอินที่คุณสามารถใช้เพื่อขยาย jollicode
+นี่คือตัวอย่างบางส่วนของปลั๊กอินที่คุณสามารถใช้เพื่อขยาย Jolli Code
 
 ---
 
@@ -242,7 +242,7 @@ export const NotificationPlugin = async ({ project, client, $, directory, worktr
 
 ### การป้องกัน .env
 
-ป้องกันไม่ให้ jollicode อ่านไฟล์ `.env`:
+ป้องกันไม่ให้ Jolli Code อ่านไฟล์ `.env`:
 
 ```javascript title=".jollicode/plugins/env-protection.js"
 export const EnvProtection = async ({ project, client, $, directory, worktree }) => {
@@ -277,7 +277,7 @@ export const InjectEnvPlugin = async () => {
 
 ### เครื่องมือที่กำหนดเอง
 
-ปลั๊กอินยังสามารถเพิ่มเครื่องมือที่กำหนดเองให้กับ jollicode:
+ปลั๊กอินยังสามารถเพิ่มเครื่องมือที่กำหนดเองให้กับ Jolli Code:
 
 ```ts title=".jollicode/plugins/custom-tools.ts"
 import { type Plugin, tool } from "@opencode-ai/plugin"
@@ -300,13 +300,13 @@ export const CustomToolsPlugin: Plugin = async (ctx) => {
 }
 ```
 
-ตัวช่วย `tool` สร้างเครื่องมือแบบกำหนดเองที่สามารถเรียกใช้ jollicode ได้ ใช้ฟังก์ชัน Zod schema และส่งกลับคำจำกัดความของเครื่องมือด้วย:
+ตัวช่วย `tool` สร้างเครื่องมือแบบกำหนดเองที่สามารถเรียกใช้ Jolli Code ได้ ใช้ฟังก์ชัน Zod schema และส่งกลับคำจำกัดความของเครื่องมือด้วย:
 
 - `description`: เครื่องมือนี้ทำอะไร
 - `args`: Zod schema สำหรับข้อโต้แย้งของเครื่องมือ
 - `execute`: ฟังก์ชั่นที่ทำงานเมื่อมีการเรียกใช้เครื่องมือ
 
-เครื่องมือที่คุณกำหนดเองจะพร้อมใช้งานสำหรับ jollicode ควบคู่ไปกับเครื่องมือในตัว
+เครื่องมือที่คุณกำหนดเองจะพร้อมใช้งานสำหรับ Jolli Code ควบคู่ไปกับเครื่องมือในตัว
 
 :::note
 หากเครื่องมือปลั๊กอินใช้ชื่อเดียวกับเครื่องมือในตัว เครื่องมือปลั๊กอินจะมีความสำคัญเหนือกว่า
@@ -331,7 +331,7 @@ export const MyPlugin = async ({ client }) => {
 }
 ```
 
-ระดับ: `debug`, `info`, `warn`, `error` ดู[SDKเอกสารประกอบ](https://opencode.ai/docs/sdk)สำหรับรายละเอียด
+ระดับ: `debug`, `info`, `warn`, `error` ดู[SDKเอกสารประกอบ](https://jolli.ai/docs/sdk)สำหรับรายละเอียด
 
 ---
 

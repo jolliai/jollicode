@@ -3,7 +3,7 @@ title: Wtyczki
 description: Napisz własną wtyczkę, aby rozszerzyć opencode.
 ---
 
-Wtyczki umożliwiające wyłączenie jollicode poprzez podjęcie różnych zdarzeń i zachowanie. Można utworzyć wtyczkę, aby sprawdzić nowe funkcje, integrować się z usługami lub sprawdzaniem zachowania opencode.
+Wtyczki umożliwiające wyłączenie Jolli Code poprzez podjęcie różnych zdarzeń i zachowanie. Można utworzyć wtyczkę, aby sprawdzić nowe funkcje, integrować się z usługami lub sprawdzaniem zachowania Jolli Code.
 
 Aby znaleźć się z przykładami, przejrzyj [wtyczki](/docs/ecosystem#plugins) utworzone przez społeczność.
 
@@ -32,7 +32,7 @@ szczegółowy pakiet npm w pliku konfiguracyjnym.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
 }
 ```
@@ -83,7 +83,7 @@ Lokalne narzędzie i narzędzie, które można wykorzystać z zewnętrznych paki
 }
 ```
 
-jollicode uruchomienie `bun install` przy uruchomieniu, aby je uruchomić. Twoje dodatkowe funkcje będą dostępne po zaimportowaniu.
+Jolli Code uruchomienie `bun install` przy uruchomieniu, aby je uruchomić. Twoje dodatkowe funkcje będą dostępne po zaimportowaniu.
 
 ```ts title=".jollicode/plugins/my-plugin.ts"
 import { escape } from "shescape"
@@ -118,7 +118,7 @@ Funkcja dostępu do:
 - `project`: Aktualne informacje o projekcie.
 - `directory`: Bieżący katalog roboczy.
 - `worktree`: Ścieżka eksploatacyjna Git.
-- `client`: Klient SDK z jollicode do sztucznej inteligencji.
+- `client`: Klient SDK z Jolli Code do sztucznej inteligencji.
 - `$`: [API obudowy](https://bun.com/docs/runtime/shell) Buna do wykonywania oprogramowania.
 
 ---
@@ -211,7 +211,7 @@ Wtyczki mogą subskrybować zdarzenia, jak zastosować poniżej sekcji Przykład
 
 ## Przykłady
 
-Oto kilka dostępnych wtyczek, które można udostępnić do opencode.
+Oto kilka dostępnych wtyczek, które można udostępnić do Jolli Code.
 
 ---
 
@@ -235,14 +235,14 @@ export const NotificationPlugin = async ({ project, client, $, directory, worktr
 Używamy `osascript` do uruchamiania AppleScript na macOS. Tutaj możesz przejść do wysyłania pozostałości.
 
 :::note
-Jeśli korzystasz z aplikacji komputerowej jollicode, może ona automatycznie wysłać wiadomość systemową, gdy odpowiedź jest gotowa lub gdy wystąpią błędy sesji.
+Jeśli korzystasz z aplikacji komputerowej Jolli Code, może ona automatycznie wysłać wiadomość systemową, gdy odpowiedź jest gotowa lub gdy wystąpią błędy sesji.
 :::
 
 ---
 
 ### ochrona .env
 
-Zablokuj jollicode czytanie plików `.env`:
+Zablokuj Jolli Code czytanie plików `.env`:
 
 ```javascript title=".jollicode/plugins/env-protection.js"
 export const EnvProtection = async ({ project, client, $, directory, worktree }) => {
@@ -277,7 +277,7 @@ export const InjectEnvPlugin = async () => {
 
 ### Niestandardowe narzędzia
 
-Wtyczki mogą również dodawać niestandardowe narzędzia do jollicode:
+Wtyczki mogą również dodawać niestandardowe narzędzia do Jolli Code:
 
 ```ts title=".jollicode/plugins/custom-tools.ts"
 import { type Plugin, tool } from "@opencode-ai/plugin"
@@ -300,7 +300,7 @@ export const CustomToolsPlugin: Plugin = async (ctx) => {
 }
 ```
 
-Pomocnik `tool` tworzy narzędzie użytkowe, które może wywołać kod opencode. Pobierane schematu Zoda i narzędzie wyszukiwania za pomocą:
+Pomocnik `tool` tworzy narzędzie użytkowe, które może wywołać kod Jolli Code. Pobierane schematu Zoda i narzędzie wyszukiwania za pomocą:
 
 - `description`: Co robi do narzędzia
 - `args`: Schemat Zoda dla narzędzi argumentów
@@ -327,7 +327,7 @@ export const MyPlugin = async ({ client }) => {
 }
 ```
 
-Poziomy: `debug`, `info`, `warn`, `error`. Aby uzyskać szczegółowe informacje, zobacz [dokumentację pakietu SDK](https://opencode.ai/docs/sdk).
+Poziomy: `debug`, `info`, `warn`, `error`. Aby uzyskać szczegółowe informacje, zobacz [dokumentację pakietu SDK](https://jolli.ai/docs/sdk).
 
 ---
 

@@ -315,7 +315,7 @@ jollicode models --refresh
 
 ### run
 
-プロンプトを直接渡して、非対話モードで jollicode を実行します。
+プロンプトを直接渡して、非対話モードで Jolli Code を実行します。
 
 ```bash
 jollicode run [message..]
@@ -351,7 +351,7 @@ jollicode run --attach http://localhost:4096 "Explain async/await in JavaScript"
 | <nobr><code>{"--file"}</code></nobr>     | `-f`     | メッセージに添付するファイル                                                              |
 | <nobr><code>{"--format"}</code></nobr>   |          | 形式: デフォルト (フォーマット済み) または json (生の JSON イベント)                      |
 | <nobr><code>{"--title"}</code></nobr>    |          | セッションのタイトル (値が指定されていない場合は、切り詰められたプロンプトが使用されます) |
-| <nobr><code>{"--attach"}</code></nobr>   |          | 実行中の jollicode サーバー (http://localhost:4096 など) に接続します。                    |
+| <nobr><code>{"--attach"}</code></nobr>   |          | 実行中の Jolli Code サーバー (http://localhost:4096 など) に接続します。                    |
 | <nobr><code>{"--password"}</code></nobr> | `-p`     | Basic 認証パスワード（デフォルトは `OPENCODE_SERVER_PASSWORD`）                           |
 | <nobr><code>{"--username"}</code></nobr> | `-u`     | Basic 認証ユーザー名（デフォルトは `OPENCODE_SERVER_USERNAME` または `jollicode`）         |
 | <nobr><code>{"--dir"}</code></nobr>      |          | 実行ディレクトリ、またはアタッチ時のリモートサーバー上のパス                              |
@@ -369,7 +369,7 @@ API アクセスのためにヘッドレス Jolli Code サーバーを起動し�
 jollicode serve
 ```
 
-これにより、TUI インターフェイスを使用せずに jollicode 機能への API アクセスを提供する HTTP サーバーが起動します。 `OPENCODE_SERVER_PASSWORD` を設定して HTTP 基本認証を有効にします (ユーザー名のデフォルトは `jollicode`)。
+これにより、TUI インターフェイスを使用せずに Jolli Code 機能への API アクセスを提供する HTTP サーバーが起動します。 `OPENCODE_SERVER_PASSWORD` を設定して HTTP 基本認証を有効にします (ユーザー名のデフォルトは `jollicode`)。
 
 #### フラグ
 
@@ -519,7 +519,7 @@ jollicode uninstall
 
 ### upgrade
 
-jollicode を最新バージョンまたは特定のバージョンに更新します。
+Jolli Code を最新バージョンまたは特定のバージョンに更新します。
 
 ```bash
 jollicode upgrade [target]
@@ -547,7 +547,7 @@ jollicode upgrade v0.1.48
 
 ## グローバルフラグ
 
-jollicode CLI は次のグローバルフラグを受け取ります。
+Jolli Code CLI は次のグローバルフラグを受け取ります。
 
 | フラグ                                     | ショート | 説明                                  |
 | ------------------------------------------ | -------- | ------------------------------------- |

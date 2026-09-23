@@ -3,7 +3,7 @@ title: Uprawnienia
 description: Kontroluj, które Akcje wymagają zatwierdzenia do uruchomienia.
 ---
 
-jollicode używa `permission`, aby uniknąć, czy dana akcja została wykonana automatycznie, zachowana monit lub została zablokowana.
+Jolli Code używa `permission`, aby uniknąć, czy dana akcja została wykonana automatycznie, zachowana monit lub została zablokowana.
 
 Od `v1.1.1` starsza stworzona logiczna `tools` jest przestarzała i została stworzona scalona z `permission`. Stara wersja `tools` jest nadal obsługiwana w celu zapewnienia zgodności wstecznej.
 
@@ -25,7 +25,7 @@ Możesz zainstalować uprawnienia globalnie (za pomocą `*`) i znajdującego si�
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "permission": {
     "*": "ask",
     "bash": "allow",
@@ -38,7 +38,7 @@ Możesz także zainstalować wszystkie uprawnienia na raz:
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "permission": "allow"
 }
 ```
@@ -51,7 +51,7 @@ Można skorzystać z różnych działań, które zależą od danych użytkowych.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "permission": {
     "bash": {
       "*": "ask",
@@ -88,7 +88,7 @@ Możesz używać `~` lub `$HOME` na początku wzorca, aby zastosować się do sw
 
 ### Katalogi zewnętrzne
 
-Użycie `external_directory`, aby zezwolić na wywołanie narzędzia, które obsługuje obsługę poza katalogiem roboczym, z uruchomieniem opencode. Dotyczy każdego narzędzia, które jako dane wejściowe zostało przyjęte (na przykład `read`, `edit`, `glob`, `grep` i wiele założycieli `bash`).
+Użycie `external_directory`, aby zezwolić na wywołanie narzędzia, które obsługuje obsługę poza katalogiem roboczym, z uruchomieniem Jolli Code. Dotyczy każdego narzędzia, które jako dane wejściowe zostało przyjęte (na przykład `read`, `edit`, `glob`, `grep` i wiele założycieli `bash`).
 
 Rozszerzenie domu (jak `~/...`) wpływa tylko na sposób za zwyczajowy wzorca. Nie powoduje to, że strategie zewnętrzne stają się stosowane przez `external_directory`.
 
@@ -96,7 +96,7 @@ Na przykład umożliwia dostęp do wszystkiego pod `~/projects/personal/`:
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "permission": {
     "external_directory": {
       "~/projects/personal/**": "allow"
@@ -109,7 +109,7 @@ Każdy dopuszczony tutaj katalog jest dziedziczy tych samych ustawień, co dost�
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "permission": {
     "external_directory": {
       "~/projects/personal/**": "allow"
@@ -127,7 +127,7 @@ Skoncentruj listę na zaufanych ścieżkach i dodaj dodatkowe zezwolenie lub odm
 
 ## Dostępne uprawnienia
 
-Uprawnienia jollicode są określane na podstawie nazwy narzędzia i kilku zabezpieczeń:
+Uprawnienia Jolli Code są określane na podstawie nazwy narzędzia i kilku zabezpieczeń:
 
 - `read` — odczyt pliku (odpowiada ścieżce pliku)
 - `edit` — wszystkie modyfikacje plików (obejmuje `edit`, `write`, `patch`)
@@ -146,7 +146,7 @@ Uprawnienia jollicode są określane na podstawie nazwy narzędzia i kilku zabez
 
 ## Domyślne
 
-Jeżeli nic nie jest określone, jollicode zostanie uruchomione od dopuszczalnych rozwiązań diagnostycznych:
+Jeżeli nic nie jest określone, Jolli Code zostanie uruchomione od dopuszczalnych rozwiązań diagnostycznych:
 
 - Dostępne uprawnienia ma wartość domyślną `"allow"`.
 - `doom_loop` i `external_directory` zamek ma wartość `"ask"`.
@@ -169,10 +169,10 @@ Jeżeli nic nie jest określone, jollicode zostanie uruchomione od dopuszczalnyc
 
 ## Co robi „Zapytaj”.
 
-Gdy jollicode poprosi o zatwierdzenie, interfejs użytkownika oferujący trzy wyniki:
+Gdy Jolli Code poprosi o zatwierdzenie, interfejs użytkownika oferujący trzy wyniki:
 
 - `once` — zatwierdź tylko tę prośbę
-- `always` — zastosowanie, które następuje po zastosowaniu sugerowanych wzorców (przez następczą bieżącą sesję jollicode)
+- `always` — zastosowanie, które następuje po zastosowaniu sugerowanych wzorców (przez następczą bieżącą sesję Jolli Code)
 - `reject` — odrzucić
 
 Zestaw wzorców, które `always` zatwierdziłby, jest udostępniony przez narzędzie (na przykładzie zatwierdzenia bash zazwyczaj umieszczają na częstotliwości bezpiecznej prefiksy polecenia, takie jak `git status*`).
@@ -189,7 +189,7 @@ Bardziej szczegółowe przykłady dopasowywania wzorców można znaleźć w sekc
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "permission": {
     "bash": {
       "*": "ask",

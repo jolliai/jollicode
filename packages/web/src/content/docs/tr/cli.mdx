@@ -5,13 +5,13 @@ description: jollicode CLI seçenekleri ve komutları.
 
 import { Tabs, TabItem } from "@astrojs/starlight/components"
 
-jollicode CLI herhangi bir argüman olmadan çalıştırıldığında varsayılan olarak [TUI](/docs/tui)'yi başlatır.
+Jolli Code CLI herhangi bir argüman olmadan çalıştırıldığında varsayılan olarak [TUI](/docs/tui)'yi başlatır.
 
 ```bash
 jollicode
 ```
 
-Ancak bu sayfada belgelendiği gibi komutları da kabul eder. Bu, jollicode ile programlı olarak etkileşim kurmanıza olanak tanır.
+Ancak bu sayfada belgelendiği gibi komutları da kabul eder. Bu, Jolli Code ile programlı olarak etkileşim kurmanıza olanak tanır.
 
 ```bash
 jollicode run "Explain how closures work in JavaScript"
@@ -21,7 +21,7 @@ jollicode run "Explain how closures work in JavaScript"
 
 ### tui
 
-jollicode terminal kullanıcı arayüzünü başlatır.
+Jolli Code terminal kullanıcı arayüzünü başlatır.
 
 ```bash
 jollicode [project]
@@ -44,13 +44,13 @@ jollicode [project]
 
 ## Komutlar
 
-jollicode CLI ayrıca aşağıdaki komutlara da sahiptir.
+Jolli Code CLI ayrıca aşağıdaki komutlara da sahiptir.
 
 ---
 
 ### agent
 
-jollicode için agent'ları yönetin.
+Jolli Code için agent'ları yönetin.
 
 ```bash
 jollicode agent [command]
@@ -60,13 +60,13 @@ jollicode agent [command]
 
 ### attach
 
-`serve` veya `web` komutlarıyla başlatılan, halihazırda çalışan bir jollicode arka uç sunucusuna bir terminal ekleyin.
+`serve` veya `web` komutlarıyla başlatılan, halihazırda çalışan bir Jolli Code arka uç sunucusuna bir terminal ekleyin.
 
 ```bash
 jollicode attach [url]
 ```
 
-Bu, TUI öğesinin uzak bir jollicode arka ucuyla kullanılmasına olanak tanır. Örneğin:
+Bu, TUI öğesinin uzak bir Jolli Code arka ucuyla kullanılmasına olanak tanır. Örneğin:
 
 ```bash
 # Start the backend server for web/mobile access
@@ -123,13 +123,13 @@ jollicode auth [command]
 
 #### login
 
-jollicode, [Models.dev](https://models.dev) adresindeki sağlayıcı listesi tarafından desteklenmektedir, dolayısıyla kullanmak istediğiniz herhangi bir sağlayıcı için API anahtarlarını ayarlamak üzere `jollicode auth login` kullanabilirsiniz. Bu `~/.local/share/jollicode/auth.json`'de saklanıyor.
+Jolli Code, [Models.dev](https://models.dev) adresindeki sağlayıcı listesi tarafından desteklenmektedir, dolayısıyla kullanmak istediğiniz herhangi bir sağlayıcı için API anahtarlarını ayarlamak üzere `jollicode auth login` kullanabilirsiniz. Bu `~/.local/share/jollicode/auth.json`'de saklanıyor.
 
 ```bash
 jollicode auth login
 ```
 
-jollicode başlatıldığında sağlayıcıları kimlik bilgileri dosyasından yükler. Ayrıca ortam değişkenlerindeki veya projenizdeki `.env` dosyasındaki anahtarları da kullanır.
+Jolli Code başlatıldığında sağlayıcıları kimlik bilgileri dosyasından yükler. Ayrıca ortam değişkenlerindeki veya projenizdeki `.env` dosyasındaki anahtarları da kullanır.
 
 ---
 
@@ -305,7 +305,7 @@ jollicode models anthropic
 | <nobr><code>{"--refresh"}</code></nobr> | Modeller.dev'den model önbelleğini yenileyin                                |
 | <nobr><code>{"--verbose"}</code></nobr> | Daha ayrıntılı model çıktısı kullanın (maliyetler gibi meta veriler içerir) |
 
-Önbelleğe alınan model listesini güncellemek için `--refresh` bayrağını kullanın. Bu, bir sağlayıcıya yeni modeller eklendiğinde ve bunları jollicode'da görmek istediğinizde kullanışlıdır.
+Önbelleğe alınan model listesini güncellemek için `--refresh` bayrağını kullanın. Bu, bir sağlayıcıya yeni modeller eklendiğinde ve bunları Jolli Code'da görmek istediğinizde kullanışlıdır.
 
 ```bash
 jollicode models --refresh
@@ -315,7 +315,7 @@ jollicode models --refresh
 
 ### run
 
-Doğrudan bir istem ileterek jollicode'u etkileşimli olmayan modda çalıştırın.
+Doğrudan bir istem ileterek Jolli Code'u etkileşimli olmayan modda çalıştırın.
 
 ```bash
 jollicode run [message..]
@@ -351,7 +351,7 @@ jollicode run --attach http://localhost:4096 "Explain async/await in JavaScript"
 | <nobr><code>{"--file"}</code></nobr>     | `-f` | Mesaja eklenecek dosya(lar)                                                                   |
 | <nobr><code>{"--format"}</code></nobr>   |      | Biçim: varsayılan (biçimlendirilmiş) veya json (ham JSON olayları)                            |
 | <nobr><code>{"--title"}</code></nobr>    |      | Oturumun başlığı (değer sağlanmazsa kısaltılmış bilgi istemi kullanılır)                      |
-| <nobr><code>{"--attach"}</code></nobr>   |      | Çalışan bir jollicode sunucusuna ekleyin (ör. http://localhost:4096)                           |
+| <nobr><code>{"--attach"}</code></nobr>   |      | Çalışan bir Jolli Code sunucusuna ekleyin (ör. http://localhost:4096)                           |
 | <nobr><code>{"--password"}</code></nobr> | `-p` | Temel kimlik doğrulama parolası (varsayılan: `OPENCODE_SERVER_PASSWORD`)                      |
 | <nobr><code>{"--username"}</code></nobr> | `-u` | Temel kimlik doğrulama kullanıcı adı (varsayılan: `OPENCODE_SERVER_USERNAME` veya `jollicode`) |
 | <nobr><code>{"--dir"}</code></nobr>      |      | Çalıştırılacak dizin veya bağlanırken uzak sunucudaki yol                                     |
@@ -363,13 +363,13 @@ jollicode run --attach http://localhost:4096 "Explain async/await in JavaScript"
 
 ### serve
 
-API erişimi için headless bir jollicode sunucusu başlatır. Tam HTTP arayüzü için [server docs](/docs/server) sayfasına bakın.
+API erişimi için headless bir Jolli Code sunucusu başlatır. Tam HTTP arayüzü için [server docs](/docs/server) sayfasına bakın.
 
 ```bash
 jollicode serve
 ```
 
-Bu, TUI arayüzü olmadan jollicode işlevselliğine API erişimi sağlayan bir HTTP sunucusunu başlatır. HTTP temel kimlik doğrulamasını etkinleştirmek için `OPENCODE_SERVER_PASSWORD` öğesini ayarlayın (kullanıcı adı varsayılan olarak `jollicode` şeklindedir).
+Bu, TUI arayüzü olmadan Jolli Code işlevselliğine API erişimi sağlayan bir HTTP sunucusunu başlatır. HTTP temel kimlik doğrulamasını etkinleştirmek için `OPENCODE_SERVER_PASSWORD` öğesini ayarlayın (kullanıcı adı varsayılan olarak `jollicode` şeklindedir).
 
 #### Bayraklar
 
@@ -384,7 +384,7 @@ Bu, TUI arayüzü olmadan jollicode işlevselliğine API erişimi sağlayan bir 
 
 ### session
 
-jollicode oturumlarını yönetin.
+Jolli Code oturumlarını yönetin.
 
 ```bash
 jollicode session [command]
@@ -394,7 +394,7 @@ jollicode session [command]
 
 #### list
 
-Tüm jollicode oturumlarını listeleyin.
+Tüm Jolli Code oturumlarını listeleyin.
 
 ```bash
 jollicode session list
@@ -411,7 +411,7 @@ jollicode session list
 
 ### stats
 
-jollicode oturumlarınız için belirteç kullanımı ve maliyet istatistiklerini gösterin.
+Jolli Code oturumlarınız için belirteç kullanımı ve maliyet istatistiklerini gösterin.
 
 ```bash
 jollicode stats
@@ -442,13 +442,13 @@ Bir oturum kimliği sağlamazsanız mevcut oturumlar arasından seçim yapmanız
 
 ### import
 
-Bir JSON dosyasından veya jollicode paylaşımından URL oturum verilerini içe aktarın.
+Bir JSON dosyasından veya Jolli Code paylaşımından URL oturum verilerini içe aktarın.
 
 ```bash
 jollicode import <file>
 ```
 
-Yerel bir dosyadan veya jollicode paylaşımından (URL) içe aktarabilirsiniz.
+Yerel bir dosyadan veya Jolli Code paylaşımından (URL) içe aktarabilirsiniz.
 
 ```bash
 jollicode import session.json
@@ -459,13 +459,13 @@ jollicode import https://opncd.ai/s/abc123
 
 ### web
 
-Web arayüzüyle başsız bir jollicode sunucusu başlatın.
+Web arayüzüyle başsız bir Jolli Code sunucusu başlatın.
 
 ```bash
 jollicode web
 ```
 
-Bu, bir HTTP sunucusunu başlatır ve bir web arayüzü aracılığıyla jollicode'a erişmek için bir web tarayıcısı açar. HTTP temel kimlik doğrulamasını etkinleştirmek için `OPENCODE_SERVER_PASSWORD` öğesini ayarlayın (kullanıcı adı varsayılan olarak `jollicode` şeklindedir).
+Bu, bir HTTP sunucusunu başlatır ve bir web arayüzü aracılığıyla Jolli Code'a erişmek için bir web tarayıcısı açar. HTTP temel kimlik doğrulamasını etkinleştirmek için `OPENCODE_SERVER_PASSWORD` öğesini ayarlayın (kullanıcı adı varsayılan olarak `jollicode` şeklindedir).
 
 #### Bayraklar
 
@@ -500,7 +500,7 @@ Bu komut, nd-JSON kullanarak stdin/stdout aracılığıyla iletişim kuran bir A
 
 ### uninstall
 
-jollicode'u kaldırın ve ilgili tüm dosyaları kaldırın.
+Jolli Code'u kaldırın ve ilgili tüm dosyaları kaldırın.
 
 ```bash
 jollicode uninstall
@@ -519,7 +519,7 @@ jollicode uninstall
 
 ### upgrade
 
-jollicode'u en son sürüme veya belirli bir sürüme günceller.
+Jolli Code'u en son sürüme veya belirli bir sürüme günceller.
 
 ```bash
 jollicode upgrade [target]
@@ -547,7 +547,7 @@ jollicode upgrade v0.1.48
 
 ## Global bayraklar
 
-jollicode CLI aşağıdaki global bayrakları destekler.
+Jolli Code CLI aşağıdaki global bayrakları destekler.
 
 | Bayrak                                     | Kısa | Tanım                                    |
 | ------------------------------------------ | ---- | ---------------------------------------- |
@@ -560,7 +560,7 @@ jollicode CLI aşağıdaki global bayrakları destekler.
 
 ## Ortam değişkenleri
 
-jollicode ortam değişkenleri kullanılarak yapılandırılabilir.
+Jolli Code ortam değişkenleri kullanılarak yapılandırılabilir.
 
 | Değişken                              | Tip     | Açıklama                                                                    |
 | ------------------------------------- | ------- | --------------------------------------------------------------------------- |

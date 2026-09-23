@@ -31,7 +31,7 @@ Da biste koristili Jolli Code u svom terminalu, trebat će vam:
 Najlakši način za instaliranje Jolli Code je putem instalacijske skripte.
 
 ```bash
-curl -fsSL https://opencode.ai/install | bash
+curl -fsSL https://jolli.ai/install | bash
 ```
 
 Također ga možete instalirati pomoću sljedećih naredbi:
@@ -42,28 +42,28 @@ Također ga možete instalirati pomoću sljedećih naredbi:
 
       <TabItem label="npm">
       ```bash
-      npm install -g opencode-ai
+      npm install -g @jolli.ai/jollicode
       ```
 
           </TabItem>
 
         <TabItem label="Bun">
         ```bash
-        bun install -g opencode-ai
+        bun install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="pnpm">
         ```bash
-        pnpm install -g opencode-ai
+        pnpm install -g @jolli.ai/jollicode
         ```
 
           </TabItem>
 
         <TabItem label="Yarn">
         ```bash
-        yarn global add opencode-ai
+        yarn global add @jolli.ai/jollicode
         ```
 
       </TabItem>
@@ -73,16 +73,13 @@ Također ga možete instalirati pomoću sljedećih naredbi:
 - **Korištenje Homebrew-a na macOS-u i Linux-u**
 
 ```bash
-  brew install anomalyco/tap/opencode
+  brew install jolliai/tap/jollicode
 ```
-
-> Preporučujemo korištenje Jolli Code tap za najnovija izdanja. Službenu formulu `brew install jollicode` održava Homebrew tim i ažurira se rjeđe.
 
 - **Korištenje Parua na Arch Linuxu**
 
   ```bash
-  sudo pacman -S jollicode           # Arch Linux (Stable)
-  paru -S opencode-bin              # Arch Linux (Latest from AUR)
+  paru -S jollicode-bin
   ```
 
 #### Windows
@@ -91,22 +88,10 @@ Također ga možete instalirati pomoću sljedećih naredbi:
 Za najbolje iskustvo na Windows-u preporučujemo korištenje [Windows Subsystem for Linux (WSL)](/docs/windows-wsl). Pruža bolje performanse i potpunu kompatibilnost sa Jolli Code funkcijama.
 :::
 
-- **Korištenje Chocolatey-a**
-
-```bash
-  choco install jollicode
-```
-
-- **Korištenje Scoop-a**
-
-```bash
-  scoop install jollicode
-```
-
 - **Korištenje NPM-a**
 
 ```bash
-  npm install -g opencode-ai
+  npm install -g @jolli.ai/jollicode
 ```
 
 - **Korištenje Mise**
@@ -132,7 +117,7 @@ Uz Jolli Code možete koristiti bilo kojeg LLM provajdera tako što ćete konfig
 Ako ste tek počeli koristiti LLM provajdere, preporučujemo korištenje [OpenCode Zen](/docs/zen).
 To je kurirana lista modela koji su testirani i verifikovani od strane Jolli Code tima.
 
-1. Pokrenite naredbu `/connect` u TUI-u, odaberite opencode i idite na [opencode.ai/auth](https://opencode.ai/auth).
+1. Pokrenite naredbu `/connect` u TUI-u, odaberite opencode i idite na [jolli.ai/auth](https://jolli.ai/auth).
 
 ```txt
    /connect
@@ -313,7 +298,7 @@ Ovo će kreirati vezu do trenutnog razgovora i kopirati je u međuspremnik.
 :::note
 Razgovori se ne dijele prema zadanim postavkama.
 :::
-Evo [primjer razgovora](https://opencode.ai/s/4XP1fce5) sa Jolli Code.
+Evo [primjer razgovora](https://jolli.ai/s/4XP1fce5) sa Jolli Code.
 
 ---
 

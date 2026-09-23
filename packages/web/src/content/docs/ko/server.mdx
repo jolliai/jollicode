@@ -6,7 +6,7 @@ description: HTTP를 통해 Jolli Code 서버와 상호 작용합니다.
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-`jollicode serve` 명령은 jollicode 클라이언트가 사용할 수 있는 OpenAPI 엔드포인트를 노출하는 headless HTTP 서버를 실행합니다.
+`jollicode serve` 명령은 Jolli Code 클라이언트가 사용할 수 있는 OpenAPI 엔드포인트를 노출하는 headless HTTP 서버를 실행합니다.
 
 ---
 
@@ -51,13 +51,13 @@ OPENCODE_SERVER_PASSWORD=your-password jollicode serve
 끝점. 이 엔드포인트는 [SDK](/docs/sdk)을 생성하는 데도 사용됩니다.
 
 :::tip
-jollicode 서버를 사용하여 jollicode programmatically와 상호 작용합니다.
+Jolli Code 서버를 사용하여 Jolli Code programmatically와 상호 작용합니다.
 :::
 
-이 아키텍처는 jollicode 지원 여러 클라이언트를 허용하고 jollicode programmatically와 상호 작용 할 수 있습니다.
+이 아키텍처는 Jolli Code 지원 여러 클라이언트를 허용하고 Jolli Code programmatically와 상호 작용 할 수 있습니다.
 
 독립 서버를 시작하려면 `jollicode serve`를 실행할 수 있습니다. 당신이 있는 경우에
-jollicode TUI 실행, `jollicode serve` 새로운 서버를 시작합니다.
+Jolli Code TUI 실행, `jollicode serve` 새로운 서버를 시작합니다.
 
 ---
 
@@ -65,7 +65,7 @@ jollicode TUI 실행, `jollicode serve` 새로운 서버를 시작합니다.
 
 TUI를 시작하면 무작위로 포트와 호스트 이름을 할당합니다. 대신 `--hostname`와 `--port` [flags](/docs/cli)에서 전달할 수 있습니다. 그런 다음 서버에 연결하십시오.
 
-[`/tui`](#tui) 엔드포인트는 서버를 통해 TUI를 구동하는 데 사용될 수 있습니다. 예를 들어 미리 작성하거나 프롬프트를 실행할 수 있습니다. 이 설정은 jollicode [IDE](/docs/ide) 플러그인에 의해 사용됩니다.
+[`/tui`](#tui) 엔드포인트는 서버를 통해 TUI를 구동하는 데 사용될 수 있습니다. 예를 들어 미리 작성하거나 프롬프트를 실행할 수 있습니다. 이 설정은 Jolli Code [IDE](/docs/ide) 플러그인에 의해 사용됩니다.
 
 ---
 
@@ -83,7 +83,7 @@ http://<hostname>:<port>/doc
 
 ## API
 
-jollicode 서버는 다음과 같은 API를 노출합니다.
+Jolli Code 서버는 다음과 같은 API를 노출합니다.
 
 ---
 

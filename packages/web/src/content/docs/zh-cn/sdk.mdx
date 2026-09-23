@@ -6,8 +6,8 @@ description: jollicode 服务器的类型安全 JS 客户端。
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-jollicode JS/TS SDK 提供了一个类型安全的客户端，用于与服务器进行交互。
-你可以用它来构建集成方案，并以编程方式控制 jollicode。
+Jolli Code JS/TS SDK 提供了一个类型安全的客户端，用于与服务器进行交互。
+你可以用它来构建集成方案，并以编程方式控制 Jolli Code。
 
 [了解更多](/docs/server)关于服务器的工作原理。如需示例，请查看社区构建的[项目](/docs/ecosystem#projects)。
 
@@ -25,7 +25,7 @@ npm install @opencode-ai/sdk
 
 ## 创建客户端
 
-创建一个 jollicode 实例：
+创建一个 Jolli Code 实例：
 
 ```javascript
 import { createOpencode } from "@opencode-ai/sdk"
@@ -62,14 +62,14 @@ const jollicode = await createOpencode({
   },
 })
 
-console.log(`Server running at ${opencode.server.url}`)
+console.log(`Server running at ${jollicode.server.url}`)
 
-opencode.server.close()
+jollicode.server.close()
 ```
 
 ## 仅客户端模式
 
-如果你已经有一个正在运行的 jollicode 实例，可以创建一个客户端实例来连接它：
+如果你已经有一个正在运行的 Jolli Code 实例，可以创建一个客户端实例来连接它：
 
 ```javascript
 import { createOpencodeClient } from "@opencode-ai/sdk"

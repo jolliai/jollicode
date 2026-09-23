@@ -3,13 +3,13 @@ title: Formatadores
 description: O jollicode usa formatadores específicos de linguagem.
 ---
 
-O jollicode formata automaticamente arquivos após serem escritos ou editados usando formatadores específicos de linguagem. Isso garante que o código gerado siga os estilos de código do seu projeto.
+O Jolli Code formata automaticamente arquivos após serem escritos ou editados usando formatadores específicos de linguagem. Isso garante que o código gerado siga os estilos de código do seu projeto.
 
 ---
 
 ## Integrados
 
-O jollicode vem com vários formatadores integrados para linguagens e frameworks populares. Abaixo está uma lista dos formatadores, extensões de arquivo suportadas e comandos ou opções de configuração necessárias.
+O Jolli Code vem com vários formatadores integrados para linguagens e frameworks populares. Abaixo está uma lista dos formatadores, extensões de arquivo suportadas e comandos ou opções de configuração necessárias.
 
 | Formatador           | Extensões                                                                                              | Requisitos                                                                                               |
 | -------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
@@ -39,13 +39,13 @@ O jollicode vem com vários formatadores integrados para linguagens e frameworks
 | oxfmt (Experimental) | .js, .jsx, .ts, .tsx                                                                                   | Dependência `oxfmt` em `package.json` e uma [variável de ambiente experimental](/docs/cli/#experimental) |
 | ormolu               | .hs                                                                                                    | Comando `ormolu` disponível                                                                              |
 
-Portanto, se seu projeto tiver `prettier` em seu `package.json`, o jollicode o usará automaticamente.
+Portanto, se seu projeto tiver `prettier` em seu `package.json`, o Jolli Code o usará automaticamente.
 
 ---
 
 ## Como funciona
 
-Quando o jollicode escreve ou edita um arquivo, ele:
+Quando o Jolli Code escreve ou edita um arquivo, ele:
 
 1. Verifica a extensão do arquivo em relação a todos os formatadores habilitados.
 2. Executa o comando do formatador apropriado no arquivo.
@@ -57,11 +57,11 @@ Esse processo acontece em segundo plano, garantindo que seus estilos de código 
 
 ## Configuração
 
-Você pode personalizar os formatadores através da seção `formatter` em sua configuração do opencode.
+Você pode personalizar os formatadores através da seção `formatter` em sua configuração do Jolli Code.
 
 ```json title="opencode.json"
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "formatter": {}
 }
 ```
@@ -85,7 +85,7 @@ Para desabilitar **todos** os formatadores globalmente, defina `formatter` como 
 
 ```json title="opencode.json" {3}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "formatter": false
 }
 ```
@@ -94,7 +94,7 @@ Para desabilitar um **formatador específico**, defina `disabled` como `true`:
 
 ```json title="opencode.json" {5}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "formatter": {
     "prettier": {
       "disabled": true
@@ -111,7 +111,7 @@ Você pode substituir os formatadores integrados ou adicionar novos especificand
 
 ```json title="opencode.json" {4-14}
 {
-  "$schema": "https://opencode.ai/config.json",
+  "$schema": "https://jolli.ai/config.json",
   "formatter": {
     "prettier": {
       "command": ["npx", "prettier", "--write", "$FILE"],
