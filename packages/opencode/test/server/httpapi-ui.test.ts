@@ -46,7 +46,7 @@ const it = testEffect(Layer.mergeAll(testStateLayer, fsUtilLayer, RuntimeFlags.l
 function authConfigLayer(input?: { password?: string; username?: string }) {
   return ServerAuth.Config.configLayer({
     password: input?.password === undefined ? Option.none() : Option.some(input.password),
-    username: input?.username ?? "opencode",
+    username: input?.username ?? "jollicode",
   })
 }
 
@@ -370,7 +370,7 @@ describe("HttpApi UI fallback", () => {
     Effect.gen(function* () {
       const response = yield* uiApp({
         password: "secret",
-        username: "opencode",
+        username: "jollicode",
         disableEmbeddedWebUi: true,
       }).request("/")
 
@@ -383,10 +383,10 @@ describe("HttpApi UI fallback", () => {
     Effect.gen(function* () {
       const response = yield* uiApp({
         password: "secret",
-        username: "opencode",
+        username: "jollicode",
         disableEmbeddedWebUi: true,
         client: httpClient(new Response("<html>opencode</html>", { headers: { "content-type": "text/html" } })),
-      }).request(`/?auth_token=${btoa("opencode:secret")}`)
+      }).request(`/?auth_token=${btoa("jollicode:secret")}`)
 
       expect(response.status).toBe(200)
       expect(yield* responseText(response)).toBe("<html>opencode</html>")
@@ -397,10 +397,10 @@ describe("HttpApi UI fallback", () => {
     Effect.gen(function* () {
       const response = yield* uiApp({
         password: "secret",
-        username: "opencode",
+        username: "jollicode",
         disableEmbeddedWebUi: true,
       }).request("/", {
-        headers: { authorization: `Basic ${btoa("opencode:secret")}` },
+        headers: { authorization: `Basic ${btoa("jollicode:secret")}` },
       })
 
       expect(response.status).toBe(200)
@@ -411,10 +411,10 @@ describe("HttpApi UI fallback", () => {
     Effect.gen(function* () {
       const response = yield* uiApp({
         password: "sec:ret",
-        username: "opencode",
+        username: "jollicode",
         disableEmbeddedWebUi: true,
       }).request("/", {
-        headers: { authorization: `Basic ${btoa("opencode:sec:ret")}` },
+        headers: { authorization: `Basic ${btoa("jollicode:sec:ret")}` },
       })
 
       expect(response.status).toBe(200)
@@ -431,7 +431,7 @@ describe("HttpApi UI fallback", () => {
       for (const path of ["/site.webmanifest", "/web-app-manifest-192x192.png", "/web-app-manifest-512x512.png"]) {
         const response = yield* uiApp({
           password: "secret",
-          username: "opencode",
+          username: "jollicode",
           disableEmbeddedWebUi: true,
           client: httpClient(new Response("ok")),
         }).request(path)
@@ -442,7 +442,7 @@ describe("HttpApi UI fallback", () => {
 
   it.live("allows web UI preflight without auth", () =>
     Effect.gen(function* () {
-      const response = yield* app({ password: "secret", username: "opencode" }).request("/", {
+      const response = yield* app({ password: "secret", username: "jollicode" }).request("/", {
         method: "OPTIONS",
         headers: {
           origin: "http://localhost:3000",
