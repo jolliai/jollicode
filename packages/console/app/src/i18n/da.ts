@@ -16,7 +16,7 @@ export const dict = {
   "nav.home": "Hjem",
   "nav.openMenu": "Åbn menu",
   "nav.getStartedFree": "Kom i gang gratis",
-  "nav.logoAlt": "OpenCode",
+  "nav.logoAlt": "Jolli Code",
 
   "nav.context.copyLogo": "Kopier logo som SVG",
   "nav.context.copyWordmark": "Kopier wordmark som SVG",
@@ -37,13 +37,13 @@ export const dict = {
   "email.subscribe": "Tilmeld",
   "email.success": "Næsten færdig - tjek din indbakke og bekræft din e-mailadresse",
 
-  "notFound.title": "Ikke fundet | opencode",
+  "notFound.title": "Ikke fundet | Jolli Code",
   "notFound.heading": "404 - Siden blev ikke fundet",
   "notFound.home": "Hjem",
   "notFound.docs": "Dokumentation",
   "notFound.github": "GitHub",
-  "notFound.logoLightAlt": "opencode logo light",
-  "notFound.logoDarkAlt": "opencode logo dark",
+  "notFound.logoLightAlt": "Jolli Code logo light",
+  "notFound.logoDarkAlt": "Jolli Code logo dark",
 
   "user.logout": "Log ud",
 
@@ -81,11 +81,11 @@ export const dict = {
   "error.reloadAmountMin": "Genopfyldningsbeløb skal være mindst ${{amount}}",
   "error.reloadTriggerMin": "Saldogrænse skal være mindst ${{amount}}",
 
-  "app.meta.description": "OpenCode - Den open source kodningsagent.",
+  "app.meta.description": "Jolli Code - Den open source kodningsagent.",
 
-  "home.title": "OpenCode | Den open source AI-kodningsagent",
+  "home.title": "Jolli Code | Den open source AI-kodningsagent",
 
-  "temp.title": "opencode | AI-kodningsagent bygget til terminalen",
+  "temp.title": "Jolli Code | AI-kodningsagent bygget til terminalen",
   "temp.hero.title": "AI-kodningsagenten bygget til terminalen",
   "temp.zen": "opencode zen",
   "temp.getStarted": "Kom i gang",
@@ -93,13 +93,13 @@ export const dict = {
   "temp.feature.native.body": "En responsiv, native, tema-bar terminal-UI",
   "temp.feature.zen.beforeLink": "En",
   "temp.feature.zen.link": "kurateret liste over modeller",
-  "temp.feature.zen.afterLink": "leveret af opencode",
+  "temp.feature.zen.afterLink": "leveret af Jolli Code",
   "temp.feature.models.beforeLink": "Understøtter 75+ LLM-udbydere gennem",
   "temp.feature.models.afterLink": ", inklusive lokale modeller",
-  "temp.screenshot.caption": "opencode TUI med tokyonight-temaet",
-  "temp.screenshot.alt": "opencode TUI med tokyonight-temaet",
-  "temp.logoLightAlt": "opencode logo light",
-  "temp.logoDarkAlt": "opencode logo dark",
+  "temp.screenshot.caption": "Jolli Code TUI med tokyonight-temaet",
+  "temp.screenshot.alt": "Jolli Code TUI med tokyonight-temaet",
+  "temp.logoLightAlt": "Jolli Code logo light",
+  "temp.logoDarkAlt": "Jolli Code logo dark",
 
   "home.banner.badge": "Ny",
   "home.banner.text": "Introduktion af Tabs til Desktop.",
@@ -117,9 +117,9 @@ export const dict = {
 
   "home.install.ariaLabel": "Installationsmuligheder",
 
-  "home.what.title": "Hvad er OpenCode?",
+  "home.what.title": "Hvad er Jolli Code?",
   "home.what.body":
-    "OpenCode er en open source agent, der hjælper dig med at skrive kode i din terminal, IDE eller desktop.",
+    "Jolli Code er en open source agent, der hjælper dig med at skrive kode i din terminal, IDE eller desktop.",
   "home.what.lsp.title": "LSP aktiveret",
   "home.what.lsp.body": "Indlæser automatisk de rigtige LSP'er til LLM'en",
   "home.what.multiSession.title": "Multi-session",
@@ -138,51 +138,51 @@ export const dict = {
 
   "home.growth.title": "Den open source AI-kodningsagent",
   "home.growth.body":
-    "Med over <strong>{{stars}}</strong> GitHub-stjerner, <strong>{{contributors}}</strong> bidragsydere og over <strong>{{commits}}</strong> commits bruges OpenCode af over <strong>{{monthlyUsers}}</strong> udviklere hver måned.",
+    "Med over <strong>{{stars}}</strong> GitHub-stjerner, <strong>{{contributors}}</strong> bidragsydere og over <strong>{{commits}}</strong> commits bruges Jolli Code af over <strong>{{monthlyUsers}}</strong> udviklere hver måned.",
   "home.growth.githubStars": "GitHub-stjerner",
   "home.growth.contributors": "Bidragsydere",
   "home.growth.monthlyDevs": "Månedlige udviklere",
 
   "home.privacy.title": "Bygget med privatliv først",
   "home.privacy.body":
-    "OpenCode gemmer ikke din kode eller kontekstdata, så den kan bruges i privatlivsfølsomme miljøer.",
+    "Jolli Code gemmer ikke din kode eller kontekstdata, så den kan bruges i privatlivsfølsomme miljøer.",
   "home.privacy.learnMore": "Læs mere om",
   "home.privacy.link": "privatliv",
 
-  "home.faq.q1": "Hvad er OpenCode?",
+  "home.faq.q1": "Hvad er Jolli Code?",
   "home.faq.a1":
-    "OpenCode er en open source agent, der hjælper dig med at skrive og køre kode med enhver AI-model. Den er tilgængelig som terminal-interface, desktop-app eller IDE-udvidelse.",
-  "home.faq.q2": "Hvordan bruger jeg OpenCode?",
+    "Jolli Code er en open source agent, der hjælper dig med at skrive og køre kode med enhver AI-model. Den er tilgængelig som terminal-interface, desktop-app eller IDE-udvidelse.",
+  "home.faq.q2": "Hvordan bruger jeg Jolli Code?",
   "home.faq.a2.before": "Den nemmeste måde at komme i gang på er at læse",
   "home.faq.a2.link": "introen",
-  "home.faq.q3": "Skal jeg have ekstra AI-abonnementer for at bruge OpenCode?",
+  "home.faq.q3": "Skal jeg have ekstra AI-abonnementer for at bruge Jolli Code?",
   "home.faq.a3.p1":
-    "Ikke nødvendigvis. OpenCode kommer med gratis modeller, som du kan bruge uden at oprette en konto.",
+    "Ikke nødvendigvis. Jolli Code kommer med gratis modeller, som du kan bruge uden at oprette en konto.",
   "home.faq.a3.p2.beforeZen": "Derudover kan du bruge populære kodningsmodeller ved at oprette en",
   "home.faq.a3.p2.afterZen": " konto.",
   "home.faq.a3.p3":
-    "Vi opfordrer til at bruge Zen, men OpenCode virker også med populære udbydere som OpenAI, Anthropic, xAI osv.",
+    "Vi opfordrer til at bruge Zen, men Jolli Code virker også med populære udbydere som OpenAI, Anthropic, xAI osv.",
   "home.faq.a3.p4.beforeLocal": "Du kan endda forbinde dine",
   "home.faq.a3.p4.localLink": "lokale modeller",
-  "home.faq.q4": "Kan jeg bruge mine eksisterende AI-abonnementer med OpenCode?",
+  "home.faq.q4": "Kan jeg bruge mine eksisterende AI-abonnementer med Jolli Code?",
   "home.faq.a4.p1":
-    "Ja. OpenCode understøtter abonnementer fra alle store udbydere. Du kan bruge Claude Pro/Max, ChatGPT Plus/Pro eller GitHub Copilot.",
-  "home.faq.q5": "Kan jeg kun bruge OpenCode i terminalen?",
-  "home.faq.a5.beforeDesktop": "Ikke længere! OpenCode er nu tilgængelig som en app til",
+    "Ja. Jolli Code understøtter abonnementer fra alle store udbydere. Du kan bruge Claude Pro/Max, ChatGPT Plus/Pro eller GitHub Copilot.",
+  "home.faq.q5": "Kan jeg kun bruge Jolli Code i terminalen?",
+  "home.faq.a5.beforeDesktop": "Ikke længere! Jolli Code er nu tilgængelig som en app til",
   "home.faq.a5.desktop": "desktop",
   "home.faq.a5.and": "og",
   "home.faq.a5.web": "web",
-  "home.faq.q6": "Hvad koster OpenCode?",
+  "home.faq.q6": "Hvad koster Jolli Code?",
   "home.faq.a6":
-    "OpenCode er 100% gratis at bruge. Det kommer også med et sæt gratis modeller. Der kan være ekstra omkostninger, hvis du forbinder en anden udbyder.",
+    "Jolli Code er 100% gratis at bruge. Det kommer også med et sæt gratis modeller. Der kan være ekstra omkostninger, hvis du forbinder en anden udbyder.",
   "home.faq.q7": "Hvad med data og privatliv?",
   "home.faq.a7.p1": "Dine data gemmes kun, når du bruger vores gratis modeller eller opretter delbare links.",
   "home.faq.a7.p2.beforeModels": "Læs mere om",
   "home.faq.a7.p2.modelsLink": "vores modeller",
   "home.faq.a7.p2.and": "og",
   "home.faq.a7.p2.shareLink": "delingssider",
-  "home.faq.q8": "Er OpenCode open source?",
-  "home.faq.a8.p1": "Ja, OpenCode er fuldt open source. Kildekoden er offentlig på",
+  "home.faq.q8": "Er Jolli Code open source?",
+  "home.faq.a8.p1": "Ja, Jolli Code er fuldt open source. Kildekoden er offentlig på",
   "home.faq.a8.p2": "under",
   "home.faq.a8.mitLicense": "MIT-licensen",
   "home.faq.a8.p3":
@@ -190,23 +190,23 @@ export const dict = {
 
   "home.zenCta.title": "Få adgang til pålidelige, optimerede modeller til kodningsagenter",
   "home.zenCta.body":
-    "Zen giver dig adgang til et håndplukket sæt AI-modeller, som OpenCode har testet og benchmarked specifikt til kodningsagenter. Du behøver ikke bekymre dig om svingende performance og kvalitet på tværs af udbydere: brug validerede modeller, der virker.",
+    "Zen giver dig adgang til et håndplukket sæt AI-modeller, som Jolli Code har testet og benchmarked specifikt til kodningsagenter. Du behøver ikke bekymre dig om svingende performance og kvalitet på tværs af udbydere: brug validerede modeller, der virker.",
   "home.zenCta.link": "Læs om Zen",
 
   "zen.title": "OpenCode Zen | Et kurateret sæt af pålidelige, optimerede modeller til kodningsagenter",
   "zen.hero.title": "Pålidelige optimerede modeller til kodningsagenter",
   "zen.hero.body":
-    "Zen giver dig adgang til et kurateret sæt AI-modeller, som OpenCode har testet og benchmarked specifikt til kodningsagenter. Du behøver ikke bekymre dig om svingende performance og kvalitet: brug validerede modeller, der virker.",
+    "Zen giver dig adgang til et kurateret sæt AI-modeller, som Jolli Code har testet og benchmarked specifikt til kodningsagenter. Du behøver ikke bekymre dig om svingende performance og kvalitet: brug validerede modeller, der virker.",
 
   "zen.faq.q1": "Hvad er OpenCode Zen?",
   "zen.faq.a1":
-    "Zen er et kurateret sæt AI-modeller testet og benchmarked til kodningsagenter, skabt af teamet bag OpenCode.",
+    "Zen er et kurateret sæt AI-modeller testet og benchmarked til kodningsagenter, skabt af teamet bag Jolli Code.",
   "zen.faq.q2": "Hvad gør Zen mere præcis?",
   "zen.faq.a2":
     "Zen tilbyder kun modeller, der er testet og benchmarked specifikt til kodningsagenter. Du ville ikke bruge en smørkniv til at skære steak; brug ikke dårlige modeller til kodning.",
   "zen.faq.q3": "Er Zen billigere?",
   "zen.faq.a3":
-    "Zen er ikke for profit. Zen videregiver omkostningerne fra modeludbyderne til dig. Jo mere Zen bruges, desto mere kan OpenCode forhandle bedre priser og give dem videre til dig.",
+    "Zen er ikke for profit. Zen videregiver omkostningerne fra modeludbyderne til dig. Jo mere Zen bruges, desto mere kan Jolli Code forhandle bedre priser og give dem videre til dig.",
   "zen.faq.q4": "Hvad koster Zen?",
   "zen.faq.a4.p1.beforePricing": "Zen",
   "zen.faq.a4.p1.pricingLink": "opkræver per request",
@@ -214,7 +214,7 @@ export const dict = {
   "zen.faq.a4.p2.beforeAccount": "Din samlede pris afhænger af brug, og du kan sætte månedlige udgiftsgrænser i din",
   "zen.faq.a4.p2.accountLink": "konto",
   "zen.faq.a4.p3":
-    "For at dække omkostninger tilføjer OpenCode kun et lille betalingsgebyr på $1.23 per $20 saldo-opfyldning.",
+    "For at dække omkostninger tilføjer Jolli Code kun et lille betalingsgebyr på $1.23 per $20 saldo-opfyldning.",
   "zen.faq.q5": "Hvad med data og privatliv?",
   "zen.faq.a5.beforeExceptions":
     "Alle Zen-modeller hostes i USA. Udbydere følger en zero-retention-policy og bruger ikke dine data til modeltræning, med de",
@@ -225,7 +225,7 @@ export const dict = {
   "zen.faq.a7": "Ja, du kan deaktivere betaling når som helst og bruge din resterende saldo.",
   "zen.faq.q8": "Kan jeg bruge Zen med andre kodningsagenter?",
   "zen.faq.a8":
-    "Selvom Zen fungerer godt med OpenCode, kan du bruge Zen med enhver agent. Følg opsætningsinstruktionerne i din foretrukne kodningsagent.",
+    "Selvom Zen fungerer godt med Jolli Code, kan du bruge Zen med enhver agent. Følg opsætningsinstruktionerne i din foretrukne kodningsagent.",
   "zen.faq.q9": "Kan jeg få en refusion?",
   "zen.faq.a9":
     "Du kan muligvis få en refusion, hvis opkrævningen blev foretaget inden for de seneste 14 dage, og du ikke har brugt kreditten fra dette køb. {{contact}} for at anmode om en refusion.",
@@ -237,12 +237,12 @@ export const dict = {
   "zen.problem.title": "Hvilket problem løser Zen?",
   "zen.problem.body":
     "Der er så mange modeller tilgængelige, men kun få fungerer godt med kodningsagenter. De fleste udbydere konfigurerer dem anderledes med forskellige resultater.",
-  "zen.problem.subtitle": "Vi løser dette for alle, ikke kun OpenCode-brugere.",
+  "zen.problem.subtitle": "Vi løser dette for alle, ikke kun Jolli Code-brugere.",
   "zen.problem.item1": "Test af udvalgte modeller og høring af deres teams",
   "zen.problem.item2": "Samarbejde med udbydere for at sikre, at de bliver leveret korrekt",
   "zen.problem.item3": "Benchmarking af alle model-udbyder kombinationer, vi anbefaler",
   "zen.how.title": "Hvordan Zen virker",
-  "zen.how.body": "Selvom vi foreslår, at du bruger Zen med OpenCode, kan du bruge Zen med enhver agent.",
+  "zen.how.body": "Selvom vi foreslår, at du bruger Zen med Jolli Code, kan du bruge Zen med enhver agent.",
   "zen.how.step1.title": "Tilmeld dig og tilføj saldo på $20",
   "zen.how.step1.beforeLink": "følg",
   "zen.how.step1.link": "opsætningsinstruktioner",
@@ -288,7 +288,7 @@ export const dict = {
 
   "go.testimonials.brand.zen": "Zen",
   "go.testimonials.brand.go": "Go",
-  "go.testimonials.handle": "@OpenCode",
+  "go.testimonials.handle": "@Jolli Code",
   "go.testimonials.dax.name": "Dax Raad",
   "go.testimonials.dax.title": "ex-CEO, Terminal Products",
   "go.testimonials.dax.quoteAfter": "har været livsændrende, det er virkelig en no-brainer.",
@@ -309,14 +309,14 @@ export const dict = {
   "go.testimonials.frank.quote": "Jeg ville ønske, jeg stadig var hos Nvidia.",
   "go.problem.title": "Hvilket problem løser Go?",
   "go.problem.body":
-    "Vi fokuserer på at bringe OpenCode-oplevelsen ud til så mange som muligt. OpenCode Go er et lavprisabonnement til $10/måned. Det giver generøse grænser og pålidelig adgang til de mest kapable open source-modeller.",
+    "Vi fokuserer på at bringe Jolli Code-oplevelsen ud til så mange som muligt. OpenCode Go er et lavprisabonnement til $10/måned. Det giver generøse grænser og pålidelig adgang til de mest kapable open source-modeller.",
   "go.problem.subtitle": " ",
   "go.problem.item1": "Lavpris abonnementspriser",
   "go.problem.item2": "Generøse grænser og pålidelig adgang",
   "go.problem.item3": "Bygget til så mange programmører som muligt",
   "go.problem.item4": "Et kurateret modeludvalg testet til agentisk kodning",
   "go.how.title": "Hvordan Go virker",
-  "go.how.body": "Go koster $10/måned. Du kan bruge det med OpenCode eller enhver agent.",
+  "go.how.body": "Go koster $10/måned. Du kan bruge det med Jolli Code eller enhver agent.",
   "go.how.step1.title": "Opret en konto",
   "go.how.step1.beforeLink": "følg",
   "go.how.step1.link": "opsætningsinstruktionerne",
@@ -483,15 +483,15 @@ export const dict = {
     "Få adgang til modeller konfigureret til optimal ydeevne - ingen nedgraderinger eller routing til billigere udbydere.",
   "workspace.newUser.feature.lockin.title": "Ingen indlåsning",
   "workspace.newUser.feature.lockin.body":
-    "Brug Zen med en hvilken som helst kodningsagent, og fortsæt med at bruge andre udbydere med opencode, når du vil.",
+    "Brug Zen med en hvilken som helst kodningsagent, og fortsæt med at bruge andre udbydere med Jolli Code, når du vil.",
   "workspace.newUser.copyApiKey": "Kopiér API-nøgle",
   "workspace.newUser.copyKey": "Kopier nøgle",
   "workspace.newUser.copied": "Kopieret!",
   "workspace.newUser.step.enableBilling": "Aktiver fakturering",
   "workspace.newUser.step.login.before": "Kør",
-  "workspace.newUser.step.login.after": "og vælg opencode",
+  "workspace.newUser.step.login.after": "og vælg Jolli Code",
   "workspace.newUser.step.pasteKey": "Indsæt din API-nøgle",
-  "workspace.newUser.step.models.before": "Start opencode og kør",
+  "workspace.newUser.step.models.before": "Start Jolli Code og kør",
   "workspace.newUser.step.models.after": "for at vælge en model",
 
   "workspace.models.title": "Modeller",
@@ -537,10 +537,10 @@ export const dict = {
   "workspace.cost.subscriptionShort": "sub",
 
   "workspace.keys.title": "API-nøgler",
-  "workspace.keys.subtitle": "Administrer dine API-nøgler for at få adgang til opencode-tjenester.",
+  "workspace.keys.subtitle": "Administrer dine API-nøgler for at få adgang til Jolli Code-tjenester.",
   "workspace.keys.create": "Opret API-nøgle",
   "workspace.keys.placeholder": "Indtast nøglenavn",
-  "workspace.keys.empty": "Opret en opencode Gateway API-nøgle",
+  "workspace.keys.empty": "Opret en Jolli Code Gateway API-nøgle",
   "workspace.keys.table.name": "Navn",
   "workspace.keys.table.key": "Nøgle",
   "workspace.keys.table.createdBy": "Oprettet af",
@@ -697,7 +697,7 @@ export const dict = {
   "workspace.lite.subscription.total": "I alt",
   "workspace.lite.subscription.useBalance": "Brug din tilgængelige saldo, når du har nået forbrugsgrænserne",
   "workspace.lite.subscription.selectProvider":
-    'Vælg "OpenCode Go" som udbyder i din opencode-konfiguration for at bruge Go-modeller.',
+    'Vælg "OpenCode Go" som udbyder i din Jolli Code-konfiguration for at bruge Go-modeller.',
   "workspace.lite.providers.title": "Udbydere",
   "workspace.lite.providers.description": "Styr, hvilke udbydere der bruges til routing.",
   "workspace.lite.providers.allowTraining": "Tillad modeller, der træner på anmodningsdata",
@@ -750,15 +750,15 @@ export const dict = {
   "workspace.referral.apply.confirmBody": "Brug {{amount}} til at reducere dette workspaces nuværende forbrug.",
   "workspace.referral.apply.confirmAction": "Brug",
 
-  "download.title": "OpenCode | Download",
-  "download.meta.description": "Download OpenCode til macOS, Windows og Linux",
-  "download.hero.title": "Download OpenCode Desktop",
+  "download.title": "Jolli Code | Download",
+  "download.meta.description": "Download Jolli Code til macOS, Windows og Linux",
+  "download.hero.title": "Download Jolli Code Desktop",
   "download.hero.subtitle": "Tilgængelig i beta til macOS, Windows og Linux",
   "download.hero.button": "Download til {{os}}",
-  "download.section.terminal": "OpenCode Terminal",
-  "download.section.desktop": "OpenCode Desktop",
-  "download.section.extensions": "OpenCode Extensions",
-  "download.section.integrations": "OpenCode Integrations",
+  "download.section.terminal": "Jolli Code Terminal",
+  "download.section.desktop": "Jolli Code Desktop",
+  "download.section.extensions": "Jolli Code Extensions",
+  "download.section.integrations": "Jolli Code Integrations",
   "download.action.download": "Download",
   "download.action.install": "Installer",
 
@@ -769,25 +769,25 @@ export const dict = {
   "download.platform.linuxRpm": "Linux (.rpm)",
 
   "download.faq.a3.beforeLocal":
-    "Ikke nødvendigvis, men sandsynligvis. Du skal bruge et AI-abonnement hvis du vil forbinde OpenCode til en betalt udbyder, men du kan arbejde med",
+    "Ikke nødvendigvis, men sandsynligvis. Du skal bruge et AI-abonnement hvis du vil forbinde Jolli Code til en betalt udbyder, men du kan arbejde med",
   "download.faq.a3.localLink": "lokale modeller",
   "download.faq.a3.afterLocal.beforeZen": "gratis. Selvom vi opfordrer brugere til at bruge",
-  "download.faq.a3.afterZen": ", fungerer OpenCode med alle populære udbydere som OpenAI, Anthropic, xAI osv.",
+  "download.faq.a3.afterZen": ", fungerer Jolli Code med alle populære udbydere som OpenAI, Anthropic, xAI osv.",
 
-  "download.faq.a5.p1": "OpenCode er 100% gratis at bruge.",
+  "download.faq.a5.p1": "Jolli Code er 100% gratis at bruge.",
   "download.faq.a5.p2.beforeZen":
-    "Eventuelle ekstra omkostninger kommer fra dit abonnement hos en modeludbyder. Selvom OpenCode fungerer med enhver modeludbyder, anbefaler vi at bruge",
+    "Eventuelle ekstra omkostninger kommer fra dit abonnement hos en modeludbyder. Selvom Jolli Code fungerer med enhver modeludbyder, anbefaler vi at bruge",
   "download.faq.a5.p2.afterZen": ".",
 
-  "download.faq.a6.p1": "Dine data og oplysninger gemmes kun når du opretter delbare links i OpenCode.",
+  "download.faq.a6.p1": "Dine data og oplysninger gemmes kun når du opretter delbare links i Jolli Code.",
   "download.faq.a6.p2.beforeShare": "Læs mere om",
   "download.faq.a6.shareLink": "delingssider",
 
-  "enterprise.title": "OpenCode | Enterprise-løsninger til din organisation",
-  "enterprise.meta.description": "Kontakt OpenCode for enterprise-løsninger",
+  "enterprise.title": "Jolli Code | Enterprise-løsninger til din organisation",
+  "enterprise.meta.description": "Kontakt Jolli Code for enterprise-løsninger",
   "enterprise.hero.title": "Din kode er din egen",
   "enterprise.hero.body1":
-    "OpenCode fungerer sikkert inde i din organisation uden at lagre data eller kontekst og uden licensbegrænsninger eller ejerskabskrav. Start en prøveperiode med dit team, og udrul det derefter i hele din organisation ved at integrere det med dit SSO og din interne AI-gateway.",
+    "Jolli Code fungerer sikkert inde i din organisation uden at lagre data eller kontekst og uden licensbegrænsninger eller ejerskabskrav. Start en prøveperiode med dit team, og udrul det derefter i hele din organisation ved at integrere det med dit SSO og din interne AI-gateway.",
   "enterprise.hero.body2": "Fortæl os, hvordan vi kan hjælpe.",
   "enterprise.form.name.label": "Fulde navn",
   "enterprise.form.name.placeholder": "Jeff Bezos",
@@ -814,24 +814,24 @@ export const dict = {
     "OpenCode Enterprise er til organisationer, der vil sikre, at deres kode og data aldrig forlader deres infrastruktur. Det kan gøres med en central konfiguration, der integrerer med dit SSO og din interne AI-gateway.",
   "enterprise.faq.q2": "Hvordan kommer jeg i gang med OpenCode Enterprise?",
   "enterprise.faq.a2":
-    "Start blot med en intern prøveperiode med dit team. OpenCode gemmer som standard ikke din kode eller kontekstdata, hvilket gør det nemt at komme i gang. Kontakt os derefter for at tale om priser og implementeringsmuligheder.",
+    "Start blot med en intern prøveperiode med dit team. Jolli Code gemmer som standard ikke din kode eller kontekstdata, hvilket gør det nemt at komme i gang. Kontakt os derefter for at tale om priser og implementeringsmuligheder.",
   "enterprise.faq.q3": "Hvordan fungerer enterprise-priser?",
   "enterprise.faq.a3":
     "Vi tilbyder enterprise-priser pr. bruger. Hvis du har din egen LLM-gateway, opkræver vi ikke for brugte tokens. Kontakt os for flere detaljer og et tilbud tilpasset din organisations behov.",
   "enterprise.faq.q4": "Er mine data sikre med OpenCode Enterprise?",
   "enterprise.faq.a4":
-    "Ja. OpenCode gemmer ikke din kode eller kontekstdata. Al behandling sker lokalt eller via direkte API-kald til din AI-udbyder. Med central konfiguration og SSO-integration forbliver dine data sikre inden for din organisations infrastruktur.",
+    "Ja. Jolli Code gemmer ikke din kode eller kontekstdata. Al behandling sker lokalt eller via direkte API-kald til din AI-udbyder. Med central konfiguration og SSO-integration forbliver dine data sikre inden for din organisations infrastruktur.",
 
-  "brand.title": "OpenCode | Brand",
-  "brand.meta.description": "OpenCode brandretningslinjer",
+  "brand.title": "Jolli Code | Brand",
+  "brand.meta.description": "Jolli Code brandretningslinjer",
   "brand.heading": "Brandretningslinjer",
-  "brand.subtitle": "Ressourcer og assets, der hjælper dig med at arbejde med OpenCode-brandet.",
+  "brand.subtitle": "Ressourcer og assets, der hjælper dig med at arbejde med Jolli Code-brandet.",
   "brand.downloadAll": "Download alle assets",
 
-  "changelog.title": "OpenCode | Changelog",
-  "changelog.meta.description": "OpenCode versionsnoter og changelog",
+  "changelog.title": "Jolli Code | Changelog",
+  "changelog.meta.description": "Jolli Code versionsnoter og changelog",
   "changelog.hero.title": "Changelog",
-  "changelog.hero.subtitle": "Nye opdateringer og forbedringer til OpenCode",
+  "changelog.hero.subtitle": "Nye opdateringer og forbedringer til Jolli Code",
   "changelog.empty": "Ingen changelog-indlæg fundet.",
   "changelog.viewJson": "Se JSON",
 

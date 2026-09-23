@@ -16,7 +16,7 @@ export const dict = {
   "nav.home": "Início",
   "nav.openMenu": "Abrir menu",
   "nav.getStartedFree": "Começar grátis",
-  "nav.logoAlt": "OpenCode",
+  "nav.logoAlt": "Jolli Code",
 
   "nav.context.copyLogo": "Copiar logo como SVG",
   "nav.context.copyWordmark": "Copiar marca como SVG",
@@ -37,13 +37,13 @@ export const dict = {
   "email.subscribe": "Inscrever-se",
   "email.success": "Quase lá, verifique sua caixa de entrada e confirme seu e-mail",
 
-  "notFound.title": "Não encontrado | opencode",
+  "notFound.title": "Não encontrado | Jolli Code",
   "notFound.heading": "404 - Página não encontrada",
   "notFound.home": "Início",
   "notFound.docs": "Documentação",
   "notFound.github": "GitHub",
-  "notFound.logoLightAlt": "logo opencode claro",
-  "notFound.logoDarkAlt": "logo opencode escuro",
+  "notFound.logoLightAlt": "logo Jolli Code claro",
+  "notFound.logoDarkAlt": "logo Jolli Code escuro",
 
   "user.logout": "Sair",
 
@@ -81,11 +81,11 @@ export const dict = {
   "error.reloadAmountMin": "O valor de recarga deve ser de pelo menos ${{amount}}",
   "error.reloadTriggerMin": "O gatilho de saldo deve ser de pelo menos ${{amount}}",
 
-  "app.meta.description": "OpenCode - O agente de codificação de código aberto.",
+  "app.meta.description": "Jolli Code - O agente de codificação de código aberto.",
 
-  "home.title": "OpenCode | O agente de codificação de código aberto com IA",
+  "home.title": "Jolli Code | O agente de codificação de código aberto com IA",
 
-  "temp.title": "opencode | Agente de codificação com IA feito para o terminal",
+  "temp.title": "Jolli Code | Agente de codificação com IA feito para o terminal",
   "temp.hero.title": "O agente de codificação com IA feito para o terminal",
   "temp.zen": "opencode zen",
   "temp.getStarted": "Começar",
@@ -93,13 +93,13 @@ export const dict = {
   "temp.feature.native.body": "Uma interface de terminal responsiva, nativa e personalizável",
   "temp.feature.zen.beforeLink": "Uma",
   "temp.feature.zen.link": "lista selecionada de modelos",
-  "temp.feature.zen.afterLink": "fornecida pela opencode",
+  "temp.feature.zen.afterLink": "fornecida pela Jolli Code",
   "temp.feature.models.beforeLink": "Suporta mais de 75 provedores de LLM através do",
   "temp.feature.models.afterLink": ", incluindo modelos locais",
-  "temp.screenshot.caption": "OpenCode TUI com o tema tokyonight",
-  "temp.screenshot.alt": "OpenCode TUI com tema tokyonight",
-  "temp.logoLightAlt": "logo opencode claro",
-  "temp.logoDarkAlt": "logo opencode escuro",
+  "temp.screenshot.caption": "Jolli Code TUI com o tema tokyonight",
+  "temp.screenshot.alt": "Jolli Code TUI com tema tokyonight",
+  "temp.logoLightAlt": "logo Jolli Code claro",
+  "temp.logoDarkAlt": "logo Jolli Code escuro",
 
   "home.banner.badge": "Novo",
   "home.banner.text": "Conheça as abas no app desktop.",
@@ -117,9 +117,9 @@ export const dict = {
 
   "home.install.ariaLabel": "Opções de instalação",
 
-  "home.what.title": "O que é OpenCode?",
+  "home.what.title": "O que é Jolli Code?",
   "home.what.body":
-    "OpenCode é um agente de código aberto que ajuda você a escrever código no seu terminal, IDE ou desktop.",
+    "Jolli Code é um agente de código aberto que ajuda você a escrever código no seu terminal, IDE ou desktop.",
   "home.what.lsp.title": "LSP habilitado",
   "home.what.lsp.body": "Carrega automaticamente os LSPs certos para o LLM",
   "home.what.multiSession.title": "Multissessão",
@@ -138,44 +138,44 @@ export const dict = {
 
   "home.growth.title": "O agente de codificação de código aberto com IA",
   "home.growth.body":
-    "Com mais de <strong>{{stars}}</strong> estrelas no GitHub, <strong>{{contributors}}</strong> colaboradores e mais de <strong>{{commits}}</strong> commits, OpenCode é usado e confiado por mais de <strong>{{monthlyUsers}}</strong> desenvolvedores todos os meses.",
+    "Com mais de <strong>{{stars}}</strong> estrelas no GitHub, <strong>{{contributors}}</strong> colaboradores e mais de <strong>{{commits}}</strong> commits, Jolli Code é usado e confiado por mais de <strong>{{monthlyUsers}}</strong> desenvolvedores todos os meses.",
   "home.growth.githubStars": "Estrelas no GitHub",
   "home.growth.contributors": "Colaboradores",
   "home.growth.monthlyDevs": "Devs mensais",
 
   "home.privacy.title": "Feito com privacidade em primeiro lugar",
   "home.privacy.body":
-    "OpenCode não armazena nenhum código seu nem dados de contexto, para que possa operar em ambientes sensíveis à privacidade.",
+    "Jolli Code não armazena nenhum código seu nem dados de contexto, para que possa operar em ambientes sensíveis à privacidade.",
   "home.privacy.learnMore": "Saiba mais sobre",
   "home.privacy.link": "privacidade",
 
-  "home.faq.q1": "O que é OpenCode?",
+  "home.faq.q1": "O que é Jolli Code?",
   "home.faq.a1":
-    "OpenCode é um agente de código aberto que ajuda você a escrever e executar código com qualquer modelo de IA. Está disponível como interface de terminal, app desktop ou extensão de IDE.",
-  "home.faq.q2": "Como eu uso o OpenCode?",
+    "Jolli Code é um agente de código aberto que ajuda você a escrever e executar código com qualquer modelo de IA. Está disponível como interface de terminal, app desktop ou extensão de IDE.",
+  "home.faq.q2": "Como eu uso o Jolli Code?",
   "home.faq.a2.before": "A maneira mais fácil de começar é ler a",
   "home.faq.a2.link": "introdução",
-  "home.faq.q3": "Preciso de assinaturas extras de IA para usar o OpenCode?",
+  "home.faq.q3": "Preciso de assinaturas extras de IA para usar o Jolli Code?",
   "home.faq.a3.p1":
-    "Não necessariamente, OpenCode vem com um conjunto de modelos grátis que você pode usar sem criar conta.",
+    "Não necessariamente, Jolli Code vem com um conjunto de modelos grátis que você pode usar sem criar conta.",
   "home.faq.a3.p2.beforeZen":
     "Além disso, você pode usar qualquer um dos modelos de codificação populares criando uma conta",
   "home.faq.a3.p2.afterZen": ".",
   "home.faq.a3.p3":
-    "Embora incentivemos os usuários a usar o Zen, OpenCode também funciona com todos os provedores populares, como OpenAI, Anthropic, xAI etc.",
+    "Embora incentivemos os usuários a usar o Zen, Jolli Code também funciona com todos os provedores populares, como OpenAI, Anthropic, xAI etc.",
   "home.faq.a3.p4.beforeLocal": "Você pode até conectar seus",
   "home.faq.a3.p4.localLink": "modelos locais",
-  "home.faq.q4": "Posso usar minhas assinaturas de IA existentes com o OpenCode?",
+  "home.faq.q4": "Posso usar minhas assinaturas de IA existentes com o Jolli Code?",
   "home.faq.a4.p1":
-    "Sim, OpenCode suporta planos de assinatura de todos os principais provedores. Você pode usar suas assinaturas Claude Pro/Max, ChatGPT Plus/Pro ou GitHub Copilot.",
-  "home.faq.q5": "Posso usar o OpenCode apenas no terminal?",
-  "home.faq.a5.beforeDesktop": "Não mais! OpenCode agora está disponível como um app para o seu",
+    "Sim, Jolli Code suporta planos de assinatura de todos os principais provedores. Você pode usar suas assinaturas Claude Pro/Max, ChatGPT Plus/Pro ou GitHub Copilot.",
+  "home.faq.q5": "Posso usar o Jolli Code apenas no terminal?",
+  "home.faq.a5.beforeDesktop": "Não mais! Jolli Code agora está disponível como um app para o seu",
   "home.faq.a5.desktop": "desktop",
   "home.faq.a5.and": "e",
   "home.faq.a5.web": "web",
-  "home.faq.q6": "Quanto custa o OpenCode?",
+  "home.faq.q6": "Quanto custa o Jolli Code?",
   "home.faq.a6":
-    "OpenCode é 100% gratuito para usar. Ele também vem com um conjunto de modelos gratuitos. Pode haver custos adicionais se você conectar qualquer outro provedor.",
+    "Jolli Code é 100% gratuito para usar. Ele também vem com um conjunto de modelos gratuitos. Pode haver custos adicionais se você conectar qualquer outro provedor.",
   "home.faq.q7": "E sobre dados e privacidade?",
   "home.faq.a7.p1":
     "Seus dados e informações só são armazenados quando você usa nossos modelos gratuitos ou cria links compartilháveis.",
@@ -183,8 +183,8 @@ export const dict = {
   "home.faq.a7.p2.modelsLink": "nossos modelos",
   "home.faq.a7.p2.and": "e",
   "home.faq.a7.p2.shareLink": "páginas de compartilhamento",
-  "home.faq.q8": "OpenCode é código aberto?",
-  "home.faq.a8.p1": "Sim, OpenCode é totalmente open source. O código-fonte é público no",
+  "home.faq.q8": "Jolli Code é código aberto?",
+  "home.faq.a8.p1": "Sim, Jolli Code é totalmente open source. O código-fonte é público no",
   "home.faq.a8.p2": "sob a",
   "home.faq.a8.mitLicense": "Licença MIT",
   "home.faq.a8.p3":
@@ -192,23 +192,23 @@ export const dict = {
 
   "home.zenCta.title": "Acesse modelos confiáveis e otimizados para agentes de codificação",
   "home.zenCta.body":
-    "O Zen dá acesso a um conjunto selecionado de modelos de IA que a OpenCode testou e avaliou especificamente para agentes de codificação. Não precisa se preocupar com desempenho e qualidade inconsistentes entre provedores, use modelos validados que funcionam.",
+    "O Zen dá acesso a um conjunto selecionado de modelos de IA que a Jolli Code testou e avaliou especificamente para agentes de codificação. Não precisa se preocupar com desempenho e qualidade inconsistentes entre provedores, use modelos validados que funcionam.",
   "home.zenCta.link": "Saiba mais sobre o Zen",
 
   "zen.title": "OpenCode Zen | Um conjunto selecionado de modelos confiáveis e otimizados para agentes de codificação",
   "zen.hero.title": "Modelos confiáveis e otimizados para agentes de codificação",
   "zen.hero.body":
-    "O Zen dá acesso a um conjunto selecionado de modelos de IA que a OpenCode testou e avaliou especificamente para agentes de codificação. Não precisa se preocupar com desempenho e qualidade inconsistentes, use modelos validados que funcionam.",
+    "O Zen dá acesso a um conjunto selecionado de modelos de IA que a Jolli Code testou e avaliou especificamente para agentes de codificação. Não precisa se preocupar com desempenho e qualidade inconsistentes, use modelos validados que funcionam.",
 
   "zen.faq.q1": "O que é OpenCode Zen?",
   "zen.faq.a1":
-    "Zen é um conjunto selecionado de modelos de IA testados e avaliados para agentes de codificação, criado pela equipe por trás do OpenCode.",
+    "Zen é um conjunto selecionado de modelos de IA testados e avaliados para agentes de codificação, criado pela equipe por trás do Jolli Code.",
   "zen.faq.q2": "O que torna o Zen mais preciso?",
   "zen.faq.a2":
     "O Zen fornece apenas modelos que foram especificamente testados e avaliados para agentes de codificação. Você não usaria uma faca de manteiga para cortar um bife, não use modelos ruins para programar.",
   "zen.faq.q3": "O Zen é mais barato?",
   "zen.faq.a3":
-    "O Zen não tem fins lucrativos. O Zen repassa os custos dos provedores de modelos para você. Quanto maior o uso do Zen, mais a OpenCode pode negociar melhores taxas e repassá-las para você.",
+    "O Zen não tem fins lucrativos. O Zen repassa os custos dos provedores de modelos para você. Quanto maior o uso do Zen, mais a Jolli Code pode negociar melhores taxas e repassá-las para você.",
   "zen.faq.q4": "Quanto custa o Zen?",
   "zen.faq.a4.p1.beforePricing": "Zen",
   "zen.faq.a4.p1.pricingLink": "cobra por requisição",
@@ -216,7 +216,7 @@ export const dict = {
   "zen.faq.a4.p2.beforeAccount": "Seu custo total depende do uso, e você pode definir limites de gastos mensais em sua",
   "zen.faq.a4.p2.accountLink": "conta",
   "zen.faq.a4.p3":
-    "Para cobrir custos, a OpenCode adiciona apenas uma pequena taxa de processamento de pagamento de $1,23 por recarga de $20.",
+    "Para cobrir custos, a Jolli Code adiciona apenas uma pequena taxa de processamento de pagamento de $1,23 por recarga de $20.",
   "zen.faq.q5": "E sobre dados e privacidade?",
   "zen.faq.a5.beforeExceptions":
     "Todos os modelos Zen são hospedados nos EUA. Os provedores seguem uma política de retenção zero e não usam seus dados para treinamento de modelos, com as",
@@ -227,7 +227,7 @@ export const dict = {
   "zen.faq.a7": "Sim, você pode desativar o faturamento a qualquer momento e usar seu saldo restante.",
   "zen.faq.q8": "Posso usar o Zen com outros agentes de codificação?",
   "zen.faq.a8":
-    "Embora o Zen funcione muito bem com o OpenCode, você pode usar o Zen com qualquer agente. Siga as instruções de configuração no seu agente de codificação preferido.",
+    "Embora o Zen funcione muito bem com o Jolli Code, você pode usar o Zen com qualquer agente. Siga as instruções de configuração no seu agente de codificação preferido.",
   "zen.faq.q9": "Posso receber um reembolso?",
   "zen.faq.a9":
     "Você pode ter direito a um reembolso se a cobrança foi feita nos últimos 14 dias e você não usou os créditos dessa compra. {{contact}} para solicitar um reembolso.",
@@ -239,12 +239,12 @@ export const dict = {
   "zen.problem.title": "Que problema o Zen resolve?",
   "zen.problem.body":
     "Existem muitos modelos disponíveis, mas apenas alguns funcionam bem com agentes de codificação. A maioria dos provedores os configura de maneira diferente, com resultados variados.",
-  "zen.problem.subtitle": "Estamos corrigindo isso para todos, não apenas para os usuários do OpenCode.",
+  "zen.problem.subtitle": "Estamos corrigindo isso para todos, não apenas para os usuários do Jolli Code.",
   "zen.problem.item1": "Testando modelos selecionados e consultando suas equipes",
   "zen.problem.item2": "Trabalhando com provedores para garantir que sejam entregues corretamente",
   "zen.problem.item3": "Avaliando todas as combinações de modelo-provedor que recomendamos",
   "zen.how.title": "Como o Zen funciona",
-  "zen.how.body": "Embora sugerimos que você use o Zen com o OpenCode, você pode usá-lo com qualquer agente.",
+  "zen.how.body": "Embora sugerimos que você use o Zen com o Jolli Code, você pode usá-lo com qualquer agente.",
   "zen.how.step1.title": "Cadastre-se e adicione $20 de saldo",
   "zen.how.step1.beforeLink": "siga as",
   "zen.how.step1.link": "instruções de configuração",
@@ -291,7 +291,7 @@ export const dict = {
 
   "go.testimonials.brand.zen": "Zen",
   "go.testimonials.brand.go": "Go",
-  "go.testimonials.handle": "@OpenCode",
+  "go.testimonials.handle": "@Jolli Code",
   "go.testimonials.dax.name": "Dax Raad",
   "go.testimonials.dax.title": "ex-CEO, Terminal Products",
   "go.testimonials.dax.quoteAfter": "mudou minha vida, é realmente uma escolha óbvia.",
@@ -313,14 +313,14 @@ export const dict = {
   "go.testimonials.frank.quote": "Eu queria ainda estar na Nvidia.",
   "go.problem.title": "Que problema o Go resolve?",
   "go.problem.body":
-    "Estamos focados em levar a experiência do OpenCode para o maior número de pessoas possível. OpenCode Go é uma assinatura de baixo custo de $10/mês. Oferece limites generosos e acesso confiável aos modelos open source mais capazes.",
+    "Estamos focados em levar a experiência do Jolli Code para o maior número de pessoas possível. OpenCode Go é uma assinatura de baixo custo de $10/mês. Oferece limites generosos e acesso confiável aos modelos open source mais capazes.",
   "go.problem.subtitle": " ",
   "go.problem.item1": "Preço de assinatura de baixo custo",
   "go.problem.item2": "Limites generosos e acesso confiável",
   "go.problem.item3": "Feito para o maior número possível de programadores",
   "go.problem.item4": "Uma seleção de modelos testados para codificação com agentes",
   "go.how.title": "Como o Go funciona",
-  "go.how.body": "O Go custa $10/mês. Você pode usá-lo com o OpenCode ou qualquer agente.",
+  "go.how.body": "O Go custa $10/mês. Você pode usá-lo com o Jolli Code ou qualquer agente.",
   "go.how.step1.title": "Crie uma conta",
   "go.how.step1.beforeLink": "siga as",
   "go.how.step1.link": "instruções de configuração",
@@ -487,15 +487,15 @@ export const dict = {
     "Acesse modelos configurados para desempenho ideal - sem downgrades ou roteamento para provedores mais baratos.",
   "workspace.newUser.feature.lockin.title": "Sem Fidelidade",
   "workspace.newUser.feature.lockin.body":
-    "Use o Zen com qualquer agente de codificação e continue usando outros provedores com opencode sempre que quiser.",
+    "Use o Zen com qualquer agente de codificação e continue usando outros provedores com Jolli Code sempre que quiser.",
   "workspace.newUser.copyApiKey": "Copiar chave de API",
   "workspace.newUser.copyKey": "Copiar Chave",
   "workspace.newUser.copied": "Copiado!",
   "workspace.newUser.step.enableBilling": "Ativar faturamento",
   "workspace.newUser.step.login.before": "Execute",
-  "workspace.newUser.step.login.after": "e selecione opencode",
+  "workspace.newUser.step.login.after": "e selecione Jolli Code",
   "workspace.newUser.step.pasteKey": "Cole sua chave de API",
-  "workspace.newUser.step.models.before": "Inicie o opencode e execute",
+  "workspace.newUser.step.models.before": "Inicie o Jolli Code e execute",
   "workspace.newUser.step.models.after": "para selecionar um modelo",
 
   "workspace.models.title": "Modelos",
@@ -541,10 +541,10 @@ export const dict = {
   "workspace.cost.subscriptionShort": "ass",
 
   "workspace.keys.title": "Chaves de API",
-  "workspace.keys.subtitle": "Gerencie suas chaves de API para acessar os serviços opencode.",
+  "workspace.keys.subtitle": "Gerencie suas chaves de API para acessar os serviços Jolli Code.",
   "workspace.keys.create": "Criar Chave de API",
   "workspace.keys.placeholder": "Digite o nome da chave",
-  "workspace.keys.empty": "Crie uma chave de API do opencode Gateway",
+  "workspace.keys.empty": "Crie uma chave de API do Jolli Code Gateway",
   "workspace.keys.table.name": "Nome",
   "workspace.keys.table.key": "Chave",
   "workspace.keys.table.createdBy": "Criado Por",
@@ -701,7 +701,7 @@ export const dict = {
   "workspace.lite.subscription.total": "Total",
   "workspace.lite.subscription.useBalance": "Use seu saldo disponível após atingir os limites de uso",
   "workspace.lite.subscription.selectProvider":
-    'Selecione "OpenCode Go" como provedor na sua configuração do opencode para usar os modelos Go.',
+    'Selecione "OpenCode Go" como provedor na sua configuração do Jolli Code para usar os modelos Go.',
   "workspace.lite.providers.title": "Provedores",
   "workspace.lite.providers.description": "Controle quais provedores são usados para roteamento.",
   "workspace.lite.providers.allowTraining": "Permitir modelos que usam dados de solicitações para treinamento",
@@ -755,15 +755,15 @@ export const dict = {
   "workspace.referral.apply.confirmBody": "Aplique {{amount}} para reduzir o uso atual deste workspace.",
   "workspace.referral.apply.confirmAction": "Aplicar",
 
-  "download.title": "OpenCode | Baixar",
-  "download.meta.description": "Baixe o OpenCode para macOS, Windows e Linux",
-  "download.hero.title": "Baixar OpenCode Desktop",
+  "download.title": "Jolli Code | Baixar",
+  "download.meta.description": "Baixe o Jolli Code para macOS, Windows e Linux",
+  "download.hero.title": "Baixar Jolli Code Desktop",
   "download.hero.subtitle": "Disponível em Beta para macOS, Windows e Linux",
   "download.hero.button": "Baixar para {{os}}",
-  "download.section.terminal": "OpenCode Terminal",
-  "download.section.desktop": "OpenCode Desktop",
-  "download.section.extensions": "Extensões OpenCode",
-  "download.section.integrations": "Integrações OpenCode",
+  "download.section.terminal": "Jolli Code Terminal",
+  "download.section.desktop": "Jolli Code Desktop",
+  "download.section.extensions": "Extensões Jolli Code",
+  "download.section.integrations": "Integrações Jolli Code",
   "download.action.download": "Baixar",
   "download.action.install": "Instalar",
 
@@ -774,27 +774,27 @@ export const dict = {
   "download.platform.linuxRpm": "Linux (.rpm)",
 
   "download.faq.a3.beforeLocal":
-    "Não necessariamente, mas provavelmente. Você precisará de uma assinatura de IA se quiser conectar o OpenCode a um provedor pago, embora você possa trabalhar com",
+    "Não necessariamente, mas provavelmente. Você precisará de uma assinatura de IA se quiser conectar o Jolli Code a um provedor pago, embora você possa trabalhar com",
   "download.faq.a3.localLink": "modelos locais",
   "download.faq.a3.afterLocal.beforeZen": "de graça. Embora incentivemos os usuários a usar o",
   "download.faq.a3.afterZen":
-    ", o OpenCode funciona com todos os provedores populares, como OpenAI, Anthropic, xAI etc.",
+    ", o Jolli Code funciona com todos os provedores populares, como OpenAI, Anthropic, xAI etc.",
 
-  "download.faq.a5.p1": "O OpenCode é 100% gratuito para usar.",
+  "download.faq.a5.p1": "O Jolli Code é 100% gratuito para usar.",
   "download.faq.a5.p2.beforeZen":
-    "Quaisquer custos adicionais virão da sua assinatura de um provedor de modelo. Embora o OpenCode funcione com qualquer provedor de modelo, recomendamos o uso do",
+    "Quaisquer custos adicionais virão da sua assinatura de um provedor de modelo. Embora o Jolli Code funcione com qualquer provedor de modelo, recomendamos o uso do",
   "download.faq.a5.p2.afterZen": ".",
 
   "download.faq.a6.p1":
-    "Seus dados e informações só são armazenados quando você cria links compartilháveis no OpenCode.",
+    "Seus dados e informações só são armazenados quando você cria links compartilháveis no Jolli Code.",
   "download.faq.a6.p2.beforeShare": "Saiba mais sobre",
   "download.faq.a6.shareLink": "páginas de compartilhamento",
 
-  "enterprise.title": "OpenCode | Soluções empresariais para sua organização",
-  "enterprise.meta.description": "Contate a OpenCode para soluções empresariais",
+  "enterprise.title": "Jolli Code | Soluções empresariais para sua organização",
+  "enterprise.meta.description": "Contate a Jolli Code para soluções empresariais",
   "enterprise.hero.title": "Seu código é seu",
   "enterprise.hero.body1":
-    "O OpenCode opera com segurança dentro da sua organização, sem dados ou contexto armazenados e sem restrições de licenciamento ou reivindicações de propriedade. Inicie um teste com sua equipe e, em seguida, implante em toda a organização integrando-o ao seu SSO e gateway de IA interno.",
+    "O Jolli Code opera com segurança dentro da sua organização, sem dados ou contexto armazenados e sem restrições de licenciamento ou reivindicações de propriedade. Inicie um teste com sua equipe e, em seguida, implante em toda a organização integrando-o ao seu SSO e gateway de IA interno.",
   "enterprise.hero.body2": "Deixe-nos saber como podemos ajudar.",
   "enterprise.form.name.label": "Nome completo",
   "enterprise.form.name.placeholder": "Jeff Bezos",
@@ -821,24 +821,24 @@ export const dict = {
     "OpenCode Enterprise é para organizações que desejam garantir que seu código e dados nunca saiam de sua infraestrutura. Isso pode ser feito usando uma configuração centralizada que se integra ao seu SSO e gateway de IA interno.",
   "enterprise.faq.q2": "Como faço para começar com o OpenCode Enterprise?",
   "enterprise.faq.a2":
-    "Basta começar com um teste interno com sua equipe. O OpenCode por padrão não armazena seu código ou dados de contexto, facilitando o início. Em seguida, entre em contato conosco para discutir opções de preços e implementação.",
+    "Basta começar com um teste interno com sua equipe. O Jolli Code por padrão não armazena seu código ou dados de contexto, facilitando o início. Em seguida, entre em contato conosco para discutir opções de preços e implementação.",
   "enterprise.faq.q3": "Como funciona o preço empresarial?",
   "enterprise.faq.a3":
     "Oferecemos preços empresariais por assento. Se você tiver seu próprio gateway de LLM, não cobramos pelos tokens usados. Para mais detalhes, entre em contato conosco para um orçamento personalizado com base nas necessidades da sua organização.",
   "enterprise.faq.q4": "Meus dados estão seguros com o OpenCode Enterprise?",
   "enterprise.faq.a4":
-    "Sim. O OpenCode não armazena seu código ou dados de contexto. Todo o processamento acontece localmente ou por meio de chamadas de API diretas para seu provedor de IA. Com configuração centralizada e integração de SSO, seus dados permanecem seguros dentro da infraestrutura de sua organização.",
+    "Sim. O Jolli Code não armazena seu código ou dados de contexto. Todo o processamento acontece localmente ou por meio de chamadas de API diretas para seu provedor de IA. Com configuração centralizada e integração de SSO, seus dados permanecem seguros dentro da infraestrutura de sua organização.",
 
-  "brand.title": "OpenCode | Marca",
-  "brand.meta.description": "Diretrizes da marca OpenCode",
+  "brand.title": "Jolli Code | Marca",
+  "brand.meta.description": "Diretrizes da marca Jolli Code",
   "brand.heading": "Diretrizes da marca",
-  "brand.subtitle": "Recursos e ativos para ajudá-lo a trabalhar com a marca OpenCode.",
+  "brand.subtitle": "Recursos e ativos para ajudá-lo a trabalhar com a marca Jolli Code.",
   "brand.downloadAll": "Baixar todos os recursos",
 
-  "changelog.title": "OpenCode | Changelog",
-  "changelog.meta.description": "Notas de versão e changelog do OpenCode",
+  "changelog.title": "Jolli Code | Changelog",
+  "changelog.meta.description": "Notas de versão e changelog do Jolli Code",
   "changelog.hero.title": "Changelog",
-  "changelog.hero.subtitle": "Novas atualizações e melhorias no OpenCode",
+  "changelog.hero.subtitle": "Novas atualizações e melhorias no Jolli Code",
   "changelog.empty": "Nenhuma entrada de changelog encontrada.",
   "changelog.viewJson": "Ver JSON",
 

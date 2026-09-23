@@ -9,6 +9,7 @@ import { LLMGatewayPlugin } from "@opencode-ai/core/plugin/provider/llmgateway"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
+import { Brand } from "@opencode-ai/core/brand"
 
 const it = testEffect(PluginTestLayer)
 
@@ -46,9 +47,9 @@ describe("LLMGatewayPlugin", () => {
       yield* addPlugin()
       expect((yield* catalog.provider.get(ProviderV2.ID.make("llmgateway")))?.request.headers).toEqual({
         Existing: "value",
-        "HTTP-Referer": "https://jolli.ai/",
-        "X-Title": "opencode",
-        "X-Source": "opencode",
+        "HTTP-Referer": `${Brand.url}/`,
+        "X-Title": Brand.bin,
+        "X-Source": Brand.bin,
       })
       expect((yield* catalog.provider.get(ProviderV2.ID.openrouter))?.request.headers).toEqual({})
     }),

@@ -23,6 +23,7 @@ import { InstanceStore } from "@/project/instance-store"
 import { testEffect } from "../lib/effect"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
+import { Brand } from "@opencode-ai/core/brand"
 
 const originalEnv = new Map<string, string | undefined>()
 
@@ -1280,9 +1281,9 @@ it.instance(
   Effect.gen(function* () {
     const providers = yield* list
     expect(providers[ProviderV2.ID.make("nvidia")].options.headers).toEqual({
-      "HTTP-Referer": "https://jolli.ai/",
-      "X-Title": "opencode",
-      "X-BILLING-INVOKE-ORIGIN": "OpenCode",
+      "HTTP-Referer": `${Brand.url}/`,
+      "X-Title": Brand.bin,
+      "X-BILLING-INVOKE-ORIGIN": Brand.name,
     })
   }),
   { config: { provider: { nvidia: { options: { apiKey: "test-api-key" } } } } },
@@ -1293,9 +1294,9 @@ it.instance(
   Effect.gen(function* () {
     const providers = yield* list
     expect(providers[ProviderV2.ID.make("nvidia")].options.headers).toEqual({
-      "HTTP-Referer": "https://jolli.ai/",
-      "X-Title": "opencode",
-      "X-BILLING-INVOKE-ORIGIN": "OpenCode",
+      "HTTP-Referer": `${Brand.url}/`,
+      "X-Title": Brand.bin,
+      "X-BILLING-INVOKE-ORIGIN": Brand.name,
     })
   }),
   { config: { provider: { nvidia: { options: { apiKey: "test-api-key", baseURL: "http://localhost:8000/v1" } } } } },

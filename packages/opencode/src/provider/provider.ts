@@ -31,6 +31,7 @@ import { ModelV2 } from "@opencode-ai/core/model"
 import { ModelStatus } from "./model-status"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderError } from "./error"
+import { Brand } from "@opencode-ai/core/brand"
 
 const OPENAI_HEADER_TIMEOUT_DEFAULT = 300_000
 
@@ -469,9 +470,9 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: false,
         options: {
           headers: {
-            "HTTP-Referer": "https://jolli.ai/",
-            "X-Title": "opencode",
-            "X-Source": "opencode",
+            "HTTP-Referer": `${Brand.url}/`,
+            "X-Title": Brand.bin,
+            "X-Source": Brand.bin,
           },
         },
       }),
@@ -480,8 +481,8 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: false,
         options: {
           headers: {
-            "HTTP-Referer": "https://jolli.ai/",
-            "X-Title": "opencode",
+            "HTTP-Referer": `${Brand.url}/`,
+            "X-Title": Brand.bin,
           },
         },
       }),
@@ -490,9 +491,9 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: provider.source === "config",
         options: {
           headers: {
-            "HTTP-Referer": "https://jolli.ai/",
-            "X-Title": "opencode",
-            "X-BILLING-INVOKE-ORIGIN": "OpenCode",
+            "HTTP-Referer": `${Brand.url}/`,
+            "X-Title": Brand.bin,
+            "X-BILLING-INVOKE-ORIGIN": Brand.name,
           },
         },
       }),
@@ -501,8 +502,8 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: false,
         options: {
           headers: {
-            "http-referer": "https://jolli.ai/",
-            "x-title": "opencode",
+            "http-referer": `${Brand.url}/`,
+            "x-title": Brand.bin,
           },
         },
       }),
@@ -606,8 +607,8 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: false,
         options: {
           headers: {
-            "HTTP-Referer": "https://jolli.ai/",
-            "X-Title": "opencode",
+            "HTTP-Referer": `${Brand.url}/`,
+            "X-Title": Brand.bin,
           },
         },
       }),
@@ -896,8 +897,8 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: false,
         options: {
           headers: {
-            "HTTP-Referer": "https://jolli.ai/",
-            "X-Title": "opencode",
+            "HTTP-Referer": `${Brand.url}/`,
+            "X-Title": Brand.bin,
           },
         },
       }),

@@ -1,6 +1,7 @@
 import { Effect } from "effect"
 import { define } from "../internal"
 import { Integration } from "../../integration"
+import { Brand } from "../../brand"
 
 export const LLMGatewayPlugin = define({
   id: "llmgateway",
@@ -15,9 +16,9 @@ export const LLMGatewayPlugin = define({
           if (item.provider.api.url !== "https://api.llmgateway.io/v1") continue
           if (!(yield* integrations.get(Integration.ID.make(item.provider.id)))) continue
           evt.provider.update(item.provider.id, (provider) => {
-            provider.request.headers["HTTP-Referer"] = "https://jolli.ai/"
-            provider.request.headers["X-Title"] = "opencode"
-            provider.request.headers["X-Source"] = "opencode"
+            provider.request.headers["HTTP-Referer"] = `${Brand.url}/`
+            provider.request.headers["X-Title"] = Brand.bin
+            provider.request.headers["X-Source"] = Brand.bin
           })
         }
       }),

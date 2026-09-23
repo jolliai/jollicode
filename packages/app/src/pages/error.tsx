@@ -355,7 +355,7 @@ export const ErrorPage: Component<ErrorPageProps> = (props) => {
             <button
               type="button"
               class="flex items-center text-text-interactive-base gap-1"
-              onClick={() => platform.openExternal(`${Brand.url}/desktop-feedback`)}
+              onClick={() => platform.openExternal(`https://github.com/${Brand.org}/${Brand.bin}/issues`)}
             >
               <div>{language.t("error.page.report.github")}</div>
               <Icon name="github" class="text-text-interactive-base" />

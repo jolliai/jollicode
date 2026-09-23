@@ -106,7 +106,7 @@ async function setup(page: Page) {
     }),
   )
   await page.route(`**/api/pty/${ptyID}/connect-token*`, (route) => {
-    expect(route.request().headers()["x-opencode-ticket"]).toBe("1")
+    expect(route.request().headers()["x-jollicode-ticket"]).toBe("1")
     const url = new URL(route.request().url())
     expect(url.searchParams.get("location[directory]")).toBe(directory)
     return route.fulfill({

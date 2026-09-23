@@ -9,6 +9,7 @@ import { VercelPlugin } from "@opencode-ai/core/plugin/provider/vercel"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
+import { Brand } from "@opencode-ai/core/brand"
 
 const it = testEffect(PluginTestLayer)
 
@@ -32,8 +33,8 @@ describe("VercelPlugin", () => {
       yield* addPlugin()
       expect((yield* catalog.provider.get(ProviderV2.ID.make("vercel")))?.request.headers).toEqual({
         Existing: "1",
-        "http-referer": "https://jolli.ai/",
-        "x-title": "opencode",
+        "http-referer": `${Brand.url}/`,
+        "x-title": Brand.bin,
       })
     }),
   )

@@ -10,6 +10,7 @@ import { OpenRouterPlugin } from "@opencode-ai/core/plugin/provider/openrouter"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
+import { Brand } from "@opencode-ai/core/brand"
 
 const it = testEffect(PluginTestLayer)
 
@@ -39,8 +40,8 @@ describe("OpenRouterPlugin", () => {
 
       expect((yield* catalog.provider.get(ProviderV2.ID.openrouter))?.request.headers).toEqual({
         Existing: "value",
-        "HTTP-Referer": "https://jolli.ai/",
-        "X-Title": "opencode",
+        "HTTP-Referer": `${Brand.url}/`,
+        "X-Title": Brand.bin,
       })
       expect((yield* catalog.provider.get(ProviderV2.ID.make("nvidia")))?.request.headers).toEqual({})
     }),

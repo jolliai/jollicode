@@ -217,6 +217,17 @@ const layer = Layer.effect(
       // Reject it before it can overwrite a good cache file.
       const parsed = Schema.decodeUnknownOption(Schema.UnknownFromJsonString)(text)
       if (Option.isNone(parsed)) return yield* Effect.fail(new CatalogResponseError({ source }))
+      const catalog = parsed.value
+      // Valid JSON is not enough: null, [], 123 and {"error":"not found"} all decode.
+      // The catalog is a non-empty map of provider id -> provider object.
+      if (
+        typeof catalog !== "object" ||
+        catalog === null ||
+        Array.isArray(catalog) ||
+        Object.keys(catalog).length === 0 ||
+        !Object.values(catalog).every((entry) => typeof entry === "object" && entry !== null && !Array.isArray(entry))
+      )
+        return yield* Effect.fail(new CatalogResponseError({ source }))
       const tempfile = `${filepath}.${process.pid}.${Date.now()}.tmp`
       yield* fs.writeWithDirs(tempfile, text).pipe(
         Effect.andThen(fs.rename(tempfile, filepath)),
@@ -227,7 +238,7 @@ const layer = Layer.effect(
           }),
         ),
       )
-      return parsed.value as Record<string, Provider>
+      return catalog as Record<string, Provider>
     })
 
     const populate = Effect.gen(function* () {
@@ -273,8 +284,19 @@ const layer = Layer.effect(
     })
 
     if (!Flag.OPENCODE_DISABLE_MODELS_FETCH && !process.argv.includes("--get-yargs-completions")) {
-      // Schedule.spaced runs the effect once, then waits between completions.
-      yield* Effect.forkScoped(refresh().pipe(Effect.repeat(Schedule.spaced("60 minutes")), Effect.ignore))
+      // populate caches {} at Duration.infinity on failure, and only a successful fetch
+      // invalidates it. Polling on a flat 60-minute schedule therefore left one transient
+      // startup failure showing an empty catalog — and confusing "model not found" errors
+      // — for a full period. Retry quickly until the catalog is actually populated.
+      yield* Effect.forkScoped(
+        Effect.gen(function* () {
+          while (true) {
+            yield* refresh()
+            const empty = Object.keys(yield* get()).length === 0
+            yield* Effect.sleep(empty ? "30 seconds" : "60 minutes")
+          }
+        }).pipe(Effect.ignore),
+      )
     }
 
     return Service.of({ get, refresh })

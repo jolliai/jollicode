@@ -15,7 +15,7 @@ export const dict = {
   "nav.home": "Головна",
   "nav.openMenu": "Відкрити меню",
   "nav.getStartedFree": "Почати безкоштовно",
-  "nav.logoAlt": "OpenCode",
+  "nav.logoAlt": "Jolli Code",
 
   "nav.context.copyLogo": "Копіювати логотип як SVG",
   "nav.context.copyWordmark": "Копіювати знак як SVG",
@@ -36,13 +36,13 @@ export const dict = {
   "email.subscribe": "Підписатися",
   "email.success": "Майже готово! Перевірте пошту та підтвердьте адресу",
 
-  "notFound.title": "Не знайдено | opencode",
+  "notFound.title": "Не знайдено | Jolli Code",
   "notFound.heading": "404 — Сторінку не знайдено",
   "notFound.home": "Головна",
   "notFound.docs": "Документація",
   "notFound.github": "GitHub",
-  "notFound.logoLightAlt": "світлий логотип opencode",
-  "notFound.logoDarkAlt": "темний логотип opencode",
+  "notFound.logoLightAlt": "світлий логотип Jolli Code",
+  "notFound.logoDarkAlt": "темний логотип Jolli Code",
 
   "user.logout": "Вийти",
 
@@ -80,11 +80,11 @@ export const dict = {
   "error.reloadAmountMin": "Сума поповнення має бути щонайменше ${{amount}}",
   "error.reloadTriggerMin": "Поріг балансу має бути щонайменше ${{amount}}",
 
-  "app.meta.description": "OpenCode — відкритий агент для програмування.",
+  "app.meta.description": "Jolli Code — відкритий агент для програмування.",
 
-  "home.title": "OpenCode | Відкритий AI-агент для кодування",
+  "home.title": "Jolli Code | Відкритий AI-агент для кодування",
 
-  "temp.title": "opencode | AI-агент для кодування, створений для термінала",
+  "temp.title": "Jolli Code | AI-агент для кодування, створений для термінала",
   "temp.hero.title": "AI-агент для кодування, створений для термінала",
   "temp.zen": "opencode zen",
   "temp.getStarted": "Почати",
@@ -92,13 +92,13 @@ export const dict = {
   "temp.feature.native.body": "Чуйний, рідний інтерфейс термінала з темами",
   "temp.feature.zen.beforeLink": "A",
   "temp.feature.zen.link": "добірка моделей",
-  "temp.feature.zen.afterLink": "від opencode",
+  "temp.feature.zen.afterLink": "від Jolli Code",
   "temp.feature.models.beforeLink": "Підтримує 75+ LLM-провайдерів через",
   "temp.feature.models.afterLink": ", включаючи локальні моделі",
-  "temp.screenshot.caption": "OpenCode TUI з темою tokyonight",
-  "temp.screenshot.alt": "OpenCode TUI з темою tokyonight",
-  "temp.logoLightAlt": "світлий логотип opencode",
-  "temp.logoDarkAlt": "темний логотип opencode",
+  "temp.screenshot.caption": "Jolli Code TUI з темою tokyonight",
+  "temp.screenshot.alt": "Jolli Code TUI з темою tokyonight",
+  "temp.logoLightAlt": "світлий логотип Jolli Code",
+  "temp.logoDarkAlt": "темний логотип Jolli Code",
 
   "home.banner.badge": "Нове",
   "home.banner.text": "Представляємо вкладки в десктопному застосунку.",
@@ -116,8 +116,8 @@ export const dict = {
 
   "home.install.ariaLabel": "Параметри встановлення",
 
-  "home.what.title": "Що таке OpenCode?",
-  "home.what.body": "OpenCode — це відкритий агент, який допомагає писати код у терміналі, IDE або на десктопі.",
+  "home.what.title": "Що таке Jolli Code?",
+  "home.what.body": "Jolli Code — це відкритий агент, який допомагає писати код у терміналі, IDE або на десктопі.",
   "home.what.lsp.title": "LSP увімкнено",
   "home.what.lsp.body": "Автоматично завантажує потрібні LSP для LLM",
   "home.what.multiSession.title": "Багатосесійність",
@@ -136,44 +136,44 @@ export const dict = {
 
   "home.growth.title": "Відкритий AI-агент для кодування",
   "home.growth.body":
-    "З понад <strong>{{stars}}</strong> зірками на GitHub, <strong>{{contributors}}</strong> учасниками та понад <strong>{{commits}}</strong> комітами, OpenCode використовують понад <strong>{{monthlyUsers}}</strong> розробників щомісяця.",
+    "З понад <strong>{{stars}}</strong> зірками на GitHub, <strong>{{contributors}}</strong> учасниками та понад <strong>{{commits}}</strong> комітами, Jolli Code використовують понад <strong>{{monthlyUsers}}</strong> розробників щомісяця.",
   "home.growth.githubStars": "Зірки GitHub",
   "home.growth.contributors": "Учасники",
   "home.growth.monthlyDevs": "Розробників на місяць",
 
   "home.privacy.title": "Створено для конфіденційності",
   "home.privacy.body":
-    "OpenCode не зберігає ваш код або контекстні дані, тому може працювати в середовищах з чутливими даними.",
+    "Jolli Code не зберігає ваш код або контекстні дані, тому може працювати в середовищах з чутливими даними.",
   "home.privacy.learnMore": "Дізнатися більше про",
   "home.privacy.link": "конфіденційність",
 
-  "home.faq.q1": "Що таке OpenCode?",
+  "home.faq.q1": "Що таке Jolli Code?",
   "home.faq.a1":
-    "OpenCode — це відкритий агент, який допомагає писати та запускати код з будь-якою AI-моделлю. Доступний як термінальний інтерфейс, десктопний застосунок або розширення IDE.",
-  "home.faq.q2": "Як почати користуватися OpenCode?",
+    "Jolli Code — це відкритий агент, який допомагає писати та запускати код з будь-якою AI-моделлю. Доступний як термінальний інтерфейс, десктопний застосунок або розширення IDE.",
+  "home.faq.q2": "Як почати користуватися Jolli Code?",
   "home.faq.a2.before": "Найпростіший спосіб почати — прочитати",
   "home.faq.a2.link": "вступ",
-  "home.faq.q3": "Чи потрібні додаткові AI-підписки для використання OpenCode?",
+  "home.faq.q3": "Чи потрібні додаткові AI-підписки для використання Jolli Code?",
   "home.faq.a3.p1":
-    "Не обов'язково, OpenCode має набір безкоштовних моделей, які можна використовувати без реєстрації.",
+    "Не обов'язково, Jolli Code має набір безкоштовних моделей, які можна використовувати без реєстрації.",
   "home.faq.a3.p2.beforeZen":
     "Крім цього, ви можете використовувати будь-які популярні моделі, створивши обліковий запис",
   "home.faq.a3.p2.afterZen": ".",
   "home.faq.a3.p3":
-    "Хоча ми рекомендуємо Zen, OpenCode також працює з усіма популярними провайдерами, такими як OpenAI, Anthropic, xAI тощо.",
+    "Хоча ми рекомендуємо Zen, Jolli Code також працює з усіма популярними провайдерами, такими як OpenAI, Anthropic, xAI тощо.",
   "home.faq.a3.p4.beforeLocal": "Ви навіть можете підключити свої",
   "home.faq.a3.p4.localLink": "локальні моделі",
-  "home.faq.q4": "Чи можу я використовувати свої наявні AI-підписки з OpenCode?",
+  "home.faq.q4": "Чи можу я використовувати свої наявні AI-підписки з Jolli Code?",
   "home.faq.a4.p1":
-    "Так, OpenCode підтримує підписки всіх основних провайдерів. Ви можете використовувати Claude Pro/Max, ChatGPT Plus/Pro або GitHub Copilot.",
-  "home.faq.q5": "Чи можна використовувати OpenCode лише в терміналі?",
-  "home.faq.a5.beforeDesktop": "Вже ні! OpenCode тепер доступний як застосунок для",
+    "Так, Jolli Code підтримує підписки всіх основних провайдерів. Ви можете використовувати Claude Pro/Max, ChatGPT Plus/Pro або GitHub Copilot.",
+  "home.faq.q5": "Чи можна використовувати Jolli Code лише в терміналі?",
+  "home.faq.a5.beforeDesktop": "Вже ні! Jolli Code тепер доступний як застосунок для",
   "home.faq.a5.desktop": "десктопа",
   "home.faq.a5.and": "та",
   "home.faq.a5.web": "вебу",
-  "home.faq.q6": "Скільки коштує OpenCode?",
+  "home.faq.q6": "Скільки коштує Jolli Code?",
   "home.faq.a6":
-    "OpenCode є 100% безкоштовним. Він також має набір безкоштовних моделей. Додаткові витрати можливі, якщо ви підключите іншого провайдера.",
+    "Jolli Code є 100% безкоштовним. Він також має набір безкоштовних моделей. Додаткові витрати можливі, якщо ви підключите іншого провайдера.",
   "home.faq.q7": "А як щодо даних та конфіденційності?",
   "home.faq.a7.p1":
     "Ваші дані зберігаються лише тоді, коли ви використовуєте безкоштовні моделі або створюєте посилання для обміну.",
@@ -181,8 +181,8 @@ export const dict = {
   "home.faq.a7.p2.modelsLink": "наші моделі",
   "home.faq.a7.p2.and": "та",
   "home.faq.a7.p2.shareLink": "сторінки обміну",
-  "home.faq.q8": "Чи є OpenCode відкритим?",
-  "home.faq.a8.p1": "Так, OpenCode повністю відкритий. Вихідний код доступний публічно на",
+  "home.faq.q8": "Чи є Jolli Code відкритим?",
+  "home.faq.a8.p1": "Так, Jolli Code повністю відкритий. Вихідний код доступний публічно на",
   "home.faq.a8.p2": "під ліцензією",
   "home.faq.a8.mitLicense": "MIT License",
   "home.faq.a8.p3":
@@ -190,22 +190,22 @@ export const dict = {
 
   "home.zenCta.title": "Отримайте доступ до надійних оптимізованих моделей для агентів кодування",
   "home.zenCta.body":
-    "Zen дає доступ до добірки AI-моделей, які OpenCode протестував спеціально для агентів кодування. Не турбуйтеся про нестабільну якість — використовуйте перевірені моделі.",
+    "Zen дає доступ до добірки AI-моделей, які Jolli Code протестував спеціально для агентів кодування. Не турбуйтеся про нестабільну якість — використовуйте перевірені моделі.",
   "home.zenCta.link": "Дізнатися про Zen",
 
   "zen.title": "OpenCode Zen | Добірка надійних оптимізованих моделей для агентів кодування",
   "zen.hero.title": "Надійні оптимізовані моделі для агентів кодування",
   "zen.hero.body":
-    "Zen дає доступ до добірки AI-моделей, які OpenCode протестував спеціально для агентів кодування. Не турбуйтеся про нестабільну якість — використовуйте перевірені моделі.",
+    "Zen дає доступ до добірки AI-моделей, які Jolli Code протестував спеціально для агентів кодування. Не турбуйтеся про нестабільну якість — використовуйте перевірені моделі.",
 
   "zen.faq.q1": "Що таке OpenCode Zen?",
-  "zen.faq.a1": "Zen — це добірка AI-моделей, протестованих для агентів кодування, створена командою OpenCode.",
+  "zen.faq.a1": "Zen — це добірка AI-моделей, протестованих для агентів кодування, створена командою Jolli Code.",
   "zen.faq.q2": "Чому Zen точніший?",
   "zen.faq.a2":
     "Zen надає лише моделі, спеціально протестовані для агентів кодування. Ви ж не використовуєте масло ніж для стейка — не використовуйте погані моделі для кодування.",
   "zen.faq.q3": "Чи Zen дешевший?",
   "zen.faq.a3":
-    "Zen не є прибутковим. Zen передає вам вартість від провайдерів моделей. Чим вище використання Zen, тим кращі ціни OpenCode може узгодити та передати вам.",
+    "Zen не є прибутковим. Zen передає вам вартість від провайдерів моделей. Чим вище використання Zen, тим кращі ціни Jolli Code може узгодити та передати вам.",
   "zen.faq.q4": "Скільки коштує Zen?",
   "zen.faq.a4.p1.beforePricing": "Zen",
   "zen.faq.a4.p1.pricingLink": "стягує плату за запит",
@@ -213,7 +213,7 @@ export const dict = {
   "zen.faq.a4.p2.beforeAccount": "Загальна вартість залежить від використання. Ви можете встановити місячні ліміти в",
   "zen.faq.a4.p2.accountLink": "обліковому записі",
   "zen.faq.a4.p3":
-    "Щоб покрити витрати, OpenCode додає лише невелику комісію за обробку платежу в розмірі $1.23 за кожне поповнення балансу $20.",
+    "Щоб покрити витрати, Jolli Code додає лише невелику комісію за обробку платежу в розмірі $1.23 за кожне поповнення балансу $20.",
   "zen.faq.q5": "А як щодо даних та конфіденційності?",
   "zen.faq.a5.beforeExceptions":
     "Усі моделі Zen розміщені в США. Провайдери дотримуються політики нульового зберігання та не використовують ваші дані для навчання моделей, за",
@@ -224,7 +224,7 @@ export const dict = {
   "zen.faq.a7": "Так, ви можете вимкнути оплату в будь-який час і використовувати залишок.",
   "zen.faq.q8": "Чи можна використовувати Zen з іншими агентами кодування?",
   "zen.faq.a8":
-    "Хоча Zen чудово працює з OpenCode, ви можете використовувати Zen з будь-яким агентом. Дотримуйтесь інструкцій з налаштування у вашому агенті.",
+    "Хоча Zen чудово працює з Jolli Code, ви можете використовувати Zen з будь-яким агентом. Дотримуйтесь інструкцій з налаштування у вашому агенті.",
   "zen.faq.q9": "Чи можу я отримати повернення коштів?",
   "zen.faq.a9":
     "Ви можете претендувати на повернення, якщо кошти було списано протягом останніх 14 днів і ви не використали кошти, отримані внаслідок цієї покупки. {{contact}}, щоб подати запит на повернення.",
@@ -236,13 +236,13 @@ export const dict = {
   "zen.problem.title": "Яку проблему вирішує Zen?",
   "zen.problem.body":
     "Доступно багато моделей, але лише деякі добре працюють з агентами кодування. Більшість провайдерів налаштовують їх по-різному з різними результатами.",
-  "zen.problem.subtitle": "Ми вирішуємо це для всіх, а не лише для користувачів OpenCode.",
+  "zen.problem.subtitle": "Ми вирішуємо це для всіх, а не лише для користувачів Jolli Code.",
   "zen.problem.item1": "Тестування вибраних моделей та консультації з їхніми командами",
   "zen.problem.item2": "Співпраця з провайдерами для забезпечення правильної доставки",
   "zen.problem.item3": "Бенчмаркінг усіх комбінацій моделей та провайдерів, які ми рекомендуємо",
   "zen.how.title": "Як працює Zen",
   "zen.how.body":
-    "Хоча ми пропонуємо використовувати Zen з OpenCode, ви можете використовувати Zen з будь-яким агентом.",
+    "Хоча ми пропонуємо використовувати Zen з Jolli Code, ви можете використовувати Zen з будь-яким агентом.",
   "zen.how.step1.title": "Зареєструйтеся та додайте $20 балансу",
   "zen.how.step1.beforeLink": "дотримуйтесь",
   "zen.how.step1.link": "інструкцій з налаштування",
@@ -288,7 +288,7 @@ export const dict = {
 
   "go.testimonials.brand.zen": "Zen",
   "go.testimonials.brand.go": "Go",
-  "go.testimonials.handle": "@OpenCode",
+  "go.testimonials.handle": "@Jolli Code",
   "go.testimonials.dax.name": "Dax Raad",
   "go.testimonials.dax.title": "ex-CEO, Terminal Products",
   "go.testimonials.dax.quoteAfter": "змінило моє життя, це справді очевидний вибір.",
@@ -309,14 +309,14 @@ export const dict = {
   "go.testimonials.frank.quote": "Хотів би я досі бути в Nvidia.",
   "go.problem.title": "Яку проблему вирішує Go?",
   "go.problem.body":
-    "Ми зосереджені на тому, щоб зробити досвід OpenCode доступним для якомога більшої кількості людей. OpenCode Go — це недорога підписка за $10/місяць. Вона надає щедрі ліміти та надійний доступ до найкращих моделей з відкритим кодом.",
+    "Ми зосереджені на тому, щоб зробити досвід Jolli Code доступним для якомога більшої кількості людей. OpenCode Go — це недорога підписка за $10/місяць. Вона надає щедрі ліміти та надійний доступ до найкращих моделей з відкритим кодом.",
   "go.problem.subtitle": " ",
   "go.problem.item1": "Недорога підписка",
   "go.problem.item2": "Щедрі ліміти та надійний доступ",
   "go.problem.item3": "Створено для якомога більшої кількості програмістів",
   "go.problem.item4": "Добірка моделей, протестованих для агентного кодування",
   "go.how.title": "Як працює Go",
-  "go.how.body": "Go коштує $10/місяць. Використовуйте з OpenCode або будь-яким агентом.",
+  "go.how.body": "Go коштує $10/місяць. Використовуйте з Jolli Code або будь-яким агентом.",
   "go.how.step1.title": "Створіть обліковий запис",
   "go.how.step1.beforeLink": "дотримуйтесь",
   "go.how.step1.link": "інструкцій з налаштування",
@@ -488,9 +488,9 @@ export const dict = {
   "workspace.newUser.copied": "Скопійовано!",
   "workspace.newUser.step.enableBilling": "Увімкнути оплату",
   "workspace.newUser.step.login.before": "Запустіть",
-  "workspace.newUser.step.login.after": "і виберіть opencode",
+  "workspace.newUser.step.login.after": "і виберіть Jolli Code",
   "workspace.newUser.step.pasteKey": "Вставте ключ API",
-  "workspace.newUser.step.models.before": "Запустіть opencode і виконайте",
+  "workspace.newUser.step.models.before": "Запустіть Jolli Code і виконайте",
   "workspace.newUser.step.models.after": "щоб вибрати модель",
 
   "workspace.models.title": "Моделі",
@@ -536,10 +536,10 @@ export const dict = {
   "workspace.cost.subscriptionShort": "підп",
 
   "workspace.keys.title": "Ключі API",
-  "workspace.keys.subtitle": "Керуйте ключами API для доступу до сервісів opencode.",
+  "workspace.keys.subtitle": "Керуйте ключами API для доступу до сервісів Jolli Code.",
   "workspace.keys.create": "Створити ключ API",
   "workspace.keys.placeholder": "Введіть назву ключа",
-  "workspace.keys.empty": "Створіть ключ API шлюзу opencode",
+  "workspace.keys.empty": "Створіть ключ API шлюзу Jolli Code",
   "workspace.keys.table.name": "Назва",
   "workspace.keys.table.key": "Ключ",
   "workspace.keys.table.createdBy": "Створено",
@@ -695,7 +695,7 @@ export const dict = {
   "workspace.lite.subscription.contribution": "%",
   "workspace.lite.subscription.total": "Усього",
   "workspace.lite.subscription.useBalance": "Використовуйте доступний баланс після досягнення лімітів",
-  "workspace.lite.subscription.selectProvider": 'Виберіть "OpenCode Go" як провайдера в конфігурації opencode.',
+  "workspace.lite.subscription.selectProvider": 'Виберіть "OpenCode Go" як провайдера в конфігурації Jolli Code.',
   "workspace.lite.providers.title": "Провайдери",
   "workspace.lite.providers.description": "Керуйте провайдерами, які використовуються для маршрутизації.",
   "workspace.lite.providers.allowTraining": "Дозволити моделі, що навчаються на даних запитів",
@@ -713,15 +713,15 @@ export const dict = {
   "workspace.lite.promo.otherMethods": "Інші способи оплати",
   "workspace.lite.promo.selectMethod": "Виберіть спосіб оплати",
 
-  "download.title": "OpenCode | Завантажити",
-  "download.meta.description": "Завантажте OpenCode для macOS, Windows та Linux",
-  "download.hero.title": "Завантажити OpenCode Desktop",
+  "download.title": "Jolli Code | Завантажити",
+  "download.meta.description": "Завантажте Jolli Code для macOS, Windows та Linux",
+  "download.hero.title": "Завантажити Jolli Code Desktop",
   "download.hero.subtitle": "Доступно в бета-версії для macOS, Windows та Linux",
   "download.hero.button": "Завантажити для {{os}}",
-  "download.section.terminal": "Термінал OpenCode",
-  "download.section.desktop": "Десктоп OpenCode",
-  "download.section.extensions": "Розширення OpenCode",
-  "download.section.integrations": "Інтеграції OpenCode",
+  "download.section.terminal": "Термінал Jolli Code",
+  "download.section.desktop": "Десктоп Jolli Code",
+  "download.section.extensions": "Розширення Jolli Code",
+  "download.section.integrations": "Інтеграції Jolli Code",
   "download.action.download": "Завантажити",
   "download.action.install": "Встановити",
 
@@ -736,22 +736,22 @@ export const dict = {
   "download.faq.a3.localLink": "локальними моделями",
   "download.faq.a3.afterLocal.beforeZen": "безкоштовно. Хоча ми рекомендуємо",
   "download.faq.a3.afterZen":
-    ", OpenCode працює з усіма популярними провайдерами, такими як OpenAI, Anthropic, xAI тощо.",
+    ", Jolli Code працює з усіма популярними провайдерами, такими як OpenAI, Anthropic, xAI тощо.",
 
-  "download.faq.a5.p1": "OpenCode є 100% безкоштовним.",
+  "download.faq.a5.p1": "Jolli Code є 100% безкоштовним.",
   "download.faq.a5.p2.beforeZen":
     "Будь-які додаткові витрати будуть з вашої підписки у провайдера моделі. Ми рекомендуємо",
   "download.faq.a5.p2.afterZen": ".",
 
-  "download.faq.a6.p1": "Ваші дані зберігаються лише при створенні посилань для обміну в OpenCode.",
+  "download.faq.a6.p1": "Ваші дані зберігаються лише при створенні посилань для обміну в Jolli Code.",
   "download.faq.a6.p2.beforeShare": "Дізнайтеся більше про",
   "download.faq.a6.shareLink": "сторінки обміну",
 
-  "enterprise.title": "OpenCode | Enterprise-рішення для вашої організації",
-  "enterprise.meta.description": "Зв'яжіться з OpenCode для Enterprise-рішень",
+  "enterprise.title": "Jolli Code | Enterprise-рішення для вашої організації",
+  "enterprise.meta.description": "Зв'яжіться з Jolli Code для Enterprise-рішень",
   "enterprise.hero.title": "Ваш код належить вам",
   "enterprise.hero.body1":
-    "OpenCode працює безпечно всередині вашої організації без зберігання даних, ліцензійних обмежень. Почніть пробний період із командою, потім розгорніть через SSO та внутрішній AI-шлюз.",
+    "Jolli Code працює безпечно всередині вашої організації без зберігання даних, ліцензійних обмежень. Почніть пробний період із командою, потім розгорніть через SSO та внутрішній AI-шлюз.",
   "enterprise.hero.body2": "Дайте знати, чим ми можемо допомогти.",
   "enterprise.form.name.label": "Повне ім'я",
   "enterprise.form.name.placeholder": "Джеф Безос",
@@ -778,24 +778,24 @@ export const dict = {
     "OpenCode Enterprise для організацій, які хочуть гарантувати, що код і дані ніколи не залишають їхню інфраструктуру.",
   "enterprise.faq.q2": "Як почати з OpenCode Enterprise?",
   "enterprise.faq.a2":
-    "Почніть із внутрішнього тестування з командою. OpenCode за замовчуванням не зберігає код. Потім зв'яжіться з нами для обговорення цін.",
+    "Почніть із внутрішнього тестування з командою. Jolli Code за замовчуванням не зберігає код. Потім зв'яжіться з нами для обговорення цін.",
   "enterprise.faq.q3": "Як працює ціноутворення enterprise?",
   "enterprise.faq.a3":
     "Ми пропонуємо ціну за робоче місце. Якщо у вас власний LLM-шлюз, ми не стягуємо плату за токени.",
   "enterprise.faq.q4": "Чи безпечні мої дані з OpenCode Enterprise?",
   "enterprise.faq.a4":
-    "Так. OpenCode не зберігає ваш код або контекст. Вся обробка відбувається локально або через прямі API-виклики.",
+    "Так. Jolli Code не зберігає ваш код або контекст. Вся обробка відбувається локально або через прямі API-виклики.",
 
-  "brand.title": "OpenCode | Бренд",
-  "brand.meta.description": "Рекомендації щодо бренду OpenCode",
+  "brand.title": "Jolli Code | Бренд",
+  "brand.meta.description": "Рекомендації щодо бренду Jolli Code",
   "brand.heading": "Рекомендації щодо бренду",
-  "brand.subtitle": "Ресурси та матеріали для роботи з брендом OpenCode.",
+  "brand.subtitle": "Ресурси та матеріали для роботи з брендом Jolli Code.",
   "brand.downloadAll": "Завантажити всі матеріали",
 
-  "changelog.title": "OpenCode | Журнал змін",
-  "changelog.meta.description": "Нотатки про випуски та журнал змін OpenCode",
+  "changelog.title": "Jolli Code | Журнал змін",
+  "changelog.meta.description": "Нотатки про випуски та журнал змін Jolli Code",
   "changelog.hero.title": "Журнал змін",
-  "changelog.hero.subtitle": "Нові оновлення та покращення OpenCode",
+  "changelog.hero.subtitle": "Нові оновлення та покращення Jolli Code",
   "changelog.empty": "Записів у журналі змін не знайдено.",
   "changelog.viewJson": "Переглянути JSON",
 

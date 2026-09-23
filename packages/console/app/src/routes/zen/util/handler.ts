@@ -258,10 +258,12 @@ export async function handler(
           headers.delete("host")
           headers.delete("content-length")
           if (!isNewInference) {
-            headers.delete("x-jollicode-session")
-            headers.delete("x-jollicode-project")
-            headers.delete("x-jollicode-client")
-            headers.delete("x-jollicode-request")
+            for (const prefix of ["x-jollicode", "x-opencode"]) {
+              headers.delete(`${prefix}-session`)
+              headers.delete(`${prefix}-project`)
+              headers.delete(`${prefix}-client`)
+              headers.delete(`${prefix}-request`)
+            }
             headers.delete("x-zen-model")
             headers.delete("x-zen-billing-source")
           }
