@@ -70,7 +70,7 @@ Options:
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode run --help 1`] = `
 "jollicode run [message..]
 
-run opencode with a message
+run jollicode with a message
 
 Positionals:
   message  message to send                                                     [array] [default: []]
@@ -92,7 +92,7 @@ Options:
                                           [string] [choices: "default", "json"] [default: "default"]
   -f, --file         file(s) to attach to message                                            [array]
       --title        title for the session (uses truncated prompt if no value provided)     [string]
-      --attach       attach to a running opencode server (e.g., http://localhost:4096)      [string]
+      --attach       attach to a running jollicode server (e.g., http://localhost:4096)     [string]
   -p, --password     basic auth password (defaults to OPENCODE_SERVER_PASSWORD)             [string]
   -u, --username     basic auth username (defaults to OPENCODE_SERVER_USERNAME or 'jollicode')
                                                                                             [string]
@@ -173,7 +173,7 @@ Options:
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode upgrade --help 1`] = `
 "jollicode upgrade [target]
 
-upgrade opencode to the latest or a specific version
+upgrade jollicode to the latest or a specific version
 
 Positionals:
   target  version to upgrade to, for ex '0.1.48' or 'v0.1.48'                               [string]
@@ -208,7 +208,7 @@ Options:
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode serve --help 1`] = `
 "jollicode serve
 
-starts a headless opencode server
+starts a headless jollicode server
 
 Options:
   -h, --help         show help                                                             [boolean]
@@ -334,7 +334,7 @@ Options:
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode pr --help 1`] = `
 "jollicode pr <number>
 
-fetch and checkout a GitHub PR branch, then run opencode
+fetch and checkout a GitHub PR branch, then run jollicode
 
 Positionals:
   number  PR number to checkout                                                  [number] [required]

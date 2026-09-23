@@ -98,4 +98,3 @@ Ako želiš doprinositi OpenCode-u, pročitaj [upute za doprinošenje](./CONTRIB
 ### Gradnja na OpenCode-u
 
 Ako radiš na projektu koji je povezan s OpenCode-om i koristi "jollicode" kao dio naziva, npr. "jollicode-dashboard" ili "jollicode-mobile", dodaj napomenu u svoj README da projekat nije napravio Jolli Code tim i da nije povezan s nama.
-

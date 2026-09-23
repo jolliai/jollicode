@@ -98,4 +98,3 @@ Hvis du vil bidra til Jolli Code, les [contributing docs](./CONTRIBUTING.md) fø
 ### Bygge på Jolli Code
 
 Hvis du jobber med et prosjekt som er relatert til Jolli Code og bruker "jollicode" som en del av navnet; for eksempel "jollicode-dashboard" eller "jollicode-mobile", legg inn en merknad i README som presiserer at det ikke er bygget av OpenCode-teamet og ikke er tilknyttet oss på noen måte.
-

@@ -98,4 +98,3 @@ Jolli Code'a katkıda bulunmak istiyorsanız, lütfen bir pull request gönderme
 ### Jolli Code Üzerine Geliştirme
 
 Jolli Code ile ilgili bir proje üzerinde çalışıyorsanız ve projenizin adının bir parçası olarak "jollicode" kullanıyorsanız (örneğin, "jollicode-dashboard" veya "jollicode-mobile"), lütfen README dosyanıza projenin Jolli Code ekibi tarafından geliştirilmediğini ve bizimle hiçbir şekilde bağlantılı olmadığını belirten bir not ekleyin.
-

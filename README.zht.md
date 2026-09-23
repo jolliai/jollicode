@@ -97,4 +97,3 @@ Jolli Code 內建了兩種 Agent，您可以使用 `Tab` 鍵快速切換。
 ### 基於 Jolli Code 進行開發
 
 如果您正在開發與 Jolli Code 相關的專案，並在名稱中使用了 "jollicode"（例如 "jollicode-dashboard" 或 "jollicode-mobile"），請在您的 README 中加入聲明，說明該專案並非由 Jolli Code 團隊開發，且與我們沒有任何隸屬關係。
-

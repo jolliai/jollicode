@@ -98,4 +98,3 @@ Se sei interessato a contribuire a Jolli Code, leggi la nostra [guida alla contr
 ### Costruire su Jolli Code
 
 Se stai lavorando a un progetto correlato a Jolli Code e che utilizza “jollicode” come parte del nome (ad esempio “jollicode-dashboard” o “jollicode-mobile”), aggiungi una nota nel tuo README per chiarire che non è sviluppato dal team Jolli Code e che non è affiliato in alcun modo con noi.
-
