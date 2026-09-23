@@ -55,7 +55,7 @@ test("clears cached distro probes when removing a WSL server", () => {
       {
         Debian: {
           distro: "Debian",
-          resolvedPath: "/home/luke/.jolli/bin/jollicode",
+          resolvedPath: "/home/luke/.jollicode/bin/jollicode",
           version: "1.16.2",
           expectedVersion: "1.16.2",
           matchesDesktop: true,
@@ -164,7 +164,7 @@ test("probes addable distros in parallel before checking OpenCode", async () => 
     },
     resolveOpencode: async (distro) => {
       opencode.push(distro)
-      return "/home/me/.jolli/bin/jollicode"
+      return "/home/me/.jollicode/bin/jollicode"
     },
   })
 
@@ -195,7 +195,7 @@ test("does not check OpenCode in addable distros that cannot execute commands", 
     }),
     resolveOpencode: async (distro) => {
       opencode.push(distro)
-      return "/home/me/.jolli/bin/jollicode"
+      return "/home/me/.jollicode/bin/jollicode"
     },
   })
 
@@ -225,7 +225,7 @@ function testControllerOptions() {
       await new Promise<void>((resolve) => {
         releaseOpencodeResolve = resolve
       })
-      return "/home/me/.jolli/bin/jollicode"
+      return "/home/me/.jollicode/bin/jollicode"
     },
   }
 }

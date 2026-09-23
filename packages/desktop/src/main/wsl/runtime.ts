@@ -311,7 +311,7 @@ export async function resolveWslJollicode(distro: string, opts?: RunWslOptions) 
   return firstLine(
     (
       await runWslSh(
-        'if [ -x "$HOME/.jolli/bin/jollicode" ]; then printf "%s\\n" "$HOME/.jolli/bin/jollicode"; fi',
+        'if [ -x "$HOME/.jollicode/bin/jollicode" ]; then printf "%s\\n" "$HOME/.jollicode/bin/jollicode"; fi',
         distro,
         opts,
       )
