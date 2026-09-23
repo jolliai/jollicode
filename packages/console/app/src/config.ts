@@ -3,7 +3,7 @@
  */
 export const config = {
   // Base URL
-  baseUrl: "https://opencode.ai",
+  baseUrl: "https://jolli.ai",
 
   // GitHub
   github: {
@@ -12,11 +12,6 @@ export const config = {
       compact: "195K",
       full: "195,000",
     },
-  },
-
-  // Social links
-  social: {
-    twitter: "https://x.com/opencode",
   },
 
   // Static stats (used on landing page)
