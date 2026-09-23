@@ -3,7 +3,7 @@ title: GitHub
 description: GitHub sorunlarında ve çekme isteklerinde jollicode'u kullanın.
 ---
 
-Jolli Code, GitHub iş akışınızla bütünleşir. Yorumunuzda `/opencode` veya `/oc`'den bahsedin; Jolli Code, GitHub Actions çalıştırıcınızdaki görevleri yürütecektir.
+Jolli Code, GitHub iş akışınızla bütünleşir. Yorumunuzda `/jollicode` veya `/jc`'den bahsedin; Jolli Code, GitHub Actions çalıştırıcınızdaki görevleri yürütecektir.
 
 ---
 
@@ -33,13 +33,13 @@ Veya manuel olarak ayarlayabilirsiniz.
 
 1. **GitHub uygulamasını yükleyin**
 
-   [**github.com/apps/opencode-agent**](https://github.com/apps/opencode-agent)'a gidin. Hedef depoya kurulu olduğundan emin olun.
+   [**github.com/apps/jolli-agent**](https://github.com/apps/jolli-agent)'a gidin. Hedef depoya kurulu olduğundan emin olun.
 
 2. **İş akışını ekleyin**
 
-   Aşağıdaki iş akışı dosyasını deponuzdaki `.github/workflows/opencode.yml`'a ekleyin. `model`'de uygun `env` ve gerekli API anahtarlarını ayarladığınızdan emin olun.
+   Aşağıdaki iş akışı dosyasını deponuzdaki `.github/workflows/jollicode.yml`'a ekleyin. `model`'de uygun `env` ve gerekli API anahtarlarını ayarladığınızdan emin olun.
 
-   ```yml title=".github/workflows/opencode.yml" {24,26}
+   ```yml title=".github/workflows/jollicode.yml" {24,26}
    name: jollicode
 
    on:
@@ -51,8 +51,8 @@ Veya manuel olarak ayarlayabilirsiniz.
    jobs:
      jollicode:
        if: |
-         contains(github.event.comment.body, '/oc') ||
-         contains(github.event.comment.body, '/opencode')
+         contains(github.event.comment.body, '/jc') ||
+         contains(github.event.comment.body, '/jollicode')
        runs-on: ubuntu-latest
        permissions:
          id-token: write
@@ -64,7 +64,7 @@ Veya manuel olarak ayarlayabilirsiniz.
               persist-credentials: false
 
           - name: Run Jolli Code
-           uses: anomalyco/opencode/github@latest
+           uses: jolliai/jollicode/github@latest
            env:
              ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
            with:
@@ -107,8 +107,8 @@ Jolli Code aşağıdaki GitHub olayları tarafından tetiklenebilir:
 
 | Olay Tipi                     | Tetikleyen                                    | Detaylar                                                                                                                                            |
 | ----------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `issue_comment`               | Bir soruna veya halkla ilişkilere yorum yapın | Yorumunuzda `/opencode` veya `/oc`'den bahsedin. Jolli Code bağlamı okur ve şubeler oluşturabilir, PR'leri açabilir veya yanıt verebilir.             |
-| `pull_request_review_comment` | PR'deki belirli kod satırlarına yorum yapın   | Kodu incelerken `/opencode` veya `/oc`'den bahsedin. Jolli Code dosya yolunu, satır numaralarını ve fark içeriğini alır.                              |
+| `issue_comment`               | Bir soruna veya halkla ilişkilere yorum yapın | Yorumunuzda `/jollicode` veya `/jc`'den bahsedin. Jolli Code bağlamı okur ve şubeler oluşturabilir, PR'leri açabilir veya yanıt verebilir.             |
+| `pull_request_review_comment` | PR'deki belirli kod satırlarına yorum yapın   | Kodu incelerken `/jollicode` veya `/jc`'den bahsedin. Jolli Code dosya yolunu, satır numaralarını ve fark içeriğini alır.                              |
 | `issues`                      | Sayı açıldı veya düzenlendi                   | Sorunlar oluşturulduğunda veya değiştirildiğinde Jolli Code'u otomatik olarak tetikleyin. `prompt` girişi gerektirir.                                 |
 | `pull_request`                | PR açıldı veya güncellendi                    | PR'ler açıldığında, senkronize edildiğinde veya yeniden açıldığında Jolli Code'u otomatik olarak tetikleyin. Otomatik incelemeler için kullanışlıdır. |
 | `schedule`                    | Cron tabanlı program                          | Jolli Code'u bir programa göre çalıştırın. `prompt` girişi gerektirir. Çıktı, günlüklere ve PR'lere gider (yorum yapılacak bir sorun yoktur).         |
@@ -118,7 +118,7 @@ Jolli Code aşağıdaki GitHub olayları tarafından tetiklenebilir:
 
 Otomatik görevleri gerçekleştirmek için Jolli Code'u bir zamanlamaya göre çalıştırın:
 
-```yaml title=".github/workflows/opencode-scheduled.yml"
+```yaml title=".github/workflows/jollicode-scheduled.yml"
 name: Scheduled Jolli Code Task
 
 on:
@@ -140,7 +140,7 @@ jobs:
           persist-credentials: false
 
       - name: Run Jolli Code
-        uses: anomalyco/opencode/github@latest
+        uses: jolliai/jollicode/github@latest
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
@@ -158,8 +158,8 @@ Zamanlanmış etkinlikler için, talimatların alınabileceği bir yorum bulunma
 
 PR'leri açıldığında veya güncellendiğinde otomatik olarak inceleyin:
 
-```yaml title=".github/workflows/opencode-review.yml"
-name: opencode-review
+```yaml title=".github/workflows/jollicode-review.yml"
+name: jollicode-review
 
 on:
   pull_request:
@@ -177,7 +177,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: anomalyco/opencode/github@latest
+      - uses: jolliai/jollicode/github@latest
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -199,7 +199,7 @@ jobs:
 
 Yeni sorunları otomatik olarak önceliklendirin. Bu örnek, spam'i azaltmak için 30 günden eski hesapları filtreler:
 
-```yaml title=".github/workflows/opencode-triage.yml"
+```yaml title=".github/workflows/jollicode-triage.yml"
 name: Issue Triage
 
 on:
@@ -233,7 +233,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: anomalyco/opencode/github@latest
+      - uses: jolliai/jollicode/github@latest
         if: steps.check.outputs.result == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -254,8 +254,8 @@ jobs:
 
 Jolli Code'un davranışını iş akışınız için özelleştirmek için varsayılan istemi geçersiz kılın.
 
-```yaml title=".github/workflows/opencode.yml"
-- uses: anomalyco/opencode/github@latest
+```yaml title=".github/workflows/jollicode.yml"
+- uses: jolliai/jollicode/github@latest
   with:
     model: anthropic/claude-sonnet-4-5
     prompt: |
@@ -278,7 +278,7 @@ GitHub'da Jolli Code'u nasıl kullanabileceğinize dair bazı örnekleri burada 
   Bu yorumu GitHub sayısına ekleyin.
 
   ```
-  /opencode explain this issue
+  /jollicode explain this issue
   ```
 
   Jolli Code, tüm yorumlar da dahil olmak üzere ileti dizisinin tamamını okuyacak ve net bir açıklama ile yanıt verecektir.
@@ -288,7 +288,7 @@ GitHub'da Jolli Code'u nasıl kullanabileceğinize dair bazı örnekleri burada 
   In a GitHub issue, say:
 
   ```
-  /opencode fix this
+  /jollicode fix this
   ```
 
   Ve Jolli Code yeni bir şube oluşturacak, değişiklikleri uygulayacak ve değişiklikleri içeren bir PR açacak.
@@ -298,7 +298,7 @@ GitHub'da Jolli Code'u nasıl kullanabileceğinize dair bazı örnekleri burada 
   GitHub PR'a aşağıdaki yorumu bırakın.
 
   ```
-  Delete the attachment from S3 when the note is removed /oc
+  Delete the attachment from S3 when the note is removed /jc
   ```
 
   Jolli Code istenen değişikliği uygulayacak ve aynı PR'ye uygulayacaktır.
@@ -309,7 +309,7 @@ GitHub'da Jolli Code'u nasıl kullanabileceğinize dair bazı örnekleri burada 
 
   ```
   [Comment on specific lines in Files tab]
-  /oc add error handling here
+  /jc add error handling here
   ```
 
   Belirli satırlara yorum yaparken Jolli Code şunları alır:

@@ -3,7 +3,7 @@ title: GitHub
 description: Use Jolli Code in GitHub issues and pull-requests.
 ---
 
-Jolli Code integrates with your GitHub workflow. Mention `/opencode` or `/oc` in your comment, and Jolli Code will execute tasks within your GitHub Actions runner.
+Jolli Code integrates with your GitHub workflow. Mention `/jollicode` or `/jc` in your comment, and Jolli Code will execute tasks within your GitHub Actions runner.
 
 ---
 
@@ -33,13 +33,13 @@ Or you can set it up manually.
 
 1. **Install the GitHub app**
 
-   Head over to [**github.com/apps/opencode-agent**](https://github.com/apps/opencode-agent). Make sure it's installed on the target repository.
+   Head over to [**github.com/apps/jolli-agent**](https://github.com/apps/jolli-agent). Make sure it's installed on the target repository.
 
 2. **Add the workflow**
 
-   Add the following workflow file to `.github/workflows/opencode.yml` in your repo. Make sure to set the appropriate `model` and required API keys in `env`.
+   Add the following workflow file to `.github/workflows/jollicode.yml` in your repo. Make sure to set the appropriate `model` and required API keys in `env`.
 
-   ```yml title=".github/workflows/opencode.yml" {24,26}
+   ```yml title=".github/workflows/jollicode.yml" {24,26}
    name: jollicode
 
    on:
@@ -51,8 +51,8 @@ Or you can set it up manually.
    jobs:
      jollicode:
        if: |
-         contains(github.event.comment.body, '/oc') ||
-         contains(github.event.comment.body, '/opencode')
+         contains(github.event.comment.body, '/jc') ||
+         contains(github.event.comment.body, '/jollicode')
        runs-on: ubuntu-latest
        permissions:
          id-token: write
@@ -64,7 +64,7 @@ Or you can set it up manually.
              persist-credentials: false
 
          - name: Run Jolli Code
-           uses: anomalyco/opencode/github@latest
+           uses: jolliai/jollicode/github@latest
            env:
              ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
            with:
@@ -84,7 +84,7 @@ Or you can set it up manually.
 - `agent`: The agent to use. Must be a primary agent. Falls back to `default_agent` from config or `"build"` if not found.
 - `share`: Whether to share the Jolli Code session. Defaults to **true** for public repositories.
 - `prompt`: Optional custom prompt to override the default behavior. Use this to customize how Jolli Code processes requests.
-- `mentions`: Comma-separated list of trigger phrases, case-insensitive. Defaults to `/opencode,/oc`.
+- `mentions`: Comma-separated list of trigger phrases, case-insensitive. Defaults to `/jollicode,/jc`.
 - `variant`: Model variant for provider-specific reasoning effort, for example `high`, `max`, or `minimal`.
 - `oidc_base_url`: Base URL for the OIDC token exchange API. Only needed when running a custom GitHub App install. Defaults to `https://api.jolli.ai`.
 - `use_github_token`: Set to `true` to use a caller-provided `GITHUB_TOKEN` instead of exchanging an OIDC token for a Jolli Code App installation token. Defaults to `false`.
@@ -98,7 +98,7 @@ Or you can set it up manually.
     issues: write
 
   steps:
-    - uses: anomalyco/opencode/github@latest
+    - uses: jolliai/jollicode/github@latest
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -117,8 +117,8 @@ Jolli Code can be triggered by the following GitHub events:
 
 | Event Type                    | Triggered By                           | Details                                                                                                           |
 | ----------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `issue_comment`               | Comment on an issue or PR              | Mention `/opencode` or `/oc` in your comment. Jolli Code reads context and can create branches, open PRs, or reply. |
-| `pull_request_review_comment` | Comment on specific code lines in a PR | Mention `/opencode` or `/oc` while reviewing code. Jolli Code receives file path, line numbers, and diff context.   |
+| `issue_comment`               | Comment on an issue or PR              | Mention `/jollicode` or `/jc` in your comment. Jolli Code reads context and can create branches, open PRs, or reply. |
+| `pull_request_review_comment` | Comment on specific code lines in a PR | Mention `/jollicode` or `/jc` while reviewing code. Jolli Code receives file path, line numbers, and diff context.   |
 | `issues`                      | Issue opened or edited                 | Automatically trigger Jolli Code when issues are created or modified. Requires `prompt` input.                      |
 | `pull_request`                | PR opened or updated                   | Automatically trigger Jolli Code when PRs are opened, synchronized, or reopened. Useful for automated reviews.      |
 | `schedule`                    | Cron-based schedule                    | Run Jolli Code on a schedule. Requires `prompt` input. Output goes to logs and PRs (no issue to comment on).        |
@@ -128,7 +128,7 @@ Jolli Code can be triggered by the following GitHub events:
 
 Run Jolli Code on a schedule to perform automated tasks:
 
-```yaml title=".github/workflows/opencode-scheduled.yml"
+```yaml title=".github/workflows/jollicode-scheduled.yml"
 name: Scheduled Jolli Code Task
 
 on:
@@ -150,7 +150,7 @@ jobs:
           persist-credentials: false
 
       - name: Run Jolli Code
-        uses: anomalyco/opencode/github@latest
+        uses: jolliai/jollicode/github@latest
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
@@ -168,8 +168,8 @@ For scheduled events, the `prompt` input is **required** since there's no commen
 
 Automatically review PRs when they are opened or updated:
 
-```yaml title=".github/workflows/opencode-review.yml"
-name: opencode-review
+```yaml title=".github/workflows/jollicode-review.yml"
+name: jollicode-review
 
 on:
   pull_request:
@@ -187,7 +187,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: anomalyco/opencode/github@latest
+      - uses: jolliai/jollicode/github@latest
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -209,7 +209,7 @@ For `pull_request` events, if no `prompt` is provided, Jolli Code defaults to re
 
 Automatically triage new issues. This example filters to accounts older than 30 days to reduce spam:
 
-```yaml title=".github/workflows/opencode-triage.yml"
+```yaml title=".github/workflows/jollicode-triage.yml"
 name: Issue Triage
 
 on:
@@ -243,7 +243,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: anomalyco/opencode/github@latest
+      - uses: jolliai/jollicode/github@latest
         if: steps.check.outputs.result == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -264,8 +264,8 @@ For `issues` events, the `prompt` input is **required** since there's no comment
 
 Override the default prompt to customize Jolli Code's behavior for your workflow.
 
-```yaml title=".github/workflows/opencode.yml"
-- uses: anomalyco/opencode/github@latest
+```yaml title=".github/workflows/jollicode.yml"
+- uses: jolliai/jollicode/github@latest
   with:
     model: anthropic/claude-sonnet-4-5
     prompt: |
@@ -288,7 +288,7 @@ Here are some examples of how you can use Jolli Code in GitHub.
   Add this comment in a GitHub issue.
 
   ```
-  /opencode explain this issue
+  /jollicode explain this issue
   ```
 
   Jolli Code will read the entire thread, including all comments, and reply with a clear explanation.
@@ -298,7 +298,7 @@ Here are some examples of how you can use Jolli Code in GitHub.
   In a GitHub issue, say:
 
   ```
-  /opencode fix this
+  /jollicode fix this
   ```
 
   And Jolli Code will create a new branch, implement the changes, and open a PR with the changes.
@@ -308,7 +308,7 @@ Here are some examples of how you can use Jolli Code in GitHub.
   Leave the following comment on a GitHub PR.
 
   ```
-  Delete the attachment from S3 when the note is removed /oc
+  Delete the attachment from S3 when the note is removed /jc
   ```
 
   Jolli Code will implement the requested change and commit it to the same PR.
@@ -319,7 +319,7 @@ Here are some examples of how you can use Jolli Code in GitHub.
 
   ```
   [Comment on specific lines in Files tab]
-  /oc add error handling here
+  /jc add error handling here
   ```
 
   When commenting on specific lines, Jolli Code receives:

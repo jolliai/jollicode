@@ -3,7 +3,7 @@ title: GitHub
 description: استخدم Jolli Code في GitHub Issues وPull Requests.
 ---
 
-يتكامل Jolli Code مع سير عمل GitHub لديك. اذكر `/opencode` أو `/oc` في تعليقك، وسيقوم Jolli Code بتنفيذ المهام داخل GitHub Actions runner لديك.
+يتكامل Jolli Code مع سير عمل GitHub لديك. اذكر `/jollicode` أو `/jc` في تعليقك، وسيقوم Jolli Code بتنفيذ المهام داخل GitHub Actions runner لديك.
 
 ---
 
@@ -33,13 +33,13 @@ jollicode github install
 
 1. **تثبيت GitHub app**
 
-   انتقل إلى [**github.com/apps/opencode-agent**](https://github.com/apps/opencode-agent). تأكد من تثبيته على المستودع الهدف.
+   انتقل إلى [**github.com/apps/jolli-agent**](https://github.com/apps/jolli-agent). تأكد من تثبيته على المستودع الهدف.
 
 2. **إضافة الـworkflow**
 
-   أضف ملف الـworkflow التالي إلى `.github/workflows/opencode.yml` في مستودعك. تأكد من ضبط `model` المناسب ومفاتيح API المطلوبة ضمن `env`.
+   أضف ملف الـworkflow التالي إلى `.github/workflows/jollicode.yml` في مستودعك. تأكد من ضبط `model` المناسب ومفاتيح API المطلوبة ضمن `env`.
 
-   ```yml title=".github/workflows/opencode.yml" {24,26}
+   ```yml title=".github/workflows/jollicode.yml" {24,26}
    name: jollicode
 
    on:
@@ -51,8 +51,8 @@ jollicode github install
    jobs:
      jollicode:
        if: |
-         contains(github.event.comment.body, '/oc') ||
-         contains(github.event.comment.body, '/opencode')
+         contains(github.event.comment.body, '/jc') ||
+         contains(github.event.comment.body, '/jollicode')
        runs-on: ubuntu-latest
        permissions:
          id-token: write
@@ -64,7 +64,7 @@ jollicode github install
               persist-credentials: false
 
           - name: Run Jolli Code
-           uses: anomalyco/opencode/github@latest
+           uses: jolliai/jollicode/github@latest
            env:
              ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
            with:
@@ -107,8 +107,8 @@ jollicode github install
 
 | نوع الحدث                     | يتم تشغيله عبر                 | التفاصيل                                                                                                |
 | ----------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `issue_comment`               | تعليق على Issue أو PR          | اذكر `/opencode` أو `/oc` في تعليقك. يقرأ Jolli Code السياق ويمكنه إنشاء فروع، وفتح PRs، أو الرد.         |
-| `pull_request_review_comment` | تعليق على أسطر كود محددة في PR | اذكر `/opencode` أو `/oc` أثناء مراجعة الكود. يستلم Jolli Code مسار الملف وأرقام الأسطر وسياق الـdiff.    |
+| `issue_comment`               | تعليق على Issue أو PR          | اذكر `/jollicode` أو `/jc` في تعليقك. يقرأ Jolli Code السياق ويمكنه إنشاء فروع، وفتح PRs، أو الرد.         |
+| `pull_request_review_comment` | تعليق على أسطر كود محددة في PR | اذكر `/jollicode` أو `/jc` أثناء مراجعة الكود. يستلم Jolli Code مسار الملف وأرقام الأسطر وسياق الـdiff.    |
 | `issues`                      | فتح Issue أو تعديلها           | تشغيل Jolli Code تلقائيًا عند إنشاء Issues أو تعديلها. يتطلب إدخال `prompt`.                              |
 | `pull_request`                | فتح PR أو تحديثه               | تشغيل Jolli Code تلقائيًا عند فتح PRs أو مزامنتها أو إعادة فتحها. مفيد للمراجعات الآلية.                  |
 | `schedule`                    | جدول يعتمد على Cron            | تشغيل Jolli Code وفق جدول. يتطلب إدخال `prompt`. يذهب الناتج إلى logs وPRs (لا يوجد Issue للتعليق عليها). |
@@ -118,7 +118,7 @@ jollicode github install
 
 شغّل Jolli Code وفق جدول لتنفيذ مهام آلية:
 
-```yaml title=".github/workflows/opencode-scheduled.yml"
+```yaml title=".github/workflows/jollicode-scheduled.yml"
 name: Scheduled Jolli Code Task
 
 on:
@@ -140,7 +140,7 @@ jobs:
           persist-credentials: false
 
       - name: Run Jolli Code
-        uses: anomalyco/opencode/github@latest
+        uses: jolliai/jollicode/github@latest
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
@@ -158,8 +158,8 @@ jobs:
 
 راجع PRs تلقائيًا عند فتحها أو تحديثها:
 
-```yaml title=".github/workflows/opencode-review.yml"
-name: opencode-review
+```yaml title=".github/workflows/jollicode-review.yml"
+name: jollicode-review
 
 on:
   pull_request:
@@ -177,7 +177,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      - uses: anomalyco/opencode/github@latest
+      - uses: jolliai/jollicode/github@latest
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -199,7 +199,7 @@ jobs:
 
 قم بفرز Issues الجديدة تلقائيًا. يقوم هذا المثال بتصفية الحسابات الأقدم من 30 يومًا لتقليل الرسائل المزعجة:
 
-```yaml title=".github/workflows/opencode-triage.yml"
+```yaml title=".github/workflows/jollicode-triage.yml"
 name: Issue Triage
 
 on:
@@ -233,7 +233,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: anomalyco/opencode/github@latest
+      - uses: jolliai/jollicode/github@latest
         if: steps.check.outputs.result == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -254,8 +254,8 @@ jobs:
 
 قم بتجاوز الموجه الافتراضي لتخصيص سلوك Jolli Code ضمن الـworkflow لديك.
 
-```yaml title=".github/workflows/opencode.yml"
-- uses: anomalyco/opencode/github@latest
+```yaml title=".github/workflows/jollicode.yml"
+- uses: jolliai/jollicode/github@latest
   with:
     model: anthropic/claude-sonnet-4-5
     prompt: |
@@ -278,7 +278,7 @@ jobs:
   أضف هذا التعليق داخل GitHub Issue.
 
   ```
-  /opencode explain this issue
+  /jollicode explain this issue
   ```
 
   سيقرأ Jolli Code كامل النقاش، بما في ذلك جميع التعليقات، ويرد بشرح واضح.
@@ -288,7 +288,7 @@ jobs:
   داخل GitHub Issue، اكتب:
 
   ```
-  /opencode fix this
+  /jollicode fix this
   ```
 
   وسيُنشئ Jolli Code فرعًا جديدًا، وينفّذ التغييرات، ويفتح PR يتضمنها.
@@ -298,7 +298,7 @@ jobs:
   اترك التعليق التالي على GitHub PR.
 
   ```
-  Delete the attachment from S3 when the note is removed /oc
+  Delete the attachment from S3 when the note is removed /jc
   ```
 
   سينفّذ Jolli Code التغيير المطلوب ويعمل له commit إلى نفس PR.
@@ -309,7 +309,7 @@ jobs:
 
   ```
   [Comment on specific lines in Files tab]
-  /oc add error handling here
+  /jc add error handling here
   ```
 
   عند التعليق على أسطر محددة، يستلم Jolli Code:
