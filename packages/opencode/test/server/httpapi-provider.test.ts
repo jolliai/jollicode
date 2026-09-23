@@ -267,7 +267,7 @@ describe("provider HttpApi", () => {
     Effect.gen(function* () {
       const directory = (yield* TestInstance).directory
       const response = yield* request("/api/provider/missing", {
-        headers: { "x-opencode-directory": directory },
+        headers: { "x-jollicode-directory": directory },
       })
 
       expect(response.status).toBe(404)
@@ -284,7 +284,7 @@ describe("provider HttpApi", () => {
     "serves OAuth authorize response shapes",
     Effect.gen(function* () {
       const directory = (yield* TestInstance).directory
-      const headers = { "x-opencode-directory": directory, "content-type": "application/json" }
+      const headers = { "x-jollicode-directory": directory, "content-type": "application/json" }
       const api = yield* requestAuthorize({
         providerID,
         method: 0,
@@ -319,7 +319,7 @@ describe("provider HttpApi", () => {
         providerID: "test-oauth-validation",
         method: 0,
         inputs: { token: "nope" },
-        headers: { "x-opencode-directory": directory, "content-type": "application/json" },
+        headers: { "x-jollicode-directory": directory, "content-type": "application/json" },
       })
 
       expect(response.status).toBe(400)
@@ -339,7 +339,7 @@ describe("provider HttpApi", () => {
       const response = yield* requestCallback({
         providerID,
         method: 0,
-        headers: { "x-opencode-directory": directory, "content-type": "application/json" },
+        headers: { "x-jollicode-directory": directory, "content-type": "application/json" },
       })
 
       expect(response.status).toBe(400)
@@ -362,7 +362,7 @@ describe("provider HttpApi", () => {
           google: { type: "oauth", refresh: "dummy", access: "dummy", expires: 9999999999999 },
         }),
       )
-      const headers = { "x-opencode-directory": directory }
+      const headers = { "x-jollicode-directory": directory }
       const providerResponse = yield* request("/provider", { headers })
       const configResponse = yield* request("/config/providers", { headers })
 
@@ -384,7 +384,7 @@ describe("provider HttpApi", () => {
     Effect.gen(function* () {
       const directory = (yield* TestInstance).directory
 
-      const headers = { "x-opencode-directory": directory }
+      const headers = { "x-jollicode-directory": directory }
       const providerResponse = yield* request("/provider", { headers })
       const configResponse = yield* request("/config/providers", { headers })
 
@@ -413,7 +413,7 @@ describe("provider HttpApi", () => {
       const directory = (yield* TestInstance).directory
       yield* setEnvScoped("OPENCODE_AUTH_CONTENT", JSON.stringify({ "never-loads": { type: "api", key: "jwt" } }))
 
-      const response = yield* request("/provider", { headers: { "x-opencode-directory": directory } })
+      const response = yield* request("/provider", { headers: { "x-jollicode-directory": directory } })
       expect(response.status).toBe(200)
 
       const body = (yield* response.json) as { connected: string[] }
@@ -429,7 +429,7 @@ describe("provider HttpApi", () => {
       const directory = (yield* TestInstance).directory
       yield* setEnvScoped("OPENCODE_AUTH_CONTENT", JSON.stringify({ jolli: { type: "api", key: "jwt" } }))
 
-      const response = yield* request("/provider", { headers: { "x-opencode-directory": directory } })
+      const response = yield* request("/provider", { headers: { "x-jollicode-directory": directory } })
       expect(response.status).toBe(200)
 
       const body = (yield* response.json) as { connected: string[] }

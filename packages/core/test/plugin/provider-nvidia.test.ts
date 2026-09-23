@@ -8,6 +8,7 @@ import { NvidiaPlugin } from "@opencode-ai/core/plugin/provider/nvidia"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
+import { Brand } from "@opencode-ai/core/brand"
 
 const it = testEffect(PluginTestLayer)
 
@@ -39,9 +40,9 @@ describe("NvidiaPlugin", () => {
       yield* addPlugin()
       expect((yield* catalog.provider.get(ProviderV2.ID.make("nvidia")))?.request.headers).toEqual({
         Existing: "value",
-        "HTTP-Referer": "https://jolli.ai/",
-        "X-Title": "opencode",
-        "X-BILLING-INVOKE-ORIGIN": "OpenCode",
+        "HTTP-Referer": `${Brand.url}/`,
+        "X-Title": Brand.bin,
+        "X-BILLING-INVOKE-ORIGIN": Brand.name,
       })
       expect((yield* catalog.provider.get(ProviderV2.ID.openrouter))?.request.headers).toEqual({})
     }),
@@ -62,9 +63,9 @@ describe("NvidiaPlugin", () => {
       yield* addPlugin()
 
       expect((yield* catalog.provider.get(ProviderV2.ID.make("nvidia")))?.request.headers).toEqual({
-        "HTTP-Referer": "https://jolli.ai/",
-        "X-Title": "opencode",
-        "X-BILLING-INVOKE-ORIGIN": "OpenCode",
+        "HTTP-Referer": `${Brand.url}/`,
+        "X-Title": Brand.bin,
+        "X-BILLING-INVOKE-ORIGIN": Brand.name,
       })
     }),
   )
@@ -88,8 +89,8 @@ describe("NvidiaPlugin", () => {
       yield* addPlugin()
 
       expect((yield* catalog.provider.get(ProviderV2.ID.make("nvidia")))?.request.headers).toEqual({
-        "HTTP-Referer": "https://jolli.ai/",
-        "X-Title": "opencode",
+        "HTTP-Referer": `${Brand.url}/`,
+        "X-Title": Brand.bin,
         "X-BILLING-INVOKE-ORIGIN": "CustomOrigin",
       })
     }),

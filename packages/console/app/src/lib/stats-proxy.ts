@@ -101,7 +101,7 @@ function isCloudflareCacheStorage(storage: CacheStorage): storage is CacheStorag
 
 function withStatsCacheStatus(response: Response, status: "HIT" | "MISS") {
   const headers = new Headers(response.headers)
-  headers.set("x-opencode-stats-cache", status)
+  headers.set("x-jollicode-stats-cache", status)
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
 }
 

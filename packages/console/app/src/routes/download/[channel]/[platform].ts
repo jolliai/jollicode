@@ -60,7 +60,7 @@ function download(resp: Response, platform: string, cache: "HIT" | "MISS") {
   const downloadName = downloadNames[platform]
   const headers = new Headers(resp.headers)
   if (downloadName) headers.set("content-disposition", `attachment; filename="${downloadName}"`)
-  headers.set("x-opencode-cache", cache)
+  headers.set("x-jollicode-cache", cache)
 
   return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers })
 }

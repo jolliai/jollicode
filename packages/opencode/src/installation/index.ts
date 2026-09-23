@@ -186,8 +186,15 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
 
         for (const check of checks) {
           const output = yield* check.command()
-          const installedName = check.name === "brew" ? BREW_FORMULA : Brand.npm
-          if (output.includes(installedName)) {
+          if (check.name === "brew") {
+            // `brew list --formula <tap>/<name>` prints the bare formula name, but a
+            // tap-qualified line is also valid. Compare whole tokens so a formula that
+            // merely contains ours (jollicode-nightly) is not mistaken for a match.
+            const names = output.split(/\s+/)
+            if (names.includes(Brand.bin) || names.includes(BREW_FORMULA)) return check.name
+            continue
+          }
+          if (output.includes(Brand.npm)) {
             return check.name
           }
         }
@@ -200,7 +207,11 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
         if (detectedMethod === "brew") {
           const infoJson = yield* text(["brew", "info", "--json=v2", BREW_FORMULA])
           const info = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(BrewInfoV2))(infoJson)
-          return info.formulae[0].versions.stable
+          const formula = info.formulae[0]
+          // `latest` is orDie-wrapped, so fail with a legible message instead of letting
+          // an untapped machine (formulae: []) surface a bare TypeError.
+          if (!formula) return yield* Effect.fail(new Error(`brew has no formula ${BREW_FORMULA}; run \`brew tap ${BREW_TAP}\` first`))
+          return formula.versions.stable
         }
 
         if (detectedMethod === "npm" || detectedMethod === "bun" || detectedMethod === "pnpm") {

@@ -206,4 +206,56 @@ describe("installation", () => {
       }),
     )
   })
+  describe("method", () => {
+    // Regression: `brew list --formula <tap>/<name>` prints the BARE formula name, so
+    // matching the tap-qualified string never succeeded and brew installs resolved to
+    // "unknown", which made `upgrade` fail for every Homebrew user.
+    testEffect(
+      testLayer(
+        () => jsonResponse({}),
+        (cmd, args) => {
+          if (cmd === "brew" && args.includes("list")) return `${Brand.bin}\n`
+          return ""
+        },
+      ),
+    ).effect("detects a brew install from the bare formula name brew prints", () =>
+      Effect.gen(function* () {
+        expect(yield* Installation.use.method()).toBe("brew")
+      }),
+    )
+
+    testEffect(
+      testLayer(
+        () => jsonResponse({}),
+        (cmd, args) => (cmd === "brew" && args.includes("list") ? `${Brand.org}/tap/${Brand.bin}\n` : ""),
+      ),
+    ).effect("also detects a brew install when brew prints the tap-qualified name", () =>
+      Effect.gen(function* () {
+        expect(yield* Installation.use.method()).toBe("brew")
+      }),
+    )
+
+    testEffect(
+      testLayer(
+        () => jsonResponse({}),
+        // a formula whose name merely contains ours must not count as a match
+        (cmd, args) => (cmd === "brew" && args.includes("list") ? `${Brand.bin}-nightly\n` : ""),
+      ),
+    ).effect("reports unknown when nothing matches", () =>
+      Effect.gen(function* () {
+        expect(yield* Installation.use.method()).toBe("unknown")
+      }),
+    )
+
+    testEffect(
+      testLayer(
+        () => jsonResponse({}),
+        (cmd, args) => (cmd === "npm" && args.includes("list") ? `/usr/lib\n\`-- ${Brand.npm}@1.0.0\n` : ""),
+      ),
+    ).effect("detects an npm install from the published package name", () =>
+      Effect.gen(function* () {
+        expect(yield* Installation.use.method()).toBe("npm")
+      }),
+    )
+  })
 })

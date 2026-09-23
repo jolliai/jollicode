@@ -1,5 +1,6 @@
 import { Effect } from "effect"
 import { define } from "../internal"
+import { Brand } from "../../brand"
 
 export const VercelPlugin = define({
   id: "vercel",
@@ -10,8 +11,8 @@ export const VercelPlugin = define({
           if (item.provider.api.type !== "aisdk") continue
           if (item.provider.api.package !== "@ai-sdk/vercel") continue
           evt.provider.update(item.provider.id, (provider) => {
-            provider.request.headers["http-referer"] = "https://jolli.ai/"
-            provider.request.headers["x-title"] = "opencode"
+            provider.request.headers["http-referer"] = `${Brand.url}/`
+            provider.request.headers["x-title"] = Brand.bin
           })
         }
       }),
