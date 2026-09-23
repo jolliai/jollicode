@@ -676,7 +676,7 @@ export const dict = {
   "error.page.action.checkUpdates": "Provjeri ažuriranja",
   "error.page.action.updateTo": "Ažuriraj na {{version}}",
   "error.page.report.prefix": "Molimo prijavi ovu grešku Jolli Code timu",
-  "error.page.report.discord": "na Discordu",
+  "error.page.report.github": "na GitHubu",
   "error.page.version": "Verzija: {{version}}",
 
   "error.dev.rootNotFound":
