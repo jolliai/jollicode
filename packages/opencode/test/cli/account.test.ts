@@ -4,8 +4,8 @@ import stripAnsi from "strip-ansi"
 import { defaultConsoleUrl, formatAccountLabel, formatOrgLine } from "../../src/cli/cmd/account"
 
 describe("console account display", () => {
-  test("uses opencode.ai/console as the default login URL", () => {
-    expect(defaultConsoleUrl).toBe("https://opencode.ai/console")
+  test("uses jolli.ai/console as the default login URL", () => {
+    expect(defaultConsoleUrl).toBe("https://jolli.ai/console")
   })
 
   test("includes the account url in account labels", () => {

@@ -38,9 +38,9 @@ describe("inlineCodeKind", () => {
   })
 
   test("detects urls", () => {
-    expect(inlineCodeKind(`https://opencode.ai/docs`)).toBe("url")
+    expect(inlineCodeKind(`https://jolli.ai/docs`)).toBe("url")
     expect(inlineCodeKind(`http://localhost:4444`)).toBe("url")
     expect(inlineCodeKind(`file:///tmp/opencode`)).toBeUndefined()
-    expect(inlineCodeKind(`ftp://opencode.ai/docs`)).toBeUndefined()
+    expect(inlineCodeKind(`ftp://jolli.ai/docs`)).toBeUndefined()
   })
 })
