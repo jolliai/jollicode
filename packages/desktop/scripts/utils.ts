@@ -1,9 +1,6 @@
 import { $ } from "bun"
-import { chmod, copyFile, mkdtemp, rm, writeFile } from "node:fs/promises"
-import { tmpdir } from "node:os"
+import { chmod, copyFile } from "node:fs/promises"
 import { join } from "node:path"
-
-const CLI_VERSION = "0.0.0-next-16350"
 
 export type Channel = "dev" | "beta" | "prod"
 
@@ -13,42 +10,38 @@ export function resolveChannel(): Channel {
   return "dev"
 }
 
-export const CLI_BINARIES: Array<{ rustTarget: string; package: string; os: string; cpu: string }> = [
+// `dist` is the directory `packages/cli/script/build.ts` emits for that target, and what its
+// `--only` flag selects.
+export const CLI_BINARIES: Array<{ rustTarget: string; dist: string; os: string }> = [
   {
     rustTarget: "aarch64-apple-darwin",
-    package: "@opencode-ai/cli-darwin-arm64",
+    dist: "cli-darwin-arm64",
     os: "darwin",
-    cpu: "arm64",
   },
   {
     rustTarget: "x86_64-apple-darwin",
-    package: "@opencode-ai/cli-darwin-x64-baseline",
+    dist: "cli-darwin-x64-baseline",
     os: "darwin",
-    cpu: "x64",
   },
   {
     rustTarget: "aarch64-pc-windows-msvc",
-    package: "@opencode-ai/cli-windows-arm64",
+    dist: "cli-windows-arm64",
     os: "win32",
-    cpu: "arm64",
   },
   {
     rustTarget: "x86_64-pc-windows-msvc",
-    package: "@opencode-ai/cli-windows-x64-baseline",
+    dist: "cli-windows-x64-baseline",
     os: "win32",
-    cpu: "x64",
   },
   {
     rustTarget: "x86_64-unknown-linux-gnu",
-    package: "@opencode-ai/cli-linux-x64-baseline",
+    dist: "cli-linux-x64-baseline",
     os: "linux",
-    cpu: "x64",
   },
   {
     rustTarget: "aarch64-unknown-linux-gnu",
-    package: "@opencode-ai/cli-linux-arm64",
+    dist: "cli-linux-arm64",
     os: "linux",
-    cpu: "arm64",
   },
 ]
 
@@ -69,30 +62,21 @@ export function getCurrentCli(target = RUST_TARGET ?? nativeTarget()) {
   return binaryConfig
 }
 
-export async function downloadCliToResources() {
+export async function buildCliToResources() {
   const cli = getCurrentCli()
-  const directory = await mkdtemp(join(tmpdir(), "jollicode-cli-"))
+  // Build from this repo rather than installing a published tarball: the bundled daemon has to
+  // match the server and command surface this checkout ships, and the platform packages are not
+  // published from here. `--only` selects the target even when it is not the host's.
   const dest = windowsify("resources/jollicode-cli")
-  try {
-    // Without a manifest here bun walks up past tmpdir() looking for one and installs
-    // into whatever root it finds (e.g. a stray package.json in the user's home dir),
-    // leaving this directory empty. Anchor the install to the temp dir instead.
-    await writeFile(join(directory, "package.json"), JSON.stringify({ name: "jollicode-cli-download", version: "0.0.0" }))
-    await $`bun install --no-save --cwd ${directory} ${`${cli.package}@${CLI_VERSION}`} ${`--os=${cli.os}`} ${`--cpu=${cli.cpu}`}`
-    await copyFile(
-      join(directory, "node_modules", cli.package, "bin", cli.os === "win32" ? "opencode2.exe" : "opencode2"),
-      dest,
-    )
-  } finally {
-    await rm(directory, { recursive: true, force: true })
-  }
+  await $`bun script/build.ts ${`--only=${cli.dist}`}`.cwd("../cli")
+  await copyFile(join("../cli/dist", cli.dist, "bin", cli.os === "win32" ? "lildax.exe" : "lildax"), dest)
   if (process.platform !== "win32") await chmod(dest, 0o755)
   if (process.platform === "win32" && process.env.GITHUB_ACTIONS === "true") {
     await $`pwsh -NoLogo -NoProfile -ExecutionPolicy Bypass -File ../../script/sign-windows.ps1 ${dest}`
   }
   if (process.platform === "darwin") await $`codesign --force --sign - ${dest}`
 
-  console.log(`Copied ${cli.package} to ${dest}`)
+  console.log(`Built ${cli.dist} to ${dest}`)
 }
 
 export function windowsify(path: string) {

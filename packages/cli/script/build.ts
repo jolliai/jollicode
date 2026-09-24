@@ -17,6 +17,7 @@ await rm("dist", { recursive: true, force: true })
 const singleFlag = process.argv.includes("--single")
 const baselineFlag = process.argv.includes("--baseline")
 const skipInstall = process.argv.includes("--skip-install")
+const onlyFlag = process.argv.find((item) => item.startsWith("--only="))?.slice("--only=".length)
 const sourcemapsFlag = process.argv.includes("--sourcemaps")
 const plugin = createSolidTransformPlugin()
 
@@ -40,27 +41,42 @@ const allTargets: {
   { os: "win32", arch: "x64", avx2: false },
 ]
 
-const targets = singleFlag
-  ? allTargets.filter((item) => {
-      if (item.os !== process.platform || item.arch !== process.arch) return false
-      if (item.avx2 === false) return baselineFlag
-      return item.abi === undefined
-    })
-  : allTargets
-
-if (!skipInstall) await $`bun install --os="*" --cpu="*" @opentui/core@${pkg.dependencies["@opentui/core"]}`
-
-for (const item of targets) {
-  const target = [
-    binary,
+// Dist directory name, e.g. "cli-windows-x64-baseline". Also the published package name
+// minus the scope, and what `--only` selects so a cross-target build (the desktop's
+// windows-arm64 job runs on an x64 host) can pick a target `--single` would reject.
+function targetParts(item: (typeof allTargets)[number]) {
+  return [
     item.os === "win32" ? "windows" : item.os,
     item.arch,
     item.avx2 === false ? "baseline" : undefined,
     item.abi,
-  ]
-    .filter(Boolean)
-    .join("-")
-  const name = target.replace(binary, "cli")
+  ].filter(Boolean)
+}
+
+function distName(item: (typeof allTargets)[number]) {
+  return ["cli", ...targetParts(item)].join("-")
+}
+
+function selectTargets() {
+  if (onlyFlag) {
+    const selected = allTargets.filter((item) => distName(item) === onlyFlag)
+    if (selected.length === 0) throw new Error(`Unknown CLI target '${onlyFlag}'`)
+    return selected
+  }
+  if (!singleFlag) return allTargets
+  return allTargets.filter((item) => {
+    if (item.os !== process.platform || item.arch !== process.arch) return false
+    if (item.avx2 === false) return baselineFlag
+    return item.abi === undefined
+  })
+}
+
+const targets = selectTargets()
+
+if (!skipInstall) await $`bun install --os="*" --cpu="*" @opentui/core@${pkg.dependencies["@opentui/core"]}`
+
+for (const item of targets) {
+  const name = distName(item)
   console.log(`building ${name}`)
   const result = await Bun.build({
     entrypoints: ["./src/index.ts"],
@@ -76,7 +92,7 @@ for (const item of targets) {
       autoloadDotenv: false,
       autoloadTsconfig: true,
       autoloadPackageJson: true,
-      target: target.replace(binary, "bun") as Bun.Build.CompileTarget,
+      target: ["bun", ...targetParts(item)].join("-") as Bun.Build.CompileTarget,
       outfile: `./dist/${name}/bin/${binary}`,
       execArgv: [`--user-agent=${binary}/${Script.version}`, "--use-system-ca", "--"],
       windows: {},
