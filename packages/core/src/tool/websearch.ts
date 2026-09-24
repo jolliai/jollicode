@@ -14,6 +14,7 @@ import { Tools } from "./tools"
 import { collectBoundedResponseBody } from "./http-body"
 import { checksum } from "../util/encode"
 import { ToolRegistry } from "./registry"
+import { Brand } from "../brand"
 
 export const name = "websearch"
 export const NO_RESULTS = "No search results found. Please try a different query."
@@ -237,7 +238,7 @@ const layer = Layer.effectDiscard(
                         // V2 invocation context does not safely expose the model yet.
                       },
                       {
-                        "User-Agent": `opencode/${InstallationVersion}`,
+                        "User-Agent": Brand.userAgent(InstallationVersion),
                         ...(config.parallelApiKey ? { Authorization: `Bearer ${config.parallelApiKey}` } : {}),
                       },
                     )

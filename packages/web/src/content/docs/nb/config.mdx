@@ -43,7 +43,7 @@ For eksempel, hvis din globale konfigurasjon setter `theme: "jollicode"` og `aut
 
 Konfigurasjonskilder lastes inn i denne rekkefølgen (senere kilder overstyrer tidligere):
 
-1. **Ekstern konfigurasjon** (fra `.well-known/opencode`) - organisasjonsstandarder
+1. **Ekstern konfigurasjon** (fra `.well-known/jollicode`) - organisasjonsstandarder
 2. **Global konfigurasjon** (`~/.config/jollicode/opencode.json`) - brukerinnstillinger
 3. **Egendefinert konfigurasjon** (`OPENCODE_CONFIG` env var) - egendefinerte overstyringer
 4. **Prosjektkonfigurasjon** (`opencode.json` i prosjekt) - prosjektspesifikke innstillinger
@@ -60,13 +60,13 @@ Dette betyr at prosjektkonfigurasjoner kan overstyre globale standardinnstilling
 
 ### Ekstern konfigurasjon
 
-Organisasjoner kan tilby standardkonfigurasjon via `.well-known/opencode`-endepunktet. Dette hentes automatisk når du autentiserer med en leverandør som støtter det.
+Organisasjoner kan tilby standardkonfigurasjon via `.well-known/jollicode`-endepunktet. Dette hentes automatisk når du autentiserer med en leverandør som støtter det.
 
 Ekstern konfigurasjon lastes først, og fungerer som grunnlaget. Alle andre konfigurasjonskilder (global, prosjekt) kan overstyre disse standardinnstillingene.
 
 For eksempel, hvis organisasjonen din tilbyr MCP servere som er deaktivert som standard:
 
-```json title="Remote config from .well-known/opencode"
+```json title="Remote config from .well-known/jollicode"
 {
   "mcp": {
     "jira": {
@@ -202,7 +202,7 @@ Tilgjengelige alternativer:
 - `port` - Port å lytte på.
 - `hostname` - Vertsnavn å lytte på. Når `mdns` er aktivert og ingen vertsnavn er angitt, er standard `0.0.0.0`.
 - `mdns` - Aktiver mDNS-tjenesteoppdagelse. Dette lar andre enheter på nettverket oppdage Jolli Code-serveren din.
-- `mdnsDomain` - Egendefinert domenenavn for mDNS-tjeneste. Standard er `opencode.local`. Nyttig for å kjøre flere forekomster på samme nettverk.
+- `mdnsDomain` - Egendefinert domenenavn for mDNS-tjeneste. Standard er `jollicode.local`. Nyttig for å kjøre flere forekomster på samme nettverk.
 - `cors` - Ytterligere opprinnelser for å tillate CORS når du bruker HTTP-serveren fra en nettleserbasert klient. Verdiene må være fullstendige opprinnelser (skjema + vert + valgfri port), f.eks. `https://app.example.com`.
 
 [Les mer om serveren her](/docs/server).

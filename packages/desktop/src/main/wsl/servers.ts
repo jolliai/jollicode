@@ -16,6 +16,7 @@ import { getStore } from "../store"
 import { expectOpencodeVersion, pendingRestartAfterWslInstall, wslServerIdsToStartOnInitialize } from "./startup"
 import { clearWslDistroState, wslServerIdToRestart } from "./policy"
 import { nativeT } from "../native-translations"
+import { Brand } from "@opencode-ai/app/brand"
 import {
   installWslDistro,
   installWslJollicode,
@@ -177,7 +178,7 @@ export function createWslServersController(
       })
       .catch((error) => {
         const message = error instanceof Error ? error.message : String(error)
-        logger?.error("wsl opencode check failed", { id, distro, message })
+        logger?.error(`wsl ${Brand.bin} check failed`, { id, distro, message })
       })
   }
 
@@ -191,7 +192,7 @@ export function createWslServersController(
           })
           .catch((error) => {
             const message = error instanceof Error ? error.message : String(error)
-            logger?.error("wsl opencode check failed", {
+            logger?.error(`wsl ${Brand.bin} check failed`, {
               id: item.config.id,
               distro: item.config.distro,
               message,

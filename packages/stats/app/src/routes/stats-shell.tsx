@@ -13,7 +13,7 @@ export const githubLink = {
   fallbackStars: "195K",
 }
 export const themePreferences = ["dark", "light", "system"] as const
-export const themeStorageKey = "opencode:stats-theme"
+export const themeStorageKey = "jollicode:stats-theme"
 export type ThemePreference = (typeof themePreferences)[number]
 
 const compactNumberFormatter = new Intl.NumberFormat("en", {

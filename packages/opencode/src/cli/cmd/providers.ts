@@ -307,7 +307,7 @@ export const ProvidersLoginCommand = effectCmd({
   builder: (yargs: Argv) =>
     yargs
       .positional("url", {
-        describe: "opencode auth provider",
+        describe: `${Brand.name} auth provider`,
         type: "string",
       })
       .option("provider", {
@@ -328,7 +328,7 @@ export const ProvidersLoginCommand = effectCmd({
     if (args.url) {
       const url = args.url.replace(/\/+$/, "")
       const wellknown = (yield* cliTry(`Failed to load auth provider metadata from ${url}: `, () =>
-        fetch(`${url}/.well-known/opencode`).then((x) => x.json()),
+        fetch(`${url}/.well-known/${Brand.bin}`).then((x) => x.json()),
       )) as {
         auth: { command: string[]; env: string }
       }

@@ -4,6 +4,7 @@ import type { Hooks } from "@opencode-ai/plugin"
 import { Schema } from "effect"
 import { OAUTH_DUMMY_KEY } from "../auth"
 import { Process } from "../util/process"
+import { Brand } from "@opencode-ai/core/brand"
 
 const AZURE_COGNITIVE_SERVICES_SCOPE = "https://cognitiveservices.azure.com/.default"
 const AZURE_FOUNDRY_SCOPE = "https://ai.azure.com/.default"
@@ -65,7 +66,7 @@ export function createAzureAuthHooks(
             headers.delete("api-key")
             headers.delete("x-api-key")
             headers.set("authorization", `Bearer ${await token(scopeForRequest(input))}`)
-            headers.set("User-Agent", `opencode/${InstallationVersion}`)
+            headers.set("User-Agent", Brand.userAgent(InstallationVersion))
             return request(input, { ...init, headers })
           },
         }

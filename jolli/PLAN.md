@@ -52,7 +52,7 @@ is the presentation layer on top of it.
 
 - **Third-party org login is already built in.** `auth login <url>`
   ([`packages/opencode/src/cli/cmd/providers.ts:328`](packages/opencode/src/cli/cmd/providers.ts:328))
-  fetches `<url>/.well-known/opencode`, runs the `auth.command` it declares, captures stdout as
+  fetches `<url>/.well-known/jollicode`, runs the `auth.command` it declares, captures stdout as
   the token, and stores `{type:"wellknown", key, token}`. `WellKnown` is a first-class auth type
   in [`packages/opencode/src/auth/index.ts`](packages/opencode/src/auth/index.ts).
 - **Remote org config is already built in.** On every config load
@@ -89,7 +89,7 @@ instructor-set guardrails, that inversion is the demo's central credibility risk
 Per direction, **we are not building a mock gateway.** We code against its contract and ship a
 local fixture that satisfies it, so swapping to the real gateway is a one-URL change.
 
-Assumed contract at `GET /.well-known/opencode`:
+Assumed contract at `GET /.well-known/jollicode`:
 
 ```jsonc
 {

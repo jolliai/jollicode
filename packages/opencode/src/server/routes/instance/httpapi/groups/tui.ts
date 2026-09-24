@@ -7,6 +7,7 @@ import { InstanceContextMiddleware } from "../middleware/instance-context"
 import { WorkspaceRoutingMiddleware, WorkspaceRoutingQuery } from "../middleware/workspace-routing"
 import { ApiNotFoundError } from "../errors"
 import { described } from "./metadata"
+import { Brand } from "@opencode-ai/core/brand"
 
 const root = "/tui"
 export const CommandPayload = Schema.Struct({ command: Schema.String })
@@ -201,7 +202,7 @@ export const TuiApi = HttpApi.make("tui")
   )
   .annotateMerge(
     OpenApi.annotations({
-      title: "opencode experimental HttpApi",
+      title: `${Brand.name} experimental HttpApi`,
       version: "0.0.1",
       description: "Experimental HttpApi surface for selected instance routes.",
     }),

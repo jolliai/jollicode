@@ -42,7 +42,7 @@ Wenn Ihre globale Konfiguration beispielsweise `theme: "jollicode"` und `autoupd
 
 Konfigurationsquellen werden in dieser Reihenfolge geladen (spätere Quellen überschreiben frühere):
 
-1. **Remote-Konfiguration** (von `.well-known/opencode`) – Organisationsstandards
+1. **Remote-Konfiguration** (von `.well-known/jollicode`) – Organisationsstandards
 2. **Globale Konfiguration** (`~/.config/jollicode/opencode.json`) – Benutzereinstellungen
 3. **Benutzerdefinierte Konfiguration** (`OPENCODE_CONFIG` env var) – benutzerdefinierte Überschreibungen
 4. **Projektkonfiguration** (`opencode.json` im Projekt) – projektspezifische Einstellungen
@@ -59,13 +59,13 @@ Die Verzeichnisse `.jollicode` und `~/.config/jollicode` verwenden **Pluralnamen
 
 ### Remote
 
-Organisationen können die Standardkonfiguration über den Endpunkt `.well-known/opencode` bereitstellen. Dieser wird automatisch abgerufen, wenn Sie sich bei einem Anbieter authentifizieren, der dies unterstützt.
+Organisationen können die Standardkonfiguration über den Endpunkt `.well-known/jollicode` bereitstellen. Dieser wird automatisch abgerufen, wenn Sie sich bei einem Anbieter authentifizieren, der dies unterstützt.
 
 Zuerst wird die Remote-Konfiguration geladen, die als Basisschicht dient. Alle anderen Konfigurationsquellen (global, Projekt) können diese Standardeinstellungen überschreiben.
 
 Wenn Ihre Organisation beispielsweise MCP-Server bereitstellt, sind die standardmäßig deaktiviert:
 
-```json title="Remote config from .well-known/opencode"
+```json title="Remote config from .well-known/jollicode"
 {
   "mcp": {
     "jira": {
@@ -201,7 +201,7 @@ Verfügbare Optionen:
 - `port` – Port zum Abhören.
 - `hostname` – Hostname zum Abhören. Wenn `mdns` aktiviert ist und kein Hostname festgelegt ist, wird standardmäßig `0.0.0.0` verwendet.
 - `mdns` – mDNS-Diensterkennung aktivieren. Dadurch können andere Geräte im Netzwerk Ihres Jolli Code-Servers erkannt werden.
-- `mdnsDomain` – Benutzerdefinierter Domänenname für den mDNS-Dienst. Standardmäßig ist `opencode.local`. Nützlich für die Ausführung mehrerer Instanzen im selben Netzwerk.
+- `mdnsDomain` – Benutzerdefinierter Domänenname für den mDNS-Dienst. Standardmäßig ist `jollicode.local`. Nützlich für die Ausführung mehrerer Instanzen im selben Netzwerk.
 - `cors` – Zusätzliche Ursprünge, um CORS zu ermöglichen, wenn der HTTP-Server von einem browserbasierten Client aus verwendet wird. Die Werte müssen vollständige Ursprünge haben (Schema + Host + optionaler Port), z. B. `https://app.example.com`.
 
 [Erfahren Sie hier mehr über den Server](/docs/server).

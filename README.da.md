@@ -91,10 +91,6 @@ Læs mere om [agents](https://jolli.ai/docs/agents).
 
 For mere info om konfiguration af Jolli Code, [**se vores docs**](https://jolli.ai/docs).
 
-### Bidrag
-
-Hvis du vil bidrage til Jolli Code, så læs vores [contributing docs](./CONTRIBUTING.md) før du sender en pull request.
-
 ### Bygget på Jolli Code
 
-Hvis du arbejder på et projekt der er relateret til Jolli Code og bruger "jollicode" som en del af navnet; f.eks. "jollicode-dashboard" eller "jollicode-mobile", så tilføj en note i din README, der tydeliggør at projektet ikke er bygget af OpenCode-teamet og ikke er tilknyttet os på nogen måde.
+Hvis du arbejder på et projekt der er relateret til Jolli Code og bruger "jollicode" som en del af navnet; f.eks. "jollicode-dashboard" eller "jollicode-mobile", så tilføj en note i din README, der tydeliggør at projektet ikke er bygget af Jolli Code-teamet og ikke er tilknyttet os på nogen måde.

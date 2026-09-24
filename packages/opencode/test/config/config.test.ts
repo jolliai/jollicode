@@ -72,7 +72,7 @@ function remoteConfigClient(input: {
   seen: { wellKnown?: string; remote?: string; authorization?: string }
 }) {
   return HttpClient.make((request) => {
-    if (request.url.includes(".well-known/opencode")) {
+    if (request.url.includes(".well-known/jollicode")) {
       input.seen.wellKnown = request.url
       return Effect.succeed(json(request, input.wellKnown))
     }
@@ -1675,7 +1675,7 @@ remoteProjectOverride.it.instance(
   () =>
     Effect.gen(function* () {
       const config = yield* Config.use.get()
-      expect(remoteProjectOverride.seen.wellKnown).toBe("https://example.com/.well-known/opencode")
+      expect(remoteProjectOverride.seen.wellKnown).toBe("https://example.com/.well-known/jollicode")
       expect(config.mcp?.jira?.enabled).toBe(true)
     }),
   {
@@ -1694,7 +1694,7 @@ const trailingSlashWellKnown = wellKnown({
 trailingSlashWellKnown.it.instance("wellknown URL with trailing slash is normalized", () =>
   Effect.gen(function* () {
     yield* Config.use.get()
-    expect(trailingSlashWellKnown.seen.wellKnown).toBe("https://example.com/.well-known/opencode")
+    expect(trailingSlashWellKnown.seen.wellKnown).toBe("https://example.com/.well-known/jollicode")
   }),
 )
 
@@ -1721,7 +1721,7 @@ test("remote well-known config can use FetchHttpClient layer", async () => {
         Config.Service.use((svc) =>
           Effect.gen(function* () {
             const config = yield* svc.get()
-            expect(fetchedUrl).toBe(`${server.url.origin}/.well-known/opencode`)
+            expect(fetchedUrl).toBe(`${server.url.origin}/.well-known/jollicode`)
             expect(config.mcp?.jira?.enabled).toBe(true)
           }),
         ),
@@ -1759,7 +1759,7 @@ const templatedHeaderWellKnown = wellKnown({
 templatedHeaderWellKnown.it.instance("wellknown remote_config supports templated env vars in headers", () =>
   Effect.gen(function* () {
     const config = yield* Config.use.get()
-    expect(templatedHeaderWellKnown.seen.wellKnown).toBe("https://example.com/.well-known/opencode")
+    expect(templatedHeaderWellKnown.seen.wellKnown).toBe("https://example.com/.well-known/jollicode")
     expect(templatedHeaderWellKnown.seen.remote).toBe("https://config.example.com/opencode.json")
     expect(templatedHeaderWellKnown.seen.authorization).toBe("Bearer test-token")
     expect(config.mcp?.confluence?.enabled).toBe(true)

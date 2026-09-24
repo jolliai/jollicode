@@ -90,10 +90,6 @@ Jolli Code 内置两种 Agent，可用 `Tab` 键快速切换：
 
 更多配置说明请查看我们的 [**官方文档**](https://jolli.ai/docs)。
 
-### 参与贡献
-
-如有兴趣贡献代码，请在提交 PR 前阅读 [贡献指南 (Contributing Docs)](./CONTRIBUTING.md)。
-
 ### 基于 Jolli Code 进行开发
 
 如果你在项目名中使用了 “jollicode”（如 “jollicode-dashboard” 或 “jollicode-mobile”），请在 README 里注明该项目不是 Jolli Code 团队官方开发，且不存在隶属关系。

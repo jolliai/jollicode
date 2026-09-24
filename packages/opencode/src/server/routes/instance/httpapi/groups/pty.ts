@@ -13,6 +13,7 @@ import {
 } from "../middleware/workspace-routing"
 import { PtyForbiddenError, PtyNotFoundError } from "../errors"
 import { described } from "./metadata"
+import { Brand } from "@opencode-ai/core/brand"
 
 const root = "/pty"
 export const Params = Schema.Struct({ ptyID: PtyID })
@@ -58,7 +59,7 @@ export const PtyApi = HttpApi.make("pty")
           OpenApi.annotations({
             identifier: "pty.list",
             summary: "List PTY sessions",
-            description: "Get a list of all active pseudo-terminal (PTY) sessions managed by OpenCode.",
+            description: `Get a list of all active pseudo-terminal (PTY) sessions managed by ${Brand.name}.`,
           }),
         ),
         HttpApiEndpoint.post("create", PtyPaths.create, {
@@ -130,7 +131,7 @@ export const PtyApi = HttpApi.make("pty")
   )
   .annotateMerge(
     OpenApi.annotations({
-      title: "opencode experimental HttpApi",
+      title: `${Brand.name} experimental HttpApi`,
       version: "0.0.1",
       description: "Experimental HttpApi surface for selected instance routes.",
     }),

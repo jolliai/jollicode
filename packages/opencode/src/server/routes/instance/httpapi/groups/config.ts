@@ -6,6 +6,7 @@ import { Authorization } from "../middleware/authorization"
 import { InstanceContextMiddleware } from "../middleware/instance-context"
 import { WorkspaceRoutingMiddleware, WorkspaceRoutingQuery } from "../middleware/workspace-routing"
 import { described } from "./metadata"
+import { Brand } from "@opencode-ai/core/brand"
 
 const root = "/config"
 
@@ -20,7 +21,7 @@ export const ConfigApi = HttpApi.make("config")
           OpenApi.annotations({
             identifier: "config.get",
             summary: "Get configuration",
-            description: "Retrieve the current OpenCode configuration settings and preferences.",
+            description: `Retrieve the current ${Brand.name} configuration settings and preferences.`,
           }),
         ),
         HttpApiEndpoint.patch("update", root, {
@@ -32,7 +33,7 @@ export const ConfigApi = HttpApi.make("config")
           OpenApi.annotations({
             identifier: "config.update",
             summary: "Update configuration",
-            description: "Update OpenCode configuration settings and preferences.",
+            description: `Update ${Brand.name} configuration settings and preferences.`,
           }),
         ),
         HttpApiEndpoint.get("providers", `${root}/providers`, {
@@ -58,7 +59,7 @@ export const ConfigApi = HttpApi.make("config")
   )
   .annotateMerge(
     OpenApi.annotations({
-      title: "opencode experimental HttpApi",
+      title: `${Brand.name} experimental HttpApi`,
       version: "0.0.1",
       description: "Experimental HttpApi surface for selected instance routes.",
     }),

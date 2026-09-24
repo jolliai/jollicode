@@ -12,6 +12,7 @@ import { collectBoundedResponseBody } from "./http-body"
 import { ToolRegistry } from "./registry"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
+import { Brand } from "../brand"
 
 export const name = "webfetch"
 export const MAX_RESPONSE_BYTES = 5 * 1024 * 1024
@@ -147,7 +148,7 @@ const layer = Layer.effectDiscard(
 
               const { body, contentType } = yield* Effect.gen(function* () {
                 const response = yield* execute(http, input.url, input.format).pipe(
-                  Effect.catchIf(isCloudflareChallenge, () => execute(http, input.url, input.format, "opencode")),
+                  Effect.catchIf(isCloudflareChallenge, () => execute(http, input.url, input.format, Brand.bin)),
                 )
                 const contentType = response.headers["content-type"] || ""
                 const mime = mimeFrom(contentType)

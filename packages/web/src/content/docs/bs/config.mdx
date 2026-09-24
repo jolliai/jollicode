@@ -42,7 +42,7 @@ Na primjer, ako vaša globalna konfiguracija postavlja `autoupdate: true`, a va�
 
 Izvori konfiguracije se učitavaju ovim redoslijedom (kasniji izvori poništavaju ranije):
 
-1. **Udaljena konfiguracija** (od `.well-known/opencode`) - organizacijske postavke
+1. **Udaljena konfiguracija** (od `.well-known/jollicode`) - organizacijske postavke
 2. **Globalna konfiguracija** (`~/.config/jollicode/opencode.json`) - korisničke preferencije
 3. **Prilagođena konfiguracija** (`OPENCODE_CONFIG` env var) - prilagođena preinačenja
 4. **Konfiguracija projekta** (`opencode.json` u projektu) - postavke specifične za projekat
@@ -59,13 +59,13 @@ Direktoriji `.jollicode` i `~/.config/jollicode` koriste **imena u množini** za
 
 ### Udaljeno (Remote)
 
-Organizacije mogu pružiti zadanu konfiguraciju preko `.well-known/opencode` krajnje tačke. Ovo se automatski preuzima kada se autentifikujete kod provajdera koji to podržava.
+Organizacije mogu pružiti zadanu konfiguraciju preko `.well-known/jollicode` krajnje tačke. Ovo se automatski preuzima kada se autentifikujete kod provajdera koji to podržava.
 
 Prvo se učitava udaljena konfiguracija koja služi kao osnovni sloj. Svi ostali izvori konfiguracije (globalni, projektni) mogu nadjačati ove zadane postavke.
 
 Na primjer, ako vaša organizacija nudi MCP servere koji su po defaultu onemogućeni:
 
-```json title="Remote config from .well-known/opencode"
+```json title="Remote config from .well-known/jollicode"
 {
   "mcp": {
     "jira": {
@@ -200,7 +200,7 @@ Dostupne opcije:
 - `port` - Port za slušanje.
 - `hostname` - Hostname za slušanje. Kada je `mdns` omogućen i nije postavljeno ime hosta, podrazumevano je `0.0.0.0`.
 - `mdns` - Omogući mDNS otkrivanje servisa. Ovo omogućava drugim uređajima na mreži da otkriju vaš Jolli Code server.
-- `mdnsDomain` - Prilagođeno ime domene za mDNS servis. Zadano je `opencode.local`. Korisno za pokretanje više instanci na istoj mreži.
+- `mdnsDomain` - Prilagođeno ime domene za mDNS servis. Zadano je `jollicode.local`. Korisno za pokretanje više instanci na istoj mreži.
 - `cors` - Dodatni origini koji omogućavaju CORS kada koristite HTTP server iz klijenta baziranog na pretraživaču. Vrijednosti moraju biti puni origin (shema + host + opcijski port), npr. `https://app.example.com`.
 
 [Saznajte više o serveru ovdje](/docs/server).

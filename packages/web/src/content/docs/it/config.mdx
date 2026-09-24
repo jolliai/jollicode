@@ -42,7 +42,7 @@ Per esempio, se la tua configurazione globale imposta `autoupdate: true` e la co
 
 Le sorgenti di configurazione vengono caricate in questo ordine (le successive sovrascrivono le precedenti):
 
-1. **Config remota** (da `.well-known/opencode`) - default dell'organizzazione
+1. **Config remota** (da `.well-known/jollicode`) - default dell'organizzazione
 2. **Config globale** (`~/.config/jollicode/opencode.json`) - preferenze utente
 3. **Config personalizzata** (variabile d'ambiente `OPENCODE_CONFIG`) - sovrascritture personalizzate
 4. **Config di progetto** (`opencode.json` nel progetto) - impostazioni specifiche del progetto
@@ -59,13 +59,13 @@ Le directory `.jollicode` e `~/.config/jollicode` usano **nomi al plurale** per 
 
 ### Configurazione remota
 
-Le organizzazioni possono fornire una configurazione predefinita tramite l'endpoint `.well-known/opencode`. Viene recuperata automaticamente quando ti autentichi con un provider che lo supporta.
+Le organizzazioni possono fornire una configurazione predefinita tramite l'endpoint `.well-known/jollicode`. Viene recuperata automaticamente quando ti autentichi con un provider che lo supporta.
 
 La configurazione remota viene caricata per prima e fa da livello base. Tutte le altre sorgenti (globale, progetto) possono sovrascrivere questi default.
 
 Per esempio, se la tua organizzazione fornisce server MCP disabilitati per impostazione predefinita:
 
-```json title="Remote config from .well-known/opencode"
+```json title="Remote config from .well-known/jollicode"
 {
   "mcp": {
     "jira": {
@@ -200,7 +200,7 @@ Opzioni disponibili:
 - `port` - Porta su cui ascoltare.
 - `hostname` - Nome host su cui ascoltare. Quando `mdns` e abilitato e non e impostato alcun hostname, il default e `0.0.0.0`.
 - `mdns` - Abilita la scoperta del servizio mDNS. Questo permette ad altri dispositivi sulla rete di scoprire il tuo server Jolli Code.
-- `mdnsDomain` - Nome di dominio personalizzato per il servizio mDNS. Predefinito: `opencode.local`. Utile per eseguire piu istanze sulla stessa rete.
+- `mdnsDomain` - Nome di dominio personalizzato per il servizio mDNS. Predefinito: `jollicode.local`. Utile per eseguire piu istanze sulla stessa rete.
 - `cors` - Origini aggiuntive da consentire per CORS quando usi il server HTTP da un client basato su browser. I valori devono essere origini complete (schema + host + porta opzionale), ad es. `https://app.example.com`.
 
 [Scopri di piu sul server](/docs/server).

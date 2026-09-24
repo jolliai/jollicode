@@ -91,10 +91,6 @@ Tìm hiểu thêm về [agents](https://jolli.ai/docs/agents).
 
 Để biết thêm thông tin về cách cấu hình Jolli Code, [**hãy truy cập tài liệu của chúng tôi**](https://jolli.ai/docs).
 
-### Đóng góp
-
-Nếu bạn muốn đóng góp cho Jolli Code, vui lòng đọc [tài liệu hướng dẫn đóng góp](./CONTRIBUTING.md) trước khi gửi pull request.
-
 ### Xây dựng trên nền tảng Jolli Code
 
 Nếu bạn đang làm việc trên một dự án liên quan đến Jolli Code và sử dụng "jollicode" như một phần của tên dự án, ví dụ "jollicode-dashboard" hoặc "jollicode-mobile", vui lòng thêm một ghi chú vào README của bạn để làm rõ rằng dự án đó không được xây dựng bởi đội ngũ Jolli Code và không liên kết với chúng tôi dưới bất kỳ hình thức nào.

@@ -2,6 +2,7 @@ import os from "os"
 import { InstallationVersion } from "../../installation/version"
 import { Effect, Option, Schema } from "effect"
 import { define } from "../internal"
+import { Brand } from "../../brand"
 
 export const CloudflareAIGatewayPlugin = define({
   id: "cloudflare-ai-gateway",
@@ -77,7 +78,7 @@ function gatewayOptions(options: Record<string, unknown>, metadata: unknown) {
     skipCache: options.skipCache,
     collectLog: options.collectLog,
     headers: {
-      "User-Agent": `opencode/${InstallationVersion} cloudflare-ai-gateway (${os.platform()} ${os.release()}; ${os.arch()})`,
+      "User-Agent": `${Brand.userAgent(InstallationVersion)} cloudflare-ai-gateway (${os.platform()} ${os.release()}; ${os.arch()})`,
     },
   }
 }

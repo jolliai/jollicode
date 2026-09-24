@@ -42,7 +42,7 @@ Yapılandırma dosyaları değiştirilmez, birleştirilir. Aşağıdaki yapılan
 
 Yapılandırma kaynakları bu sırayla yüklenir (sonraki kaynaklar öncekileri geçersiz kılar):
 
-1. **Uzak yapılandırma** (`.well-known/opencode`'dan) - kurumsal varsayılanlar
+1. **Uzak yapılandırma** (`.well-known/jollicode`'dan) - kurumsal varsayılanlar
 2. **Genel yapılandırma** (`~/.config/jollicode/opencode.json`) - kullanıcı tercihleri
 3. **Özel yapılandırma** (`OPENCODE_CONFIG` env var) - özel geçersiz kılmalar
 4. **Proje yapılandırması** (projedeki `opencode.json`) - projeye özgü ayarlar
@@ -59,13 +59,13 @@ Bu, proje yapılandırmalarının genel varsayılanları geçersiz kılabileceğ
 
 ### Uzak
 
-Kuruluşlar, `.well-known/opencode` uç noktası aracılığıyla varsayılan yapılandırmayı sağlayabilir. Bu, onu destekleyen bir sağlayıcıyla kimlik doğrulaması yaptığınızda otomatik olarak alınır.
+Kuruluşlar, `.well-known/jollicode` uç noktası aracılığıyla varsayılan yapılandırmayı sağlayabilir. Bu, onu destekleyen bir sağlayıcıyla kimlik doğrulaması yaptığınızda otomatik olarak alınır.
 
 Uzak yapılandırma ilk olarak yüklenir ve temel katman görevi görür. Diğer tüm yapılandırma kaynakları (genel, proje) bu varsayılanları geçersiz kılabilir.
 
 Örneğin, kuruluşunuz varsayılan olarak devre dışı bırakılan MCP sunucuları sağlıyorsa:
 
-```json title="Remote config from .well-known/opencode"
+```json title="Remote config from .well-known/jollicode"
 {
   "mcp": {
     "jira": {
@@ -201,7 +201,7 @@ Mevcut seçenekler:
 - `port` - Dinlenecek port.
 - `hostname` - Dinlenecek ana bilgisayar adı. `mdns` etkinleştirildiğinde ve hiçbir ana bilgisayar adı ayarlanmadığında, varsayılan değer `0.0.0.0` olur.
 - `mdns` - mDNS hizmet bulmayı etkinleştirin. Bu, ağdaki diğer cihazların Jolli Code sunucunuzu keşfetmesine olanak tanır.
-- `mdnsDomain` - mDNS hizmeti için özel alan adı. Varsayılan olarak `opencode.local` şeklindedir. Aynı ağda birden fazla örneği çalıştırmak için kullanışlıdır.
+- `mdnsDomain` - mDNS hizmeti için özel alan adı. Varsayılan olarak `jollicode.local` şeklindedir. Aynı ağda birden fazla örneği çalıştırmak için kullanışlıdır.
 - `cors` - Tarayıcı tabanlı bir istemciden HTTP sunucusunu kullanırken CORS'ye izin verecek ek kaynaklar. Değerler tam kaynaklar olmalıdır (şema + ana bilgisayar + isteğe bağlı bağlantı noktası), örneğin `https://app.example.com`.
 
 [Sunucu hakkında daha fazla bilgi](/docs/server).

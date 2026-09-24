@@ -20,6 +20,7 @@ import { Global } from "@opencode-ai/core/global"
 import { modify, applyEdits } from "jsonc-parser"
 import { Filesystem } from "@/util/filesystem"
 import { Effect } from "effect"
+import { Brand } from "@opencode-ai/core/brand"
 
 function getAuthStatusIcon(status: MCP.AuthStatus): string {
   switch (status) {
@@ -119,7 +120,7 @@ export const McpListCommand = effectCmd({
 
     if (servers.length === 0) {
       prompts.log.warn("No MCP servers configured")
-      prompts.outro("Add servers with: opencode mcp add")
+      prompts.outro(`Add servers with: ${Brand.bin} mcp add`)
       return
     }
 
@@ -559,7 +560,7 @@ export const McpAddCommand = effectCmd({
       if (type === "local") {
         const command = await prompts.text({
           message: "Enter command to run",
-          placeholder: "e.g., opencode x @modelcontextprotocol/server-filesystem",
+          placeholder: `e.g., ${Brand.bin} x @modelcontextprotocol/server-filesystem`,
           validate: (x) => (x && x.length > 0 ? undefined : "Required"),
         })
         if (prompts.isCancel(command)) throw new UI.CancelledError()
@@ -746,7 +747,7 @@ export const McpDebugCommand = effectCmd({
             params: {
               protocolVersion: LATEST_PROTOCOL_VERSION,
               capabilities: {},
-              clientInfo: { name: "opencode-debug", version: InstallationVersion },
+              clientInfo: { name: `${Brand.bin}-debug`, version: InstallationVersion },
             },
             id: 1,
           }),
@@ -790,7 +791,7 @@ export const McpDebugCommand = effectCmd({
 
           try {
             const client = new Client({
-              name: "opencode-debug",
+              name: `${Brand.bin}-debug`,
               version: InstallationVersion,
             })
             await client.connect(transport)

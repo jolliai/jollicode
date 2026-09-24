@@ -3,6 +3,7 @@ import type { Model } from "@opencode-ai/sdk/v2"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { OauthCallbackPage } from "@opencode-ai/core/oauth/page"
 import { createServer } from "http"
+import { Brand } from "@opencode-ai/core/brand"
 
 const DO_OAUTH_CLIENT_ID = "b1a6c5158156caac821fd1b30253ca8acb52454a48fa744420e41889cb589f82"
 const DO_AUTHORIZE_URL = "https://cloud.digitalocean.com/v1/oauth/authorize"
@@ -170,7 +171,7 @@ async function listRouters(
     headers: {
       Authorization: `Bearer ${bearer}`,
       Accept: "application/json",
-      "User-Agent": `opencode/${InstallationVersion}`,
+      "User-Agent": Brand.userAgent(InstallationVersion),
     },
     signal: AbortSignal.timeout(10_000),
   }).catch(() => undefined)

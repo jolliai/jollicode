@@ -2,6 +2,8 @@ import { onCleanup, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Option, Schema, SchemaGetter } from "effect"
 import { isRecord } from "../util/record"
+import { Brand } from "@opencode-ai/core/brand"
+import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { useTuiPaths } from "./runtime"
 import { createSimpleContext } from "./helper"
 import { editorIntegration } from "../editor"
@@ -225,7 +227,7 @@ export const { use: useEditorContext, provider: EditorContextProvider } = create
         request("initialize", {
           protocolVersion: MCP_PROTOCOL_VERSION,
           capabilities: {},
-          clientInfo: { name: "opencode", version: "0.0.0" },
+          clientInfo: { name: Brand.bin, version: InstallationVersion },
         })
       })
 

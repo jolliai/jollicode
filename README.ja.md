@@ -91,10 +91,6 @@ Jolli Code には組み込みの Agent が2つあり、`Tab` キーで切り替�
 
 Jolli Code の設定については [**ドキュメント**](https://jolli.ai/docs) を参照してください。
 
-### コントリビュート
-
-Jolli Code に貢献したい場合は、Pull Request を送る前に [contributing docs](./CONTRIBUTING.md) を読んでください。
-
 ### Jolli Code の上に構築する
 
 Jolli Code に関連するプロジェクトで、名前に "jollicode"（例: "jollicode-dashboard" や "jollicode-mobile"）を含める場合は、そのプロジェクトが Jolli Code チームによって作られたものではなく、いかなる形でも関係がないことを README に明記してください。

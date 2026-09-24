@@ -6,6 +6,7 @@ import DESCRIPTION from "./websearch.txt"
 import { checksum } from "@opencode-ai/core/util/encode"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { RuntimeFlags } from "@/effect/runtime-flags"
+import { Brand } from "@opencode-ai/core/brand"
 
 export const Parameters = Schema.Struct({
   query: Schema.String.annotate({ description: "Websearch query" }),
@@ -52,7 +53,7 @@ export function webSearchModelName(extra: Tool.Context["extra"]) {
 }
 
 function parallelAuthHeaders() {
-  const headers = { "User-Agent": `opencode/${InstallationVersion}` }
+  const headers = { "User-Agent": Brand.userAgent(InstallationVersion) }
   if (!process.env.PARALLEL_API_KEY) return headers
   return { ...headers, Authorization: `Bearer ${process.env.PARALLEL_API_KEY}` }
 }

@@ -91,10 +91,6 @@ Mehr dazu unter [Agents](https://jolli.ai/docs/agents).
 
 Mehr Infos zur Konfiguration von Jolli Code findest du in unseren [**Docs**](https://jolli.ai/docs).
 
-### Beitragen
-
-Wenn du zu Jolli Code beitragen möchtest, lies bitte unsere [Contributing Docs](./CONTRIBUTING.md), bevor du einen Pull Request einreichst.
-
 ### Auf Jolli Code aufbauen
 
-Wenn du an einem Projekt arbeitest, das mit Jolli Code zusammenhängt und "jollicode" als Teil seines Namens verwendet (z.B. "jollicode-dashboard" oder "jollicode-mobile"), füge bitte einen Hinweis in deine README ein, dass es nicht vom OpenCode-Team gebaut wird und nicht in irgendeiner Weise mit uns verbunden ist.
+Wenn du an einem Projekt arbeitest, das mit Jolli Code zusammenhängt und "jollicode" als Teil seines Namens verwendet (z.B. "jollicode-dashboard" oder "jollicode-mobile"), füge bitte einen Hinweis in deine README ein, dass es nicht vom Jolli Code-Team gebaut wird und nicht in irgendeiner Weise mit uns verbunden ist.

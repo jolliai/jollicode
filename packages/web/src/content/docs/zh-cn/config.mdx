@@ -42,7 +42,7 @@ Jolli Code 支持 **JSON** 和 **JSONC**（带注释的 JSON）格式。
 
 配置源按以下顺序加载（后面的源覆盖前面的源）：
 
-1. **远程配置**（来自 `.well-known/opencode`）- 组织默认值
+1. **远程配置**（来自 `.well-known/jollicode`）- 组织默认值
 2. **全局配置**（`~/.config/jollicode/opencode.json`）- 用户偏好
 3. **自定义配置**（`OPENCODE_CONFIG` 环境变量）- 自定义覆盖
 4. **项目配置**（项目中的 `opencode.json`）- 项目特定设置
@@ -59,13 +59,13 @@ Jolli Code 支持 **JSON** 和 **JSONC**（带注释的 JSON）格式。
 
 ### 远程
 
-组织可以通过 `.well-known/opencode` 端点提供默认配置。当您使用支持该功能的提供商进行身份验证时，会自动获取此配置。
+组织可以通过 `.well-known/jollicode` 端点提供默认配置。当您使用支持该功能的提供商进行身份验证时，会自动获取此配置。
 
 远程配置最先加载，作为基础层。所有其他配置源（全局、项目）都可以覆盖这些默认值。
 
 例如，如果您的组织提供了默认禁用的 MCP 服务器：
 
-```json title="Remote config from .well-known/opencode"
+```json title="Remote config from .well-known/jollicode"
 {
   "mcp": {
     "jira": {
@@ -198,7 +198,7 @@ jollicode run "Hello world"
 - `port` - 监听端口。
 - `hostname` - 监听主机名。当 `mdns` 启用且未设置主机名时，默认为 `0.0.0.0`。
 - `mdns` - 启用 mDNS 服务发现。这允许网络上的其他设备发现您的 Jolli Code 服务器。
-- `mdnsDomain` - mDNS 服务的自定义域名。默认为 `opencode.local`。适用于在同一网络上运行多个实例的场景。
+- `mdnsDomain` - mDNS 服务的自定义域名。默认为 `jollicode.local`。适用于在同一网络上运行多个实例的场景。
 - `cors` - 从基于浏览器的客户端使用 HTTP 服务器时允许 CORS 的额外来源。值必须是完整的来源（协议 + 主机 + 可选端口），例如 `https://app.example.com`。
 
 [在此了解更多关于服务器的信息](/docs/server)。

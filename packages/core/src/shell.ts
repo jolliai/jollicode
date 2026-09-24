@@ -6,6 +6,7 @@ import { readFile } from "fs/promises"
 import { statSync } from "fs"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Flag } from "./flag/flag"
+import { Brand } from "./brand"
 import { FSUtil } from "./fs-util"
 import { which } from "./util/which"
 
@@ -176,7 +177,7 @@ export function args(file: string, command: string, cwd: string) {
         cd -- "$1"
         eval ${JSON.stringify(command)}
       `,
-      "opencode",
+      Brand.bin,
       cwd,
     ]
   }
@@ -190,7 +191,7 @@ export function args(file: string, command: string, cwd: string) {
         cd -- "$1"
         eval ${JSON.stringify(command)}
       `,
-      "opencode",
+      Brand.bin,
       cwd,
     ]
   }

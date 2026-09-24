@@ -10,6 +10,7 @@ import { ModelV2 } from "../../model"
 import { OauthCallbackPage } from "../../oauth/page"
 import { ProviderV2 } from "../../provider"
 import type { PluginInternal } from "../internal"
+import { Brand } from "../../brand"
 
 const clientID = "app_EMoamEEZ73f0CkXaXp7hrann"
 const issuer = "https://auth.openai.com"
@@ -189,7 +190,7 @@ export const OpenAIPlugin = define({
 } satisfies PluginInternal.Plugin<PluginInternal.Requirements | Scope.Scope>)
 
 function headers(contentType: string) {
-  return { "Content-Type": contentType, "User-Agent": `opencode/${InstallationVersion}` }
+  return { "Content-Type": contentType, "User-Agent": Brand.userAgent(InstallationVersion) }
 }
 
 function exchange(code: string, redirect: string, pkce: Pkce) {
@@ -268,7 +269,7 @@ function authorizeURL(redirect: string, pkce: Pkce, state: string) {
     id_token_add_organizations: "true",
     codex_cli_simplified_flow: "true",
     state,
-    originator: "opencode",
+    originator: Brand.bin,
   })}`
 }
 

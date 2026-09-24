@@ -45,6 +45,7 @@ import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { Provider } from "@/provider/provider"
 import type { Command } from "@/command"
+import { Brand } from "@opencode-ai/core/brand"
 
 export const AuthMethodID = "opencode-login"
 
@@ -94,17 +95,17 @@ export function make(input: {
   const initialize = Effect.fn("ACP.initialize")(function* (params: InitializeRequest) {
     const started = performance.now()
     const authMethod: AuthMethod = {
-      description: "Run `opencode auth login` in the terminal",
-      name: "Login with opencode",
+      description: `Run \`${Brand.bin} auth login\` in the terminal`,
+      name: `Login with ${Brand.name}`,
       id: AuthMethodID,
     }
 
     if (params.clientCapabilities?._meta?.["terminal-auth"] === true) {
       authMethod._meta = {
         "terminal-auth": {
-          command: "opencode",
+          command: Brand.bin,
           args: ["auth", "login"],
-          label: "OpenCode Login",
+          label: `${Brand.name} Login`,
         },
       }
     }
@@ -130,7 +131,7 @@ export function make(input: {
       },
       authMethods: [authMethod],
       agentInfo: {
-        name: "OpenCode",
+        name: Brand.name,
         version: InstallationVersion,
       },
     }
@@ -889,7 +890,7 @@ const promptResponse = Effect.fn("ACP.promptResponse")(function* (
 
 function promptErrorMessage(error: AssistantError) {
   if ("message" in error.data && typeof error.data.message === "string") return error.data.message
-  return "OpenCode prompt failed"
+  return `${Brand.name} prompt failed`
 }
 
 function sendUsageUpdate(
@@ -1188,7 +1189,7 @@ function fromUnknownError(error: unknown, service?: string): Error {
   if (isAuthRequired(error)) {
     return new ACPError.AuthRequiredError({ providerId: findProviderID(error) })
   }
-  return new ACPError.ServiceFailureError({ safeMessage: "OpenCode service failure", service })
+  return new ACPError.ServiceFailureError({ safeMessage: `${Brand.name} service failure`, service })
 }
 
 function isACPError(error: unknown): error is Error {

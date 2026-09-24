@@ -24,7 +24,7 @@ export function createBuiltinPlugins(options: { experimentalEventSystem: boolean
     SidebarContext,
     SidebarMcp,
     // ⚠ NO LSP SECTION. LSP is off unless config turns it on, and a student has nothing to act on
-    // there; `./sidebar/lsp.tsx` is kept unregistered to stay close to upstream.
+    // there, so the upstream `./sidebar/lsp.tsx` plugin was removed.
     SidebarTodo,
     SidebarFiles,
     SidebarFooter,

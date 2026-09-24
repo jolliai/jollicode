@@ -3,6 +3,7 @@
   "name": "@opencode-ai/script",
   "license": "UNLICENSED",
   "dependencies": {
+    "@opencode-ai/core": "workspace:*",
     "semver": "^7.6.3"
   },
   "devDependencies": {
