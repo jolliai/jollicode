@@ -611,6 +611,166 @@
         ]
       }
     },
+    "/jolli/session/{sessionID}/share": {
+      "get": {
+        "tags": ["jolli"],
+        "operationId": "jolli.share",
+        "parameters": [
+          {
+            "name": "sessionID",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Who can read the session, and who in its course it could be shown to",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JolliSessionShare"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        },
+        "description": "The Jolli readers of one of the signed-in student's sessions, plus the members of the session's course it could still be shared with. Answers `unsynced` while the gateway has no conversation for the session yet and `unreachable` when there is no credential or the gateway did not answer, rather than an error.",
+        "summary": "Read a session's readers",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.jolli.share({\n  ...\n})"
+          }
+        ]
+      },
+      "post": {
+        "tags": ["jolli"],
+        "operationId": "jolli.shareAdd",
+        "parameters": [
+          {
+            "name": "sessionID",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The session's readers after the grant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JolliSessionShare"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Grants one course member, or the whole class (`everyone`), read access to the session on Jolli. A refusal answers `refused` with the reason in `refusal`.",
+        "summary": "Share a session",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "subject": {
+                    "$ref": "#/components/schemas/JolliShareSubject"
+                  }
+                },
+                "required": ["subject"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.jolli.shareAdd({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/jolli/session/{sessionID}/share/{subject}": {
+      "delete": {
+        "tags": ["jolli"],
+        "operationId": "jolli.shareRemove",
+        "parameters": [
+          {
+            "name": "sessionID",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "name": "subject",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The session's readers after the grant is withdrawn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JolliSessionShare"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestError"
+                }
+              }
+            }
+          }
+        },
+        "description": "Withdraws one reader's grant — a user id, or `everyone` for the class. Withdrawing a grant that was not there is not an error.",
+        "summary": "Stop sharing a session",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createOpencodeClient } from \"@opencode-ai/sdk\n\nconst client = createOpencodeClient()\nawait client.jolli.shareRemove({\n  ...\n})"
+          }
+        ]
+      }
+    },
     "/event": {
       "get": {
         "tags": ["event"],
@@ -27132,10 +27292,6 @@
         "type": "string",
         "enum": ["open", "draft", "not-yet", "ended", "archived"]
       },
-      "JolliChatSharing": {
-        "type": "string",
-        "enum": ["private", "staff", "staff-required"]
-      },
       "JolliCourse": {
         "type": "object",
         "properties": {
@@ -27172,28 +27328,35 @@
           },
           "endsOn": {
             "type": "string"
-          },
-          "chatSharing": {
-            "$ref": "#/components/schemas/JolliChatSharing"
           }
         },
-        "required": [
-          "id",
-          "code",
-          "title",
-          "kind",
-          "accent",
-          "assistantIds",
-          "status",
-          "entryState",
-          "endsOn",
-          "chatSharing"
-        ],
+        "required": ["id", "code", "title", "kind", "accent", "assistantIds", "status", "entryState", "endsOn"],
         "additionalProperties": false
       },
       "JolliAssistantKind": {
         "type": "string",
         "enum": ["standard", "code"]
+      },
+      "JolliAssistantIcon": {
+        "type": "string",
+        "enum": [
+          "Sparkles",
+          "Gavel",
+          "FlaskConical",
+          "Clock",
+          "GitPullRequest",
+          "Terminal",
+          "MessageCircleQuestion",
+          "Presentation",
+          "UserCheck",
+          "BookOpen",
+          "Compass",
+          "Lightbulb",
+          "Microscope",
+          "PenLine",
+          "Scale",
+          "Users"
+        ]
       },
       "JolliAssistantGuardrails": {
         "type": "object",
@@ -27267,6 +27430,9 @@
           "blurb": {
             "type": "string"
           },
+          "icon": {
+            "$ref": "#/components/schemas/JolliAssistantIcon"
+          },
           "accent": {
             "$ref": "#/components/schemas/JolliAccent"
           },
@@ -27297,9 +27463,6 @@
               "$ref": "#/components/schemas/JolliAssistantSkill"
             }
           },
-          "chatSharing": {
-            "$ref": "#/components/schemas/JolliChatSharing"
-          },
           "status": {
             "type": "string",
             "enum": ["draft", "live", "paused"]
@@ -27311,6 +27474,7 @@
           "name",
           "kind",
           "blurb",
+          "icon",
           "accent",
           "instructions",
           "allowedModelIds",
@@ -27367,6 +27531,137 @@
         },
         "required": ["status", "courses", "assistants", "modelTiers"],
         "additionalProperties": false
+      },
+      "JolliShareStatus": {
+        "type": "string",
+        "enum": ["ok", "unsynced", "unreachable", "refused"]
+      },
+      "JolliShareAccess": {
+        "type": "string",
+        "enum": ["view", "comment"]
+      },
+      "JolliSessionReader": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["person"]
+              },
+              "userId": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              },
+              "access": {
+                "$ref": "#/components/schemas/JolliShareAccess"
+              }
+            },
+            "required": ["kind", "userId", "name", "access"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": ["class"]
+              },
+              "classSize": {
+                "type": "integer"
+              },
+              "access": {
+                "$ref": "#/components/schemas/JolliShareAccess"
+              }
+            },
+            "required": ["kind", "classSize", "access"],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "JolliShareMember": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["staff", "student"]
+          }
+        },
+        "required": ["userId", "name", "kind"],
+        "additionalProperties": false
+      },
+      "JolliShareRefusal": {
+        "type": "string",
+        "enum": [
+          "access_not_writable",
+          "subject_not_in_course",
+          "subject_is_owner",
+          "conversation_has_no_course",
+          "unknown"
+        ]
+      },
+      "JolliSessionShare": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/JolliShareStatus"
+          },
+          "courseId": {
+            "type": "integer"
+          },
+          "courseCode": {
+            "type": "string"
+          },
+          "readers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JolliSessionReader"
+            }
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JolliShareMember"
+            }
+          },
+          "classSize": {
+            "type": "integer"
+          },
+          "roster": {
+            "type": "string",
+            "enum": ["ok", "unavailable"]
+          },
+          "refusal": {
+            "$ref": "#/components/schemas/JolliShareRefusal"
+          }
+        },
+        "required": ["status", "courseId", "courseCode", "readers", "members", "classSize", "roster"],
+        "additionalProperties": false
+      },
+      "JolliShareSubject": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string",
+            "enum": ["everyone"]
+          }
+        ]
       },
       "ProjectDirectories": {
         "type": "array",
@@ -37109,7 +37404,7 @@
     },
     {
       "name": "jolli",
-      "description": "Jolli Code course and assistant routes."
+      "description": "Jolli Code course, assistant and session-share routes."
     },
     {
       "name": "event",

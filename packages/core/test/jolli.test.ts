@@ -257,6 +257,11 @@ describe("jolliBaseConfig", () => {
     expect(config.provider?.[JOLLI_ANTHROPIC]?.models).toEqual({ "course-model": { name: "Course Model" } })
   })
 
+  test("turns upstream's cloud share off whether or not the student is signed in", () => {
+    expect(jolliBaseConfig({ signedIn: false }).share).toBe("disabled")
+    expect(jolliBaseConfig({ signedIn: true, models: MODELS }).share).toBe("disabled")
+  })
+
   test("omits the skills key rather than declaring an empty path list", () => {
     expect(jolliBaseConfig({ signedIn: true, models: MODELS })).not.toHaveProperty("skills")
     expect(jolliBaseConfig({ signedIn: true, models: MODELS, skillsDir: "/tmp/skills" }).skills).toEqual({

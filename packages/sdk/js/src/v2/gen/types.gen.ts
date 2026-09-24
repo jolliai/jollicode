@@ -3855,8 +3855,6 @@ export type JolliAccent = 1 | 2 | 3 | 4 | 5
 
 export type JolliCourseEntryState = "open" | "draft" | "not-yet" | "ended" | "archived"
 
-export type JolliChatSharing = "private" | "staff" | "staff-required"
-
 export type JolliCourse = {
   id: string
   code: string
@@ -3868,7 +3866,6 @@ export type JolliCourse = {
   status: "draft" | "published" | "archived"
   entryState: JolliCourseEntryState
   endsOn: string
-  chatSharing: JolliChatSharing
 }
 
 export type JolliAssistantKind = "standard" | "code"
@@ -3926,7 +3923,6 @@ export type JolliAssistant = {
   guardrails: JolliAssistantGuardrails
   coaching: JolliCoachingRubric
   skills: Array<JolliAssistantSkill>
-  chatSharing?: JolliChatSharing
   status: "draft" | "live" | "paused"
 }
 
@@ -3947,6 +3943,51 @@ export type JolliCatalog = {
   viewer?: JolliViewer
   account?: string
 }
+
+export type JolliShareStatus = "ok" | "unsynced" | "unreachable" | "refused"
+
+export type JolliShareAccess = "view" | "comment"
+
+export type JolliSessionReader =
+  | {
+      kind: "person"
+      userId: number
+      name: string
+      detail?: string
+      access: JolliShareAccess
+    }
+  | {
+      kind: "class"
+      classSize: number
+      access: JolliShareAccess
+    }
+
+export type JolliShareMember = {
+  userId: number
+  name: string
+  detail?: string
+  kind: "staff" | "student"
+}
+
+export type JolliShareRefusal =
+  | "access_not_writable"
+  | "subject_not_in_course"
+  | "subject_is_owner"
+  | "conversation_has_no_course"
+  | "unknown"
+
+export type JolliSessionShare = {
+  status: JolliShareStatus
+  courseId: number
+  courseCode: string
+  readers: Array<JolliSessionReader>
+  members: Array<JolliShareMember>
+  classSize: number
+  roster: "ok" | "unavailable"
+  refusal?: JolliShareRefusal
+}
+
+export type JolliShareSubject = number | "everyone"
 
 export type ProjectDirectories = Array<{
   directory: string
@@ -7517,6 +7558,90 @@ export type JolliCourseResponses = {
 }
 
 export type JolliCourseResponse = JolliCourseResponses[keyof JolliCourseResponses]
+
+export type JolliShareData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/jolli/session/{sessionID}/share"
+}
+
+export type JolliShareErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliShareError = JolliShareErrors[keyof JolliShareErrors]
+
+export type JolliShareResponses = {
+  /**
+   * Who can read the session, and who in its course it could be shown to
+   */
+  200: JolliSessionShare
+}
+
+export type JolliShareResponse = JolliShareResponses[keyof JolliShareResponses]
+
+export type JolliShareAddData = {
+  body?: {
+    subject: JolliShareSubject
+  }
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/jolli/session/{sessionID}/share"
+}
+
+export type JolliShareAddErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliShareAddError = JolliShareAddErrors[keyof JolliShareAddErrors]
+
+export type JolliShareAddResponses = {
+  /**
+   * The session's readers after the grant
+   */
+  200: JolliSessionShare
+}
+
+export type JolliShareAddResponse = JolliShareAddResponses[keyof JolliShareAddResponses]
+
+export type JolliShareRemoveData = {
+  body?: never
+  path: {
+    sessionID: string
+    subject: string
+  }
+  query?: never
+  url: "/jolli/session/{sessionID}/share/{subject}"
+}
+
+export type JolliShareRemoveErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliShareRemoveError = JolliShareRemoveErrors[keyof JolliShareRemoveErrors]
+
+export type JolliShareRemoveResponses = {
+  /**
+   * The session's readers after the grant is withdrawn
+   */
+  200: JolliSessionShare
+}
+
+export type JolliShareRemoveResponse = JolliShareRemoveResponses[keyof JolliShareRemoveResponses]
 
 export type EventSubscribeData = {
   body?: never

@@ -1,7 +1,15 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
 import { HttpClient, HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
-import { fetchCourses, fetchModelIndex, gatewayRequest, JolliApiError } from "../src/jolli/api"
+import {
+  fetchConversationVisibility,
+  fetchCourses,
+  fetchModelIndex,
+  gatewayRequest,
+  JolliApiError,
+  shareConversation,
+  unshareConversation,
+} from "../src/jolli/api"
 
 /** Something to send, and something to file the snapshot under. See `GatewayRequest.identity`. */
 const CREDENTIAL = { token: "jwt", identity: "student-a" }
@@ -192,5 +200,54 @@ describe("fetchModelIndex", () => {
     )
     expect(error).toBeInstanceOf(JolliApiError)
     expect(error.status).toBeUndefined()
+  })
+})
+
+describe("the session-share calls", () => {
+  const request = { origin: "https://acme.jolli.ai", tenantSlug: "acme", token: "jwt", identity: "student-a" }
+  const visibility = { courseCode: "CS 310", courseId: 7, mayControl: true, shares: [] }
+
+  test("reads only the visibility off the conversation detail", async () => {
+    const http = stub(() => json({ publicSessionId: "ses_1", timeline: [{ huge: true }], visibility }))
+    const result = await Effect.runPromise(fetchConversationVisibility(request, "ses_1").pipe(Effect.provide(http.layer)))
+    expect(result).toEqual(visibility)
+    expect(http.seen[0]?.url).toBe("https://acme.jolli.ai/api/agent/convos/ses_1")
+    expect(http.seen[0]?.headers["x-tenant-slug"]).toBe("acme")
+  })
+
+  /**
+   * ⚠ THE CLASS GOES OUT UNDER `subjectUserId`, THE FIELD'S DEPLOYED NAME. jolliedu kept it rather
+   * than break every client already sending it.
+   */
+  test("posts the subject and level to the conversation's shares", async () => {
+    const http = stub(() => json(visibility))
+    await Effect.runPromise(shareConversation(request, "ses_1", "everyone", "view").pipe(Effect.provide(http.layer)))
+    const sent = http.seen[0]
+    expect(sent?.method).toBe("POST")
+    expect(sent?.url).toBe("https://acme.jolli.ai/api/agent/convos/ses_1/shares")
+    expect(sent?.headers["authorization"]).toBe("Bearer jwt")
+    const body = sent?.body
+    expect(body?._tag).toBe("Uint8Array")
+    expect(JSON.parse(new TextDecoder().decode(body?._tag === "Uint8Array" ? body.body : undefined))).toEqual({
+      subjectUserId: "everyone",
+      access: "view",
+    })
+  })
+
+  test("carries a refusal's code through, not just its status", async () => {
+    const http = stub(() => json({ error: "Only people in this course", code: "subject_not_in_course" }, 400))
+    const error = await Effect.runPromise(
+      shareConversation(request, "ses_1", 9, "view").pipe(Effect.provide(http.layer), Effect.flip),
+    )
+    expect(error).toBeInstanceOf(JolliApiError)
+    expect(error.status).toBe(400)
+    expect(error.code).toBe("subject_not_in_course")
+  })
+
+  test("names the subject in the path to take a grant back", async () => {
+    const http = stub(() => json(visibility))
+    await Effect.runPromise(unshareConversation(request, "ses_1", 9).pipe(Effect.provide(http.layer)))
+    expect(http.seen[0]?.method).toBe("DELETE")
+    expect(http.seen[0]?.url).toBe("https://acme.jolli.ai/api/agent/convos/ses_1/shares/9")
   })
 })

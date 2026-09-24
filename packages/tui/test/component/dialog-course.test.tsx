@@ -49,8 +49,7 @@ const CATALOG = {
       status: "published",
       entryState: "open",
       endsOn: null,
-      chatSharing: "private",
-    },
+        },
     {
       id: "202",
       code: "MATH 202",
@@ -61,8 +60,7 @@ const CATALOG = {
       status: "draft",
       entryState: "draft",
       endsOn: null,
-      chatSharing: "private",
-    },
+        },
     {
       id: "303",
       code: "ART 303",
@@ -73,8 +71,7 @@ const CATALOG = {
       status: "published",
       entryState: "open",
       endsOn: null,
-      chatSharing: "private",
-    },
+        },
     {
       id: "404",
       code: "HIST 404",
@@ -85,8 +82,7 @@ const CATALOG = {
       status: "published",
       entryState: "ended",
       endsOn: "2020-01-01",
-      chatSharing: "private",
-    },
+        },
   ],
   assistants: [
     {
@@ -95,6 +91,7 @@ const CATALOG = {
       name: "Tutor",
       kind: "code",
       blurb: "Works through problems with you",
+      icon: "Sparkles",
       accent: 1,
       isDefault: true,
       instructions: "",
@@ -308,7 +305,6 @@ test("pre-selects the only startable course, and its default assistant with it",
     expect(picker.jolli.current()).toEqual({
       courseId: "101",
       assistantId: "1",
-      sharing: { staff: false, everyone: false },
     })
   } finally {
     picker.app.renderer.destroy()

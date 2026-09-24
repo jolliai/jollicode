@@ -15,7 +15,7 @@ const build = (staff: boolean) =>
   coachProseRequest({
     trigger: TRIGGER,
     instructions: "Keep it to one sentence.",
-    sharing: { staff, everyone: false },
+    staffCanRead: staff,
     prompt: PROMPT,
     reply: REPLY,
   })

@@ -70,7 +70,6 @@ function course(id: string, code: string, assistantIds: string[], entryState = "
     status: "published",
     entryState,
     endsOn: null,
-    chatSharing: "private",
   }
 }
 

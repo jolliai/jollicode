@@ -42,7 +42,6 @@ import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
 import { SessionRetry } from "@opencode-ai/session-ui/session-retry"
 import { isScrollKeyTarget, scrollKey, scrollKeyOwner, ScrollView } from "@opencode-ai/ui/scroll-view"
 import { StickyAccordionHeader } from "@opencode-ai/ui/sticky-accordion-header"
-import { TextField } from "@opencode-ai/ui/text-field"
 import { TextReveal } from "@opencode-ai/ui/text-reveal"
 import { TextShimmer } from "@opencode-ai/ui/text-shimmer"
 import type {
@@ -60,6 +59,8 @@ import { normalize } from "@opencode-ai/session-ui/session-diff"
 import { useFileComponent } from "@opencode-ai/ui/context/file"
 import { shouldMarkBoundaryGesture, normalizeWheelDelta } from "@/pages/session/message-gesture"
 import { SessionContextUsage } from "@/components/session-context-usage"
+import { ParticipantStack, SessionSharePanel } from "@/components/session/session-share-panel"
+import { useStaffCanRead } from "@/jolli/use-session-share"
 import { useCourseSession } from "@/jolli/session-binding"
 import { coachTurn, type CoachTrigger } from "@/jolli/coaching"
 import { CoachBadge, coachTurnInputFor, exchangeTextFor } from "./coach-nudge"
@@ -68,7 +69,6 @@ import { useLanguage } from "@/context/language"
 import { useSessionKey } from "@/pages/session/session-layout"
 import { useSessionArchive } from "@/pages/session/session-archive"
 import { useServerSDK } from "@/context/server-sdk"
-import { usePlatform } from "@/context/platform"
 import { useSettings } from "@/context/settings"
 import { legacySessionHref, requireServerKey, sessionHref } from "@/utils/session-route"
 import { useSDK } from "@/context/sdk"
@@ -277,7 +277,6 @@ export function MessageTimeline(props: {
   const cached = timelineCache.get(ownerSessionKey)
   const initialMeasurements = cached?.measurements
   const coldBottomMount = !initialMeasurements?.length && props.shouldAnchorBottom()
-  const platform = usePlatform()
 
   const [listRoot, setListRoot] = createSignal<HTMLDivElement>()
   const sessionID = createMemo(() => params.id)
@@ -304,8 +303,6 @@ export function MessageTimeline(props: {
   })
   const titleValue = createMemo(() => info()?.title)
   const titleLabel = createMemo(() => sessionTitle(titleValue()))
-  const shareUrl = createMemo(() => info()?.share?.url)
-  const shareEnabled = createMemo(() => sync().data.config.share !== "disabled")
   const parentID = createMemo(() => info()?.parentID)
   const parent = createMemo(() => {
     const id = parentID()
@@ -379,6 +376,12 @@ export function MessageTimeline(props: {
    * neither where the web mock keeps it nor where this application keeps anything else that is
    * ABOUT a reply. `session-ui` renders it first in `text-part-copy-wrapper`, beside copy.
    */
+  /**
+   * ⚠ THE SAME CACHE ENTRY THE COMPOSER'S EYE AND THE SHARE PANEL READ, so the gate cannot disagree
+   * with what the student was shown — but re-read when stale, because it decides whether a model may
+   * see this exchange. Nothing is fetched until a writer actually asks.
+   */
+  const staffCanRead = useStaffCanRead(sessionID)
   const coachBadgeFor = (userMessageID: string) => {
     const coached = coachTurns().get(userMessageID)
     if (!coached) return undefined
@@ -386,7 +389,7 @@ export function MessageTimeline(props: {
       <CoachBadge
         triggers={coached.triggers}
         instructions={courseSession.assistant()?.coaching.instructions ?? ""}
-        sharing={courseSession.current()?.sharing ?? { staff: false, everyone: false }}
+        staffCanRead={staffCanRead}
         prompt={coached.prompt}
         reply={coached.reply}
       />
@@ -628,6 +631,9 @@ export function MessageTimeline(props: {
     dismiss: null as "escape" | "outside" | null,
   })
   let more: HTMLButtonElement | undefined
+  let stack: HTMLButtonElement | undefined
+  /** A press on the header's own trigger is the trigger's to answer, not an outside dismissal. */
+  const fromStack = (event: Event) => event.target instanceof Node && !!stack?.contains(event.target)
 
   const bindListRoot = (root: HTMLDivElement) => {
     if (root === listRoot()) return
@@ -706,12 +712,6 @@ export function MessageTimeline(props: {
     props.setScrollRef(undefined)
   })
 
-  const viewShare = () => {
-    const url = shareUrl()
-    if (!url) return
-    platform.openExternal(url)
-  }
-
   const errorMessage = (err: unknown) => {
     if (err && typeof err === "object" && "data" in err) {
       const data = (err as { data?: { message?: string } }).data
@@ -720,20 +720,6 @@ export function MessageTimeline(props: {
     if (err instanceof Error) return err.message
     return language.t("common.requestFailed")
   }
-
-  const shareMutation = useMutation(() => ({
-    mutationFn: (id: string) => serverSDK().client.session.share({ sessionID: id }),
-    onError: (err) => {
-      console.error("Failed to share session", err)
-    },
-  }))
-
-  const unshareMutation = useMutation(() => ({
-    mutationFn: (id: string) => serverSDK().client.session.unshare({ sessionID: id }),
-    onError: (err) => {
-      console.error("Failed to unshare session", err)
-    },
-  }))
 
   const titleMutation = useMutation(() => ({
     mutationFn: (input: { id: string; title: string }) =>
@@ -754,48 +740,6 @@ export function MessageTimeline(props: {
       })
     },
   }))
-
-  const shareSession = () => {
-    const id = sessionID()
-    if (!id || shareMutation.isPending) return
-    if (!shareEnabled()) return
-    shareMutation.mutate(id)
-  }
-
-  const unshareSession = () => {
-    const id = sessionID()
-    if (!id || unshareMutation.isPending) return
-    if (!shareEnabled()) return
-    unshareMutation.mutate(id)
-  }
-  const copyShareUrl = () => {
-    const url = shareUrl()
-    if (!url) return
-    void navigator.clipboard
-      .writeText(url)
-      .then(() =>
-        showToast({
-          variant: "success",
-          icon: "circle-check",
-          title: language.t("session.share.copy.copied"),
-          description: url,
-        }),
-      )
-      .catch((err: unknown) =>
-        showToast({
-          title: language.t("common.requestFailed"),
-          description: errorMessage(err),
-        }),
-      )
-  }
-  const selectShareUrlText: JSX.EventHandler<HTMLDivElement, MouseEvent> = (event) => {
-    const selection = window.getSelection()
-    if (!selection) return
-    const range = document.createRange()
-    range.selectNodeContents(event.currentTarget)
-    selection.removeAllRanges()
-    selection.addRange(range)
-  }
 
   createEffect(
     on(
@@ -1553,6 +1497,30 @@ export function MessageTimeline(props: {
                       "gap-3": !settings.general.newLayoutDesigns(),
                     }}
                   >
+                    {/*
+                     * ⚠ WHO THE SESSION IS WITH, AND THE WAY INTO WHO CAN READ IT — the web header's
+                     * share trigger, drawn the same way: the student and the assistant as overlapping
+                     * circles, then the assistant's name. Only on a bound top-level session; a child
+                     * task session is not something a student shares on its own.
+                     */}
+                    <Show when={!parentID() && courseSession.assistant()}>
+                      {(assistant) => (
+                        <button
+                          type="button"
+                          ref={(element) => {
+                            stack = element
+                          }}
+                          aria-label={language.t("session.share.participants")}
+                          aria-expanded={share.open}
+                          onClick={() => setShare({ open: !share.open, dismiss: null })}
+                          class="flex min-w-0 max-w-[240px] items-center rounded-[6px] px-2 py-1 hover:bg-v2-overlay-simple-overlay-hover"
+                          classList={{ "bg-v2-overlay-simple-overlay-hover": share.open }}
+                          data-action="session-share-trigger"
+                        >
+                          <ParticipantStack assistant={assistant()} />
+                        </button>
+                      )}
+                    </Show>
                     <SessionContextUsage
                       placement="bottom"
                       buttonAppearance={settings.general.newLayoutDesigns() ? "v2" : "default"}
@@ -1611,15 +1579,14 @@ export function MessageTimeline(props: {
                                 >
                                   <DropdownMenu.ItemLabel>{language.t("common.rename")}</DropdownMenu.ItemLabel>
                                 </DropdownMenu.Item>
-                                <Show when={shareEnabled()}>
+                                {/* Only a session bound to a course has anybody to share it with. */}
+                                <Show when={courseSession.current()}>
                                   <DropdownMenu.Item
                                     onSelect={() => {
                                       setTitle({ pendingShare: true, menuOpen: false })
                                     }}
                                   >
-                                    <DropdownMenu.ItemLabel>
-                                      {language.t("session.share.action.share")}
-                                    </DropdownMenu.ItemLabel>
+                                    <DropdownMenu.ItemLabel>{language.t("session.share.action.share")}</DropdownMenu.ItemLabel>
                                   </DropdownMenu.Item>
                                 </Show>
                                 <DropdownMenu.Item onSelect={() => exportSession(id)}>
@@ -1687,7 +1654,7 @@ export function MessageTimeline(props: {
                               >
                                 {language.t("common.rename")}
                               </MenuV2.Item>
-                              <Show when={shareEnabled()}>
+                              <Show when={courseSession.current()}>
                                 <MenuV2.Item
                                   onSelect={() => {
                                     setTitle({ pendingShare: true, menuOpen: false })
@@ -1713,7 +1680,7 @@ export function MessageTimeline(props: {
 
                       <KobaltePopover
                         open={share.open}
-                        anchorRef={() => more}
+                        anchorRef={() => stack ?? more}
                         placement="bottom-end"
                         gutter={settings.general.newLayoutDesigns() ? 6 : 4}
                         modal={false}
@@ -1723,22 +1690,27 @@ export function MessageTimeline(props: {
                         }}
                       >
                         <KobaltePopover.Portal>
+                          {/*
+                           * ⚠ JOLLI'S SHARE, NOT UPSTREAM'S. This slot used to hold "Publish on web",
+                           * which uploaded the transcript to a public link on opencode's servers —
+                           * see `SessionSharePanel` for what replaced it and why.
+                           */}
                           <KobaltePopover.Content
                             data-component="popover-content"
-                            classList={{
-                              "flex w-80 max-w-none flex-col items-start gap-3 rounded-[10px] border-0 bg-v2-background-bg-layer-01 p-3 shadow-[var(--v2-elevation-floating)]":
-                                settings.general.newLayoutDesigns(),
-                            }}
-                            style={{ "min-width": "320px" }}
+                            class="flex w-80 max-w-none flex-col rounded-[10px] border border-v2-border-border-base bg-v2-background-bg-layer-01 p-0 shadow-[var(--v2-elevation-floating)]"
                             onEscapeKeyDown={(event) => {
-                              setShare({ dismiss: "escape", open: false })
                               event.preventDefault()
                               event.stopPropagation()
+                              // An open picker or help card puts itself away first; a second Escape closes the panel.
+                              if (event.target instanceof Element && event.target.closest("[data-share-dismissable]")) return
+                              setShare({ dismiss: "escape", open: false })
                             }}
-                            onPointerDownOutside={() => {
+                            onPointerDownOutside={(event) => {
+                              if (fromStack(event)) return event.preventDefault()
                               setShare({ dismiss: "outside", open: false })
                             }}
-                            onFocusOutside={() => {
+                            onFocusOutside={(event) => {
+                              if (fromStack(event)) return event.preventDefault()
                               setShare({ dismiss: "outside", open: false })
                             }}
                             onCloseAutoFocus={(event) => {
@@ -1746,148 +1718,7 @@ export function MessageTimeline(props: {
                               setShare("dismiss", null)
                             }}
                           >
-                            <Show
-                              when={settings.general.newLayoutDesigns()}
-                              fallback={
-                                <div class="flex flex-col p-3">
-                                  <div class="flex flex-col gap-1">
-                                    <div class="text-13-medium text-text-strong">
-                                      {language.t("session.share.popover.title")}
-                                    </div>
-                                    <div class="text-12-regular text-text-weak">
-                                      {shareUrl()
-                                        ? language.t("session.share.popover.description.shared")
-                                        : language.t("session.share.popover.description.unshared")}
-                                    </div>
-                                  </div>
-                                  <div class="mt-3 flex flex-col gap-2">
-                                    <Show
-                                      when={shareUrl()}
-                                      fallback={
-                                        <Button
-                                          size="large"
-                                          variant="primary"
-                                          class="w-full"
-                                          onClick={shareSession}
-                                          disabled={shareMutation.isPending}
-                                        >
-                                          {shareMutation.isPending
-                                            ? language.t("session.share.action.publishing")
-                                            : language.t("session.share.action.publish")}
-                                        </Button>
-                                      }
-                                    >
-                                      <div class="flex flex-col gap-2">
-                                        <TextField
-                                          value={shareUrl() ?? ""}
-                                          readOnly
-                                          copyable
-                                          copyKind="link"
-                                          tabIndex={-1}
-                                          class="w-full"
-                                        />
-                                        <div class="grid grid-cols-2 gap-2">
-                                          <Button
-                                            size="large"
-                                            variant="secondary"
-                                            class="w-full shadow-none border border-border-weak-base"
-                                            onClick={unshareSession}
-                                            disabled={unshareMutation.isPending}
-                                          >
-                                            {unshareMutation.isPending
-                                              ? language.t("session.share.action.unpublishing")
-                                              : language.t("session.share.action.unpublish")}
-                                          </Button>
-                                          <Button
-                                            size="large"
-                                            variant="primary"
-                                            class="w-full"
-                                            onClick={viewShare}
-                                            disabled={unshareMutation.isPending}
-                                          >
-                                            {language.t("session.share.action.view")}
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    </Show>
-                                  </div>
-                                </div>
-                              }
-                            >
-                              <div class="flex w-full flex-col gap-1.5 px-0.5 pt-0.5">
-                                <div class="select-none text-[13px] font-[530] leading-none tracking-[-0.04px] text-v2-text-text-base [font-variation-settings:'slnt'_0]">
-                                  {language.t("session.share.popover.title")}
-                                </div>
-                                <div class="select-none text-[13px] font-[440] leading-5 tracking-[-0.04px] text-v2-text-text-muted [font-variation-settings:'slnt'_0]">
-                                  {shareUrl()
-                                    ? language.t("session.share.popover.description.shared")
-                                    : language.t("session.share.popover.description.unshared")}
-                                </div>
-                              </div>
-                              <div class="flex w-full flex-col gap-2">
-                                <Show
-                                  when={shareUrl()}
-                                  fallback={
-                                    <ButtonV2
-                                      variant="contrast"
-                                      class="w-full"
-                                      onClick={shareSession}
-                                      disabled={shareMutation.isPending}
-                                    >
-                                      {shareMutation.isPending
-                                        ? language.t("session.share.action.publishing")
-                                        : language.t("session.share.action.publish")}
-                                    </ButtonV2>
-                                  }
-                                >
-                                  <div class="flex flex-col gap-2">
-                                    <div
-                                      class="flex h-8 w-full items-center gap-1.5 rounded-[6px] py-1 pl-2.5 pr-1.5 shadow-[var(--v2-elevation-button-neutral)]"
-                                      style={{
-                                        background:
-                                          "linear-gradient(180deg, var(--v2-alpha-light-2) 0%, var(--v2-alpha-light-0) 100%), var(--v2-background-bg-button-neutral)",
-                                      }}
-                                    >
-                                      <div
-                                        class="min-w-0 flex-1 truncate select-text cursor-text text-[13px] font-[440] leading-5 tracking-[-0.04px] text-v2-text-text-base [font-variation-settings:'slnt'_0]"
-                                        onClick={selectShareUrlText}
-                                      >
-                                        {shareUrl()}
-                                      </div>
-                                      <IconButtonV2
-                                        type="button"
-                                        size="small"
-                                        variant="ghost-muted"
-                                        icon={<IconV2 name="outline-copy" />}
-                                        aria-label={language.t("session.share.copy.copyLink")}
-                                        onClick={copyShareUrl}
-                                      />
-                                      <IconButtonV2
-                                        type="button"
-                                        size="small"
-                                        variant="ghost-muted"
-                                        icon={<IconV2 name="outline-square-arrow" />}
-                                        aria-label={language.t("session.share.action.view")}
-                                        onClick={viewShare}
-                                        disabled={unshareMutation.isPending}
-                                      />
-                                    </div>
-                                    <div class="flex w-full">
-                                      <ButtonV2
-                                        variant="outline"
-                                        class="w-full"
-                                        onClick={unshareSession}
-                                        disabled={unshareMutation.isPending}
-                                      >
-                                        {unshareMutation.isPending
-                                          ? language.t("session.share.action.unpublishing")
-                                          : language.t("session.share.action.unpublish")}
-                                      </ButtonV2>
-                                    </div>
-                                  </div>
-                                </Show>
-                              </div>
-                            </Show>
+                            <SessionSharePanel sessionID={id} />
                           </KobaltePopover.Content>
                         </KobaltePopover.Portal>
                       </KobaltePopover>

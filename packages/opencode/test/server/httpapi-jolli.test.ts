@@ -450,3 +450,175 @@ describe("jolli HttpApi — a refused credential with a catalogue still on disk"
     }),
   )
 })
+
+/**
+ * THE SHARE ROUTES, AGAINST A STUB GATEWAY.
+ *
+ * ⚠ THE STUB ANSWERS BY METHOD AND PATH, THE WAY JOLLIEDU ROUTES THEM, so each case states the
+ * gateway's side of the exchange rather than a call count.
+ *
+ * ⚠ AND IT ANSWERS ONLY THE GATEWAY'S HOST. The `Fetch` reference it replaces is also what this
+ * test's own client reads to reach the server under test, so anything else goes to the real fetch.
+ */
+type GatewayCall = { method: string; path: string; body?: unknown }
+
+function gatewayStub(answer: (call: GatewayCall) => Response) {
+  const calls: GatewayCall[] = []
+  const fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init)
+    if (new URL(request.url).hostname !== "acme.jolli.ai") return globalThis.fetch(request)
+    const text = await request.text()
+    const call = { method: request.method, path: new URL(request.url).pathname, ...(text ? { body: JSON.parse(text) } : {}) }
+    calls.push(call)
+    return answer(call)
+  }) as typeof globalThis.fetch
+  return { calls, fetch }
+}
+
+const reply = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } })
+
+const VISIBILITY = {
+  courseCode: "CS 310",
+  courseId: 7,
+  mayControl: true,
+  shares: [{ subjectIsClass: false, subjectUserId: 2, name: "Grace Hopper", detail: "grace@jolli.ai", access: "view" }],
+}
+
+const ROSTER = [
+  { userId: 1, role: "course-student", userName: "Ada Lovelace", userEmail: "ada@jolli.ai" },
+  { userId: 2, role: "course-instructor", userName: "Grace Hopper", userEmail: "grace@jolli.ai" },
+  { userId: 3, role: "course-student", userName: "Alan Turing", userEmail: "alan@jolli.ai" },
+]
+
+const signedInAs = (fetch: typeof globalThis.fetch) =>
+  testEffect(
+    apiLayer({ baseUrl: "https://acme.jolli.ai", token: fakeToken({ email: "ada@jolli.ai" }) }, undefined, fetch),
+  )
+
+const sharePath = (sessionID: string) => JolliPaths.share.replace(":sessionID", sessionID)
+
+describe("jolli HttpApi — session share", () => {
+  signedOut.live("answers unreachable rather than failing when signed out", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(sharePath("ses_1")).pipe(HttpClient.execute)
+      expect(response.status).toBe(200)
+      expect(yield* response.json).toEqual({
+        status: "unreachable",
+        courseId: null,
+        courseCode: null,
+        readers: [],
+        members: [],
+        classSize: 0,
+        roster: "unavailable",
+      })
+    }),
+  )
+
+  const read = gatewayStub((call) =>
+    call.path === "/api/agent/convos/ses_1" ? reply({ visibility: VISIBILITY }) : reply(ROSTER),
+  )
+  signedInAs(read.fetch).live("reads the readers and the roster, without the student themself", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(sharePath("ses_1")).pipe(HttpClient.execute)
+      expect(yield* response.json).toEqual({
+        status: "ok",
+        courseId: 7,
+        courseCode: "CS 310",
+        readers: [{ kind: "person", userId: 2, name: "Grace Hopper", detail: "grace@jolli.ai", access: "view" }],
+        members: [
+          { userId: 2, name: "Grace Hopper", detail: "grace@jolli.ai", kind: "staff" },
+          { userId: 3, name: "Alan Turing", detail: "alan@jolli.ai", kind: "student" },
+        ],
+        // Ada and Alan: the signed-in student is still one of the class.
+        classSize: 2,
+        roster: "ok",
+      })
+      expect(read.calls.map((call) => call.path)).toEqual(["/api/agent/convos/ses_1", "/api/spaces/7/members"])
+    }),
+  )
+
+  /** ⚠ 404 IS A SESSION THE GATEWAY HAS NOT SEEN YET, NOT AN OUTAGE — the panel words the two apart. */
+  const unsynced = gatewayStub(() => reply({ error: "Conversation not found" }, 404))
+  signedInAs(unsynced.fetch).live("answers unsynced for a conversation the gateway does not have", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(sharePath("ses_new")).pipe(HttpClient.execute)
+      expect(((yield* response.json) as { status: string }).status).toBe("unsynced")
+      expect(unsynced.calls).toHaveLength(1)
+    }),
+  )
+
+  /** ⚠ THE GRANTS ARE THE HALF THAT MATTERS; A ROSTER FAILURE ONLY EMPTIES THE PICKER. */
+  const noRoster = gatewayStub((call) =>
+    call.path.startsWith("/api/agent/convos/") ? reply({ visibility: VISIBILITY }) : reply({ error: "boom" }, 500),
+  )
+  signedInAs(noRoster.fetch).live("keeps the readers when the roster cannot be read", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(sharePath("ses_1")).pipe(HttpClient.execute)
+      const body = (yield* response.json) as { status: string; readers: unknown[]; members: unknown[]; roster: string }
+      expect(body.status).toBe("ok")
+      expect(body.readers).toHaveLength(1)
+      expect(body.members).toEqual([])
+      expect(body.roster).toBe("unavailable")
+    }),
+  )
+
+  const add = gatewayStub(() => reply(VISIBILITY))
+  signedInAs(add.fetch).live("writes a grant at the one writable level", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.post(sharePath("ses_1")).pipe(
+        HttpClientRequest.bodyJsonUnsafe({ subject: 2 }),
+        HttpClient.execute,
+      )
+      const body = (yield* response.json) as { status: string; readers: unknown[]; members: unknown[] }
+      expect(body.status).toBe("ok")
+      expect(body.readers).toHaveLength(1)
+      expect(add.calls).toEqual([
+        { method: "POST", path: "/api/agent/convos/ses_1/shares", body: { subjectUserId: 2, access: "view" } },
+      ])
+    }),
+  )
+
+  const refused = gatewayStub(() => reply({ error: "nope", code: "subject_not_in_course" }, 400))
+  signedInAs(refused.fetch).live("words a refusal as its code", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.post(sharePath("ses_1")).pipe(
+        HttpClientRequest.bodyJsonUnsafe({ subject: 99 }),
+        HttpClient.execute,
+      )
+      const body = (yield* response.json) as { status: string; refusal?: string }
+      expect(body.status).toBe("refused")
+      expect(body.refusal).toBe("subject_not_in_course")
+    }),
+  )
+
+  const remove = gatewayStub(() => reply({ ...VISIBILITY, shares: [] }))
+  signedInAs(remove.fetch).live("takes the class grant back by its literal", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.delete(`${sharePath("ses_1")}/everyone`).pipe(HttpClient.execute)
+      expect(((yield* response.json) as { readers: unknown[] }).readers).toEqual([])
+      expect(remove.calls).toEqual([{ method: "DELETE", path: "/api/agent/convos/ses_1/shares/everyone" }])
+    }),
+  )
+
+  const never = gatewayStub(() => reply({}))
+  signedInAs(never.fetch).live("refuses a malformed subject without asking the gateway", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.delete(`${sharePath("ses_1")}/nobody`).pipe(HttpClient.execute)
+      expect(((yield* response.json) as { status: string }).status).toBe("refused")
+      expect(never.calls).toEqual([])
+    }),
+  )
+
+  const neverAdd = gatewayStub(() => reply({}))
+  signedInAs(neverAdd.fetch).live("refuses a grant to a user id that cannot exist without asking the gateway", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.post(sharePath("ses_1")).pipe(
+        HttpClientRequest.bodyJsonUnsafe({ subject: 0 }),
+        HttpClient.execute,
+      )
+      expect(((yield* response.json) as { status: string }).status).toBe("refused")
+      expect(neverAdd.calls).toEqual([])
+    }),
+  )
+})

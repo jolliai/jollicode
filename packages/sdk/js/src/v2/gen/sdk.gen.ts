@@ -92,6 +92,13 @@ import type {
   InstanceDisposeResponses,
   JolliCourseErrors,
   JolliCourseResponses,
+  JolliShareAddErrors,
+  JolliShareAddResponses,
+  JolliShareErrors,
+  JolliShareRemoveErrors,
+  JolliShareRemoveResponses,
+  JolliShareResponses,
+  JolliShareSubject,
   LocationRef,
   LspStatusErrors,
   LspStatusResponses,
@@ -1394,6 +1401,90 @@ export class Jolli extends HeyApiClient {
     return (options?.client ?? this.client).get<JolliCourseResponses, JolliCourseErrors, ThrowOnError>({
       url: "/jolli/course",
       ...options,
+    })
+  }
+
+  /**
+   * Read a session's readers
+   *
+   * The Jolli readers of one of the signed-in student's sessions, plus the members of the session's course it could still be shared with. Answers `unsynced` while the gateway has no conversation for the session yet and `unreachable` when there is no credential or the gateway did not answer, rather than an error.
+   */
+  public share<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
+    return (options?.client ?? this.client).get<JolliShareResponses, JolliShareErrors, ThrowOnError>({
+      url: "/jolli/session/{sessionID}/share",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Share a session
+   *
+   * Grants one course member, or the whole class (`everyone`), read access to the session on Jolli. A refusal answers `refused` with the reason in `refusal`.
+   */
+  public shareAdd<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      subject?: JolliShareSubject
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "body", key: "subject" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<JolliShareAddResponses, JolliShareAddErrors, ThrowOnError>({
+      url: "/jolli/session/{sessionID}/share",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Stop sharing a session
+   *
+   * Withdraws one reader's grant — a user id, or `everyone` for the class. Withdrawing a grant that was not there is not an error.
+   */
+  public shareRemove<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      subject: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "path", key: "subject" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<JolliShareRemoveResponses, JolliShareRemoveErrors, ThrowOnError>({
+      url: "/jolli/session/{sessionID}/share/{subject}",
+      ...options,
+      ...params,
     })
   }
 }

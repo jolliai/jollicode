@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import type { AgentModel, CatalogModel, CourseAssistantChoice, CourseListItem } from "../src/jolli/api"
 import {
   accentOf,
+  assistantIconOf,
   courseEntryState,
   isOwnCourse,
   isVisibleCourse,
@@ -144,6 +145,18 @@ describe("isOwnCourse / isVisibleCourse", () => {
   })
 })
 
+describe("assistantIconOf", () => {
+  test("keeps the glyph the professor picked on the web", () => {
+    expect(assistantIconOf("Gavel")).toBe("Gavel")
+    expect(assistantIconOf("MessageCircleQuestion")).toBe("MessageCircleQuestion")
+  })
+
+  test("wears the web's default for a name this client has not heard of", () => {
+    expect(assistantIconOf("Rocket")).toBe("Sparkles")
+    expect(assistantIconOf("")).toBe("Sparkles")
+  })
+})
+
 describe("accentOf", () => {
   test("lands in 1..5 and is stable for an id", () => {
     for (const id of [0, 1, 4, 5, 9, 1234]) {
@@ -156,13 +169,12 @@ describe("accentOf", () => {
 })
 
 describe("toCourse", () => {
-  test("maps names across and pins chatSharing to private", () => {
+  test("maps names across", () => {
     const mapped = toCourse({ item: course(), entryState: "open", assistantIds: ["12"] })
     expect(mapped.id).toBe("7")
     expect(mapped.title).toBe("Systems Programming")
     expect(mapped.code).toBe("CS 310")
     expect(mapped.kind).toBe("code")
-    expect(mapped.chatSharing).toBe("private")
     expect(mapped.assistantIds).toEqual(["12"])
   })
 

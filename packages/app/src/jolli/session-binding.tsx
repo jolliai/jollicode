@@ -2,8 +2,13 @@
  * WHICH COURSE AND WHICH ASSISTANT THE SESSION ON SCREEN BELONGS TO.
  *
  * This is the route-aware view of `@opencode-ai/core/jolli/binding`: that module reads a binding off
- * any session, and this context answers "the one in force right now" plus the small number of
- * things a student may still decide about it.
+ * any session, and this context answers "the one in force right now" plus the draft a student is
+ * still deciding on.
+ *
+ * ⚠ WHO CAN READ A SESSION IS NOT HERE ANY MORE. It used to be a two-switch `sharing` value this
+ * context wrote into the session's metadata; it is now Jolli Edu's per-session grants, read and
+ * written through `/jolli/session/:sessionID/share` (see `use-session-share.ts`), and nothing about
+ * it is stored on the session.
  *
  * ⚠ A PARALLEL CONTEXT RATHER THAN THREE MORE FIELDS ON `context/local.tsx`, AND THAT IS A FORK
  * DECISION RATHER THAN A DESIGN ONE. `local.tsx` is upstream's file and carries its own migration,
@@ -30,15 +35,13 @@ import { useParams } from "@solidjs/router"
 import { createEffect, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLayout } from "@/context/layout"
-import { useSDK } from "@/context/sdk"
 import { assistantById, canStartSession, courseById, defaultAssistantFor, enrolledCourses, ready } from "./catalog"
 import { useJolliCatalog } from "./catalog-fetch"
 import { CourseIntent, courseIntentRouteKey } from "./course-intent"
 import { ModelGrant } from "./model-grant"
 import { useSync } from "@/context/sync"
 import { courseBindingOf, type CourseBinding } from "@opencode-ai/core/jolli/binding"
-import { defaultSessionSharing, mayMakePrivate } from "@opencode-ai/core/jolli/sharing"
-import type { Assistant, Course, SessionSharing } from "./types"
+import type { Assistant, Course } from "./types"
 
 export type { CourseBinding }
 
@@ -57,11 +60,6 @@ const handoff = new Map<string, CourseBinding>()
  */
 function forgetHandoff(session: string) {
   handoff.delete(session)
-}
-
-/** Two sets of readers, compared field by field. Used to decide when an optimistic write has landed. */
-function sameSharing(a: SessionSharing, b: SessionSharing) {
-  return a.staff === b.staff && a.everyone === b.everyone
 }
 
 export const { use: useCourseSession, provider: CourseSessionProvider } = createSimpleContext({
@@ -86,21 +84,10 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
      * this provider's two mount points. The hook is called here as one caller among several, and
      * `ensureCatalog` makes the duplicates free.
      */
-    const sdk = useSDK()
     useJolliCatalog()
 
     const [store, setStore] = createStore<{
       draft?: CourseBinding
-      /**
-       * THE VISIBILITY A LIVE SESSION HAS BEEN ASKED TO TAKE, UNTIL THE SERVER'S COPY SAYS THE SAME.
-       *
-       * ⚠ IT IS IN THE STORE RATHER THAN IN `handoff`, AND THAT IS THE WHOLE REASON IT EXISTS. The
-       * map is not reactive, so the optimistic value written there re-rendered nothing — and
-       * `current()` prefers the server's copy and drops the map entry the moment one arrives, so
-       * even a forced re-read lost it. A switch that does not move until a round trip completes
-       * reads as a control that did not take the click.
-       */
-      pending?: { session: string; sharing: SessionSharing }
     }>({})
 
     /**
@@ -121,88 +108,17 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
        */
       const bound = courseBindingOf(sync().data.session.find((item) => item.id === session))
       if (bound) forgetHandoff(session)
-      const base = bound ?? handoff.get(session)
-      if (!base) return undefined
-      /**
-       * ⚠ THE PENDING VISIBILITY IS LAID OVER THE AUTHORITY RATHER THAN REPLACING IT. Only the
-       * readers are the student's to change on a live session; the course and the assistant still
-       * come from the row, so an overlay that carried the whole binding could show a course the
-       * server had refused to write.
-       */
-      const pending = store.pending
-      return pending?.session === session ? { ...base, sharing: pending.sharing } : base
-    })
-
-    /**
-     * RETIRE THE OVERLAY ONCE THE SERVER'S COPY SAYS THE SAME THING.
-     *
-     * ⚠ ON AGREEMENT, NOT ON THE REQUEST RESOLVING, because those are two different moments:
-     * `session.update` answers before its `session.updated` event has been reconciled into the sync
-     * store, so clearing at the first would flick the switch back to the old value for the frames
-     * in between — the exact flicker the overlay exists to prevent.
-     *
-     * ⚠ AND IT IS RETIRED AT ALL BECAUSE A STALE OVERLAY MASKS THE TRUTH. Left in place it would
-     * keep asserting this student's last click over a change made anywhere else.
-     */
-    createEffect(() => {
-      const pending = store.pending
-      if (!pending) return
-      const bound = courseBindingOf(sync().data.session.find((item) => item.id === pending.session))
-      if (!bound || !sameSharing(bound.sharing, pending.sharing)) return
-      setStore("pending", undefined)
+      return bound ?? handoff.get(session)
     })
 
     const course = createMemo<Course | undefined>(() => courseById(current()?.courseId))
     const assistant = createMemo<Assistant | undefined>(() => assistantById(current()?.assistantId))
-    const assistantList = () => (assistant() ? [assistant()!] : [])
 
     const draftFor = (courseId: string, assistantId?: string): CourseBinding | undefined => {
-      const next = courseById(courseId)
-      if (!next) return undefined
+      if (!courseById(courseId)) return undefined
       const chosen = (assistantId ? assistantById(assistantId) : undefined) ?? defaultAssistantFor(courseId)
       if (!chosen) return undefined
-      return {
-        courseId,
-        assistantId: chosen.id,
-        sharing: defaultSessionSharing(next, [chosen]),
-      }
-    }
-
-    /**
-     * CHANGE WHO CAN READ THIS, WHEREVER IT LIVES. The draft before a session exists, the store
-     * after — one function so the two setters below cannot disagree about which is which.
-     */
-    const write = (next: (sharing: SessionSharing) => SessionSharing) => {
-      const existing = current()
-      if (!existing) return
-      const sharing = next(existing.sharing)
-      const session = id()
-      if (!session) {
-        setStore("draft", "sharing", sharing)
-        return
-      }
-      /**
-       * ⚠ VISIBILITY IS THE ONE PART OF A BINDING A LIVE SESSION MAY STILL CHANGE, so it is the one
-       * write that goes back to the server after the session exists. The course and the assistant
-       * do not: the server refuses to rewrite those once the conversation has started.
-       */
-      setStore("pending", { session, sharing })
-      void sdk()
-        .client.session.update({
-          sessionID: session,
-          directory: sdk().directory,
-          metadata: { jolli: { ...existing, sharing } },
-        })
-        /**
-         * ⚠ A REFUSED WRITE RETIRES THE OVERLAY, so the switch snaps back to what is actually true
-         * rather than going on claiming a change the server never took. Only this write's own
-         * overlay is dropped — a second toggle made while this one was in flight owns the field by
-         * then, and clearing that would undo a click the student can see.
-         */
-        .catch(() => {
-          const pending = store.pending
-          if (pending?.session === session && sameSharing(pending.sharing, sharing)) setStore("pending", undefined)
-        })
+      return { courseId, assistantId: chosen.id }
     }
 
     /**
@@ -315,8 +231,8 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
       assistant,
       /** True once a session exists, which is what makes the binding unchangeable. */
       locked: createMemo(() => !!id()),
-      /** Whether the student may take this session private, per the course's policy. */
-      mayMakePrivate: createMemo(() => mayMakePrivate(course(), assistantList())),
+      /** The session on screen, or undefined on the new-session screen. */
+      sessionID: id,
 
       draft: {
         get value() {
@@ -345,41 +261,6 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
           CourseIntent.clear()
           setStore("draft", undefined)
         },
-      },
-
-      /**
-       * WHAT A STUDENT MAY STILL DECIDE ABOUT VISIBILITY.
-       *
-       * ⚠ WRITABLE ON A LIVE SESSION, UNLIKE COURSE AND ASSISTANT, because it is the one thing here
-       * that is genuinely theirs. The course decides where a session STARTS; who reads it from then
-       * on is the student's, except that a `staff-required` course keeps staff on it.
-       *
-       * ⚠ TWO SWITCHES RATHER THAN ONE SETTING, because they are two unrelated grants. Handing a
-       * session to a professor and handing it to a study group are different acts with different
-       * consequences, and a student doing one has said nothing about the other.
-       */
-      setStaffShared(on: boolean) {
-        // The refusal the control also renders. A menu is not a permission check.
-        if (!on && !mayMakePrivate(course(), assistantList())) return
-        write((sharing) => ({ ...sharing, staff: on }))
-      },
-      setEveryone(on: boolean) {
-        write((sharing) => ({ ...sharing, everyone: on }))
-      },
-      /**
-       * BACK TO NOBODY BUT THE STUDENT, IN ONE ACT.
-       *
-       * ⚠ PRIVATE IS THE ABSENCE OF BOTH GRANTS AND IT STILL NEEDS ITS OWN CONTROL. The first cut
-       * left it implicit — turn both switches off and the session is private — which is true and is
-       * not the same as being told. A student deciding how candid to be is looking for the word
-       * "private", and a menu that only offers ways to SHARE reads as a product with no private
-       * mode. It is also two clicks to undo what one click did.
-       *
-       * ⚠ AND IT REFUSES UNDER A COURSE THAT REQUIRES SHARING, like the staff switch it clears.
-       */
-      setPrivate() {
-        if (!mayMakePrivate(course(), assistantList())) return
-        write(() => ({ staff: false, everyone: false }))
       },
 
       /**

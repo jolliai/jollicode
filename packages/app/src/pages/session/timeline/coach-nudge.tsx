@@ -17,7 +17,7 @@ import { Icon } from "@opencode-ai/ui/icon"
 import type { AssistantMessage, Part, UserMessage } from "@opencode-ai/sdk/v2"
 import type { CoachTrigger, CoachTurnInput } from "@/jolli/coaching"
 import { CoachWriter, coachProse, coachProseRequest } from "@/jolli/coaching-prose"
-import type { Assistant, SessionSharing } from "@/jolli/types"
+import type { Assistant } from "@/jolli/types"
 
 const textOf = (parts: Part[]) =>
   parts
@@ -61,7 +61,7 @@ export function coachTurnInputFor(input: {
  * ⚠ SEPARATE FROM `coachTurnInputFor` ON PURPOSE, AND THE SPLIT IS THE PRIVACY RULE IN THE TYPE
  * SYSTEM. `CoachTurnInput` carries counts and flags because the gate must never be able to emit the
  * body; this carries the body because `coachProseRequest` may hand it to a writer — but only after
- * it has checked `sharing.staff`. Two functions means neither call site can quietly acquire the
+ * it has checked that staff can read the session. Two functions means neither call site can quietly acquire the
  * other's privileges.
  */
 export function exchangeTextFor(input: {
@@ -107,7 +107,8 @@ export function exchangeTextFor(input: {
 export function CoachBadge(props: {
   triggers: CoachTrigger[]
   instructions: string
-  sharing: SessionSharing
+  /** The fresh coaching gate — `useStaffCanRead`. Asked only when a writer is registered. */
+  staffCanRead: () => Promise<boolean>
   prompt: string
   reply: string
 }) {
@@ -196,7 +197,7 @@ export function CoachBadge(props: {
                 <CoachNoteText
                   trigger={trigger}
                   instructions={props.instructions}
-                  sharing={props.sharing}
+                  staffCanRead={props.staffCanRead}
                   prompt={props.prompt}
                   reply={props.reply}
                 />
@@ -219,18 +220,10 @@ export function CoachBadge(props: {
 function CoachNoteText(props: {
   trigger: CoachTrigger
   instructions: string
-  sharing: SessionSharing
+  staffCanRead: () => Promise<boolean>
   prompt: string
   reply: string
 }) {
-  const request = () =>
-    coachProseRequest({
-      trigger: props.trigger,
-      instructions: props.instructions,
-      sharing: props.sharing,
-      prompt: props.prompt,
-      reply: props.reply,
-    })
   /**
    * ⚠ A SIGNAL AND AN EFFECT, NOT `createResource`, AND THE DIFFERENCE IS NOT STYLE — THE RESOURCE
    * VERSION TORE DOWN THE WHOLE SESSION. `pages/session.tsx` wraps this route in `<Suspense>`, and a
@@ -245,15 +238,28 @@ function CoachNoteText(props: {
    */
   const [text, setText] = createSignal(props.trigger.text)
   createEffect(() => {
-    const value = request()
-    setText(value.trigger.text)
+    const input = {
+      trigger: props.trigger,
+      instructions: props.instructions,
+      prompt: props.prompt,
+      reply: props.reply,
+    }
+    setText(input.trigger.text)
     const writer = CoachWriter.get()
     if (!writer) return
+    const gate = props.staffCanRead
     let cancelled = false
     onCleanup(() => {
       cancelled = true
     })
-    void coachProse(value, writer).then((written) => {
+    /**
+     * ⚠ THE GATE IS ASKED HERE, AT THE MOMENT THE EXCHANGE WOULD LEAVE, not when the badge rendered.
+     * A grant withdrawn while the session sat open must stop the body reaching the writer, and only
+     * a read made now can know that.
+     */
+    void gate().then(async (staffCanRead) => {
+      if (cancelled) return
+      const written = await coachProse(coachProseRequest({ ...input, staffCanRead }), writer)
       if (!cancelled) setText(written)
     })
   })

@@ -25,30 +25,12 @@ import { optional } from "./schema"
  * cannot mistake an unused field for one this surface honours.
  *
  * ⚠ WHICH IS WHY THE FIELDS MARKED "ALWAYS EMPTY TODAY" BELOW ARE THE EXCEPTION AND SAY SO. They
- * are not unread fields; they have working consumers in `packages/app` (`sharing.ts`,
- * `coaching.ts`, `slash-groups.ts`) and a gateway that does not produce them yet. Consumer built,
+ * are not unread fields; they have working consumers in `packages/app` (`coaching.ts`,
+ * `slash-groups.ts`) and a gateway that does not produce them yet. Consumer built,
  * producer pending — not a stub.
  *
  * Ported from `packages/app/src/jolli/types.ts`, whose comments recorded the invariants below.
  */
-
-/**
- * WHO MAY READ A STUDENT'S SESSION.
- *
- * ⚠ `staff-required` IS NOT A STRICTER `staff`, IT IS A LOCK, and that distinction is the whole
- * reason this is a three-member union rather than a boolean plus a flag. Under `staff` a student
- * may make one session private; under `staff-required` that control is refused and says who
- * refused it.
- *
- * ⚠ THE GATEWAY HAS NO EQUIVALENT TODAY, so every course arrives `private` — see the mapping in
- * `packages/core/src/jolli/api.ts`. Jolli Edu models sharing as per-session grants
- * (`ConversationPersonShare` / `ConversationClassShare`) rather than as a course policy, and
- * `private` is that model's "nothing granted yet" rather than a default we picked.
- */
-export const ChatSharing = Schema.Literals(["private", "staff", "staff-required"]).annotate({
-  identifier: "Jolli.ChatSharing",
-})
-export type ChatSharing = typeof ChatSharing.Type
 
 /**
  * WHAT A COURSE MAY HAND ITS STUDENTS. A `code` course hands them this application.
@@ -88,26 +70,6 @@ export const CourseEntryState = Schema.Literals(["open", "draft", "not-yet", "en
   identifier: "Jolli.CourseEntryState",
 })
 export type CourseEntryState = typeof CourseEntryState.Type
-
-/**
- * A SESSION'S ACTUAL READERS, WHICH IS NOT THE SAME TYPE AS A COURSE'S POLICY.
- *
- * ⚠ TWO INDEPENDENT FACTS, NOT ONE ENUM, AND THE WEB MOCK IS SHAPED THE SAME WAY: a conversation
- * there carries `staffShared` alongside `shares` (a list that may include the course-wide
- * sentinel). A student can hand a session to their professor, to their classmates, to both, or to
- * nobody, and collapsing that into one ordered value would make "shared with the class but not with
- * staff" unrepresentable — which is the state a study group actually wants.
- *
- * ⚠ `ChatSharing` DECIDES WHERE THIS STARTS AND NOTHING MORE. A policy governs what a NEW session
- * begins as; from then on visibility is a fact about the session. See `defaultSessionSharing`.
- */
-export interface SessionSharing extends Schema.Schema.Type<typeof SessionSharing> {}
-export const SessionSharing = Schema.Struct({
-  /** Course staff can read it. Starts from the course policy, then it is the student's to toggle. */
-  staff: Schema.Boolean,
-  /** Everyone enrolled in the course. A MEMBERSHIP, not a link, so it follows the roster. */
-  everyone: Schema.Boolean,
-}).annotate({ identifier: "Jolli.SessionSharing" })
 
 /**
  * THE COURSE'S PLACE ON THE DATAVIZ RAMP. Identity, not status: it is true of the course on its
@@ -180,8 +142,6 @@ export const Course = Schema.Struct({
   entryState: CourseEntryState,
   /** `YYYY-MM-DD`, for the "ended"/"opens on" lines. Null when the course has no end date. */
   endsOn: Schema.NullOr(Schema.String),
-  /** The default a NEW session starts at. A session's own visibility is a fact about the session. */
-  chatSharing: ChatSharing,
 }).annotate({ identifier: "Jolli.Course" })
 
 /**
@@ -414,15 +374,6 @@ export const Assistant = Schema.Struct({
    * offers. Same posture {@link AssistantGuardrails} takes, for the same reason.
    */
   skills: Schema.Array(AssistantSkill),
-  /**
-   * AN OVERRIDE, AND DELIBERATELY OPTIONAL RATHER THAN A COPY OF THE COURSE'S VALUE. An assistant
-   * carrying its own copy would silently keep the old answer when the course changed its mind.
-   * Absent means "whatever the course says" — see `sharing.ts`'s `effectiveSharing`, where the
-   * strictest of course and assistant wins.
-   *
-   * ⚠ ALWAYS ABSENT TODAY: the gateway has no sharing field on either shape.
-   */
-  chatSharing: ChatSharing.pipe(optional),
   status: Schema.Literals(["draft", "live", "paused"]),
 }).annotate({ identifier: "Jolli.Assistant" })
 
@@ -520,3 +471,154 @@ export const Catalog = Schema.Struct({
    */
   account: Schema.String.pipe(optional),
 }).annotate({ identifier: "Jolli.Catalog" })
+
+/**
+ * WHO A SESSION HAS BEEN SHOWN TO, AS JOLLI EDU RECORDS IT.
+ *
+ * ⚠ THERE IS NO COURSE POLICY AND NO STORED VISIBILITY. An earlier build carried both — a course
+ * `chatSharing` default and a two-switch `{ staff, everyone }` in session metadata — and both were a
+ * mock of a model Jolli Edu does not have. These shapes are Jolli Edu's per-session grants (`ConversationShareRow` in jolliedu `common/src/types/CourseChat.ts`),
+ * read and written through the sidecar's `/jolli/session/:sessionID/share` routes. A session is
+ * private because it holds no grants, and readable by somebody because it holds one — there is no
+ * stored "visibility" value to keep in step.
+ *
+ * ⚠ THE SAME CONVERSATION ON BOTH SIDES, BY ID. Every model call carries the session's ID as
+ * `x-jolli-conversation-id`, and the gateway opens a `coding_agent` conversation under that public
+ * ID the first time it sees one. Until the first message has reached the gateway there is nothing
+ * there to share, which is what {@link ShareStatus} `unsynced` says.
+ */
+
+/**
+ * WHAT A GRANT LETS SOMEBODY DO.
+ *
+ * ⚠ `comment` IS IN THE TYPE AND NOTHING MAY WRITE IT YET — jolliedu's `WRITABLE_SHARE_ACCESSES`
+ * holds `view` alone and refuses the other with `access_not_writable`. It is read so a grant made by
+ * a newer client still decodes, and never offered.
+ */
+export const ShareAccess = Schema.Literals(["view", "comment"]).annotate({ identifier: "Jolli.ShareAccess" })
+export type ShareAccess = typeof ShareAccess.Type
+
+/**
+ * THE ONE SUBJECT THAT IS NOT A PERSON: THE COURSE'S WHOLE CLASS.
+ *
+ * ⚠ A LITERAL RATHER THAN A RESERVED USER ID, for jolliedu's reason: a sentinel inside the id space
+ * is a number every reader must remember is not a person, and the first one that forgets resolves it
+ * against the user directory and quietly drops the grant.
+ */
+export const EVERYONE = "everyone"
+
+/** Who a grant is addressed to: one person by their Jolli user id, or the course's class. */
+export const ShareSubject = Schema.Union([Schema.Int, Schema.Literal(EVERYONE)]).annotate({
+  identifier: "Jolli.ShareSubject",
+})
+export type ShareSubject = typeof ShareSubject.Type
+
+/**
+ * ONE GRANT, RESOLVED.
+ *
+ * ⚠ A UNION ON `kind`, NOT A ROW WITH A NULLABLE PERSON. Every consumer decides who may read a
+ * session or says so on a screen, and a union makes each of them say what it does about the class.
+ *
+ * ⚠ THE CLASS ROW CARRIES NO NAME. "Everyone in CS 101" is a sentence about the course, worded in
+ * the renderer's dictionary from {@link SessionShare.courseCode}.
+ */
+export const SessionReader = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal("person"),
+    userId: Schema.Int,
+    name: Schema.String,
+    /** What tells two people with the same name apart. Absent when there is nothing to add. */
+    detail: Schema.String.pipe(optional),
+    access: ShareAccess,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("class"),
+    /** How many students that is, for the row's second line. */
+    classSize: Schema.Int,
+    access: ShareAccess,
+  }),
+]).annotate({ identifier: "Jolli.SessionReader" })
+export type SessionReader = typeof SessionReader.Type
+
+/**
+ * SOMEBODY IN THE COURSE A SESSION COULD BE SHOWN TO.
+ *
+ * ⚠ THE SIGNED-IN STUDENT IS NEVER ONE OF THESE, and neither is a member whose role the course
+ * ladder does not recognise — an unrecognised role is a row to look at, not a classmate. Both are
+ * dropped by the sidecar before this crosses to the renderer.
+ */
+export interface ShareMember extends Schema.Schema.Type<typeof ShareMember> {}
+export const ShareMember = Schema.Struct({
+  userId: Schema.Int,
+  /** The name a screen draws. Falls back to the address, never to an id. */
+  name: Schema.String,
+  detail: Schema.String.pipe(optional),
+  kind: Schema.Literals(["staff", "student"]),
+}).annotate({ identifier: "Jolli.ShareMember" })
+
+/**
+ * WHETHER THE SHARE ROUTE GOT AN ANSWER, AND WHICH ONE.
+ *
+ * - `ok` — the gateway answered and the rest of the body is its answer.
+ * - `unsynced` — the gateway has no conversation under this ID that belongs to this student. Almost
+ *   always a session whose first message has not reached it yet.
+ * - `unreachable` — we never got to ask: signed out, no tenant, or the gateway did not answer.
+ * - `refused` — a write the gateway turned down on purpose; {@link SessionShare.refusal} says why.
+ */
+export const ShareStatus = Schema.Literals(["ok", "unsynced", "unreachable", "refused"]).annotate({
+  identifier: "Jolli.ShareStatus",
+})
+export type ShareStatus = typeof ShareStatus.Type
+
+/**
+ * WHY A WRITE WAS REFUSED, AS A CODE THE RENDERER WORDS.
+ *
+ * ⚠ A CLOSED SET WITH A FALLBACK. jolliedu's four codes, plus `unknown` for a refusal this client
+ * has not heard of — a screen must never print a code at a student.
+ */
+export const ShareRefusal = Schema.Literals([
+  "access_not_writable",
+  "subject_not_in_course",
+  "subject_is_owner",
+  "conversation_has_no_course",
+  "unknown",
+]).annotate({ identifier: "Jolli.ShareRefusal" })
+export type ShareRefusal = typeof ShareRefusal.Type
+
+/**
+ * WHAT EVERY `/jolli/session/:sessionID/share` ROUTE ANSWERS WITH.
+ *
+ * ⚠ ONE SHAPE FOR THE READ AND BOTH WRITES, so the panel replaces its answer wholesale after every
+ * write rather than splicing a row in — jolliedu's rule: the server composes who can read a session,
+ * and a client-side patch would be a second answer that can disagree with it.
+ *
+ * ⚠ `members` IS FILLED ONLY BY THE READ. The roster does not change because a grant did, so the
+ * writes do not pay for it again and answer it empty; the renderer keeps the read's.
+ */
+export interface SessionShare extends Schema.Schema.Type<typeof SessionShare> {}
+export const SessionShare = Schema.Struct({
+  status: ShareStatus,
+  courseId: Schema.NullOr(Schema.Int),
+  courseCode: Schema.NullOr(Schema.String),
+  readers: Schema.Array(SessionReader),
+  members: Schema.Array(ShareMember),
+  /**
+   * How many students the course seats, for the "All N students" action.
+   *
+   * ⚠ COUNTED OFF THE WHOLE ROSTER, not off `members`, which has the signed-in student taken out —
+   * jolliedu's `classSizeOf` makes the same point about a class that shrinks each time you look.
+   * Zero whenever `members` is empty for the reason above.
+   */
+  classSize: Schema.Int,
+  /**
+   * Whether `members` is the roster the gateway returned (`ok`) or nothing because it could not be
+   * read (`unavailable`).
+   *
+   * ⚠ AN EMPTY ROSTER AND AN UNREADABLE ONE ARE DIFFERENT ANSWERS. The first means nobody else is in
+   * the course; the second means we do not know. Reading both off an empty array once told a student
+   * "everyone in this course can already read it" over a session nobody could read.
+   */
+  roster: Schema.Literals(["ok", "unavailable"]),
+  refusal: ShareRefusal.pipe(optional),
+}).annotate({ identifier: "Jolli.SessionShare" })
+

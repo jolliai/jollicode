@@ -17,11 +17,9 @@
 
 import { Jolli } from "@opencode-ai/schema/jolli"
 
-export type ChatSharing = Jolli.ChatSharing
 export type CourseKind = Jolli.CourseKind
 export type AssistantKind = Jolli.AssistantKind
 export type CourseEntryState = Jolli.CourseEntryState
-export type SessionSharing = Jolli.SessionSharing
 export type Accent = Jolli.Accent
 export type Course = Jolli.Course
 export type AssistantGuardrails = Jolli.AssistantGuardrails

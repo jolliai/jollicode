@@ -16,10 +16,13 @@ import { SessionSummary } from "@/session/summary"
 import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { NamedError } from "@opencode-ai/core/util/error"
+import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
+import { syncTitle } from "@opencode-ai/core/jolli/title"
 import { Cause, Effect, Option, Schema, Scope } from "effect"
 import * as Stream from "effect/Stream"
 import { InstanceState } from "@/effect/instance-state"
-import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
+import { FetchHttpClient, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder, HttpApiError, HttpApiSchema } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
 import {
@@ -157,6 +160,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const todoSvc = yield* Todo.Service
     const summary = yield* SessionSummary.Service
     const events = yield* EventV2Bridge.Service
+    const jolli = yield* JolliSession.Service
     const scope = yield* Scope.Scope
 
     const list = Effect.fn("SessionHttpApi.list")(function* (ctx: { query: typeof ListQuery.Type }) {
@@ -300,6 +304,19 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
 
       if (ctx.payload.title !== undefined) {
         yield* session.setTitle({ sessionID: ctx.params.sessionID, title: ctx.payload.title })
+        /**
+         * ⚠ ONLY A SESSION THAT HAS PROMPTED A JOLLI MODEL HAS A CONVERSATION TO RENAME. `model` is
+         * written by the first prompt, so its absence means nothing reached the gateway yet — the
+         * first turn pushes that title instead (`SessionPrompt.ensureTitle`). Forked so a slow or
+         * absent gateway never holds up the rename the student is looking at.
+         */
+        if (current.model && isJolliProviderId(current.model.providerID)) {
+          yield* syncTitle(ctx.params.sessionID, ctx.payload.title).pipe(
+            Effect.provideService(JolliSession.Service, jolli),
+            Effect.provide(FetchHttpClient.layer),
+            Effect.forkIn(scope),
+          )
+        }
       }
       if (metadata !== undefined) {
         yield* session.setMetadata({ sessionID: ctx.params.sessionID, metadata })

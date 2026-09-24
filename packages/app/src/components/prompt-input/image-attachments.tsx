@@ -35,7 +35,10 @@ const removeClass =
   "absolute -top-1.5 -right-1.5 size-5 rounded-full bg-surface-raised-stronger-non-alpha border border-border-base flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-surface-raised-base-hover"
 const removeClassV2 =
   "absolute -top-1 -right-1 size-4 rounded-full bg-v2-icon-icon-muted outline-solid outline-1 outline-v2-icon-icon-contrast flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-const nameClass = "absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-black/50 rounded-b-md"
+// FORK: arbitrary values, not `bg-black/50` / `text-white`. The Tailwind theme resets the palette
+// (`--color-*: initial` in `ui/src/styles/tailwind/colors.css`), so those named colours emit no CSS
+// and the filename strip rendered as dark text with no backing over the image.
+const nameClass = "absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-[rgb(0_0_0/0.5)] rounded-b-md"
 
 export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (props) => {
   return (
@@ -110,7 +113,7 @@ export const PromptImageAttachments: Component<PromptImageAttachmentsProps> = (p
               )
               const name = () => (
                 <div class={nameClass}>
-                  <span class="text-10-regular text-white truncate block">{attachment.filename}</span>
+                  <span class="text-10-regular text-[#fff] truncate block">{attachment.filename}</span>
                 </div>
               )
               const remove = () => (

@@ -3,11 +3,22 @@ import { courseBindingOf } from "../src/jolli/binding"
 
 describe("courseBindingOf", () => {
   test("reads the binding the server carries on the session", () => {
+    expect(courseBindingOf({ metadata: { jolli: { courseId: "7", assistantId: "12" } } })).toEqual({
+      courseId: "7",
+      assistantId: "12",
+    })
+  })
+
+  /**
+   * ⚠ AN OLDER BUILD WROTE A LOCAL `sharing` MOCK INTO THIS BAG. Sessions carrying it still read as
+   * bound, and the field is dropped rather than resurrected — who can read a session is Jolli's.
+   */
+  test("ignores the retired sharing field on sessions an older build bound", () => {
     expect(
       courseBindingOf({
         metadata: { jolli: { courseId: "7", assistantId: "12", sharing: { staff: true, everyone: false } } },
       }),
-    ).toEqual({ courseId: "7", assistantId: "12", sharing: { staff: true, everyone: false } })
+    ).toEqual({ courseId: "7", assistantId: "12" })
   })
 
   test("a session nobody bound is unbound, not broken", () => {
@@ -25,18 +36,6 @@ describe("courseBindingOf", () => {
     for (const jolli of ["", 0, [], null, { courseId: "7" }, { assistantId: "12" }, { courseId: 7, assistantId: 12 }]) {
       expect(courseBindingOf({ metadata: { jolli } as Record<string, unknown> })).toBeUndefined()
     }
-  })
-
-  // Sharing is two independent grants; a missing or partial one defaults to granting nothing.
-  test("absent sharing grants nobody", () => {
-    expect(courseBindingOf({ metadata: { jolli: { courseId: "7", assistantId: "12" } } })?.sharing).toEqual({
-      staff: false,
-      everyone: false,
-    })
-    expect(
-      courseBindingOf({ metadata: { jolli: { courseId: "7", assistantId: "12", sharing: { staff: "yes" } } } })
-        ?.sharing,
-    ).toEqual({ staff: false, everyone: false })
   })
 
   test("leaves other features' metadata alone", () => {
