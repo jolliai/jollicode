@@ -76,13 +76,6 @@ export async function JolliAuthPlugin(_input: PluginInput, options: { bridge: Ef
           async fetch(input: RequestInfo | URL, init?: RequestInit) {
             const headers = new Headers(input instanceof Request ? input.headers : undefined)
             new Headers(init?.headers).forEach((value, key) => headers.set(key, value))
-            /**
-             * ⚠ WHATEVER THE SDK PUT THERE IS REMOVED FIRST. `options.apiKey` is a value a
-             * coursework repo can set, and on this path it would otherwise reach the gateway as
-             * that student's credential — an identity swap, not a nuisance.
-             */
-            headers.delete("x-api-key")
-            headers.delete("authorization")
 
             const url = input instanceof Request ? input.url : input.toString()
             /**
@@ -93,11 +86,16 @@ export async function JolliAuthPlugin(_input: PluginInput, options: { bridge: Ef
              * the correct failure; silently obliging is not.
              */
             if (!isJolliOriginAllowed(url) && !(pinnedGateway && url.startsWith(`${pinnedGateway}/`))) {
+              // Do not send SDK or config credentials to a destination outside the Jolli gateway.
+              headers.delete("x-api-key")
+              headers.delete("x-goog-api-key")
+              headers.delete("authorization")
               return fetch(input, { ...init, headers })
             }
 
             const token = await use((service) => service.token())
-            headers.set("x-api-key", token)
+            // The gateway authenticates with Bearer; vendor SDK headers stay intact for forwarding.
+            headers.set("authorization", `Bearer ${token}`)
             /**
              * ⚠ CLONED BEFORE THE FIRST SEND, BECAUSE A SENT `Request` HAS NO BODY LEFT. The SDKs
              * hand us a `Request` on some paths and a URL plus `init` on others; only the first
@@ -131,7 +129,7 @@ export async function JolliAuthPlugin(_input: PluginInput, options: { bridge: Ef
             // Nothing will read the refusal now that it is being replaced, and an abandoned body
             // holds its connection open.
             await answer.body?.cancel()
-            headers.set("x-api-key", renewed)
+            headers.set("authorization", `Bearer ${renewed}`)
             return fetch(retryable, { ...init, headers })
           },
         }

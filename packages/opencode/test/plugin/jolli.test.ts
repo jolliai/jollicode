@@ -139,12 +139,12 @@ describe("plugin.jolli — the loader", () => {
     await options["fetch"]("https://acme.jolli.ai/api/v1/messages")
     await options["fetch"]("https://acme.jolli.ai/api/v1/messages")
 
-    expect(seen.map((request) => request.headers.get("x-api-key"))).toEqual(["access-1", "access-2"])
-    // The placeholder never travels — it exists only so the SDK will build a request at all.
+    expect(seen.map((request) => request.headers.get("authorization"))).toEqual(["Bearer access-1", "Bearer access-2"])
+    // The placeholder is never used for gateway authentication; it only lets the SDK build a request.
     expect(options["apiKey"]).toBeTruthy()
   })
 
-  test("removes whatever the SDK or a config layer put in the credential headers", async () => {
+  test("replaces SDK authorization while preserving vendor credential headers", async () => {
     const options = await loaderOf({
       current: () => Effect.succeed(signedInRow),
       token: () => Effect.succeed("access-1"),
@@ -157,12 +157,44 @@ describe("plugin.jolli — the loader", () => {
     })
 
     await options["fetch"]("https://acme.jolli.ai/api/v1/messages", {
-      headers: { "x-api-key": "ANOTHER_STUDENTS_JWT", authorization: "Bearer ANOTHER_STUDENTS_JWT" },
+      headers: {
+        "x-api-key": "sdk-anthropic-key",
+        "x-goog-api-key": "sdk-google-key",
+        authorization: "Bearer sdk-openai-key",
+      },
     })
 
-    // Otherwise a coursework repo's `options.apiKey` reaches the gateway as that student.
-    expect(seen.at(0)?.headers.get("x-api-key")).toBe("access-1")
-    expect(seen.at(0)?.headers.get("authorization")).toBeNull()
+    expect(seen.at(0)?.headers.get("authorization")).toBe("Bearer access-1")
+    expect(seen.at(0)?.headers.get("x-api-key")).toBe("sdk-anthropic-key")
+    expect(seen.at(0)?.headers.get("x-goog-api-key")).toBe("sdk-google-key")
+  })
+
+  test.each([
+    ["anthropic", "/api/v1/messages", "x-api-key"],
+    ["openai", "/api/v1/responses", "authorization"],
+    ["google", "/api/v1beta/models/gemini-test:streamGenerateContent", "x-goog-api-key"],
+  ] as const)("authenticates %s requests without dropping SDK headers", async (_protocol, path, credentialHeader) => {
+    const options = await loaderOf({
+      current: () => Effect.succeed(signedInRow),
+      token: () => Effect.succeed("access-1"),
+    })
+
+    const seen: Request[] = []
+    stubJolli(async (request) => {
+      seen.push(request)
+      return Response.json({})
+    })
+
+    await options["fetch"](
+      new Request(`https://acme.jolli.ai${path}`, { headers: { [credentialHeader]: "sdk-credential" } }),
+      { headers: { "x-trace-id": "trace-1" } },
+    )
+
+    expect(seen.at(0)?.headers.get("authorization")).toBe("Bearer access-1")
+    if (credentialHeader !== "authorization") {
+      expect(seen.at(0)?.headers.get(credentialHeader)).toBe("sdk-credential")
+    }
+    expect(seen.at(0)?.headers.get("x-trace-id")).toBe("trace-1")
   })
 
   test("renews and retries once when the gateway refuses the token", async () => {
@@ -184,9 +216,12 @@ describe("plugin.jolli — the loader", () => {
       return seen.length === 1 ? new Response("", { status: 401 }) : Response.json({})
     })
 
-    const answer = await options["fetch"]("https://acme.jolli.ai/api/v1/messages")
+    const answer = await options["fetch"]("https://acme.jolli.ai/api/v1beta/models/gemini-test:streamGenerateContent", {
+      headers: { "x-goog-api-key": "sdk-google-key" },
+    })
 
-    expect(seen.map((request) => request.headers.get("x-api-key"))).toEqual(["access-1", "access-2"])
+    expect(seen.map((request) => request.headers.get("authorization"))).toEqual(["Bearer access-1", "Bearer access-2"])
+    expect(seen.map((request) => request.headers.get("x-goog-api-key"))).toEqual(["sdk-google-key", "sdk-google-key"])
     // The student's message goes through on the renewed token rather than surfacing the refusal.
     expect(answer.status).toBe(200)
   })
@@ -235,7 +270,7 @@ describe("plugin.jolli — the loader", () => {
     const body = JSON.stringify({ messages: [{ role: "user", content: "hello" }] })
     const sent: { key: string | null; body: string }[] = []
     stubJolliPreservingBody(async (request) => {
-      sent.push({ key: request.headers.get("x-api-key"), body: await request.text() })
+      sent.push({ key: request.headers.get("authorization"), body: await request.text() })
       return sent.length === 1 ? new Response("", { status: 401 }) : Response.json({})
     })
 
@@ -244,8 +279,8 @@ describe("plugin.jolli — the loader", () => {
 
     expect(answer.status).toBe(200)
     expect(sent).toEqual([
-      { key: "access-1", body },
-      { key: "access-2", body },
+      { key: "Bearer access-1", body },
+      { key: "Bearer access-2", body },
     ])
   })
 
@@ -297,7 +332,7 @@ describe("plugin.jolli — the loader", () => {
     let renewed = false
     const sent: string[] = []
     stubJolliPreservingBody(async (request) => {
-      sent.push(request.headers.get("x-api-key") ?? "")
+      sent.push(request.headers.get("authorization") ?? "")
       return new Response("", { status: 401 })
     })
 
@@ -353,9 +388,12 @@ describe("plugin.jolli — the loader", () => {
 
     // A config layer can set `options.baseURL`, so without this check a repository would choose
     // where the student's token gets sent. Unauthenticated is the correct failure.
-    await options["fetch"]("https://evil.example/v1/messages", { headers: { "x-api-key": "leaked" } })
+    await options["fetch"]("https://evil.example/v1/messages", {
+      headers: { "x-api-key": "leaked", "x-goog-api-key": "leaked", authorization: "Bearer leaked" },
+    })
 
     expect(seen.at(0)?.headers.get("x-api-key")).toBeNull()
+    expect(seen.at(0)?.headers.get("x-goog-api-key")).toBeNull()
     expect(seen.at(0)?.headers.get("authorization")).toBeNull()
   })
 
@@ -382,7 +420,7 @@ describe("plugin.jolli — the loader", () => {
 
     await options["fetch"]("https://fixture.internal/gw/v1/messages")
 
-    expect(seen.at(0)?.headers.get("x-api-key")).toBe("access-1")
+    expect(seen.at(0)?.headers.get("authorization")).toBe("Bearer access-1")
   })
 
   /**
@@ -406,7 +444,7 @@ describe("plugin.jolli — the loader", () => {
 
     await options["fetch"]("https://evil.example/v1/messages")
 
-    expect(seen.at(0)?.headers.get("x-api-key")).toBeNull()
+    expect(seen.at(0)?.headers.get("authorization")).toBeNull()
   })
 })
 
@@ -439,7 +477,7 @@ async function callbackWith(started: { url: string; callback(): Promise<unknown>
  * ⚠ `stubJolli` REBUILDS FROM `input.url` AND `init`, SO IT DROPS THE BODY OF A `Request` — which
  * is exactly the shape the retry has to get right. This one composes the two instead, which is the
  * whole contract the plugin leans on: the body comes from the `Request` it was handed and the
- * `x-api-key` from the `init` beside it, and a stub that reads only one of them is measuring
+ * `authorization` from the `init` beside it, and a stub that reads only one of them is measuring
  * itself.
  *
  * ⚠ AND IT SPENDS THE CALLER'S BODY, WHICH IS THE PART THAT MAKES THE CLONE TEST MEAN ANYTHING.
