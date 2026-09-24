@@ -157,6 +157,15 @@ export function jolliBaseConfig(input: JolliConfigInput) {
      */
     enabled_providers: JOLLI_PROVIDER_IDS,
     /**
+     * ⚠ UPSTREAM'S SHARE PUBLISHES A SESSION TO OPENCODE'S OWN CLOUD, AND THIS TURNS IT OFF. A
+     * student's session is shared on Jolli, with named course members, through the
+     * `/jolli/session/:sessionID/share` routes; upstream's `session.share` uploads the whole
+     * transcript to a public link on a third party's servers. The desktop no longer offers it, and
+     * this is what makes the server refuse it for every other caller — the TUI's `/share`, a
+     * plugin, a hand-written request — rather than trusting each of them to leave it alone.
+     */
+    share: "disabled" as const,
+    /**
      * ⚠ IT IS THE V1 SHAPE — `{ paths: [...] }`, NOT A BARE ARRAY. Two config schemas live in this
      * repo: v1 takes `skills: { paths, urls }`, v2 takes a flat `skills: string[]`. A flat array
      * here validates against nothing, fails silently, and the skills simply never appear.

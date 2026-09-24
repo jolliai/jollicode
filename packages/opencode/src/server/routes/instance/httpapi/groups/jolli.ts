@@ -11,12 +11,25 @@
  * added to the v2 protocol would be served correctly and never once be asked for.
  */
 import { Jolli } from "@opencode-ai/schema/jolli"
+import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { described } from "./metadata"
 
 export const JolliPaths = {
   course: "/jolli/course",
+  share: "/jolli/session/:sessionID/share",
+  unshare: "/jolli/session/:sessionID/share/:subject",
 } as const
+
+/**
+ * ⚠ THE SESSION ID IS A PLAIN STRING HERE, NOT THE BRANDED `SessionID`. These routes never touch the
+ * local session store — they name a conversation on the gateway, where the same ID is the public
+ * conversation ID — and a root route has no instance to validate a session against anyway.
+ */
+const ShareParams = { sessionID: Schema.String }
+
+/** ⚠ INLINE, NOT A NAMED SCHEMA, so the generated client takes `{ sessionID, subject }` flat. */
+const SharePayload = Schema.Struct({ subject: Jolli.ShareSubject })
 
 export const JolliApi = HttpApi.make("jolli").add(
   HttpApiGroup.make("jolli")
@@ -35,10 +48,55 @@ export const JolliApi = HttpApi.make("jolli").add(
         }),
       ),
     )
+    .add(
+      HttpApiEndpoint.get("share", JolliPaths.share, {
+        params: ShareParams,
+        success: described(Jolli.SessionShare, "Who can read the session, and who in its course it could be shown to"),
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "jolli.share",
+          summary: "Read a session's readers",
+          description:
+            "The Jolli readers of one of the signed-in student's sessions, plus the members of the " +
+            "session's course it could still be shared with. Answers `unsynced` while the gateway has " +
+            "no conversation for the session yet and `unreachable` when there is no credential or the " +
+            "gateway did not answer, rather than an error.",
+        }),
+      ),
+    )
+    .add(
+      HttpApiEndpoint.post("shareAdd", JolliPaths.share, {
+        params: ShareParams,
+        payload: SharePayload,
+        success: described(Jolli.SessionShare, "The session's readers after the grant"),
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "jolli.shareAdd",
+          summary: "Share a session",
+          description:
+            "Grants one course member, or the whole class (`everyone`), read access to the session on " +
+            "Jolli. A refusal answers `refused` with the reason in `refusal`.",
+        }),
+      ),
+    )
+    .add(
+      HttpApiEndpoint.delete("shareRemove", JolliPaths.unshare, {
+        params: { ...ShareParams, subject: Schema.String },
+        success: described(Jolli.SessionShare, "The session's readers after the grant is withdrawn"),
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "jolli.shareRemove",
+          summary: "Stop sharing a session",
+          description:
+            "Withdraws one reader's grant — a user id, or `everyone` for the class. Withdrawing a grant " +
+            "that was not there is not an error.",
+        }),
+      ),
+    )
     .annotateMerge(
       OpenApi.annotations({
         title: "jolli",
-        description: "Jolli Code course and assistant routes.",
+        description: "Jolli Code course, assistant and session-share routes.",
       }),
     ),
 )

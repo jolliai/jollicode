@@ -217,13 +217,6 @@ export function toCourse(input: {
     status: courseStatusOf(input.item.status),
     entryState: input.entryState,
     endsOn: input.item.endsOn,
-    /**
-     * ⚠ ALWAYS `private`, AND THAT IS NOT A DEFAULT WE PICKED. Jolli Edu models sharing as
-     * per-session grants rather than as a course policy, so a new session starts with nothing
-     * granted — `private` IS that state. There is no field to read: `CourseListItem`,
-     * `CourseDetail` and `CourseSettings` all lack one.
-     */
-    chatSharing: "private",
   }
 }
 

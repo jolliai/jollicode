@@ -15,6 +15,15 @@
  *   GET /api/courses/:id/assistant-choices    CourseRouter.ts:1993   spaces.view, 404-on-no-permission
  *   GET /api/agent/models                     AgentModelRouter.ts:21 any signed-in user
  * All three answer with a bare array — no envelope.
+ *
+ * And the session-share surface, verified against the same tree:
+ *   GET    /api/agent/convos/:id                    AgentConvoRouter.ts   owner only, 404 otherwise
+ *   PATCH  /api/agent/convos/:id                    AgentConvoRouter.ts   owner only, 404 otherwise
+ *   POST   /api/agent/convos/:id/shares             ConversationShareRouter.ts   owner only
+ *   DELETE /api/agent/convos/:id/shares/:subject    ConversationShareRouter.ts   owner only
+ *   GET    /api/spaces/:id/members                  SpaceMemberRouter.ts  spaces.view
+ * The share writes answer with the conversation's composed visibility, the convo read carries the
+ * same object under `visibility`, and the roster is a bare array.
  */
 import { Effect, Schedule, Schema } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
@@ -25,6 +34,11 @@ export class JolliApiError extends Schema.TaggedErrorClass<JolliApiError>()("Jol
   path: Schema.String,
   /** Absent when the request never got a response. */
   status: Schema.optional(Schema.Number),
+  /**
+   * The machine-readable reason a write was refused, when the gateway sent one. Only the share
+   * writes read it today; see {@link shareConversation}.
+   */
+  code: Schema.optional(Schema.String),
   message: Schema.String,
   cause: Schema.optional(Schema.Defect()),
 }) {}
@@ -164,6 +178,62 @@ const AgentModelProvider = Schema.Struct({
   models: Schema.Array(AgentModel),
 }).annotate({ identifier: "JolliApi.AgentModelProvider" })
 
+/**
+ * jolliedu `common/src/types/CourseChat.ts` — `ConversationPersonShare` | `ConversationClassShare`.
+ *
+ * ⚠ `access` IS AN OPEN STRING HERE for the reason `CourseListItem.status` is: a level this client
+ * has not heard of must not fail the whole visibility object. The mapping narrows it.
+ */
+const ConversationShareRow = Schema.Union([
+  Schema.Struct({
+    subjectIsClass: Schema.Literal(false),
+    subjectUserId: Schema.Number,
+    name: Schema.String,
+    detail: Schema.optional(Schema.NullOr(Schema.String)),
+    access: Schema.String,
+  }),
+  Schema.Struct({
+    subjectIsClass: Schema.Literal(true),
+    classSize: Schema.Number,
+    access: Schema.String,
+  }),
+])
+
+/**
+ * jolliedu `common/src/types/CourseChat.ts` — `ConversationVisibility`.
+ *
+ * ⚠ `shares` IS ABSENT FOR ANYBODY BUT THE OWNER. The share routes only ever answer the owner, so
+ * absence here means the gateway withheld the list, and the mapping reads it as "nobody" rather
+ * than guessing.
+ */
+export const ConversationVisibility = Schema.Struct({
+  courseCode: Schema.NullOr(Schema.String),
+  courseId: Schema.NullOr(Schema.Number),
+  mayControl: Schema.Boolean,
+  shares: Schema.optional(Schema.Array(ConversationShareRow)),
+}).annotate({ identifier: "JolliApi.ConversationVisibility" })
+export interface ConversationVisibility extends Schema.Schema.Type<typeof ConversationVisibility> {}
+
+/**
+ * The one field of jolliedu's `AgentSessionDetail` this client reads.
+ *
+ * ⚠ THE WHOLE DETAIL COMES DOWN THE WIRE — timeline included — BECAUSE NO NARROWER OWNER READ
+ * EXISTS. Only `visibility` is decoded, and the renderer asks only when the share panel opens or the
+ * coaching gate's cached answer is stale — never per session on screen
+ * (`packages/app/src/jolli/use-session-share.ts`).
+ */
+const ConversationDetail = Schema.Struct({ visibility: ConversationVisibility })
+
+/** jolliedu `common/src/types/SpaceMember.ts` — `SpaceMemberWithUser`, trimmed to what a picker reads. */
+export const SpaceMember = Schema.Struct({
+  userId: Schema.Number,
+  /** Open for the same reason as `CourseListItem.viewerRole`: a new role must not fail the roster. */
+  role: Schema.String,
+  userName: Schema.NullOr(Schema.String),
+  userEmail: Schema.String,
+}).annotate({ identifier: "JolliApi.SpaceMember" })
+export interface SpaceMember extends Schema.Schema.Type<typeof SpaceMember> {}
+
 // ── The calls ───────────────────────────────────────────────────────────────────────────────────
 
 const retry = Schedule.exponential(200).pipe(Schedule.jittered)
@@ -204,6 +274,59 @@ const get = Effect.fn("Jolli.get")(function* <A, I>(request: GatewayRequest, pat
       )
     }),
   )
+})
+
+/**
+ * A body-carrying request: the share writes and the rename.
+ *
+ * ⚠ NOT RETRIED, UNLIKE {@link get}. A write that timed out may still have landed, and the student
+ * is looking at the panel that will say so on its next read — replaying it blind is how a grant the
+ * student just withdrew comes back.
+ *
+ * ⚠ A NON-2XX ANSWER IS READ FOR ITS `code` BEFORE IT BECOMES AN ERROR. A refusal is an answer the
+ * student can act on, and a status alone cannot tell "somebody outside the course" from "the
+ * owner themselves".
+ */
+const send = Effect.fn("Jolli.send")(function* <A, I>(
+  request: GatewayRequest,
+  method: "POST" | "PATCH" | "DELETE",
+  path: string,
+  schema: Schema.Codec<A, I>,
+  body?: unknown,
+) {
+  const http = yield* HttpClient.HttpClient
+  const url = new URL(path, request.origin).toString()
+  const failed = (cause: unknown, status?: number, code?: string) =>
+    new JolliApiError({
+      path,
+      ...(status === undefined ? {} : { status }),
+      ...(code === undefined ? {} : { code }),
+      message: `Jolli request failed: ${method} ${path}`,
+      cause,
+    })
+  const response = yield* HttpClientRequest.make(method)(url).pipe(
+    HttpClientRequest.bearerToken(request.token),
+    HttpClientRequest.setHeader("User-Agent", Brand.userAgent()),
+    request.tenantSlug ? HttpClientRequest.setHeader("x-tenant-slug", request.tenantSlug) : (r) => r,
+    body === undefined ? Effect.succeed : HttpClientRequest.bodyJson(body),
+    Effect.flatMap((r) => http.execute(r)),
+    Effect.timeout("15 seconds"),
+    Effect.mapError((cause) => failed(cause)),
+  )
+  if (response.status >= 200 && response.status < 300) {
+    return yield* HttpClientResponse.schemaBodyJson(schema)(response).pipe(
+      Effect.mapError((cause) => failed(cause, response.status)),
+    )
+  }
+  const code = yield* response.json.pipe(
+    Effect.map((json) =>
+      typeof json === "object" && json !== null && "code" in json && typeof json.code === "string"
+        ? json.code
+        : undefined,
+    ),
+    Effect.orElseSucceed(() => undefined),
+  )
+  return yield* Effect.fail(failed(undefined, response.status, code))
 })
 
 /** Every course the signed-in user can see. NOT only theirs — see `CourseListItem.viewerRole`. */
@@ -249,4 +372,59 @@ export const fetchModelIndex = (request: GatewayRequest) =>
       }
       return index
     }),
+  )
+
+/**
+ * Who may read one of the caller's conversations, by the public ID this client declared for it.
+ *
+ * ⚠ 404 MEANS "NOT YOURS OR NOT THERE", DELIBERATELY INDISTINGUISHABLE — jolliedu answers both the
+ * same so ids cannot be enumerated. For a session this client owns it almost always means the first
+ * message has not reached the gateway yet.
+ */
+export const fetchConversationVisibility = (request: GatewayRequest, sessionID: string) =>
+  get(request, `/api/agent/convos/${encodeURIComponent(sessionID)}`, ConversationDetail).pipe(
+    Effect.map((detail) => detail.visibility),
+  )
+
+/**
+ * Name one of the caller's conversations, so the web lists it by the title this client shows.
+ *
+ * ⚠ THE GATEWAY NEVER LEARNS A TITLE ANY OTHER WAY. It creates a coding-agent conversation from the
+ * first model call's headers, with no title and auto-titling off, so without this the web shows it
+ * as untitled forever. The answer is the whole conversation detail, timeline included; nothing in it
+ * is read.
+ */
+export const renameConversation = (request: GatewayRequest, sessionID: string, title: string) =>
+  send(request, "PATCH", `/api/agent/convos/${encodeURIComponent(sessionID)}`, Schema.Unknown, { title }).pipe(
+    Effect.asVoid,
+  )
+
+/** Everybody seated in one course, staff and students both. */
+export const fetchCourseMembers = (request: GatewayRequest, courseId: number) =>
+  get(request, `/api/spaces/${courseId}/members`, Schema.Array(SpaceMember))
+
+/**
+ * Name a reader — one person by user id, or `everyone` for the course's class.
+ *
+ * ⚠ THE FIELD IS `subjectUserId` EVEN FOR THE CLASS, which is jolliedu keeping deployed clients
+ * working rather than a mistake here. A refusal fails with `status: 400` and the reason in `code`.
+ */
+export const shareConversation = (
+  request: GatewayRequest,
+  sessionID: string,
+  subject: number | "everyone",
+  access: string,
+) =>
+  send(request, "POST", `/api/agent/convos/${encodeURIComponent(sessionID)}/shares`, ConversationVisibility, {
+    subjectUserId: subject,
+    access,
+  })
+
+/** Take one grant back. Removing a grant that was not there is not an error. */
+export const unshareConversation = (request: GatewayRequest, sessionID: string, subject: number | "everyone") =>
+  send(
+    request,
+    "DELETE",
+    `/api/agent/convos/${encodeURIComponent(sessionID)}/shares/${subject}`,
+    ConversationVisibility,
   )

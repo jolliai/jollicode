@@ -108,7 +108,7 @@ describe("Home V2 session index", () => {
   })
 
   test("keeps a session's metadata, which is where its course binding lives", () => {
-    const metadata = { jolli: { courseId: "cs-310", assistantId: "tutor", sharing: { staff: true, everyone: false } } }
+    const metadata = { jolli: { courseId: "cs-310", assistantId: "tutor" } }
     const bound = { ...session({ id: "bound" }), metadata }
 
     expect(parseHomeSessionIndex([bound, session({ id: "unbound" })])).toEqual([

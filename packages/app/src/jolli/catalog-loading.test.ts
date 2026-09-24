@@ -26,7 +26,6 @@ const catalog: Catalog = {
       status: "published",
       entryState: "open",
       endsOn: null,
-      chatSharing: "private",
     },
   ],
   assistants: [

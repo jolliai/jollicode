@@ -1049,7 +1049,6 @@ it.instance("subtask uses independent zero-based Jolli identities and inherits t
         jolli: {
           courseId: "7",
           assistantId: "12",
-          sharing: { staff: true, everyone: false },
         },
       },
     })

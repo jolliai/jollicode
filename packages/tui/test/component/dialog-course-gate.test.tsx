@@ -47,7 +47,6 @@ const course = (id: string, entryState: string, assistantIds: string[]) => ({
   status: entryState === "draft" ? "draft" : "published",
   entryState,
   endsOn: null,
-  chatSharing: "private",
 })
 
 const assistant = {
@@ -56,6 +55,7 @@ const assistant = {
   name: "Tutor",
   kind: "code",
   blurb: "",
+  icon: "Sparkles",
   accent: 1,
   isDefault: true,
   instructions: "",

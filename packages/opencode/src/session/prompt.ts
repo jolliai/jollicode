@@ -57,6 +57,10 @@ import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { LLMEvent } from "@opencode-ai/llm"
 import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
+import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
+import { syncTitle } from "@opencode-ai/core/jolli/title"
+import { FetchHttpClient } from "effect/unstable/http"
 import { randomUUID } from "node:crypto"
 
 // @ts-ignore
@@ -142,6 +146,7 @@ const layer = Layer.effect(
     const events = yield* EventV2Bridge.Service
     const flags = yield* RuntimeFlags.Service
     const database = yield* Database.Service
+    const jolli = yield* JolliSession.Service
     const { db } = database
     const ops = Effect.fn("SessionPrompt.ops")(function* () {
       return {
@@ -199,13 +204,26 @@ const layer = Layer.effect(
       modelID: ModelV2.ID
     }) {
       if (input.session.parentID) return
-      if (!Session.isDefaultTitle(input.session.title)) return
 
       const real = (m: SessionV1.WithParts) =>
         m.info.role === "user" && !m.parts.every((p) => "synthetic" in p && p.synthetic)
       const idx = input.history.findIndex(real)
       if (idx === -1) return
       if (input.history.filter(real).length !== 1) return
+
+      const sync = (title: string) =>
+        isJolliProviderId(input.providerID)
+          ? syncTitle(input.session.id, title).pipe(
+              Effect.provideService(JolliSession.Service, jolli),
+              Effect.provide(FetchHttpClient.layer),
+            )
+          : Effect.void
+      /**
+       * ⚠ A TITLE GIVEN BEFORE THE FIRST MESSAGE IS PUSHED HERE, NOT BY THE RENAME. The gateway only
+       * creates the conversation on this first turn, so a rename of an empty session had nowhere to
+       * land and this is the first moment it can.
+       */
+      if (!Session.isDefaultTitle(input.session.title)) return yield* sync(input.session.title)
 
       const context = input.history.slice(0, idx + 1)
       const firstUser = context[idx]
@@ -251,7 +269,10 @@ const layer = Layer.effect(
       const t = cleaned.length > 100 ? cleaned.substring(0, 97) + "..." : cleaned
       yield* sessions
         .setTitle({ sessionID: input.session.id, title: t })
-        .pipe(Effect.catchCause((cause) => Effect.logError("failed to generate title", { error: Cause.squash(cause) })))
+        .pipe(
+          Effect.andThen(sync(t)),
+          Effect.catchCause((cause) => Effect.logError("failed to generate title", { error: Cause.squash(cause) })),
+        )
     })
 
     const handleSubtask = Effect.fn("SessionPrompt.handleSubtask")(function* (input: {
@@ -1636,6 +1657,7 @@ export const node = LayerNode.make({
     EventV2Bridge.node,
     RuntimeFlags.node,
     Database.node,
+    JolliSession.node,
   ],
 })
 

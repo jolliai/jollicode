@@ -12,8 +12,8 @@
  * callers:
  *
  *   - Course staff read NUDGES off every session, including ones a student withheld from them.
- *     That separation is deliberate — `SessionSharing` decides who reads the SESSION, and a nudge
- *     is not the session.
+ *     That separation is deliberate — the session's Jolli grants decide who reads the SESSION, and
+ *     a nudge is not the session.
  *   - It is survivable only because a nudge is metadata: how long the question was, which model
  *     ran, whether a tool failed. A professor reading a nudge off a withheld session learns how
  *     their student worked, never what they wrote.
@@ -27,7 +27,6 @@
  * every other model call this application makes.
  */
 import type { CoachTrigger } from "./coaching"
-import type { SessionSharing } from "./types"
 
 /**
  * WHAT A WRITER IS GIVEN. `exchange` is absent whenever the session is withheld from staff, and its
@@ -38,8 +37,8 @@ export interface CoachProseRequest {
   /** The professor's own words from `CoachingRubric.instructions`. May be empty. */
   instructions: string
   /**
-   * ⚠ PRESENT ONLY WHEN `sharing.staff` IS TRUE. See this file's header for why that is the
-   * condition, and `coachProseRequest` for where it is applied.
+   * ⚠ PRESENT ONLY WHEN STAFF CAN ALREADY READ THE SESSION. See this file's header for why that is
+   * the condition, and `coachProseRequest` for where it is applied.
    */
   exchange?: { prompt: string; reply: string }
 }
@@ -62,12 +61,16 @@ export type CoachProseWriter = (request: CoachProseRequest) => Promise<string | 
 export function coachProseRequest(input: {
   trigger: CoachTrigger
   instructions: string
-  sharing: SessionSharing
+  /**
+   * Whether course staff can read this session on Jolli — `staffCanRead` in `session-share.ts`,
+   * which fails closed. Pass nothing else here: this flag IS the privacy rule.
+   */
+  staffCanRead: boolean
   prompt: string
   reply: string
 }): CoachProseRequest {
   const base = { trigger: input.trigger, instructions: input.instructions }
-  if (!input.sharing.staff) return base
+  if (!input.staffCanRead) return base
   return { ...base, exchange: { prompt: input.prompt, reply: input.reply } }
 }
 

@@ -22,7 +22,6 @@ import { Flag } from "@opencode-ai/core/flag/flag"
 import { courseBindingOf, type CourseBinding } from "@opencode-ai/core/jolli/binding"
 import { isJolliConnected } from "@opencode-ai/core/jolli/gateway-config"
 import { Lookup } from "@opencode-ai/core/jolli/lookup"
-import { defaultSessionSharing } from "@opencode-ai/core/jolli/sharing"
 import { Jolli } from "@opencode-ai/schema/jolli"
 import { createEffect, createMemo, createSignal, on } from "solid-js"
 import { createStore, produce } from "solid-js/store"
@@ -330,13 +329,12 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
      * one course and a carried selection would name one the new course has never heard of.
      */
     const draftFor = (courseId: string, assistantId?: string) => {
-      const next = Lookup.courseById(store, courseId)
-      if (!next) return undefined
+      if (!Lookup.courseById(store, courseId)) return undefined
       const chosen =
         (assistantId ? Lookup.assistantById(store, assistantId) : undefined) ??
         Lookup.defaultAssistantFor(store, courseId)
       if (!chosen) return undefined
-      return { courseId, assistantId: chosen.id, sharing: defaultSessionSharing(next, [chosen]) }
+      return { courseId, assistantId: chosen.id }
     }
 
     /**

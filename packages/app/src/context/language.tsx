@@ -33,6 +33,9 @@ type PluralKey =
   | "session.question.pending"
   | "session.followupDock.summary"
   | "session.revertDock.summary"
+  | "session.share.classRow.detail"
+  | "session.share.picker.allStudents"
+  | "session.share.picker.more"
 type Source = { dict: Record<string, string> }
 
 function cookie(locale: Locale) {

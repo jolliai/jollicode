@@ -292,7 +292,6 @@ describe("tool.task", () => {
         jolli: {
           courseId: "7",
           assistantId: "12",
-          sharing: { staff: true, everyone: false },
         },
       }
       yield* sessions.setMetadata({ sessionID: chat.id, metadata })

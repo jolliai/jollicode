@@ -10,7 +10,7 @@ const BOUND_SESSION = {
   directory: "/repo",
   title: "CS 101 · hi new chat",
   version: "1",
-  metadata: { jolli: { courseId: "1", assistantId: "2", sharing: { staff: true, everyone: false } } },
+  metadata: { jolli: { courseId: "1", assistantId: "2" } },
   time: { created: 1, updated: 1 },
 }
 

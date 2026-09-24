@@ -12,7 +12,6 @@ const course = (id: string, entryState: Jolli.CourseEntryState, assistantIds: st
   status: entryState === "draft" ? "draft" : entryState === "archived" ? "archived" : "published",
   entryState,
   endsOn: null,
-  chatSharing: "private",
 })
 
 const assistant = (id: string, courseId: string, isDefault = false): Jolli.Assistant => ({

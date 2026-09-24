@@ -21,17 +21,14 @@
  * something that wrote nonsense, reads as unbound rather than throwing inside a render.
  */
 
-import { Jolli } from "@opencode-ai/schema/jolli"
-
+/**
+ * ⚠ NO READERS HERE. Who can read a session is Jolli Edu's per-session grants, read through the
+ * sidecar's `/jolli/session/:sessionID/share`; an older build also wrote a `sharing` field into this
+ * bag, which is now ignored on read and no longer written.
+ */
 export type CourseBinding = {
   courseId: string
   assistantId: string
-  /**
-   * ⚠ THE SESSION'S OWN READERS, NOT THE COURSE'S POLICY. Seeded from the policy when the session
-   * starts and never re-read from it. A professor who switches a course to private in week six has
-   * changed what a NEW session starts as; she has not retracted the ten she has already read.
-   */
-  sharing: Jolli.SessionSharing
 }
 
 /** Anything with the metadata bag a session carries. */
@@ -42,12 +39,5 @@ export function courseBindingOf(session: SessionLike | undefined): CourseBinding
   if (!raw || typeof raw !== "object") return undefined
   const value = raw as Partial<CourseBinding>
   if (typeof value.courseId !== "string" || typeof value.assistantId !== "string") return undefined
-  return {
-    courseId: value.courseId,
-    assistantId: value.assistantId,
-    sharing: {
-      staff: value.sharing?.staff === true,
-      everyone: value.sharing?.everyone === true,
-    },
-  }
+  return { courseId: value.courseId, assistantId: value.assistantId }
 }

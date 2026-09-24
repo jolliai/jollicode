@@ -17,7 +17,7 @@
  * MAKES THE WHOLE FEATURE SURVIVABLE. A trigger carries an id, a focus and a derived sentence built
  * from counts. `promptText` is READ here — the refusal branch needs a pattern — but nothing derived
  * from it is ever emitted. Course staff read nudges off sessions a student withheld
- * (`SessionSharing.staff`), so a nudge that quoted the chat back would turn this feature into a
+ * (the session's Jolli grants), so a nudge that quoted the chat back would turn this feature into a
  * channel that discloses a private session's contents. See `coaching-prose.ts` for the one place a
  * model is allowed near the body, and the condition it is allowed under.
  *
