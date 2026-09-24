@@ -94,12 +94,13 @@ bun run dev:desktop   # bun --cwd packages/desktop dev  -> electron-vite dev
 bun run dev:web       # packages/app alone in a browser
 ```
 
-`dev:desktop` runs `scripts/predev.ts` first (copies dev icons, then downloads
-`@opencode-ai/cli-windows-x64-baseline` into `resources/jollicode-cli.exe` — the sidecar server the
-Electron app spawns, see `packages/desktop/src/main/server.ts` and `sidecar.ts`). It then builds the
-main and preload bundles and serves the renderer at `http://localhost:5173/`.
+`dev:desktop` runs `scripts/predev.ts` first (copies dev icons, then builds `packages/cli` for the
+host target and stages it as `resources/jollicode-cli` — the v2 background daemon, only used when
+`OPENCODE_SIDECAR_V2=1`; the default v1 sidecar is built from `packages/opencode`, see
+`packages/desktop/src/main/server.ts` and `sidecar.ts`). It then builds the main and preload bundles
+and serves the renderer at `http://localhost:5173/`.
 
-First run downloads the CLI sidecar and a models.dev snapshot (cached at
+First run compiles the CLI and downloads a models.dev snapshot (cached at
 `~/.cache/opencode/models.json`), so it is slower than later ones.
 
 ### Dev chrome is opt-in in this fork
