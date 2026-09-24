@@ -1,6 +1,7 @@
 // @refresh reload
 import { createHandler, StartServer } from "@solidjs/start/server"
 import { getRequestEvent } from "solid-js/web"
+import { Brand } from "@opencode-ai/core/brand"
 
 export default createHandler(() => (
   <StartServer
@@ -23,7 +24,7 @@ export default createHandler(() => (
           <head>
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1" />
-            <title>OpenCode</title>
+            <title>{Brand.name}</title>
             <meta name="theme-color" content="#F8F7F7" />
             {assets}
           </head>

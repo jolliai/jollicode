@@ -746,6 +746,7 @@
     "packages/script": {
       "name": "@opencode-ai/script",
       "dependencies": {
+        "@opencode-ai/core": "workspace:*",
         "semver": "^7.6.3",
       },
       "devDependencies": {

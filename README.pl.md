@@ -91,10 +91,6 @@ Dowiedz się więcej o [agents](https://jolli.ai/docs/agents).
 
 Więcej informacji o konfiguracji Jolli Code znajdziesz w [**dokumentacji**](https://jolli.ai/docs).
 
-### Współtworzenie
-
-Jeśli chcesz współtworzyć Jolli Code, przeczytaj [contributing docs](./CONTRIBUTING.md) przed wysłaniem pull requesta.
-
 ### Budowanie na Jolli Code
 
 Jeśli pracujesz nad projektem związanym z Jolli Code i używasz "jollicode" jako części nazwy (na przykład "jollicode-dashboard" lub "jollicode-mobile"), dodaj proszę notatkę do swojego README, aby wyjaśnić, że projekt nie jest tworzony przez zespół Jolli Code i nie jest z nami w żaden sposób powiązany.

@@ -42,7 +42,7 @@ Por ejemplo, si su configuración global establece `theme: "jollicode"` y `autou
 
 Las fuentes de configuración se cargan en este orden (las fuentes posteriores anulan las anteriores):
 
-1. **Configuración remota** (de `.well-known/opencode`): valores predeterminados de la organización
+1. **Configuración remota** (de `.well-known/jollicode`): valores predeterminados de la organización
 2. **Configuración global** (`~/.config/jollicode/opencode.json`) - preferencias del usuario
 3. **Configuración personalizada** (`OPENCODE_CONFIG` env var): anulaciones personalizadas
 4. **Configuración del proyecto** (`opencode.json` en el proyecto): configuración específica del proyecto
@@ -59,13 +59,13 @@ Los directorios `.jollicode` y `~/.config/jollicode` usan **nombres en plural** 
 
 ### Remoto
 
-Las organizaciones pueden proporcionar una configuración predeterminada a través del punto final `.well-known/opencode`. Esto se obtiene automáticamente cuando se autentica con un proveedor que lo admita.
+Las organizaciones pueden proporcionar una configuración predeterminada a través del punto final `.well-known/jollicode`. Esto se obtiene automáticamente cuando se autentica con un proveedor que lo admita.
 
 La configuración remota se carga primero y sirve como capa base. Todas las demás fuentes de configuración (global, proyecto) pueden anular estos valores predeterminados.
 
 Por ejemplo, si su organización proporciona servidores MCP que están deshabilitados de forma predeterminada:
 
-```json title="Remote config from .well-known/opencode"
+```json title="Remote config from .well-known/jollicode"
 {
   "mcp": {
     "jira": {
@@ -201,7 +201,7 @@ Opciones disponibles:
 - `port` - Puerto para escuchar.
 - `hostname`: nombre de host para escuchar. Cuando `mdns` está habilitado y no se establece ningún nombre de host, el valor predeterminado es `0.0.0.0`.
 - `mdns`: habilita el descubrimiento de servicios mDNS. Esto permite que otros dispositivos en la red descubran su servidor Jolli Code.
-- `mdnsDomain` - Nombre de dominio personalizado para el servicio mDNS. El valor predeterminado es `opencode.local`. Útil para ejecutar múltiples instancias en la misma red.
+- `mdnsDomain` - Nombre de dominio personalizado para el servicio mDNS. El valor predeterminado es `jollicode.local`. Útil para ejecutar múltiples instancias en la misma red.
 - `cors`: orígenes adicionales para permitir CORS cuando se utiliza el servidor HTTP desde un cliente basado en navegador. Los valores deben ser orígenes completos (esquema + host + puerto opcional), por ejemplo, `https://app.example.com`.
 
 [Obtenga más información sobre el servidor aquí](/docs/server).

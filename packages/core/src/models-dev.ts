@@ -4,6 +4,7 @@ import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/
 import { ModelsDev } from "@opencode-ai/schema/models-dev"
 import { Global } from "./global"
 import { Flag } from "./flag/flag"
+import { Brand } from "./brand"
 import { Flock } from "./util/flock"
 import { Hash } from "./util/hash"
 import { FSUtil } from "./fs-util"
@@ -20,7 +21,7 @@ const InterleavedField = Schema.Union([
   Schema.String,
 ])
 
-const USER_AGENT = `opencode/${InstallationChannel}/${InstallationVersion}/${Flag.OPENCODE_CLIENT}`
+const USER_AGENT = Brand.userAgent(InstallationChannel, InstallationVersion, Flag.OPENCODE_CLIENT)
 
 // TODO: point back at https://models.jolli.ai once infra/stage.ts provisions that subdomain. It
 // currently answers /api.json with the jolli.ai site shell (200 text/html), not the catalog.

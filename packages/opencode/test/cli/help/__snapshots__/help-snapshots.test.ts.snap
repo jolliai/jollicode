@@ -15,8 +15,8 @@ Options:
       --hostname     hostname to listen on                           [string] [default: "127.0.0.1"]
       --mdns         enable mDNS service discovery (defaults hostname to 0.0.0.0)
                                                                           [boolean] [default: false]
-      --mdns-domain  custom domain name for mDNS service (default: opencode.local)
-                                                                [string] [default: "opencode.local"]
+      --mdns-domain  custom domain name for mDNS service (default: jollicode.local)
+                                                               [string] [default: "jollicode.local"]
       --cors         additional domains to allow for CORS                      [array] [default: []]
       --cwd          working directory [string] [default: "<HOME>"]"
 `;
@@ -44,7 +44,7 @@ Options:
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode attach --help 1`] = `
 "jollicode attach <url>
 
-attach to a running opencode server
+attach to a running Jolli Code server
 
 Positionals:
   url  http://localhost:4096                                                     [string] [required]
@@ -220,15 +220,15 @@ Options:
       --hostname     hostname to listen on                           [string] [default: "127.0.0.1"]
       --mdns         enable mDNS service discovery (defaults hostname to 0.0.0.0)
                                                                           [boolean] [default: false]
-      --mdns-domain  custom domain name for mDNS service (default: opencode.local)
-                                                                [string] [default: "opencode.local"]
+      --mdns-domain  custom domain name for mDNS service (default: jollicode.local)
+                                                               [string] [default: "jollicode.local"]
       --cors         additional domains to allow for CORS                      [array] [default: []]"
 `;
 
 exports[`opencode CLI help-text snapshots every documented command emits stable help text: opencode web --help 1`] = `
 "jollicode web
 
-start opencode server and open web interface
+start Jolli Code server and open web interface
 
 Options:
   -h, --help         show help                                                             [boolean]
@@ -240,8 +240,8 @@ Options:
       --hostname     hostname to listen on                           [string] [default: "127.0.0.1"]
       --mdns         enable mDNS service discovery (defaults hostname to 0.0.0.0)
                                                                           [boolean] [default: false]
-      --mdns-domain  custom domain name for mDNS service (default: opencode.local)
-                                                                [string] [default: "opencode.local"]
+      --mdns-domain  custom domain name for mDNS service (default: jollicode.local)
+                                                               [string] [default: "jollicode.local"]
       --cors         additional domains to allow for CORS                      [array] [default: []]"
 `;
 
@@ -489,7 +489,7 @@ exports[`opencode CLI help-text snapshots every documented command emits stable 
 log in to a provider
 
 Positionals:
-  url  opencode auth provider                                                               [string]
+  url  Jolli Code auth provider                                                             [string]
 
 Options:
   -h, --help        show help                                                              [boolean]

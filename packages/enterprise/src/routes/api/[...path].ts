@@ -7,6 +7,7 @@ import { cors } from "hono/cors"
 import { Share } from "~/core/share"
 import { Resource } from "sst"
 import { timingSafeEqual } from "node:crypto"
+import { Brand } from "@opencode-ai/core/brand"
 
 const app = new Hono()
 
@@ -18,9 +19,9 @@ app
     openAPIRouteHandler(app, {
       documentation: {
         info: {
-          title: "Opencode Enterprise API",
+          title: `${Brand.name} Enterprise API`,
           version: "1.0.0",
-          description: "Opencode Enterprise API endpoints",
+          description: `${Brand.name} Enterprise API endpoints`,
         },
         openapi: "3.1.1",
       },

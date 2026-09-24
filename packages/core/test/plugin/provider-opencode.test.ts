@@ -94,7 +94,7 @@ describe("OpencodePlugin", () => {
             Response.json({
               device_code: "device",
               user_code: "user",
-              verification_uri_complete: "/console/device?user_code=user&client_id=opencode-cli",
+              verification_uri_complete: "/console/device?user_code=user&client_id=jollicode-cli",
               expires_in: 60,
               interval: 60,
             }),
@@ -108,7 +108,7 @@ describe("OpencodePlugin", () => {
         methodID: Integration.MethodID.make("device"),
         inputs: {},
       })
-      expect(attempt.url).toBe("https://jolli.ai/console/device?user_code=user&client_id=opencode-cli")
+      expect(attempt.url).toBe("https://jolli.ai/console/device?user_code=user&client_id=jollicode-cli")
     }),
   )
 

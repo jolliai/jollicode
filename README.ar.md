@@ -91,10 +91,6 @@ paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 
 لمزيد من المعلومات حول كيفية ضبط Jolli Code، [**راجع التوثيق**](https://jolli.ai/docs).
 
-### المساهمة
-
-اذا كنت مهتما بالمساهمة في Jolli Code، يرجى قراءة [contributing docs](./CONTRIBUTING.md) قبل ارسال pull request.
-
 ### البناء فوق Jolli Code
 
 اذا كنت تعمل على مشروع مرتبط بـ Jolli Code ويستخدم "jollicode" كجزء من اسمه (مثل "jollicode-dashboard" او "jollicode-mobile")، يرجى اضافة ملاحظة في README توضح انه ليس مبنيا بواسطة فريق Jolli Code ولا يرتبط بنا بأي شكل.

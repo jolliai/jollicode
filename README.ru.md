@@ -91,10 +91,6 @@ Jolli Code также доступен как десктопное прилож�
 
 Больше информации о том, как настроить Jolli Code: [**наши docs**](https://jolli.ai/docs).
 
-### Вклад
-
-Если вы хотите внести вклад в Jolli Code, прочитайте [contributing docs](./CONTRIBUTING.md) перед тем, как отправлять pull request.
-
 ### Разработка на базе Jolli Code
 
 Если вы делаете проект, связанный с Jolli Code, и используете "jollicode" как часть имени (например, "jollicode-dashboard" или "jollicode-mobile"), добавьте примечание в README, чтобы уточнить, что проект не создан командой Jolli Code и не аффилирован с нами.

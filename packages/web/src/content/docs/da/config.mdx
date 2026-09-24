@@ -43,7 +43,7 @@ For eksempel, hvis dine globale konfigurationssæt `autoupdate: true`, og dine p
 
 Konfigurationskilder indlæses i denne rækkefølge (senere kilder tilsidesætter tidligere):
 
-1. **Fjernkonfiguration** (fra `.well-known/opencode`) - organisatoriske standardindstillinger
+1. **Fjernkonfiguration** (fra `.well-known/jollicode`) - organisatoriske standardindstillinger
 2. **Global config** (`~/.config/jollicode/opencode.json`) - brugerpræferencer
 3. **Tilpasset konfiguration** (`OPENCODE_CONFIG` env var) - tilpassede tilsidesættelser
 4. **Project config** (`opencode.json` i projekt) - projektspecifikke indstillinger
@@ -60,13 +60,13 @@ Dette betyder, at projektkonfigurationer kan tilsidesætte globale standardindst
 
 ### Ekstern konfiguration
 
-Organisationer kan levere standardkonfiguration via `.well-known/opencode`-slutpunktet. Dette hentes automatisk, når du godkender med en udbyder, der understøtter det.
+Organisationer kan levere standardkonfiguration via `.well-known/jollicode`-slutpunktet. Dette hentes automatisk, når du godkender med en udbyder, der understøtter det.
 
 Remote config indlæses først og fungerer som basislaget. Alle andre konfigurationskilder (global, projekt) kan tilsidesætte disse standardindstillinger.
 
 Hvis din organisation f.eks. leverer MCP-servere, der er deaktiveret som standard:
 
-```json title="Remote config from .well-known/opencode"
+```json title="Remote config from .well-known/jollicode"
 {
   "mcp": {
     "jira": {
@@ -202,7 +202,7 @@ Tilgængelige muligheder:
 - `port` - Port til at lytte på.
 - `hostname` - Værtsnavn at lytte på. Når `mdns` er aktiveret, og der ikke er angivet noget værtsnavn, er standarden `0.0.0.0`.
 - `mdns` - Aktiver mDNS-tjenesteopdagelse. Dette gør det muligt for andre enheder på netværket at opdage din Jolli Code-server.
-- `mdnsDomain` - Brugerdefineret domænenavn til mDNS-tjeneste. Som standard er `opencode.local`. Nyttigt til at køre flere forekomster på det samme netværk.
+- `mdnsDomain` - Brugerdefineret domænenavn til mDNS-tjeneste. Som standard er `jollicode.local`. Nyttigt til at køre flere forekomster på det samme netværk.
 - `cors` - Yderligere oprindelser for at tillade CORS ved brug af HTTP-serveren fra en browserbaseret klient. Værdier skal være fulde oprindelser (skema + vært + valgfri port), f.eks. `https://app.example.com`.
 
 [Learn more about the server here](/docs/server).

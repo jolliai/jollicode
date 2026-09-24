@@ -89,12 +89,8 @@ Saznaj više o [agentima](https://jolli.ai/docs/agents).
 
 ### Dokumentacija
 
-Za više informacija o konfiguraciji OpenCode-a, [**pogledaj dokumentaciju**](https://jolli.ai/docs).
+Za više informacija o konfiguraciji Jolli Code-a, [**pogledaj dokumentaciju**](https://jolli.ai/docs).
 
-### Doprinosi
+### Gradnja na Jolli Code-u
 
-Ako želiš doprinositi OpenCode-u, pročitaj [upute za doprinošenje](./CONTRIBUTING.md) prije slanja pull requesta.
-
-### Gradnja na OpenCode-u
-
-Ako radiš na projektu koji je povezan s OpenCode-om i koristi "jollicode" kao dio naziva, npr. "jollicode-dashboard" ili "jollicode-mobile", dodaj napomenu u svoj README da projekat nije napravio Jolli Code tim i da nije povezan s nama.
+Ako radiš na projektu koji je povezan s Jolli Code-om i koristi "jollicode" kao dio naziva, npr. "jollicode-dashboard" ili "jollicode-mobile", dodaj napomenu u svoj README da projekat nije napravio Jolli Code tim i da nije povezan s nama.

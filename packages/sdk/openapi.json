@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "opencode",
+    "title": "Jolli Code",
     "version": "1.0.0",
-    "description": "opencode api"
+    "description": "Jolli Code api"
   },
   "paths": {
     "/auth/{providerID}": {
@@ -311,7 +311,7 @@
             }
           }
         },
-        "description": "Get health information about the OpenCode server.",
+        "description": "Get health information about the Jolli Code server.",
         "summary": "Get health",
         "x-codeSamples": [
           {
@@ -348,7 +348,7 @@
             }
           }
         },
-        "description": "Subscribe to global events from the OpenCode system using server-sent events.",
+        "description": "Subscribe to global events from the Jolli Code system using server-sent events.",
         "summary": "Get global events",
         "x-codeSamples": [
           {
@@ -385,7 +385,7 @@
             }
           }
         },
-        "description": "Retrieve the current global OpenCode configuration settings and preferences.",
+        "description": "Retrieve the current global Jolli Code configuration settings and preferences.",
         "summary": "Get global configuration",
         "x-codeSamples": [
           {
@@ -427,7 +427,7 @@
             }
           }
         },
-        "description": "Update global OpenCode configuration settings and preferences.",
+        "description": "Update global Jolli Code configuration settings and preferences.",
         "summary": "Update global configuration",
         "requestBody": {
           "content": {
@@ -474,7 +474,7 @@
             }
           }
         },
-        "description": "Clean up and dispose all OpenCode instances, releasing all resources.",
+        "description": "Clean up and dispose all Jolli Code instances, releasing all resources.",
         "summary": "Dispose instance",
         "x-codeSamples": [
           {
@@ -548,8 +548,8 @@
             }
           }
         },
-        "description": "Upgrade opencode to the specified version.",
-        "summary": "Upgrade opencode",
+        "description": "Upgrade Jolli Code to the specified version.",
+        "summary": "Upgrade Jolli Code",
         "requestBody": {
           "content": {
             "application/json": {
@@ -699,7 +699,7 @@
             }
           }
         },
-        "description": "Retrieve the current OpenCode configuration settings and preferences.",
+        "description": "Retrieve the current Jolli Code configuration settings and preferences.",
         "summary": "Get configuration",
         "x-codeSamples": [
           {
@@ -758,7 +758,7 @@
             }
           }
         },
-        "description": "Update OpenCode configuration settings and preferences.",
+        "description": "Update Jolli Code configuration settings and preferences.",
         "summary": "Update configuration",
         "requestBody": {
           "content": {
@@ -892,7 +892,7 @@
             }
           }
         },
-        "description": "Get experimental features enabled on the OpenCode server.",
+        "description": "Get experimental features enabled on the Jolli Code server.",
         "summary": "Get experimental capabilities",
         "x-codeSamples": [
           {
@@ -1098,7 +1098,7 @@
             }
           }
         },
-        "description": "Persist a new active Console account/org selection for the current local OpenCode state.",
+        "description": "Persist a new active Console account/org selection for the current local Jolli Code state.",
         "summary": "Switch active Console org",
         "requestBody": {
           "content": {
@@ -2306,7 +2306,7 @@
             }
           }
         },
-        "description": "Clean up and dispose the current OpenCode instance, releasing all resources.",
+        "description": "Clean up and dispose the current Jolli Code instance, releasing all resources.",
         "summary": "Dispose instance",
         "x-codeSamples": [
           {
@@ -2745,7 +2745,7 @@
             }
           }
         },
-        "description": "Get a list of all available commands in the OpenCode system.",
+        "description": "Get a list of all available commands in the Jolli Code system.",
         "summary": "List commands",
         "x-codeSamples": [
           {
@@ -2803,7 +2803,7 @@
             }
           }
         },
-        "description": "Get a list of all available AI agents in the OpenCode system.",
+        "description": "Get a list of all available AI agents in the Jolli Code system.",
         "summary": "List agents",
         "x-codeSamples": [
           {
@@ -2877,7 +2877,7 @@
             }
           }
         },
-        "description": "Get a list of all available skills in the OpenCode system.",
+        "description": "Get a list of all available skills in the Jolli Code system.",
         "summary": "List skills",
         "x-codeSamples": [
           {
@@ -3685,7 +3685,7 @@
             }
           }
         },
-        "description": "Get a list of projects that have been opened with OpenCode.",
+        "description": "Get a list of projects that have been opened with Jolli Code.",
         "summary": "List all projects",
         "x-codeSamples": [
           {
@@ -3739,7 +3739,7 @@
             }
           }
         },
-        "description": "Retrieve the currently active project that OpenCode is working with.",
+        "description": "Retrieve the currently active project that Jolli Code is working with.",
         "summary": "Get current project",
         "x-codeSamples": [
           {
@@ -4168,7 +4168,7 @@
             }
           }
         },
-        "description": "Get a list of all active pseudo-terminal (PTY) sessions managed by OpenCode.",
+        "description": "Get a list of all active pseudo-terminal (PTY) sessions managed by Jolli Code.",
         "summary": "List PTY sessions",
         "x-codeSamples": [
           {
@@ -5430,7 +5430,7 @@
             }
           }
         },
-        "description": "Get a list of all OpenCode sessions, sorted by most recently updated.",
+        "description": "Get a list of all Jolli Code sessions, sorted by most recently updated.",
         "summary": "List sessions",
         "x-codeSamples": [
           {
@@ -5489,7 +5489,7 @@
             }
           }
         },
-        "description": "Create a new OpenCode session for interacting with AI assistants and managing conversations.",
+        "description": "Create a new Jolli Code session for interacting with AI assistants and managing conversations.",
         "summary": "Create session",
         "requestBody": {
           "content": {
@@ -5682,7 +5682,7 @@
             }
           }
         },
-        "description": "Retrieve detailed information about a specific OpenCode session.",
+        "description": "Retrieve detailed information about a specific Jolli Code session.",
         "summary": "Get session",
         "x-codeSamples": [
           {
@@ -9817,7 +9817,7 @@
     },
     "/api/health": {
       "get": {
-        "tags": ["opencode HttpApi"],
+        "tags": ["Jolli Code HttpApi"],
         "operationId": "v2.health.get",
         "parameters": [],
         "security": [],
@@ -9873,7 +9873,7 @@
     },
     "/api/location": {
       "get": {
-        "tags": ["opencode HttpApi"],
+        "tags": ["Jolli Code HttpApi"],
         "operationId": "v2.location.get",
         "parameters": [
           {
@@ -9941,7 +9941,7 @@
     },
     "/api/agent": {
       "get": {
-        "tags": ["opencode HttpApi"],
+        "tags": ["Jolli Code HttpApi"],
         "operationId": "v2.agent.list",
         "parameters": [
           {
@@ -10275,7 +10275,7 @@
             }
           }
         },
-        "description": "Retrieve foreground Session drains currently owned by this OpenCode process. Sessions absent from the result are inactive.",
+        "description": "Retrieve foreground Session drains currently owned by this Jolli Code process. Sessions absent from the result are inactive.",
         "summary": "List active sessions",
         "x-codeSamples": [
           {
@@ -11474,7 +11474,7 @@
             }
           }
         },
-        "description": "Interrupt active execution owned by this OpenCode process. Idle interruption is a no-op.",
+        "description": "Interrupt active execution owned by this Jolli Code process. Idle interruption is a no-op.",
         "summary": "Interrupt session execution",
         "x-codeSamples": [
           {
@@ -12613,7 +12613,7 @@
     },
     "/api/credential/{credentialID}": {
       "patch": {
-        "tags": ["opencode HttpApi"],
+        "tags": ["Jolli Code HttpApi"],
         "operationId": "v2.credential.update",
         "parameters": [
           {
@@ -12697,7 +12697,7 @@
         ]
       },
       "delete": {
-        "tags": ["opencode HttpApi"],
+        "tags": ["Jolli Code HttpApi"],
         "operationId": "v2.credential.remove",
         "parameters": [
           {
@@ -27116,6 +27116,10 @@
         "required": ["action", "effect", "resource"],
         "additionalProperties": false
       },
+      "JolliCatalogStatus": {
+        "type": "string",
+        "enum": ["ok", "unreachable"]
+      },
       "JolliCourseKind": {
         "type": "string",
         "enum": ["standard", "code"]
@@ -27321,9 +27325,24 @@
         "type": "string",
         "enum": ["premium", "economy"]
       },
+      "JolliViewer": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "JolliCatalog": {
         "type": "object",
         "properties": {
+          "status": {
+            "$ref": "#/components/schemas/JolliCatalogStatus"
+          },
           "courses": {
             "type": "array",
             "items": {
@@ -27341,9 +27360,12 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/JolliModelTier"
             }
+          },
+          "viewer": {
+            "$ref": "#/components/schemas/JolliViewer"
           }
         },
-        "required": ["courses", "assistants", "modelTiers"],
+        "required": ["status", "courses", "assistants", "modelTiers"],
         "additionalProperties": false
       },
       "ProjectDirectories": {
@@ -27587,6 +27609,9 @@
           },
           "subpath": {
             "type": "string"
+          },
+          "metadata": {
+            "type": "object"
           },
           "revert": {
             "$ref": "#/components/schemas/RevertState"
@@ -37151,15 +37176,15 @@
       "description": "Experimental HttpApi workspace routes."
     },
     {
-      "name": "opencode HttpApi",
+      "name": "Jolli Code HttpApi",
       "description": "Experimental HttpApi surface for selected instance routes."
     },
     {
-      "name": "opencode HttpApi",
+      "name": "Jolli Code HttpApi",
       "description": "Experimental HttpApi surface for selected instance routes."
     },
     {
-      "name": "opencode HttpApi",
+      "name": "Jolli Code HttpApi",
       "description": "Experimental HttpApi surface for selected instance routes."
     },
     {
@@ -37183,7 +37208,7 @@
       "description": "Integration discovery and authentication routes."
     },
     {
-      "name": "opencode HttpApi",
+      "name": "Jolli Code HttpApi",
       "description": "Experimental HttpApi surface for selected instance routes."
     },
     {

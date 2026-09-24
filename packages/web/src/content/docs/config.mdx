@@ -43,7 +43,7 @@ For example, if your global config sets `autoupdate: true` and your project conf
 
 Config sources are loaded in this order (later sources override earlier ones):
 
-1. **Remote config** (from `.well-known/opencode`) - organizational defaults
+1. **Remote config** (from `.well-known/jollicode`) - organizational defaults
 2. **Global config** (`~/.config/jollicode/opencode.json`) - user preferences
 3. **Custom config** (`OPENCODE_CONFIG` env var) - custom overrides
 4. **Project config** (`opencode.json` in project) - project-specific settings
@@ -62,13 +62,13 @@ The `.jollicode` and `~/.config/jollicode` directories use **plural names** for 
 
 ### Remote
 
-Organizations can provide default configuration via the `.well-known/opencode` endpoint. This is fetched automatically when you authenticate with a provider that supports it.
+Organizations can provide default configuration via the `.well-known/jollicode` endpoint. This is fetched automatically when you authenticate with a provider that supports it.
 
 Remote config is loaded first, serving as the base layer. All other config sources (global, project) can override these defaults.
 
 For example, if your organization provides MCP servers that are disabled by default:
 
-```json title="Remote config from .well-known/opencode"
+```json title="Remote config from .well-known/jollicode"
 {
   "mcp": {
     "jira": {
@@ -159,8 +159,8 @@ Organizations can enforce configuration that users cannot override. Managed sett
 
 Drop an `opencode.json` or `opencode.jsonc` file in the system managed config directory:
 
-| Platform | Path                                     |
-| -------- | ---------------------------------------- |
+| Platform | Path                                      |
+| -------- | ----------------------------------------- |
 | macOS    | `/Library/Application Support/jollicode/` |
 | Linux    | `/etc/jollicode/`                         |
 | Windows  | `%ProgramData%\jollicode`                 |
@@ -319,7 +319,7 @@ Available options:
 - `port` - Port to listen on.
 - `hostname` - Hostname to listen on. When `mdns` is enabled and no hostname is set, defaults to `0.0.0.0`.
 - `mdns` - Enable mDNS service discovery. This allows other devices on the network to discover your Jolli Code server.
-- `mdnsDomain` - Custom domain name for mDNS service. Defaults to `opencode.local`. Useful for running multiple instances on the same network.
+- `mdnsDomain` - Custom domain name for mDNS service. Defaults to `jollicode.local`. Useful for running multiple instances on the same network.
 - `cors` - Additional origins to allow for CORS when using the HTTP server from a browser-based client. Values must be full origins (scheme + host + optional port), eg `https://app.example.com`.
 
 [Learn more about the server here](/docs/server).

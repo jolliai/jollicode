@@ -14,6 +14,7 @@ import {
   WorkspaceRoutingQueryFields,
 } from "../middleware/workspace-routing"
 import { described } from "./metadata"
+import { Brand } from "@opencode-ai/core/brand"
 
 const PathInfo = Schema.Struct({
   home: Schema.String,
@@ -66,7 +67,7 @@ export const InstanceApi = HttpApi.make("instance")
           OpenApi.annotations({
             identifier: "instance.dispose",
             summary: "Dispose instance",
-            description: "Clean up and dispose the current OpenCode instance, releasing all resources.",
+            description: `Clean up and dispose the current ${Brand.name} instance, releasing all resources.`,
           }),
         ),
         HttpApiEndpoint.get("path", InstancePaths.path, {
@@ -143,7 +144,7 @@ export const InstanceApi = HttpApi.make("instance")
           OpenApi.annotations({
             identifier: "command.list",
             summary: "List commands",
-            description: "Get a list of all available commands in the OpenCode system.",
+            description: `Get a list of all available commands in the ${Brand.name} system.`,
           }),
         ),
         HttpApiEndpoint.get("agent", InstancePaths.agent, {
@@ -153,7 +154,7 @@ export const InstanceApi = HttpApi.make("instance")
           OpenApi.annotations({
             identifier: "app.agents",
             summary: "List agents",
-            description: "Get a list of all available AI agents in the OpenCode system.",
+            description: `Get a list of all available AI agents in the ${Brand.name} system.`,
           }),
         ),
         HttpApiEndpoint.get("skill", InstancePaths.skill, {
@@ -163,7 +164,7 @@ export const InstanceApi = HttpApi.make("instance")
           OpenApi.annotations({
             identifier: "app.skills",
             summary: "List skills",
-            description: "Get a list of all available skills in the OpenCode system.",
+            description: `Get a list of all available skills in the ${Brand.name} system.`,
           }),
         ),
         HttpApiEndpoint.get("lsp", InstancePaths.lsp, {
@@ -199,7 +200,7 @@ export const InstanceApi = HttpApi.make("instance")
   )
   .annotateMerge(
     OpenApi.annotations({
-      title: "opencode experimental HttpApi",
+      title: `${Brand.name} experimental HttpApi`,
       version: "0.0.1",
       description: "Experimental HttpApi surface for selected instance routes.",
     }),

@@ -1,6 +1,6 @@
-# OpenCode Desktop
+# Jolli Code Desktop
 
-The OpenCode Desktop app, built with Electron.
+The Jolli Code Desktop app, built with Electron.
 
 ## Development
 

@@ -1,6 +1,7 @@
 import { Layer } from "effect"
 import { OtlpLogger } from "effect/unstable/observability"
 import { Flag } from "../flag/flag"
+import { Brand } from "../brand"
 import { InstallationChannel, InstallationVersion } from "../installation/version"
 import { runID } from "./shared"
 
@@ -35,7 +36,7 @@ function resourceAttributes() {
 
 export function resource(): { serviceName: string; serviceVersion: string; attributes: Record<string, string> } {
   return {
-    serviceName: "opencode",
+    serviceName: Brand.bin,
     serviceVersion: InstallationVersion,
     attributes: {
       ...resourceAttributes(),

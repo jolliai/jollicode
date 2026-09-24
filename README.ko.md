@@ -91,10 +91,6 @@ Jolli Code 에는 내장 에이전트 2개가 있으며 `Tab` 키로 전환할 �
 
 Jolli Code 설정에 대한 자세한 내용은 [**문서**](https://jolli.ai/docs) 를 참고하세요.
 
-### 기여하기
-
-Jolli Code 에 기여하고 싶다면, Pull Request 를 제출하기 전에 [contributing docs](./CONTRIBUTING.md) 를 읽어주세요.
-
 ### Jolli Code 기반으로 만들기
 
 Jolli Code 와 관련된 프로젝트를 진행하면서 이름에 "jollicode"(예: "jollicode-dashboard" 또는 "jollicode-mobile") 를 포함한다면, README 에 해당 프로젝트가 Jolli Code 팀이 만든 것이 아니며 어떤 방식으로도 우리와 제휴되어 있지 않다는 점을 명시해 주세요.
