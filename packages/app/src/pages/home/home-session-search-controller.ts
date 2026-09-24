@@ -1,6 +1,4 @@
-import { useCommand } from "@/context/command"
 import { useLanguage } from "@/context/language"
-import { useLayout } from "@/context/layout"
 import { serverName } from "@/context/server"
 import { displayName } from "@/pages/layout/helpers"
 import { makeEventListener } from "@solid-primitives/event-listener"
@@ -12,12 +10,9 @@ import { homeSessionSearchKey, type HomeSessionRecord, type HomeSessionsControll
 type HomeSessionSearchSource = Pick<HomeSessionsController, "data" | "session">
 
 export function createHomeSessionSearchController(home: HomeController, sessions: HomeSessionSearchSource) {
-  const command = useCommand()
   const language = useLanguage()
-  const layout = useLayout()
   const [state, setState] = createStore({ value: "", focused: false, highlighted: "" })
   let root: HTMLDivElement | undefined
-  let input: HTMLInputElement | undefined
   let list: HTMLDivElement | undefined
   const query = createMemo(() => state.value.trim())
   const results = createMemo(() => {
@@ -60,33 +55,6 @@ export function createHomeSessionSearchController(home: HomeController, sessions
     }),
   )
 
-  command.register("home.search", () => [
-    {
-      id: "home.sessions.search.focus",
-      title: placeholder(),
-      keybind: "mod+f",
-      hidden: true,
-      onSelect: focus,
-    },
-  ])
-
-  /**
-   * ⚠ IT OPENS THE SIDEBAR FIRST, BECAUSE THAT IS WHERE THE INPUT LIVES NOW. A closed sidebar is
-   * `width: 0` and `inert`, and `HTMLElement.focus()` on an inert subtree is a silent no-op — so
-   * without this `mod+f` would appear to do nothing for anyone who had closed the column.
-   */
-  function focus() {
-    layout.sidebar.open()
-    setState("focused", true)
-    /**
-     * ⚠ ONE TICK LATER, SO THE COLUMN HAS STOPPED BEING `inert` BY THE TIME WE ASK. Outside a batch
-     * Solid has already written the attribute by the line above; inside one it has not, and a
-     * `focus()` against an inert subtree is a silent no-op with no second chance. A microtask is
-     * ahead of paint either way, so nothing is visibly deferred.
-     */
-    queueMicrotask(() => input?.focus())
-  }
-
   function close() {
     setState({ value: "", focused: false })
   }
@@ -101,7 +69,6 @@ export function createHomeSessionSearchController(home: HomeController, sessions
       value: () => state.value,
       placeholder,
       open,
-      focus,
       input: (value: string) => setState({ value, highlighted: "" }),
       close,
     },
@@ -127,7 +94,6 @@ export function createHomeSessionSearchController(home: HomeController, sessions
     },
     element: {
       setRoot: (element: HTMLDivElement) => (root = element),
-      setInput: (element: HTMLInputElement) => (input = element),
       setList: (element: HTMLDivElement) => (list = element),
     },
   }

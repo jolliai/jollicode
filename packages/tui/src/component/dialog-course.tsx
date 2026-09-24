@@ -1,4 +1,4 @@
-import { createEffect, createMemo } from "solid-js"
+import { createEffect, createMemo, on } from "solid-js"
 import { useJolli } from "../context/jolli"
 import { useTheme } from "../context/theme"
 import { DialogSelect } from "../ui/dialog-select"
@@ -19,9 +19,10 @@ import { useToast } from "../ui/toast"
  * is fixed once the conversation starts — the server refuses to rewrite it — so there is nothing to
  * choose, but "which course am I in" is still a fair question and this is where a student asks it.
  *
- * ⚠ A LOCKED SESSION MAY NAME A COURSE THIS LIST NO LONGER CARRIES, because a term that ended does
- * not un-bind the transcripts written under it. The title reads it off the binding rather than off
- * the options for exactly that reason.
+ * ⚠ A LOCKED SESSION LISTS ONLY ITS OWN COURSE, BUILT FROM THE BINDING RATHER THAN THE STARTABLE
+ * LIST. Offering every course and marking one would suggest a choice that does not exist, and a
+ * term that ended does not un-bind the transcripts written under it — so the session's course may
+ * no longer be startable at all, and must still be shown.
  */
 export function DialogCourse() {
   const jolli = useJolli()
@@ -40,13 +41,37 @@ export function DialogCourse() {
     dialog.clear()
   })
 
-  const options = createMemo(() =>
-    jolli.courses().map((course) => ({
+  /**
+   * ⚠ AND IT CLOSES ITSELF ONCE THE CHOICE IT WAS OPENED FOR IS NO LONGER OPEN. `app.tsx` pops this
+   * up on its own, and nothing else takes it down: a session that got created (or a draft that got
+   * bound) while it sat on screen would leave it hovering over a live conversation, already locked.
+   * Captured at open, so `/course` inside a session — locked from the start — stays up as a
+   * read-only view, and `/course` over a bound draft is not closed by the binding it came to change.
+   * Through `on` because `clear()` reads and rewrites the dialog stack, which a tracked effect would
+   * then re-run on forever.
+   */
+  const openedUnlocked = !jolli.locked()
+  const openedUnbound = !jolli.current()
+  createEffect(
+    on(
+      () => jolli.locked() || (openedUnbound && !!jolli.current()),
+      (settled) => {
+        if (openedUnlocked && settled) dialog.clear()
+      },
+    ),
+  )
+
+  const options = createMemo(() => {
+    if (jolli.locked()) {
+      const course = jolli.course()
+      return course ? [{ value: course.id, title: course.code, description: course.title }] : []
+    }
+    return jolli.courses().map((course) => ({
       value: course.id,
       title: course.code,
       description: course.title,
-    })),
-  )
+    }))
+  })
 
   return (
     <DialogSelect
@@ -57,7 +82,11 @@ export function DialogCourse() {
       emptyView={
         <box paddingLeft={4} paddingRight={4}>
           <text fg={theme.textMuted}>
-            {jolli.loaded() ? "You are not enrolled in any Jolli Code course yet." : "Loading your courses…"}
+            {jolli.locked()
+              ? "This session has no course."
+              : jolli.loaded()
+                ? "You are not enrolled in any Jolli Code course yet."
+                : "Loading your courses…"}
           </text>
         </box>
       }

@@ -17,10 +17,13 @@
 
 import { For, Show } from "solid-js"
 import { Icon } from "@opencode-ai/ui/icon"
+// ⚠ THE V2 SET, because the assistant glyphs were added there — `Icon` above is a different registry.
+import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
 import { Lookup } from "@opencode-ai/core/jolli/lookup"
 import { CourseAccent } from "@/components/course-accent"
 import { MenuV2 } from "@opencode-ai/ui/v2/menu-v2"
 import { useLanguage } from "@/context/language"
+import { assistantIconName } from "@/jolli/assistant-icon"
 import { assistantsForCourse, blockedReason, canStartSession, enrolledCourses } from "@/jolli/catalog"
 import { useCourseSession } from "@/jolli/session-binding"
 
@@ -116,6 +119,17 @@ export function PromptAssistantSelector(props: { onDone?: () => void }) {
       <span class="hidden select-none opacity-50 sm:inline mx-1">/</span>
       <MenuV2 placement="bottom" gutter={4} onOpenChange={(open) => !open && props.onDone?.()}>
         <MenuV2.Trigger class={TRIGGER_CLASS}>
+          {/*
+           * ⚠ THE GLYPH BELONGS ON THE TRIGGER TOO, NOT ONLY IN THE MENU. Every other segment of
+           * this breadcrumb leads with a mark — the course its accent bar, the project its avatar,
+           * the branch its fork — so the assistant reading as bare text was the one gap in the row.
+           * It is also the only thing distinguishing `cs101-as` from `cs101-as2` at a glance.
+           */}
+          <Show when={current()}>
+            {(assistant) => (
+              <IconV2 name={assistantIconName(assistant().icon)} size="small" class="shrink-0" />
+            )}
+          </Show>
           <span class="min-w-0 truncate">{current()?.name ?? language.t("prompt.assistant.placeholder")}</span>
           <Icon name="chevron-down" size="small" class="shrink-0 text-v2-icon-icon-muted" />
         </MenuV2.Trigger>
@@ -151,6 +165,14 @@ export function PromptAssistantSelector(props: { onDone?: () => void }) {
                    * editor" and "reads a diff the way the marker will" still gets the sentence.
                    */
                   <MenuV2.Item onSelect={() => binding.draft.setAssistant(assistant.id)} title={assistant.blurb}>
+                    {/*
+                     * ⚠ THE GLYPH IS THE PROFESSOR'S, NOT DERIVED FROM ANYTHING HERE. jolliedu lets
+                     * them pick from a semantic set — a gavel for an ethics board, a flask for a lab
+                     * viva — and that choice is the only thing distinguishing two assistants whose
+                     * names are both three words long. It rode the wire all along and was dropped at
+                     * the mapping boundary until now.
+                     */}
+                    <IconV2 name={assistantIconName(assistant.icon)} size="small" class="shrink-0" />
                     <span class="min-w-0 flex-1 truncate">{assistant.name}</span>
                     <Show when={current()?.id === assistant.id}>
                       <Icon name="check" size="small" class="shrink-0" />

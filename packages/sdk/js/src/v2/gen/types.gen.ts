@@ -3873,6 +3873,24 @@ export type JolliCourse = {
 
 export type JolliAssistantKind = "standard" | "code"
 
+export type JolliAssistantIcon =
+  | "Sparkles"
+  | "Gavel"
+  | "FlaskConical"
+  | "Clock"
+  | "GitPullRequest"
+  | "Terminal"
+  | "MessageCircleQuestion"
+  | "Presentation"
+  | "UserCheck"
+  | "BookOpen"
+  | "Compass"
+  | "Lightbulb"
+  | "Microscope"
+  | "PenLine"
+  | "Scale"
+  | "Users"
+
 export type JolliAssistantGuardrails = {
   neverGiveDirectAnswers: boolean
   restrictToMaterials: boolean
@@ -3899,6 +3917,7 @@ export type JolliAssistant = {
   name: string
   kind: JolliAssistantKind
   blurb: string
+  icon: JolliAssistantIcon
   accent: JolliAccent
   isDefault?: boolean
   instructions: string
@@ -3926,6 +3945,7 @@ export type JolliCatalog = {
     [key: string]: JolliModelTier
   }
   viewer?: JolliViewer
+  account?: string
 }
 
 export type ProjectDirectories = Array<{

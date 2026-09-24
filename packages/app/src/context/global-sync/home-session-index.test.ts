@@ -74,7 +74,7 @@ describe("Home V2 session index", () => {
     ])
   })
 
-  test("maps visible roots to Home session summaries", () => {
+  test("maps roots, archived ones included, to Home session summaries", () => {
     const activeNull = {
       ...session({ id: "active-null", updated: 20 }),
       time: { created: 1, updated: 20, archived: null },
@@ -99,6 +99,10 @@ describe("Home V2 session index", () => {
       expect.objectContaining({
         id: "active-null",
         time: { created: 1, updated: 20, archived: null },
+      }),
+      expect.objectContaining({
+        id: "archived",
+        time: { created: 1, updated: 50, archived: 50 },
       }),
     ])
   })
@@ -178,7 +182,7 @@ describe("Home V2 session index", () => {
     expect(index?.sessions.find((item) => item.id === "a")?.title).toBe("same row")
   })
 
-  test("keeps children and archived sessions out of the Home index", () => {
+  test("keeps children out of the Home index but archived roots in it", () => {
     const queryClient = new QueryClient()
     const cache = createHomeSessionIndexCache(queryClient, "server")
     queryClient.setQueryData(cache.indexKey, { sessions: [] as Session[], eventSequence: 0 })
@@ -186,7 +190,18 @@ describe("Home V2 session index", () => {
     cache.add({ id: "child", parentID: "a", time: { created: 1, updated: 1 } } as Session)
     cache.add({ id: "archived", time: { created: 1, updated: 1, archived: 2 } } as Session)
 
-    expect(queryClient.getQueryData<{ sessions: Session[] }>(cache.indexKey)?.sessions).toEqual([])
+    expect(
+      queryClient.getQueryData<{ sessions: Session[] }>(cache.indexKey)?.sessions.map((item) => item.id),
+    ).toEqual(["archived"])
+  })
+
+  test("an archive event updates the row in place rather than dropping it", () => {
+    const initial = parseHomeSessionIndex([session({ id: "a" })])
+    const archived = { ...initial[0]!, time: { ...initial[0]!.time, archived: 5 } }
+
+    expect(
+      applyHomeSessionEvent(initial, { type: "session.updated", properties: { sessionID: "a", info: archived } }),
+    ).toEqual([archived])
   })
 
   test("removes a session from the loaded Home index", () => {

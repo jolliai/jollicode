@@ -2,7 +2,7 @@ import type { Session } from "@opencode-ai/sdk/v2/client"
 import { preloadMarkdown } from "@opencode-ai/session-ui/markdown-cache"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useQuery } from "@tanstack/solid-query"
-import { type Accessor, createEffect, createMemo, createRoot, type JSX, startTransition } from "solid-js"
+import { type Accessor, createEffect, createMemo, createRoot, createSignal, type JSX, startTransition } from "solid-js"
 import { produce } from "solid-js/store"
 import { useCommand } from "@/context/command"
 import {
@@ -27,6 +27,8 @@ import type { Course } from "@/jolli/types"
 import type { HomeController } from "./home-controller"
 
 const HOME_SESSION_LIMIT = 64
+
+export type HomeSessionStatus = "active" | "archived" | "all"
 export type HomeSessionRecord = {
   session: Session
   project: LocalProject
@@ -87,13 +89,26 @@ export function createHomeSessionsController(home: HomeController) {
     refetchOnMount: true,
     refetchOnReconnect: true,
   }))
-  const indexedSessions = createMemo(() =>
-    retainHomeSessions(
-      homeSessions().sessions(sessionLoad.data, sessionEventLoad.data),
-      HOME_SESSION_LIMIT,
-      Date.now(),
-    ),
-  )
+  /**
+   * WHICH SESSIONS THE SIDEBAR IS SHOWING BY STATUS: ACTIVE, ARCHIVED, OR BOTH.
+   *
+   * ⚠ APPLIED HERE, AT THE ROOT OF EVERY LIST THIS CONTROLLER HANDS OUT — the rows, the search and
+   * the course tree — so choosing Archived changes all three together rather than leaving the search
+   * finding sessions the list says are not there.
+   *
+   * ⚠ ACTIVE SESSIONS STILL GO THROUGH `retainHomeSessions`, WHICH DROPS ARCHIVED ONES ITSELF, and
+   * archived ones skip it: its per-directory window is about recent work, and an archive is by
+   * definition not that. `records` caps the combined list at `HOME_SESSION_LIMIT` either way.
+   *
+   * ⚠ NOT PERSISTED, like the course filter — see `jolli/home-selection.ts`.
+   */
+  const [status, setStatus] = createSignal<HomeSessionStatus>("active")
+  const indexedSessions = createMemo(() => {
+    const all = homeSessions().sessions(sessionLoad.data, sessionEventLoad.data)
+    const active = status() === "archived" ? [] : retainHomeSessions(all, HOME_SESSION_LIMIT, Date.now())
+    if (status() === "active") return active
+    return [...active, ...all.filter((session) => typeof session.time.archived === "number")]
+  })
   /**
    * ⚠ ONE RECORD OBJECT PER SESSION, REUSED UNTIL THAT SESSION ACTUALLY CHANGES, AND IT IS LOAD
    * BEARING RATHER THAN AN OPTIMISATION. `<For>` keys by reference, so a rebuilt record is a
@@ -228,6 +243,8 @@ export function createHomeSessionsController(home: HomeController) {
     data: {
       records,
       groups,
+      status,
+      setStatus,
       loading: () => sessionLoad.isLoading,
       searchRecords: allRecords,
     },
@@ -330,7 +347,7 @@ export function createHomeSessionsController(home: HomeController) {
                 if (match.found) draft.session.splice(match.index, 1)
               }),
             )
-            homeSessions().remove(session.id)
+            homeSessions().add({ ...session, time: { ...session.time, archived: Date.now() } })
           },
           onError: (cause) =>
             showToast({
@@ -401,7 +418,8 @@ export function homeSessionSearchKey(record: HomeSessionRecord) {
  * to present them in. Anything past the fold is reached by scrolling.
  *
  * ⚠ AND IT STAYS A GROUP ARRAY RATHER THAN BECOMING A BARE LIST, so the one caller keeps its
- * heading, its empty check and its `<For>` shape. A single group is the smaller change than
+ * empty check and its `<For>` shape. The sidebar no longer renders the group's title — its section
+ * header already names the list. A single group is the smaller change than
  * rewriting the section around a different contract.
  */
 function groupSessions(records: HomeSessionRecord[], language: ReturnType<typeof useLanguage>): HomeSessionGroup[] {

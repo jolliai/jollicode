@@ -161,6 +161,92 @@ const icons = {
     body: `<path d="M5.83333 4.16406L2.5 7.4974L5.83333 10.8307M3.33333 7.4974H17.9167V15.4141H10" stroke="currentColor" stroke-linecap="square"/>`,
   },
   /**
+   * Ask the same source the same question again.
+   *
+   * ⚠ NOT `outline-reset`, WHICH IS THE ONE IT WOULD OTHERWISE BORROW. That glyph is a left-pointing
+   * arrow into a box and reads as undo — it is the revert dock's mark. A student pressing it to
+   * reload their course list would reasonably fear it throws something away.
+   */
+  /**
+   * THE SIXTEEN GLYPHS AN ASSISTANT MAY WEAR, TRANSCRIBED FROM THE SET jolliedu RENDERS.
+   *
+   * ⚠ THE NAMES ARE THE WIRE'S, KEBAB-CASED. `CourseAssistantIcon` in jolli-common is a closed
+   * union of PascalCase lucide names; this file keys on kebab-case like every other entry, and
+   * `schema/jolli.ts` is what maps between them. A professor picking a gavel in jolliedu has to
+   * get a gavel here, so these are copied from the package rather than redrawn.
+   *
+   * ⚠ 24x24, UNLIKE THE 16x16 ABOVE. lucide draws on a 24 grid; rescaling the paths by hand is
+   * how a stroke ends up half a pixel off. The viewBox carries it instead.
+   */
+  "assistant-sparkles": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/></g>`,
+  },
+  "assistant-gavel": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 13-8.381 8.38a1 1 0 0 1-3.001-3l8.384-8.381"/><path d="m16 16 6-6"/><path d="m21.5 10.5-8-8"/><path d="m8 8 6-6"/><path d="m8.5 7.5 8 8"/></g>`,
+  },
+  "assistant-flask-conical": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2"/><path d="M6.453 15h11.094"/><path d="M8.5 2h7"/></g>`,
+  },
+  "assistant-clock": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></g>`,
+  },
+  "assistant-git-pull-request": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" x2="6" y1="9" y2="21"/></g>`,
+  },
+  "assistant-terminal": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19h8"/><path d="m4 17 6-6-6-6"/></g>`,
+  },
+  "assistant-message-circle-question-mark": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></g>`,
+  },
+  "assistant-presentation": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></g>`,
+  },
+  "assistant-user-check": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 11 2 2 4-4"/><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></g>`,
+  },
+  "assistant-book-open": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></g>`,
+  },
+  "assistant-compass": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"/><circle cx="12" cy="12" r="10"/></g>`,
+  },
+  "assistant-lightbulb": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></g>`,
+  },
+  "assistant-microscope": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18h8"/><path d="M3 22h18"/><path d="M14 22a7 7 0 1 0 0-14h-1"/><path d="M9 14h2"/><path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Z"/><path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3"/></g>`,
+  },
+  "assistant-pen-line": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></g>`,
+  },
+  "assistant-scale": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></g>`,
+  },
+  "assistant-users": {
+    viewBox: "0 0 24 24",
+    body: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></g>`,
+  },
+  "arrows-clockwise": {
+    viewBox: "0 0 16 16",
+    body: `<path d="M11.5355 4.46447A5 5 0 1 1 8 3" stroke="currentColor"/><path d="M6.2 1.6L8 3L6.2 4.4" stroke="currentColor"/>`,
+  },
+  /**
    * The code-course mark. ⚠ ONE GLYPH, USED IN EVERY PLACE A COURSE'S KIND IS SHOWN — the rail row
    * unlabelled, the header with the word beside it. Changing it in one place and not the other
    * breaks the recognition the pair is for.

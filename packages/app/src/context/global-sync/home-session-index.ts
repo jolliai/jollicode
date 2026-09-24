@@ -128,16 +128,19 @@ export function createHomeSessionIndexCache(queryClient: QueryClient, server: st
      * route and nowhere a reader can find it. Waiting for `session.created` to come back over the
      * event stream is not good enough for a list the reader is looking at while they create one.
      *
-     * ⚠ IT HOLDS THE INDEX'S INVARIANT: roots that are not archived, the same set
-     * `parseHomeSessionIndex` and `applyHomeSessionEvent` keep. A child session belongs to its
-     * parent's transcript, and an archived one has already been taken out of this list on purpose.
+     * ⚠ IT HOLDS THE INDEX'S INVARIANT: roots only, the same set `parseHomeSessionIndex` and
+     * `applyHomeSessionEvent` keep. A child session belongs to its parent's transcript.
+     *
+     * ⚠ ARCHIVED ROOTS ARE KEPT, AND THIS IS ALSO HOW ARCHIVING REACHES THE INDEX: the caller passes
+     * the session with `time.archived` set, and the row moves from the sidebar's Active status to
+     * its Archived one — see the status filter in `home-sessions-controller.tsx`.
      *
      * ⚠ AND IT CLEARS THE `removed` TOMBSTONE, because ids are not reused but a session CAN be
      * re-added by a later event after a failed delete — leaving the tombstone would filter the row
      * out of the list for the rest of the session.
      */
     add(session: Session) {
-      if (session.parentID || typeof session.time.archived === "number") return
+      if (session.parentID) return
       removed.delete(session.id)
       if (!queryClient.getQueryState(indexKey)) return
       queryClient.setQueryData<HomeSessionIndex>(indexKey, (index) => {
@@ -171,9 +174,11 @@ export function createHomeSessionIndexCache(queryClient: QueryClient, server: st
 // multiple directories. A bounded page could omit an old session updated today.
 // Once released, use client.v2.project.list() and client.v2.session.list({
 // parentID: null, order: "desc" }), then remove this adapter and its V1 fields.
+//
+// Archived roots stay in the index; the sidebar's status filter decides whether to show them.
 export function parseHomeSessionIndex(sessions: SessionV2InfoWithMetadata[]): Session[] {
   return sessions.flatMap((item) => {
-    if (item.parentID || typeof item.time.archived === "number") return []
+    if (item.parentID) return []
     return [toLegacySummary(item)]
   })
 }
@@ -186,7 +191,7 @@ export function retainHomeSessions(sessions: Session[], limit: number, now: numb
 export function applyHomeSessionEvent(sessions: Session[], event: HomeSessionEvent) {
   const info = event.properties.info
   const index = sessions.findIndex((session) => session.id === info.id)
-  if (event.type === "session.deleted" || info.parentID || typeof info.time.archived === "number") {
+  if (event.type === "session.deleted" || info.parentID) {
     if (index === -1) return sessions
     return sessions.toSpliced(index, 1)
   }

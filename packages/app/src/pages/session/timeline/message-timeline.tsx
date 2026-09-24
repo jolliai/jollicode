@@ -938,8 +938,8 @@ export function MessageTimeline(props: {
       sync().session.evict(id)
       /**
        * ⚠ THE HOME INDEX IS A SEPARATE CACHE AND DELETE WAS THE ONE REMOVAL PATH THAT SKIPPED IT.
-       * `archive` takes a session out of both (see `session-archive.ts` and the Home controller),
-       * but this only ever touched the per-directory store — so a deleted session stayed in the
+       * `archive` updates both (see `session-archive.ts` and the Home controller — the index keeps
+       * the row, marked archived, for the sidebar's status filter), but this only ever touched the per-directory store — so a deleted session stayed in the
        * sidebar's list and in its search until the next full reload, and clicking that row opened a
        * tab for a session the server no longer has.
        */

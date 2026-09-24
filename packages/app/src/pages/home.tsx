@@ -40,13 +40,14 @@ export function NewHome() {
      * for `[data-component="home-session-search"]` to know this route had painted; that search box
      * is in the sidebar now and is on screen from the first frame of every route, so it can no
      * longer answer "am I home". This pane can.
+     *
+     * ⚠ FLUSH, FOR THE REASON `SessionPanelFrame` GIVES. Home and a session are the same pane to a
+     * student switching between them; leaving this one inset and rounded while the other went flush
+     * would make the window jump at every transition.
      */
     <div
       data-component="home-empty"
-      class={`
-        m-2 min-h-0 flex-1 self-stretch overflow-hidden rounded-[10px]
-        bg-v2-background-bg-base shadow-[var(--v2-elevation-raised)]
-      `}
+      class="min-h-0 flex-1 self-stretch overflow-hidden bg-v2-background-bg-base"
     >
       <div class="flex size-full flex-col items-center justify-center gap-4 px-6 text-center">
         <Show when={course()}>

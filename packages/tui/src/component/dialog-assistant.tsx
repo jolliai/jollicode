@@ -1,4 +1,4 @@
-import { createMemo } from "solid-js"
+import { createEffect, createMemo, on } from "solid-js"
 import { useJolli } from "../context/jolli"
 import { useTheme } from "../context/theme"
 import { DialogSelect } from "../ui/dialog-select"
@@ -14,19 +14,33 @@ import { useDialog } from "../ui/dialog"
  *
  * ⚠ IT REFUSES BEFORE IT OPENS WHEN NO COURSE IS CHOSEN, because an assistant belongs to exactly
  * one course — there is no list to show until that is settled.
+ *
+ * ⚠ A LOCKED SESSION LISTS ONLY ITS OWN ASSISTANT, read off the binding like `DialogCourse` does.
  */
 export function DialogAssistant() {
   const jolli = useJolli()
   const dialog = useDialog()
   const { theme } = useTheme()
 
-  const options = createMemo(() =>
-    jolli.assistantsFor(jolli.course()?.id).map((assistant) => ({
+  /** Closes once a session takes over the draft it was opened for — see `DialogCourse`. */
+  const openedUnlocked = !jolli.locked()
+  createEffect(
+    on(jolli.locked, (locked) => {
+      if (openedUnlocked && locked) dialog.clear()
+    }),
+  )
+
+  const options = createMemo(() => {
+    if (jolli.locked()) {
+      const assistant = jolli.assistant()
+      return assistant ? [{ value: assistant.id, title: assistant.name, description: assistant.blurb }] : []
+    }
+    return jolli.assistantsFor(jolli.course()?.id).map((assistant) => ({
       value: assistant.id,
       title: assistant.name,
       description: assistant.blurb,
-    })),
-  )
+    }))
+  })
 
   return (
     <DialogSelect
@@ -37,9 +51,11 @@ export function DialogAssistant() {
       emptyView={
         <box paddingLeft={4} paddingRight={4}>
           <text fg={theme.textMuted}>
-            {jolli.course()
-              ? `${jolli.course()?.code} has no assistants yet — your instructor sets these up.`
-              : "Choose a course first."}
+            {jolli.locked()
+              ? "This session has no assistant."
+              : jolli.course()
+                ? `${jolli.course()?.code} has no assistants yet — your instructor sets these up.`
+                : "Choose a course first."}
           </text>
         </box>
       }

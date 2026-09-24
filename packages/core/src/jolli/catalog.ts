@@ -157,6 +157,23 @@ export function accentOf(id: number): Jolli.Accent {
   return ((Math.abs(id) % 5) + 1) as Jolli.Accent
 }
 
+/**
+ * THE GLYPH A PROFESSOR PICKED, NARROWED FROM THE WIRE'S STRING.
+ *
+ * ⚠ IT FALLS BACK RATHER THAN FAILING, AND THE ROW IS WHY. jolliedu validates this on write, so an
+ * unknown name means a row stored before a name was retired — dropping the assistant over it would
+ * take a professor's assistant off the student's picker for a decoration. jolliedu's own client
+ * makes exactly this trade ("a card wearing the general assistant's icon says more than a card
+ * with a hole in it").
+ */
+export function assistantIconOf(icon: string): Jolli.AssistantIcon {
+  return ASSISTANT_ICONS.has(icon as Jolli.AssistantIcon)
+    ? (icon as Jolli.AssistantIcon)
+    : Jolli.DEFAULT_ASSISTANT_ICON
+}
+
+const ASSISTANT_ICONS: ReadonlySet<Jolli.AssistantIcon> = new Set(Jolli.AssistantIcon.literals)
+
 /** An unknown status is reported as archived, matching what {@link courseEntryState} concluded. */
 function courseStatusOf(status: string): Jolli.Course["status"] {
   if (status === "draft" || status === "published" || status === "archived") return status
@@ -246,6 +263,7 @@ export function toAssistant(input: {
     name: input.choice.name,
     kind: "code",
     blurb: input.choice.blurb,
+    icon: assistantIconOf(input.choice.icon),
     accent: accentOf(input.choice.id),
     ...(input.isDefault ? { isDefault: true } : {}),
     // Staff-only on the gateway, and the course prompt is injected server-side anyway.

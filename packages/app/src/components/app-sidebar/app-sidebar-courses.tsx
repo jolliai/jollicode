@@ -47,11 +47,25 @@ import { AppSidebarSessionRow } from "./app-sidebar-sessions"
 
 /**
  * ⚠ THE TREE IS CAPPED IN HEIGHT AND SCROLLS INSIDE THAT CAP. This section is `shrink-0` in the
- * column, so an expanded course with forty sessions would not overflow — it would squeeze the
- * Sessions section below it to nothing, taking the search box with it. The cap is on the tree rather
- * than on the number of rows in it so nothing is silently dropped.
+ * column, so several courses expanded at once would not overflow — they would squeeze the Sessions
+ * section below to nothing, taking the search box with it. This bounds the section however many
+ * folders are open; `COURSE_SESSION_LIMIT` bounds each folder on its own.
  */
 const COURSE_TREE_MAX_HEIGHT = "max-h-[40vh]"
+
+/**
+ * FIVE SESSIONS PER FOLDER, NEWEST FIRST — A PREVIEW OF THE COURSE, NOT ITS ARCHIVE.
+ *
+ * ⚠ AN UNCAPPED FOLDER BECOMES THE FLAT LIST IT SITS ABOVE. A term's work under one heading pushes
+ * every other course off the screen, so the reader scrolls past the very rows they opened this
+ * section to orient by — and the two sections end up answering the same question, one of them badly.
+ *
+ * ⚠ THE REST ARE ONE CLICK AWAY RATHER THAN LOST, which is what makes a count cap honest here.
+ * Selecting the course row points `HomeCourseSelection` at it, and the Sessions section below then
+ * lists that course's sessions up to `HOME_SESSION_LIMIT` — the "show me everything for CS 201" path
+ * this tree shortcuts rather than replaces.
+ */
+const COURSE_SESSION_LIMIT = 5
 
 export function AppSidebarCourses() {
   const language = useLanguage()
@@ -65,7 +79,20 @@ export function AppSidebarCourses() {
    * "Not ready" is the only thing that can explain an empty screen.
    */
   const courses = () => listedCourses()
-  const selected = () => HomeCourseSelection.courseId()
+  /**
+   * ⚠ THE HIGHLIGHT IS THE FILTER'S AND NOTHING ELSE'S. It used to fall back to the open session's
+   * course, which meant opening a chat lit up its course row as well — two stacked filled rows
+   * saying one thing, and the student had selected only one of them. A course row is a toggle
+   * (`aria-pressed`); its fill should mean "this is the filter you set", never "this is where the
+   * thing you opened lives". The session row already says the latter, and says it alone.
+   *
+   * ⚠ WITH A FILTER ACTIVE THE TWO STILL COINCIDE, and that is correct rather than a leftover.
+   * `AppSidebar` re-points an ALREADY ACTIVE filter at the course of a session you open, so both
+   * rows fill — but the filter is a thing the student turned on, and its row is showing its own
+   * state. With no filter, which is the default, nothing follows the chat any more.
+   */
+  const highlighted = () => HomeCourseSelection.courseId()
+  const selected = highlighted
   /** Whether there is a project to run a session in at all — see the `disabled` note on the "+". */
   const canCreate = () => sessions.session.canCreate()
 
@@ -76,11 +103,17 @@ export function AppSidebarCourses() {
    * already had `HomeCourseSelection` applied to it, so building the tree from it would empty every
    * folder except the selected one the moment anybody clicked a course — a tree that collapses to
    * one branch when you touch it. `searchRecords` is the same list before that filter, already
-   * sorted newest-first and already capped upstream, which is also why no limit is applied here.
+   * sorted newest-first and already capped upstream.
    *
    * ⚠ SESSIONS WITH NO BINDING ARE SKIPPED RATHER THAN BUCKETED. `record.course` is optional by
    * design — CLI sessions and anything predating the binding have none — and they are not missing
    * from the sidebar: the Sessions section below lists every one of them.
+   *
+   * ⚠ THE CAP IS TAKEN WHILE BUCKETING RATHER THAN SLICED OFF AFTERWARDS, which is both cheaper and
+   * the reason it is correct: the source arrives sorted on `compareSessionTime`, so the first
+   * `COURSE_SESSION_LIMIT` records to reach a bucket ARE that course's most recent. Slicing at the
+   * point of use would also hand `<For>` a freshly allocated array on every read, and `<For>` keys
+   * by reference.
    */
   const byCourse = createMemo(() => {
     const map = new Map<string, HomeSessionRecord[]>()
@@ -88,8 +121,8 @@ export function AppSidebarCourses() {
       const id = record.course?.id
       if (!id) continue
       const bucket = map.get(id)
-      if (bucket) bucket.push(record)
-      else map.set(id, [record])
+      if (!bucket) map.set(id, [record])
+      else if (bucket.length < COURSE_SESSION_LIMIT) bucket.push(record)
     }
     return map
   })
@@ -134,6 +167,7 @@ export function AppSidebarCourses() {
         <For each={courses()}>
           {(course) => {
             const isSelected = () => selected() === course.id
+            const isHighlighted = () => highlighted() === course.id
             const startable = () => canStartSession(course.id)
             const children = () => byCourse().get(course.id) ?? []
             const expanded = () => isOpen(course.id)
@@ -178,7 +212,7 @@ export function AppSidebarCourses() {
                   <AppSidebarRow
                     type="button"
                     data-action="home-select-course"
-                    data-selected={isSelected() ? "" : undefined}
+                    data-selected={isHighlighted() ? "" : undefined}
                     aria-pressed={isSelected()}
                     title={`${course.code} · ${course.title}`}
                     classList={{ "pr-8": startable() }}

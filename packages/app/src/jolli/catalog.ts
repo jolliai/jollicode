@@ -252,6 +252,30 @@ export function ensureCatalog(key: string, load: () => Promise<Catalog>): Promis
 }
 
 /**
+ * ASK FOR THE CATALOGUE AGAIN WITHOUT FORGETTING THE ONE ON SCREEN. For a student who pressed
+ * refresh because their professor changed something a minute ago.
+ *
+ * ⚠ IT IS NOT {@link resetCatalog}, AND THE DIFFERENCE IS THE WHOLE REASON IT EXISTS. That one
+ * empties `courses` on the way out, which is right when the account is going away and wrong here:
+ * the sidebar gates its Courses section on having any, so clearing them unmounts the section —
+ * along with the refresh control the student's cursor is still on — and paints it back a round trip
+ * later. Nothing is dropped here; `setCatalog` overwrites when the answer lands.
+ *
+ * ⚠ THE GENERATION IS BUMPED RATHER THAN THE FETCH CALLED, because this module does not own the
+ * fetch. `useJolliCatalog` keys its effect on the generation, so raising it is what makes the
+ * caller that DOES own it ask again — and `inFlight` is keyed by the same counter, so the new key
+ * cannot be deduped against the load it is replacing.
+ *
+ * ⚠ AND IT REACHES NO FURTHER THAN THE SERVER'S OWN CACHE, which is a five minute TTL on a
+ * snapshot (`core/jolli/cache.ts`). Within that window this re-reads what the server already has
+ * rather than the gateway; the endpoint has no way to ask for more, and a student pressing this
+ * twice in a minute is better served instantly than truthfully.
+ */
+export function refreshCatalog() {
+  setGeneration((value) => value + 1)
+}
+
+/**
  * Drop what is loaded and make the owner of the fetch ask again. For sign-in and server changes.
  *
  * ⚠ IT ALSO CLEARS THE TIER MAP, which belongs to the same answer. Leaving the previous account's

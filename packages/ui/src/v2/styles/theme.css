@@ -16,7 +16,16 @@
 
     /* ── Background ── */
     --v2-background-bg-base: var(--v2-grey-50);
-    --v2-background-bg-deep: var(--v2-grey-100);
+    /*
+     * ⚠ ONE STEP DEEPER THAN THE LAYER IT USED TO SHARE, AND THE STEP IS THE WHOLE POINT. `bg-deep`
+     * is the chrome behind the content — the sidebar, the titlebar, the shell — while `bg-base` is
+     * the pane the session and home views paint on top of it. At `grey-100` that step was
+     * #fafafa against #ffffff: five values out of 255, which no display and no room light renders
+     * as a boundary. Dark mode has always had a real one (#161616 under #242424); this gives light
+     * mode the same reading. It deliberately lands on the same value as `bg-layer-02` — layers
+     * stack on top of the content, `deep` sits under it, and the two axes are free to meet.
+     */
+    --v2-background-bg-deep: var(--v2-grey-200);
     --v2-background-bg-layer-01: var(--v2-grey-100);
     --v2-background-bg-layer-02: var(--v2-grey-200);
     --v2-background-bg-layer-03: var(--v2-grey-300);
@@ -262,7 +271,8 @@
     color-scheme: light;
 
     --v2-background-bg-base: var(--v2-grey-50);
-    --v2-background-bg-deep: var(--v2-grey-100);
+    /* Same step as `:root` above, and for the same reason — the two light blocks must agree. */
+    --v2-background-bg-deep: var(--v2-grey-200);
     --v2-background-bg-layer-01: var(--v2-grey-100);
     --v2-background-bg-layer-02: var(--v2-grey-200);
     --v2-background-bg-layer-03: var(--v2-grey-300);

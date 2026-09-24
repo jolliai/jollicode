@@ -29,6 +29,7 @@ function assistant(
     courseId: "cs-310",
     name: "Test Assistant",
     kind: "code",
+    icon: "Sparkles",
     blurb: "for tests",
     accent: 1,
     instructions: "",

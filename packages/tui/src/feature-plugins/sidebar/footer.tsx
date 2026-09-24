@@ -21,11 +21,12 @@ function View(props: { api: TuiPluginApi; sessionID: string }) {
     const dir = session?.directory || props.api.state.path.directory || paths.cwd
     const out = abbreviateHome(dir, paths.home)
     const branch = session?.directory === props.api.state.path.directory ? props.api.state.vcs?.branch : undefined
-    const text = branch ? out + ":" + branch : out
-    const list = text.split("/")
+    // Split the directory itself, on either separator: Windows paths have no `/` to split on, and
+    // a branch like `feature/x` must stay whole in the bright half.
+    const cut = Math.max(out.lastIndexOf("/"), out.lastIndexOf("\\")) + 1
     return {
-      parent: list.slice(0, -1).join("/"),
-      name: list.at(-1) ?? "",
+      parent: out.slice(0, cut),
+      name: out.slice(cut) + (branch ? ":" + branch : ""),
     }
   })
 
@@ -65,11 +66,11 @@ function View(props: { api: TuiPluginApi; sessionID: string }) {
         </box>
       </Show>
       <text>
-        <span style={{ fg: theme().textMuted }}>{path().parent}/</span>
+        <span style={{ fg: theme().textMuted }}>{path().parent}</span>
         <span style={{ fg: theme().text }}>{path().name}</span>
       </text>
       <text fg={theme().textMuted}>
-        <span style={{ fg: theme().success }}>•</span> <b>Open</b>
+        <span style={{ fg: theme().success }}>•</span> <b>Jolli</b>
         <span style={{ fg: theme().text }}>
           <b>Code</b>
         </span>{" "}

@@ -35,6 +35,7 @@ const catalog: Catalog = {
       courseId: "7",
       name: "Pair programmer",
       kind: "code",
+      icon: "Sparkles",
       blurb: "",
       accent: 1,
       isDefault: true,

@@ -60,6 +60,8 @@ import { useTabs } from "@/context/tabs"
 import { TerminalProvider, useTerminal } from "@/context/terminal"
 import { PromptInput } from "@/components/prompt-input"
 import { PromptInputV2Composer, usePromptInputV2Controller } from "@/components/prompt-input-v2"
+import { PromptProjectLabel } from "@/components/prompt-project-selector"
+import { PromptGitStatus } from "@/components/prompt-workspace-selector"
 import { useSettingsCommand } from "@/components/settings-dialog"
 import { setCursorPosition } from "@/components/prompt-input/editor-dom"
 import { promptLength } from "@/components/prompt-input/history"
@@ -349,23 +351,40 @@ function SessionProviders(props: ParentProps) {
   )
 }
 
+/**
+ * ⚠ THE PANE IS FLUSH WITH THE SIDEBAR, NOT INSET FROM IT. This used to add `p-2` and let the
+ * shell's `bg-deep` show through as a gutter around a rounded, raised card. That reads as a canvas
+ * only when the canvas is visible; at `#fafafa` under a `#ffffff` card it read as stray whitespace
+ * beside the sidebar, with a shadow and a corner radius floating on nothing. The boundary is the
+ * sidebar's own edge now (`app-sidebar.tsx`), which states it at one pixel instead of eight.
+ *
+ * ⚠ `padded` IS KEPT AS A NO-OP ON PURPOSE — see `SessionRouteErrorBoundary`, whose callers pass
+ * it. Deleting the prop is a wider change than this one, and the flag still names a real question
+ * ("is this route inset?") that a future layout may answer differently.
+ */
 function SessionRouteFrame(props: ParentProps<{ padded?: boolean }>) {
-  return (
-    <div class="relative size-full overflow-hidden flex flex-col" classList={{ "p-2": props.padded }}>
-      {props.children}
-    </div>
-  )
+  void props.padded
+  return <div class="relative size-full overflow-hidden flex flex-col">{props.children}</div>
 }
 
+/**
+ * ⚠ NO RADIUS AND NO SHADOW: BOTH ONLY MEAN SOMETHING ABOVE A VISIBLE CANVAS. With the pane flush
+ * to the sidebar there is nothing behind it to be raised off — a corner radius would cut four
+ * notches out of the window and the elevation would darken a seam against the sidebar rather than
+ * lift anything. The background is what separates the pane now, one step up from the `bg-deep`
+ * the sidebar and titlebar paint.
+ *
+ * ⚠ `overflow-hidden` STAYS THOUGH THE RADIUS IT CLIPPED IS GONE. It also contains the scrollers
+ * and the terminal inside this pane; the two were only ever written on one line together.
+ */
 function SessionPanelFrame(props: ParentProps<{ newLayout: boolean; raised?: boolean }>) {
+  void props.raised
   return (
     <div
       classList={{
-        "flex-1 min-h-0 flex flex-col": true,
+        "flex-1 min-h-0 flex flex-col overflow-hidden": true,
         "bg-v2-background-bg-base": props.newLayout,
         "bg-background-stronger": !props.newLayout,
-        "rounded-[10px] overflow-hidden": props.newLayout,
-        "shadow-[var(--v2-elevation-raised)]": props.newLayout && props.raised,
       }}
     >
       {props.children}
@@ -2259,7 +2278,21 @@ export default function Page() {
                         setFollowup("paused", id, true)
                       },
                     })
-                    return <PromptInputV2Composer controller={controller} borderUnderlay />
+                    return (
+                      <PromptInputV2Composer
+                        controller={controller}
+                        borderUnderlay
+                        courseBarTrailing={
+                          <>
+                            <Show when={sync().project}>{(project) => <PromptProjectLabel project={project()} />}</Show>
+                            <PromptGitStatus
+                              branch={serverSync().child(sdk().directory)[0].vcs?.branch}
+                              noGit={!!sync().project && sync().project?.vcs !== "git"}
+                            />
+                          </>
+                        }
+                      />
+                    )
                   }}
                 </Show>
               }

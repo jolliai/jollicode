@@ -58,7 +58,7 @@ export function useSessionArchive() {
           }),
         )
         sync().session.evict(sessionID)
-        serverSync().homeSessions.remove(sessionID)
+        serverSync().homeSessions.add({ ...session, time: { ...session.time, archived: Date.now() } })
         navigateAfterRemoval(sessionID, session.parentID, nextSession?.id)
         notifySessionTabsRemoved({ directory: sdk().directory, sessionIDs: [sessionID] })
       })

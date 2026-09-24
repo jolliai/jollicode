@@ -40,7 +40,7 @@ const IDENTITY = "student-a"
  * still the product's refusal rather than the test's.
  */
 function apiLayer(
-  credential?: { baseUrl?: string; token?: string },
+  credential?: { baseUrl?: string; token?: string; subject?: string; email?: string },
   refused?: (token: string) => void,
   gateway: typeof globalThis.fetch = globalThis.fetch,
 ) {
@@ -57,8 +57,12 @@ function apiLayer(
   const row = credential?.token
     ? ({
         id: "test",
-        subject: null,
-        email: null,
+        /**
+         * ⚠ NULL UNLESS A CASE ASKS FOR ONE, WHICH IS WHAT KEEPS THE WHOLE-BODY `toEqual`S IN THIS
+         * FILE GREEN. `account` is filed off these two columns and is omitted when there is neither.
+         */
+        subject: credential.subject ?? null,
+        email: credential.email ?? null,
         base_url: credential.baseUrl ?? null,
         access_token: credential.token,
         refresh_token: null,
@@ -172,6 +176,55 @@ describe("jolli HttpApi — the viewer", () => {
 
   /** ⚠ OMITTED, NOT NULL. `optional` drops `undefined` on encode, which is what keeps the cases above green. */
   withIdentity({ sub: "user_123" }).live("omits the field entirely when the token will not say", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(JolliPaths.course).pipe(HttpClient.execute)
+      expect(yield* response.json).toEqual({ status: "unreachable", courses: [], assistants: [], modelTiers: {} })
+    }),
+  )
+})
+
+/**
+ * WHOSE CATALOGUE THIS IS, FOR A CLIENT THAT HAS SOMETHING TO FILE UNDER IT.
+ *
+ * ⚠ IT COMES OFF THE ROW, NOT THE TOKEN, AND THE CASE ABOVE IS WHY THAT IS VISIBLE HERE. A payload
+ * carrying `sub: "user_123"` produces no `account` at all when the stored credential records no
+ * subject — the claim is the viewer's business and `Jolli.Catalog.account` is the store's.
+ */
+describe("jolli HttpApi — the account", () => {
+  const withAccount = (subject?: string, email?: string) =>
+    testEffect(apiLayer({ token: "jwt", ...(subject ? { subject } : {}), ...(email ? { email } : {}) }))
+
+  withAccount("user_123").live("names the account from the stored subject", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(JolliPaths.course).pipe(HttpClient.execute)
+      const body = (yield* response.json) as { account?: string }
+      expect(body.account).toBe("user_123")
+    }),
+  )
+
+  /** ⚠ THE FALLBACK, FOR A BACKEND THAT REPORTS NO SUBJECT. An address still tells two students apart. */
+  withAccount(undefined, "ada@jolli.ai").live("falls back to the stored address", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(JolliPaths.course).pipe(HttpClient.execute)
+      const body = (yield* response.json) as { account?: string }
+      expect(body.account).toBe("ada@jolli.ai")
+    }),
+  )
+
+  /** ⚠ THE SUBJECT OUTRANKS THE ADDRESS, because an address can be changed and still be the same student. */
+  withAccount("user_123", "ada@jolli.ai").live("prefers the subject over the address", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(JolliPaths.course).pipe(HttpClient.execute)
+      const body = (yield* response.json) as { account?: string }
+      expect(body.account).toBe("user_123")
+    }),
+  )
+
+  /**
+   * ⚠ OMITTED RATHER THAN GUESSED. A client that files a preference under this has to be told when
+   * two people would share the bucket; inventing a key here would hide that from it.
+   */
+  withAccount().live("says nothing when the credential names nobody", () =>
     Effect.gen(function* () {
       const response = yield* HttpClientRequest.get(JolliPaths.course).pipe(HttpClient.execute)
       expect(yield* response.json).toEqual({ status: "unreachable", courses: [], assistants: [], modelTiers: {} })
