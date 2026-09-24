@@ -15,7 +15,7 @@
 /** The auth hub. Not a tenant — the user's real tenant is only known after the exchange. */
 const DEFAULT_AUTH_ORIGIN = "https://auth.jolli.ai"
 
-const ALLOWED_HOSTS = ["jolli.ai", "jolli.dev", "jolli.cloud", "jolli-local.me"]
+const ALLOWED_HOSTS = ["jolli.ai", "jolli.dev", "jolli-local.me"]
 
 export function jolliAuthOrigin() {
   const origin = (process.env["JOLLI_URL"]?.trim() || DEFAULT_AUTH_ORIGIN).replace(/\/+$/, "")

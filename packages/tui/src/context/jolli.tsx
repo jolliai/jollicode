@@ -72,6 +72,50 @@ export const ModelGrant = {
   },
 }
 
+/** What one account's bucket holds. See the `remember`/restore pair inside the context. */
+type RememberedCourse = { courseId: string; assistantId?: string }
+
+/**
+ * THE BUCKET FOR A CREDENTIAL THAT NAMES NOBODY. See `accountKey` for why this is a shared key
+ * rather than a refusal to remember.
+ */
+const ANONYMOUS = "anonymous"
+
+/**
+ * ⚠ A CAP, BECAUSE A SHARED MACHINE IS THE CASE THIS FEATURE IS FOR. A lab terminal sees a new
+ * student every hour and nothing here ever hears that one of them is gone for good — without a
+ * bound, a term's worth of course ids accumulates in `kv.json` forever. Eight is well past any
+ * rotation a single machine sees in a day and small enough that the file stays a file you can read.
+ */
+const MAX_ACCOUNTS = 8
+
+/** ⚠ FROM THE FRONT, WHICH IS THE OLDEST — `remember` re-inserts the account it writes at the end. */
+function trim(entries: Record<string, RememberedCourse>) {
+  const keys = Object.keys(entries)
+  if (keys.length <= MAX_ACCOUNTS) return entries
+  const kept: Record<string, RememberedCourse> = {}
+  for (const key of keys.slice(keys.length - MAX_ACCOUNTS)) kept[key] = entries[key]
+  return kept
+}
+
+/**
+ * ⚠ EVERY FIELD IS CHECKED, BECAUSE THIS IS A FILE ON DISK AND NOT A VALUE WE JUST WROTE. An older
+ * build kept a single flat `{courseId, assistantId}` here rather than a map of them; that shape has
+ * no account key, so it belongs to nobody this can identify and is dropped rather than adopted —
+ * one extra trip through the picker, once, for anybody upgrading mid-term.
+ */
+function asEntry(value: unknown): RememberedCourse | undefined {
+  if (!value || typeof value !== "object") return undefined
+  const { courseId, assistantId } = value as { courseId?: unknown; assistantId?: unknown }
+  if (typeof courseId !== "string") return undefined
+  return { courseId, ...(typeof assistantId === "string" ? { assistantId } : {}) }
+}
+
+/** ⚠ SO AN UNCHANGED BINDING DOES NOT REWRITE THE FILE. `kv.set` serialises the whole store. */
+function sameEntry(left: RememberedCourse | undefined, right: RememberedCourse) {
+  return left?.courseId === right.courseId && left?.assistantId === right.assistantId
+}
+
 /**
  * ⚠ THE SAME HANDOFF TRICK THE APP USES, AND FOR THE SAME REASON. `submit()` creates the session and
  * navigates to it before that session has come back over sync, so for a frame or two there is no row
@@ -95,12 +139,37 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
      */
     const [generation, setGeneration] = createSignal(0)
 
+    /**
+     * WHETHER THE REMEMBERED COURSE HAS BEEN LOOKED UP YET — NOT WHETHER THERE WAS ONE.
+     *
+     * ⚠ THIS EXISTS BECAUSE EFFECT ORDER BETWEEN TWO FILES IS NOT A GUARANTEE, AND THE BUG IT FIXES
+     * WAS EXACTLY THAT. Both the restore effect below and `app.tsx`'s picker effect wake on
+     * `store.loaded`; the restore was assumed to run first because its context is the picker's
+     * parent. It does not. The trace off a real launch reads:
+     *
+     *     catalog ok → needsChoice TRUE, opening the picker → restore resolves the course, 1ms later
+     *
+     * so the student met the picker on every single launch with their remembered course binding
+     * itself underneath it — and `DialogCourse` captures "already bound" at mount, so the dialog
+     * that opened a millisecond too early had no reason left to close.
+     *
+     * ⚠ IT IS THE SAME RULE `loaded` ALREADY ENFORCES ONE LINE DOWN, applied to the other half of the
+     * answer. "No remembered course" and "the memory has not been read yet" are indistinguishable
+     * from the outside, and acting on the second interrupts somebody who had already answered.
+     *
+     * ⚠ AND IT IS REOPENED ON SIGN-OUT, because the next student's memory is a different file entry
+     * and has not been read either.
+     */
+    const [consulted, setConsulted] = createSignal(false)
+
     const [store, setStore] = createStore<{
       courses: readonly Jolli.Course[]
       assistants: readonly Jolli.Assistant[]
       loaded: boolean
       /** What the server said about its own answer — see `Jolli.CatalogStatus`. */
       status: Jolli.CatalogStatus
+      /** Whose catalogue this is, and what {@link remember} files a course under. See `Jolli.Catalog.account`. */
+      account?: string
       draft?: CourseBinding
     }>({ courses: [], assistants: [], loaded: false, status: "unreachable" })
 
@@ -123,7 +192,10 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
      */
     const signedIn = createMemo(() => isJolliConnected(sync.data.provider_next.connected))
 
-    /** The kv key holding the last course this student chose. See the restore effect below. */
+    /**
+     * The kv key holding the last course each account chose — `{ [account]: RememberedCourse }`.
+     * Written by `remember`, read by the restore effect, and keyed by `accountKey`.
+     */
     const REMEMBERED = "jolli_last_course"
 
     createEffect(
@@ -140,6 +212,7 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
                   draft.courses = catalog.courses as readonly Jolli.Course[]
                   draft.assistants = catalog.assistants as readonly Jolli.Assistant[]
                   draft.status = catalog.status
+                  draft.account = catalog.account
                   draft.loaded = true
                 }),
               )
@@ -155,23 +228,67 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
     )
 
     /**
-     * SIGNING OUT DROPS THE COURSE, IN MEMORY AND IN WHAT IS REMEMBERED.
+     * SIGNING OUT DROPS THE COURSE IN MEMORY. WHAT IS REMEMBERED ON DISK SURVIVES IT.
      *
      * ⚠ THE CREDENTIAL GOING AWAY DOES NOT ON ITS OWN CLEAR ANYTHING HERE, which is how a signed-out
      * composer kept reporting `CS 101/Tutor` in its footer — a course the student was no longer
      * signed in to, over a gate correctly saying there were none. The catalogue empties by itself
      * because it is refetched; the DRAFT is local state and had nothing to empty it.
      *
-     * ⚠ AND THE REMEMBERED COURSE GOES WITH IT, because the button that reaches here is "use a
-     * different account". Restoring the previous student's course for the next one is the same
-     * mistake `clearCatalogCache` exists to prevent on disk, one layer up.
+     * ⚠ THIS USED TO WIPE THE REMEMBERED COURSE TOO, AND THAT WAS THE BUG BEHIND "IT ASKS ME EVERY
+     * TIME I SIGN IN". The reasoning was sound — the button that reaches here is "use a different
+     * account", and restoring A's course for B is the mistake `clearCatalogCache` prevents one layer
+     * up — but the remedy threw away the answer of the student who signs back in as THEMSELVES,
+     * which is nearly every one of them. A refused renewal reaches here as well, so a token that
+     * expired overnight cost the student their course too. {@link remember} now files per account,
+     * which answers the leak without the collateral: B gets B's bucket, and A's is still there when
+     * A comes back.
+     *
+     * ⚠ AND IT REOPENS THE AUTO-SELECT LATCH below, so the next sign-in restores (or binds a sole
+     * course, or leaves `needsChoice` to open the picker) instead of meeting "choose a course" with
+     * nothing chosen.
      */
+    let autoSelected = false
+    /** Everything about the last student that must not outlive them. Shared by the two effects below. */
+    const forgetStudent = () => {
+      autoSelected = false
+      setConsulted(false)
+      setStore("draft", undefined)
+    }
     createEffect(
       on(signedIn, (isIn, was) => {
         if (isIn || was === undefined || !was) return
-        setStore("draft", undefined)
-        kv.set(REMEMBERED, undefined)
+        forgetStudent()
       }),
+    )
+
+    /**
+     * SOMEBODY ELSE IS SIGNED IN NOW, AND THAT IS NOT THE SAME EVENT AS SIGNING OUT.
+     *
+     * ⚠ THE EFFECT ABOVE WATCHES THE CREDENTIAL COMING AND GOING, WHICH IS NOT THE SAME AS WATCHING
+     * WHO IT BELONGS TO, AND THE DIFFERENCE IS A WINDOW A STUDENT CAN WALK THROUGH. `signedIn` reads
+     * the connected set, which `sync.tsx` refreshes on a TEN SECOND POLL — so a sign-out and the
+     * sign-in that follows it, which is what "use a different account" actually is, can both happen
+     * between two samples. Nothing ever observes the gap, the latches stay shut, and the composer
+     * goes on offering the PREVIOUS student's course to the new one, with no picker because as far
+     * as this file knew nothing had changed.
+     *
+     * ⚠ IT IS ALSO THE ONLY SIGNAL FOR A SWITCH THIS PROCESS DID NOT MAKE. The credential lives in a
+     * database the desktop app shares, and signing in over there replaces the row without this TUI
+     * being told; the account on the catalogue is the first and only place that shows up.
+     *
+     * ⚠ AN ARRIVAL IS NOT A CHANGE. `undefined → "5"` is the first catalogue of the process, and the
+     * step away from a known account — `"5" → undefined`, a signed-out answer — has already done the
+     * forgetting by the time the next account lands, which is why that direction is not skipped.
+     */
+    createEffect(
+      on(
+        () => store.account,
+        (account, previous) => {
+          if (previous === undefined || account === previous) return
+          forgetStudent()
+        },
+      ),
     )
 
     const sessionID = createMemo(() => (route.data.type === "session" ? route.data.sessionID : undefined))
@@ -234,13 +351,71 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
      * of the directory they happen to open; `session.metadata` is what records where a particular
      * conversation belongs, and that is already durable.
      *
+     * ⚠ AND FILED PER ACCOUNT, WHICH IS WHAT LETS IT SURVIVE A SIGN-OUT AT ALL. One entry shared by
+     * everybody would have to be wiped whenever a credential went away — the only way to stop the
+     * next person inheriting it — and wiping is what made this useless: the overwhelmingly common
+     * sign-out is a student signing back in as themselves, or a renewal that lapsed overnight. A
+     * bucket per account keeps "use a different account" honest without punishing them. See
+     * {@link accountKey} for the case where there is no account to key by.
+     *
      * ⚠ AND IT IS RE-VALIDATED, NEVER TRUSTED. Term ends, a professor unpublishes, an assistant is
      * retired — `draftFor` resolves against today's catalogue and returns nothing if the remembered
-     * course can no longer be started, which puts the student back in front of the picker.
+     * course can no longer be started, which puts the student back in front of the picker. That
+     * check is also the backstop under the shared bucket: a course the current student is not
+     * enrolled in is not in their catalogue, so it cannot restore for them.
      */
     const remember = (binding: CourseBinding | undefined) => {
       if (!binding) return
-      kv.set(REMEMBERED, { courseId: binding.courseId, assistantId: binding.assistantId })
+      const key = accountKey()
+      const entry = { courseId: binding.courseId, assistantId: binding.assistantId }
+      const existing = rememberedAll()
+      if (sameEntry(existing[key], entry)) return
+      /**
+       * ⚠ DELETED BEFORE IT IS WRITTEN, SO THE SPREAD RE-INSERTS IT LAST. String keys iterate in
+       * insertion order, which is the only record of recency this file keeps — and {@link trim}
+       * drops from the front. Without the delete, the account being written right now would keep
+       * its original position and could be the one evicted.
+       */
+      const { [key]: _dropped, ...rest } = existing
+      kv.set(REMEMBERED, trim({ ...rest, [key]: entry }))
+    }
+
+    /**
+     * WHICH BUCKET THIS STUDENT'S ANSWER GOES IN.
+     *
+     * ⚠ NO ACCOUNT IS A BUCKET OF ITS OWN RATHER THAN NO MEMORY AT ALL. The server omits the field
+     * when the backend reported neither a subject nor an address (see `Jolli.Catalog.account`), and
+     * two such students on one machine would share this key. What they would share is a course id
+     * that has to survive `canStartSession` against the READER's own catalogue before anything
+     * happens with it — so the failure mode is "B is silently put in a course B is also enrolled
+     * in", which is the outcome we want anyway, and never "B sees A's course".
+     */
+    const accountKey = () => store.account ?? ANONYMOUS
+
+    const rememberedAll = (): Record<string, RememberedCourse> => {
+      const raw: unknown = kv.get(REMEMBERED)
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {}
+      const entries: Record<string, RememberedCourse> = {}
+      for (const [key, value] of Object.entries(raw)) {
+        const entry = asEntry(value)
+        if (entry) entries[key] = entry
+      }
+      return entries
+    }
+
+    /** This account's remembered course, re-resolved against today's catalogue, or nothing. */
+    const rememberedDraft = () => {
+      const last = rememberedAll()[accountKey()]
+      if (!last) return undefined
+      const restored = draftFor(last.courseId, last.assistantId)
+      if (!restored || !Lookup.canStartSession(store, restored.courseId)) return undefined
+      return restored
+    }
+
+    /** The one course there is, when there is exactly one — which is the absence of a question. */
+    const soleDraft = () => {
+      if (startable().length !== 1) return undefined
+      return draftFor(startable()[0].id)
     }
 
     /**
@@ -257,41 +432,78 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
      * "one course, still in flight" are the same empty list; acting on the second would select
      * nothing and never revisit it.
      *
-     * ⚠ AND IT FIRES ONCE. A student who picks a different course would otherwise have this put it
-     * straight back, and the picker would appear broken.
+     * ⚠ AND IT FIRES ONCE PER SIGN-IN. A student who picks a different course would otherwise have
+     * this put it straight back, and the picker would appear broken. The latch is declared up by the
+     * sign-out effect, which reopens it.
      */
-    let autoSelected = false
     createEffect(() => {
       /**
        * ⚠ `signedIn()` IS CHECKED THOUGH THE CATALOGUE WOULD BE EMPTY ANYWAY. Signed out, no course
        * may be shown at all — and relying on the list being empty to enforce that makes the rule an
        * accident of another layer's behaviour rather than something this file states.
+       *
+       * ⚠ THE LATCH IS CHECKED LAST. It is a plain variable, so returning on it first would leave
+       * this effect with no signal read and nothing to ever re-run it — and the sign-out effect
+       * reopening the latch would wake nothing.
        */
-      if (autoSelected || !signedIn() || !store.loaded || !kv.ready || sessionID() || store.draft) return
+      if (!signedIn() || !store.loaded || !kv.ready || sessionID() || store.draft || autoSelected) return
       /**
        * ⚠ THE REMEMBERED COURSE COMES FIRST AND A SOLE CANDIDATE SECOND. Both end in the same
        * place — a binding the student did not have to make again — but one is their own previous
        * answer and the other is the absence of a question.
-       */
-      const last = kv.get(REMEMBERED) as { courseId?: unknown; assistantId?: unknown } | undefined
-      if (typeof last?.courseId === "string") {
-        const restored = draftFor(last.courseId, typeof last.assistantId === "string" ? last.assistantId : undefined)
-        if (restored && Lookup.canStartSession(store, restored.courseId)) {
-          autoSelected = true
-          setStore("draft", restored)
-          return
-        }
-      }
-      if (startable().length !== 1) return
-      /**
-       * ⚠ THE LATCH CLOSES ONLY IF THE DRAFT WAS ACTUALLY BUILT, so a course `canStartSession` just
+       *
+       * ⚠ THE LATCH CLOSES ONLY IF A DRAFT WAS ACTUALLY BUILT, so a course `canStartSession` just
        * called startable but whose default assistant will not resolve does not become a permanent
        * refusal to pre-select.
        */
-      const draft = draftFor(startable()[0].id)
-      if (!draft) return
-      autoSelected = true
-      setStore("draft", draft)
+      const next = rememberedDraft() ?? soleDraft()
+      if (next) {
+        autoSelected = true
+        setStore("draft", next)
+      }
+      /**
+       * ⚠ LAST, AND ON EVERY PATH THAT GOT THIS FAR — INCLUDING THE ONE THAT RESTORED NOTHING. This
+       * is the signal {@link needsChoice} waits for; see {@link consulted}. Setting it before the
+       * draft would publish "the memory has been read" while the answer it produced was still a
+       * line away.
+       */
+      setConsulted(true)
+    })
+
+    /**
+     * THE COURSE OF THE SESSION IN VIEW BECOMES THE ONE THE NEXT SESSION STARTS IN.
+     *
+     * ⚠ THIS IS WHAT MAKES `/new` STOP ASKING, AND THE GAP IT CLOSES WAS INVISIBLE FROM THE DRAFT
+     * SIDE. A draft composed in this process survives into the next one — `promote` deliberately
+     * leaves it alone — so the student who picks a course, sends a prompt and presses `/new` was
+     * always fine. The student who RESUMES a session never had a draft at all: `--continue` and the
+     * session list both land on a route with a session id, which is the first thing the restore
+     * effect above turns back on. Pressing `/new` from there left the composer unbound with several
+     * startable courses, which is precisely the shape `needsCourseChoice` opens the picker for —
+     * every single time, in front of a student who had been working in one course all along.
+     *
+     * ⚠ IT WRITES THE DRAFT AS WELL AS REMEMBERING, because the two answer different questions and
+     * only one of them is durable. Remembering alone would leave `/new` correct only when the
+     * restore latch happens to still be open; the draft is what `current()` reads the moment the
+     * route drops back to home.
+     *
+     * ⚠ AND IT RE-VALIDATES RATHER THAN COPYING. A transcript written under HIST 404 is still that
+     * course's after the term ends — the picker says so — but staging an ended course for a session
+     * that does not exist yet would carry a binding the server is about to refuse. `draftFor`
+     * resolves the assistant and the sharing default against today's catalogue, and
+     * `canStartSession` is what decides whether it may be staged at all.
+     *
+     * ⚠ NOTHING HERE TOUCHES WHAT IS ON SCREEN. `current()` prefers the session's own binding
+     * whenever there is a session id, so this is only ever read after the student has left it.
+     */
+    createEffect(() => {
+      if (!sessionID()) return
+      const bound = current()
+      if (!bound || !Lookup.canStartSession(store, bound.courseId)) return
+      const next = draftFor(bound.courseId, bound.assistantId)
+      if (!next) return
+      setStore("draft", next)
+      remember(next)
     })
 
     /**
@@ -381,6 +593,7 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
           started: !!sessionID(),
           bound: !!current(),
           loaded: store.loaded,
+          consulted: consulted(),
           startable: startable().length,
         }),
 
@@ -512,6 +725,8 @@ export function needsCourseChoice(input: {
   started: boolean
   bound: boolean
   loaded: boolean
+  /** Whether the remembered course has been looked up yet. See the signal of the same name. */
+  consulted: boolean
   startable: number
 }) {
   if (!input.lockdown) return false
@@ -525,5 +740,18 @@ export function needsCourseChoice(input: {
   if (!input.signedIn) return false
   if (input.started || input.bound) return false
   if (!input.loaded) return false
+  /**
+   * ⚠ THE CATALOGUE HAVING ARRIVED IS ONLY HALF THE ANSWER, AND ACTING ON HALF IS WHAT MADE THIS
+   * SURFACE ASK ON EVERY LAUNCH. The other half is the course this student chose last time, which
+   * is read off disk by an effect that wakes on the same flag this one does — and runs AFTER it.
+   * A trace off a real launch: catalogue lands, this returns true and the picker opens, the
+   * remembered course binds one millisecond later. The student answers a question that had already
+   * been answered, and the dialog cannot take itself back because by the time it mounts the binding
+   * it would have waited for is already there.
+   *
+   * ⚠ IT IS THE SAME SENTENCE AS `loaded`, ABOUT THE OTHER SOURCE. Both mean "an answer is in
+   * flight"; neither may be read as "there is no answer".
+   */
+  if (!input.consulted) return false
   return input.startable > 1
 }

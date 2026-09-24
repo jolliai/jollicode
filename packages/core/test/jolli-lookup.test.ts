@@ -21,6 +21,7 @@ const assistant = (id: string, courseId: string, isDefault = false): Jolli.Assis
   name: `Assistant ${id}`,
   kind: "code",
   blurb: "",
+  icon: "Sparkles",
   accent: 1,
   ...(isDefault ? { isDefault: true } : {}),
   instructions: "",

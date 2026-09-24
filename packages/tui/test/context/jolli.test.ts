@@ -85,7 +85,15 @@ describe("submissionBlocker", () => {
   })
 })
 
-const choice = { lockdown: true, signedIn: true, started: false, bound: false, loaded: true, startable: 2 }
+const choice = {
+  lockdown: true,
+  signedIn: true,
+  started: false,
+  bound: false,
+  loaded: true,
+  consulted: true,
+  startable: 2,
+}
 
 describe("needsCourseChoice", () => {
   test("opens the picker only when there is a real decision", () => {
@@ -114,5 +122,16 @@ describe("needsCourseChoice", () => {
     expect(needsCourseChoice({ ...choice, bound: true })).toBe(false)
     expect(needsCourseChoice({ ...choice, started: true })).toBe(false)
     expect(needsCourseChoice({ ...choice, lockdown: false })).toBe(false)
+  })
+
+  /**
+   * ⚠ THE CATALOGUE AND THE REMEMBERED COURSE ARRIVE SEPARATELY, AND HALF AN ANSWER IS NOT ONE. The
+   * effect that reads the memory wakes on the same flag `app.tsx` does and runs after it, so a
+   * `loaded` catalogue on its own says nothing about whether this student has already chosen. On a
+   * real launch that gap was one millisecond, and it put the picker in front of somebody whose
+   * course bound itself underneath it.
+   */
+  test("waits for the remembered course to be read, not just the catalogue", () => {
+    expect(needsCourseChoice({ ...choice, consulted: false })).toBe(false)
   })
 })

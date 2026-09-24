@@ -46,7 +46,16 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
        */
       const credential = yield* session.current()
       const viewer = credential ? viewerFromToken(credential.access_token) : undefined
-      const identity = viewer ? { viewer } : {}
+      /**
+       * ⚠ THE ROW'S OWN COLUMNS, NOT THE TOKEN'S CLAIMS, AND NOT `cache_key`. See
+       * `Jolli.Catalog.account`: the subject is what the credential row is keyed by and is the only
+       * thing here that survives a sign-out and names the same student on the way back in. The
+       * address is the fallback for a backend that reports no subject; when there is neither, the
+       * field is omitted and the client is told, in the only way this protocol can, that it cannot
+       * tell one account from another.
+       */
+      const account = credential?.subject ?? credential?.email ?? undefined
+      const identity = { ...(viewer ? { viewer } : {}), ...(account ? { account } : {}) }
 
       /**
        * ⚠ THE REFRESHING READ, NOT THE POLLED ONE. This is a real gateway call, so it needs a token

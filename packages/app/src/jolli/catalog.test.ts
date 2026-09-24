@@ -30,6 +30,7 @@ const assistant = (id: string, courseId: string, isDefault = false): Assistant =
   courseId,
   name: `Assistant ${id}`,
   kind: "code",
+  icon: "Sparkles",
   blurb: "",
   accent: 1,
   ...(isDefault ? { isDefault: true } : {}),

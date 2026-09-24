@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { testRender, useRenderer } from "@opentui/solid"
-import { onCleanup, onMount } from "solid-js"
+import { onCleanup, onMount, type JSX } from "solid-js"
 import { providerIdFor } from "@opencode-ai/core/jolli/gateway-config"
 import { ArgsProvider } from "../../src/context/args"
 import { ClipboardProvider } from "../../src/context/clipboard"
@@ -11,14 +11,15 @@ import { JolliProvider, ModelGrant, useJolli } from "../../src/context/jolli"
 import { KVProvider } from "../../src/context/kv"
 import { PermissionProvider } from "../../src/context/permission"
 import { ProjectProvider } from "../../src/context/project"
-import { RouteProvider } from "../../src/context/route"
+import { RouteProvider, useRoute, type Route } from "../../src/context/route"
 import { SDKProvider } from "../../src/context/sdk"
 import { SyncProvider } from "../../src/context/sync"
 import { ThemeProvider } from "../../src/context/theme"
 import { TuiConfigProvider } from "../../src/config"
 import { OpencodeKeymapProvider, registerOpencodeKeymap } from "../../src/keymap"
-import { DialogProvider } from "../../src/ui/dialog"
+import { DialogProvider, useDialog } from "../../src/ui/dialog"
 import { ToastProvider } from "../../src/ui/toast"
+import { DialogAssistant } from "../../src/component/dialog-assistant"
 import { DialogCourse } from "../../src/component/dialog-course"
 import { tmpdir } from "../fixture/fixture"
 import { TestTuiContexts } from "../fixture/tui-environment"
@@ -104,14 +105,59 @@ const CATALOG = {
       skills: [],
       status: "live",
     },
+    {
+      id: "2",
+      courseId: "101",
+      name: "Grader",
+      kind: "code",
+      blurb: "Checks your submission",
+      accent: 1,
+      isDefault: false,
+      instructions: "",
+      allowedModelIds: [MODEL_KEY],
+      modelId: MODEL_KEY,
+      guardrails: { neverGiveDirectAnswers: true, restrictToMaterials: false, showCitations: true, weeklyTokenCap: 0 },
+      coaching: { coachTheQuestion: true, coachTheProcess: true, coachTheModelChoice: true, instructions: "" },
+      skills: [],
+      status: "live",
+    },
   ],
   modelTiers: {},
 }
 
-async function mount() {
+const SESSION_ID = "ses_bound"
+
+/** Waits on the clock, not render passes: a sign-in change is a bootstrap round-trip away. */
+async function until(fn: () => boolean, timeout = 2000) {
+  const start = Date.now()
+  while (!fn()) {
+    if (Date.now() - start > timeout) throw new Error("timed out waiting for condition")
+    await Bun.sleep(10)
+  }
+}
+
+/** A session as `/session` lists it, carrying the binding `session.create` wrote into its metadata. */
+function boundSession(binding: { courseId: string; assistantId: string }) {
+  return {
+    id: SESSION_ID,
+    title: "bound",
+    time: { created: 0, updated: 0 },
+    version: "1.14.42",
+    directory,
+    project_id: "proj_test",
+    metadata: { jolli: binding },
+  }
+}
+
+/**
+ * `dialog` is what renders in place, outside the dialog stack; pass `null` to render nothing and
+ * open dialogs through `picker.dialog` the way `app.tsx` does.
+ */
+async function mount(options: { route?: Route; sessions?: unknown[]; dialog?: (() => JSX.Element) | null } = {}) {
   const tmp = await tmpdir()
   await Bun.write(`${tmp.path}/kv.json`, "{}")
   const events = createEventSource()
+  const auth = { connected: true }
   const calls = createFetch((url) => {
     if (url.pathname === "/jolli/course") return Promise.resolve(json(CATALOG))
     /**
@@ -119,12 +165,16 @@ async function mount() {
      * checks the credential before it restores or pre-selects anything, so a harness that left this
      * empty would exercise the signed-out branch and prove nothing about the picker.
      */
-    if (url.pathname === "/provider") return Promise.resolve(json({ all: [], default: {}, connected: [PROVIDER_ID] }))
+    if (url.pathname === "/provider")
+      return Promise.resolve(json({ all: [], default: {}, connected: auth.connected ? [PROVIDER_ID] : [] }))
+    if (url.pathname === "/session") return Promise.resolve(json(options.sessions ?? []))
     return undefined
   })
   const config = createTuiResolvedConfig()
 
   let jolli!: ReturnType<typeof useJolli>
+  let route!: ReturnType<typeof useRoute>
+  let dialog!: ReturnType<typeof useDialog>
   let mounted!: () => void
   const ready = new Promise<void>((resolve) => {
     mounted = resolve
@@ -132,8 +182,12 @@ async function mount() {
 
   function Probe() {
     const captured = useJolli()
+    const capturedRoute = useRoute()
+    const capturedDialog = useDialog()
     onMount(() => {
       jolli = captured
+      route = capturedRoute
+      dialog = capturedDialog
       mounted()
     })
     return <box />
@@ -151,7 +205,7 @@ async function mount() {
               <KVProvider>
                 <ToastProvider>
                   <TuiConfigProvider config={config}>
-                    <RouteProvider initialRoute={{ type: "home" }}>
+                    <RouteProvider initialRoute={options.route ?? { type: "home" }}>
                       <SDKProvider url="http://test" directory={directory} fetch={calls.fetch} events={events.source}>
                         <PermissionProvider>
                           <ProjectProvider>
@@ -161,7 +215,7 @@ async function mount() {
                                   <JolliProvider>
                                     <DialogProvider>
                                       <Probe />
-                                      <DialogCourse />
+                                      {options.dialog === undefined ? <DialogCourse /> : options.dialog?.()}
                                     </DialogProvider>
                                   </JolliProvider>
                                 </ThemeProvider>
@@ -190,6 +244,21 @@ async function mount() {
     tmp,
     get jolli() {
       return jolli
+    },
+    get route() {
+      return route
+    },
+    get dialog() {
+      return dialog
+    },
+    /** Flip the credential and make sync re-read it, as its own poll would ten seconds later. */
+    setConnected(value: boolean) {
+      auth.connected = value
+      events.emit({
+        directory,
+        project: "proj_test",
+        payload: { id: "evt_disposed", type: "server.instance.disposed", properties: { directory } },
+      })
     },
   }
 }
@@ -266,6 +335,110 @@ test("publishes the bound assistant's model grant", async () => {
     expect(ModelGrant.isAllowed(PROVIDER_ID, "opus")).toBe(true)
     expect(ModelGrant.isAllowed(PROVIDER_ID, "sonnet")).toBe(false)
     expect(ModelGrant.isAllowed(PROVIDER_ID, "haiku")).toBe(false)
+  } finally {
+    picker.app.renderer.destroy()
+    await picker.tmp[Symbol.asyncDispose]()
+  }
+})
+
+/**
+ * ⚠ A STARTED SESSION'S PICKER IS A VIEW OF ITS BINDING, NOT THE CATALOGUE WITH ONE ROW MARKED.
+ * HIST 404 has ended and is not startable, so it is in no list — yet a transcript written under it
+ * is still that course's, and `/course` must say so.
+ */
+test("a started session lists only its own course, even one that can no longer be started", async () => {
+  const picker = await mount({
+    route: { type: "session", sessionID: SESSION_ID },
+    sessions: [boundSession({ courseId: "404", assistantId: "1" })],
+  })
+  try {
+    await picker.app.waitFor(() => picker.jolli.course()?.id === "404")
+    await picker.app.renderOnce()
+    const frame = picker.app.captureCharFrame()
+
+    expect(picker.jolli.locked()).toBe(true)
+    expect(frame).toContain("Course (fixed for this session)")
+    expect(frame).toContain("HIST 404")
+    expect(frame).not.toContain("CS 101")
+  } finally {
+    picker.app.renderer.destroy()
+    await picker.tmp[Symbol.asyncDispose]()
+  }
+})
+
+test("a started session lists only its own assistant", async () => {
+  const picker = await mount({
+    route: { type: "session", sessionID: SESSION_ID },
+    sessions: [boundSession({ courseId: "101", assistantId: "2" })],
+    dialog: () => <DialogAssistant />,
+  })
+  try {
+    await picker.app.waitFor(() => picker.jolli.assistant()?.id === "2")
+    await picker.app.renderOnce()
+    const frame = picker.app.captureCharFrame()
+
+    expect(frame).toContain("Assistant (fixed for this session)")
+    expect(frame).toContain("Grader")
+    expect(frame).not.toContain("Tutor")
+  } finally {
+    picker.app.renderer.destroy()
+    await picker.tmp[Symbol.asyncDispose]()
+  }
+})
+
+/**
+ * ⚠ A PICKER THAT POPPED UP ON THE DRAFT MUST NOT OUTLIVE IT. `app.tsx` opens this on its own and
+ * nothing else closes it, so once a session takes over it would sit — already locked — over the
+ * conversation, which read as the picker appearing after every message.
+ */
+test("a picker opened on the draft closes once a session takes over", async () => {
+  const picker = await mount({ dialog: null })
+  try {
+    picker.dialog.replace(() => <DialogCourse />)
+    await picker.app.renderOnce()
+    expect(picker.dialog.stack.length).toBe(1)
+
+    picker.route.navigate({ type: "session", sessionID: SESSION_ID })
+    await picker.app.waitFor(() => picker.dialog.stack.length === 0)
+  } finally {
+    picker.app.renderer.destroy()
+    await picker.tmp[Symbol.asyncDispose]()
+  }
+})
+
+test("/course inside a session stays open as a read-only view", async () => {
+  const picker = await mount({
+    route: { type: "session", sessionID: SESSION_ID },
+    sessions: [boundSession({ courseId: "101", assistantId: "1" })],
+    dialog: null,
+  })
+  try {
+    picker.dialog.replace(() => <DialogCourse />)
+    await picker.app.waitFor(() => !!picker.jolli.course())
+    await picker.app.renderOnce()
+    expect(picker.dialog.stack.length).toBe(1)
+  } finally {
+    picker.app.renderer.destroy()
+    await picker.tmp[Symbol.asyncDispose]()
+  }
+})
+
+/**
+ * ⚠ THE PRE-SELECTION FIRES ONCE PER SIGN-IN, NOT ONCE PER PROCESS. Signing out drops the draft;
+ * without the latch reopening, a single-course student signing back in would be told to choose
+ * a course from a menu of one.
+ */
+test("signing out and back in pre-selects the only course again", async () => {
+  const picker = await mount({ dialog: null })
+  try {
+    await picker.app.waitFor(() => !!picker.jolli.current())
+
+    picker.setConnected(false)
+    await until(() => !picker.jolli.signedIn() && !picker.jolli.current())
+
+    picker.setConnected(true)
+    await until(() => picker.jolli.current()?.courseId === "101")
+    expect(picker.jolli.blocked()).toBeUndefined()
   } finally {
     picker.app.renderer.destroy()
     await picker.tmp[Symbol.asyncDispose]()

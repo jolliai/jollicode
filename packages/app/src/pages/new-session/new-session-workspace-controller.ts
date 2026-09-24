@@ -3,7 +3,8 @@ import { useSDK } from "@/context/sdk"
 import { useServerSync } from "@/context/server-sync"
 import { useSync } from "@/context/sync"
 
-const workspaceBarEnabled = import.meta.env.VITE_OPENCODE_CHANNEL !== "prod"
+// The workspace selector is hidden on every channel, so a new session always runs in the local repo.
+const workspaceBarEnabled = false
 
 export function resolveNewSessionWorktree(input: {
   enabled: boolean

@@ -61,10 +61,15 @@ export function AppSidebarAccount() {
      *
      * ⚠ THE BOTTOM PADDING TAKES THE SAFE-AREA INSET, so the row does not sit under a home
      * indicator on a platform that has one. Zero on desktop.
+     *
+     * ⚠ NO RULE ABOVE IT. Position already says this row is not one of the list — it is pinned to
+     * the floor of a scrolling column, with the padding either side of it — and a line as well made
+     * the sidebar's foot read as a second panel. The sidebar draws no other divider between its
+     * sections; this one was the odd one out.
      */
     <div
       data-component="app-sidebar-account"
-      class="shrink-0 border-t border-v2-border-border-muted px-1 pt-1"
+      class="shrink-0 px-1 pt-1"
       style={{ "padding-bottom": "max(4px, env(safe-area-inset-bottom, 0px))" }}
     >
       <MenuV2 gutter={6} placement="top-start">

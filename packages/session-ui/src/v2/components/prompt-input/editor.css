@@ -1,0 +1,10 @@
+/*
+ * An empty editor still gets one line box, so the caret sits where the first character will.
+ *
+ * ⚠ HERE AND NOT AS A TAILWIND `content-['\200B']` CLASS. Inside a JSX attribute the backslash
+ * trips oxlint's octal-escape parse error, and doubling it reaches the CSS as a literal `\200B`
+ * that renders in the input. A stylesheet takes the CSS escape as written.
+ */
+[data-slot="prompt-input-v2-editor"]:empty::before {
+  content: "\200B";
+}

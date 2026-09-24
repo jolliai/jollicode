@@ -23,6 +23,7 @@ import type {
 } from "./types"
 import type { PromptInputV2Interaction, PromptInputV2SelectControl } from "./interaction"
 import "./attachments.css"
+import "./editor.css"
 
 export type {
   PromptInputV2Attachment,
@@ -41,12 +42,6 @@ export type PromptInputV2Props = {
   borderUnderlay?: boolean
   class?: string
   modelControl?: JSX.Element
-  /**
-   * Who may read this session. A slot rather than a `view` entry, for the reason `modelControl` is
-   * one: the options and the lock on them are a fact about a COURSE, and this package knows nothing
-   * about courses. Absent renders nothing, which is what every non-Jolli caller wants.
-   */
-  privacyControl?: JSX.Element
   /**
    * A reason the composer cannot send yet, from the caller. Upstream the submit button is disabled
    * only by an empty prompt (`canSubmit`); Jolli Code also refuses a session with no course, which
@@ -165,6 +160,7 @@ export function PromptInputV2(props: PromptInputV2Props) {
               renderPromptInputV2Editor(element, props.controller.parts())
             }}
             data-component="prompt-input"
+            data-slot="prompt-input-v2-editor"
             role="textbox"
             aria-multiline="true"
             aria-label={i18n.t("ui.promptInput.label")}
@@ -174,7 +170,7 @@ export function PromptInputV2(props: PromptInputV2Props) {
             spellcheck={state.mode === "normal"}
             // @ts-expect-error
             autocomplete="off"
-            class="relative z-10 block min-h-[60px] max-h-[180px] w-full overflow-y-auto whitespace-pre-wrap bg-transparent px-4 pt-4 pb-2 text-[13px] font-[440] leading-5 text-v2-text-text-base focus:outline-none empty:before:content-['\\200B'] [&_[data-mention=file]]:text-syntax-property [&_[data-mention=agent]]:text-syntax-type [&_[data-mention=reference]]:text-syntax-keyword"
+            class="relative z-10 block min-h-[60px] max-h-[180px] w-full overflow-y-auto whitespace-pre-wrap bg-transparent px-4 pt-4 pb-2 text-[13px] font-[440] leading-5 text-v2-text-text-base focus:outline-none [&_[data-mention=file]]:text-syntax-property [&_[data-mention=agent]]:text-syntax-type [&_[data-mention=reference]]:text-syntax-keyword"
             classList={{ "font-mono!": state.mode === "shell", "opacity-50": props.disabled }}
             onInput={(event) => {
               const cursor = promptInputV2Cursor(event.currentTarget)
@@ -270,9 +266,6 @@ export function PromptInputV2(props: PromptInputV2Props) {
                 </Show>
               )}
             </Show>
-            {/* Last in the cluster: it is the only control here that says something about the
-                session rather than about how the next turn runs. */}
-            {props.privacyControl}
           </div>
           <PromptInputV2SubmitButton
             mode={state.mode}

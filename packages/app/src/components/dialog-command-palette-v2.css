@@ -207,6 +207,36 @@
   letter-spacing: -0.04px;
 }
 
+/*
+ * TWO COLUMNS ON ONE LINE: what the row IS, then where it LIVES.
+ *
+ * ⚠ THE SECOND COLUMN STARTS AT THE SAME x ON EVERY ROW, WHICH IS THE ENTIRE POINT. Left to the
+ * default the description begins wherever the title happens to end, so "CS 201 · hi" and
+ * "CS 201 · jollicode" run together into one string and the eye has no edge to follow down the
+ * list. A fixed split gives the locations their own ragged-left edge to scan.
+ *
+ * ⚠ AND IT IS ONE LINE, NOT TWO. Stacking them also separates them, but it halves how many
+ * sessions fit in the dialog and makes each row a block rather than a line — a search result list
+ * is read by sweeping down one column, not by reading paragraphs.
+ *
+ * ⚠ PERCENT RATHER THAN A PIXEL WIDTH, because this dialog is `size="large"` and the palette it
+ * borrows from is not: a fixed column that suits one leaves the other with a title clipped at
+ * eight characters. Both halves already truncate with an ellipsis.
+ */
+.command-palette-v2--columns .command-palette-v2-row-text {
+  flex: 1;
+  gap: 12px;
+}
+
+.command-palette-v2--columns .command-palette-v2-title {
+  flex: 0 0 auto;
+  width: 70%;
+}
+
+.command-palette-v2--columns .command-palette-v2-description {
+  flex: 1;
+}
+
 @media (max-width: 640px) {
   .command-palette-v2-row-text {
     flex-direction: column;

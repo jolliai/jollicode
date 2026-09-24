@@ -22,10 +22,17 @@ export function NewSessionView(props: {
 }) {
   return (
     <div class="@container relative flex flex-col min-h-0 h-full flex-1">
-      <div
-        data-component="session-new-design"
-        class="relative flex-1 min-h-0 overflow-hidden rounded-[10px] bg-v2-background-bg-deep"
-      >
+      {/*
+       * ⚠ `bg-base` LIKE EVERY OTHER PANE, NOT `bg-deep`. This is content — the place a student
+       * starts writing — and `bg-deep` is the chrome behind content: the sidebar and the titlebar.
+       * The two were interchangeable while `bg-deep` was `#fafafa` under a `#ffffff` pane; once it
+       * became a real step down (`ui/v2/styles/theme.css`) this pane started reading as a hole in
+       * the window beside the session and home views it switches with.
+       *
+       * ⚠ AND NO RADIUS, for the reason `SessionPanelFrame` gives: the pane is flush to the
+       * sidebar now, so there is nothing behind a rounded corner but the window.
+       */}
+      <div data-component="session-new-design" class="relative flex-1 min-h-0 overflow-hidden bg-v2-background-bg-base">
         <div class="absolute inset-x-0 top-[25.375%] flex justify-center px-6">
           <div class={NEW_SESSION_CONTENT_WIDTH}>
             {/*
@@ -45,7 +52,10 @@ export function NewSessionView(props: {
             <div class="mt-8">
               {/*
                * WHERE THIS SESSION HAPPENS, AS ONE LINE ABOVE THE BOX: course / assistant / project
-               * / workspace / branch, coarse to fine.
+               * / branch, coarse to fine.
+               *
+               * ⚠ THE WORKSPACE PICKER NEVER SHOWS. `workspaceBarEnabled` is off on every channel, so
+               * `bar.visible()` is always false and the fallback — the branch — takes its place.
                *
                * ⚠ IT IS PASSED IN RATHER THAN IMPORTED BY THE BAR, because these three controls are
                * this route's — `props.project` and `props.workspace` are controllers the draft page

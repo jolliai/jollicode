@@ -58,6 +58,19 @@ export function AppSidebarSection(props: {
       <div class="flex h-7 min-w-0 shrink-0 items-center gap-1 pl-1.5 pr-1">
         <Show
           when={collapsible()}
+          /**
+           * ⚠ FLUSH WITH ITS OWN ROWS, NOT WITH THE OTHER SECTIONS' LABELS. This used to be inset by
+           * the chevron's width (14px icon + 2px gap, less the button's -2px net offset) so that all
+           * three labels started at the same x. That reads as a defect rather than as alignment: the
+           * 14px it reserves is empty here and holds a clickable chevron in every sibling, so the
+           * label appears to float right of the rows it belongs to, above a gap that looks like a
+           * missing icon. A label and its rows are one group; matching the group beats matching the
+           * other headers, and `AppSidebarRow`'s own `px-1.5` is what this now lines up with.
+           *
+           * ⚠ AND AN ICON HERE WOULD BE WORSE THAN EITHER. Filling the slot to keep the headers
+           * aligned puts something unclickable exactly where the other two sections put something
+           * clickable — an affordance the section cannot honour.
+           */
           fallback={<div class="text-v2-text-text-muted [font-weight:530]">{props.label}</div>}
         >
           <button

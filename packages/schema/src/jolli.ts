@@ -120,6 +120,42 @@ export const SessionSharing = Schema.Struct({
 export const Accent = Schema.Literals([1, 2, 3, 4, 5]).annotate({ identifier: "Jolli.Accent" })
 export type Accent = typeof Accent.Type
 
+/**
+ * THE GLYPH A PROFESSOR PICKED FOR AN ASSISTANT, AS A CLOSED SET.
+ *
+ * ⚠ THESE ARE jolliedu's NAMES, CHARACTER FOR CHARACTER — `CourseAssistantIcon` in `jolli-common`.
+ * The gateway stores one of exactly these and validates on write, so anything else on the wire is a
+ * row written before a name was retired. Kept closed here for the same reason it is closed there:
+ * the client maps the name to a render, and a free string is a way of putting an arbitrary key into
+ * that map.
+ *
+ * ⚠ THE SET IS SEMANTIC, NOT DECORATIVE. A gavel for an ethics review board, a flask for a lab
+ * viva — nothing derivable from an assistant's NAME produces those, which is why the professor
+ * chooses and this travels.
+ */
+export const AssistantIcon = Schema.Literals([
+  "Sparkles",
+  "Gavel",
+  "FlaskConical",
+  "Clock",
+  "GitPullRequest",
+  "Terminal",
+  "MessageCircleQuestion",
+  "Presentation",
+  "UserCheck",
+  "BookOpen",
+  "Compass",
+  "Lightbulb",
+  "Microscope",
+  "PenLine",
+  "Scale",
+  "Users",
+]).annotate({ identifier: "Jolli.AssistantIcon" })
+export type AssistantIcon = typeof AssistantIcon.Type
+
+/** What an assistant wears until somebody picks something else. jolliedu's own default. */
+export const DEFAULT_ASSISTANT_ICON: AssistantIcon = "Sparkles"
+
 export interface Course extends Schema.Schema.Type<typeof Course> {}
 export const Course = Schema.Struct({
   /** `String()` of the gateway's numeric id. Everything above `api.ts` sees only strings. */
@@ -308,6 +344,12 @@ export const Assistant = Schema.Struct({
   kind: AssistantKind,
   /** One line, lower case. Shown as the row's hover text in the picker. */
   blurb: Schema.String,
+  /**
+   * ⚠ IT TRAVELS BESIDE `accent` BECAUSE THE TWO ARE ONE MARK. The accent tints the glyph; a colour
+   * with nothing to tint is a stripe, and a glyph with no colour is every assistant's glyph.
+   * `api.ts` narrows the wire's string to this union and falls back rather than dropping the row.
+   */
+  icon: AssistantIcon,
   accent: Accent,
   /**
    * True for the one a student gets when they pick nobody, and at most one per course.
@@ -454,4 +496,27 @@ export const Catalog = Schema.Struct({
    * which is what keeps the existing whole-body route assertions unchanged.
    */
   viewer: Viewer.pipe(optional),
+  /**
+   * WHICH ACCOUNT THIS CATALOGUE BELONGS TO, SO A CLIENT CAN FILE A LOCAL PREFERENCE UNDER IT.
+   *
+   * ⚠ IT IS NOT {@link Viewer}, AND THE SEPARATION IS THE WHOLE REASON IT EXISTS. That field is
+   * decoded from an unverified payload and is documented as labelling only — nothing may branch on
+   * it except what words to draw. Keying persisted state off `viewer.email` would quietly make a
+   * display string load-bearing; this one is the store's own notion of who the credential belongs
+   * to (the `sub` the backend issued, falling back to the address it reported), which is the same
+   * value the credential row is keyed by.
+   *
+   * ⚠ AND IT IS NOT THE CATALOGUE CACHE KEY EITHER, THOUGH THAT ALSO TELLS TWO STUDENTS APART.
+   * `cache_key` is minted per row and signing out DELETES the row, so the same student coming back
+   * gets a new one — fine for a cache that only has to avoid serving A's courses to B, useless for
+   * remembering anything across a sign-out. This survives one.
+   *
+   * ⚠ IT MAY NOT BECOME AN AUTHORISATION INPUT, for the reasons `jolli/identity.ts` sets out at
+   * length. What a student may start comes from the gateway's course data and from nowhere else.
+   *
+   * ⚠ OPTIONAL, AND ABSENCE MEANS "WE CANNOT TELL ACCOUNTS APART" RATHER THAN "SIGNED OUT". A
+   * credential whose backend reported neither a subject nor an address produces none, and a client
+   * that files something under it has to decide what to do with a bucket two people might share.
+   */
+  account: Schema.String.pipe(optional),
 }).annotate({ identifier: "Jolli.Catalog" })

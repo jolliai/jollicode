@@ -15,12 +15,14 @@
  * under the box: course, assistant, project, workspace and branch are one breadcrumb reading
  * coarse-to-fine, which is what they always were — two rows on opposite sides of the input made
  * "where does this session happen" look like two unrelated questions. A slot rather than an import
- * because only the draft screen HAS a project control; a live session passes nothing and this
- * renders exactly what it did before.
+ * because each screen fills it differently: the draft passes the project picker, a live session a
+ * read-only project and branch (its directory is fixed once it starts).
  */
 
 import { children, Show, type JSX } from "solid-js"
+import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
 import { CourseAccent } from "@/components/course-accent"
+import { assistantIconName } from "@/jolli/assistant-icon"
 import { PromptAssistantSelector, PromptCourseSelector } from "@/components/prompt-course-selector"
 import { useLanguage } from "@/context/language"
 import { useCourseSession } from "@/jolli/session-binding"
@@ -38,8 +40,8 @@ export function SessionCourseBar(props: { onDone?: () => void; trailing?: JSX.El
    * out. A faint "No course" here would be the same sentence twice, one of which does nothing.
    *
    * ⚠ UNLESS SOMETHING WAS PASSED IN `trailing`, WHICH IS NOT A HYPOTHETICAL GUARD. This row is now
-   * the only home the project and workspace selectors have; hiding it on a course-less session would
-   * take them with it and leave the draft screen with no way to say which folder it runs in.
+   * the only place either screen says which folder and branch it runs in; hiding it on a course-less
+   * session would take that with it.
    */
   const hidden = () => binding.locked() && !binding.course() && !trailing()
 
@@ -82,6 +84,18 @@ export function SessionCourseBar(props: { onDone?: () => void; trailing?: JSX.El
                     {(assistant) => (
                       <>
                         <span class="mx-0.5 shrink-0 select-none opacity-50">/</span>
+                        {/*
+                         * ⚠ THE PROFESSOR'S GLYPH, MATCHING THE SELECTOR THIS ROW MIRRORS. Every
+                         * other segment here leads with a mark — the course's accent bar, the
+                         * project's avatar, the branch's fork — and the assistant was the only one
+                         * reading as bare text. The TUI footer prints `CS 310/Tutor` and still
+                         * does; the note above is about the WORDS, and this adds none.
+                         */}
+                        <IconV2
+                          name={assistantIconName(assistant().icon)}
+                          size="small"
+                          class="mr-1 shrink-0 text-v2-icon-icon-muted"
+                        />
                         <span class="min-w-0 truncate">{assistant().name}</span>
                       </>
                     )}

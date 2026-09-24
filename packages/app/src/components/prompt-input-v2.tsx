@@ -8,7 +8,6 @@ import { TooltipV2 } from "@opencode-ai/ui/v2/tooltip-v2"
 import type { ReferenceInfo } from "@opencode-ai/sdk/v2/client"
 import { createEffect, createMemo, on, Show, type JSX } from "solid-js"
 import { ModelSelectorPopoverV2 } from "@/components/dialog-select-model"
-import { PromptPrivacyControl } from "@/components/prompt-privacy-control"
 import { SessionCourseBar } from "@/components/session/session-course-bar"
 import { groupSlashCommands } from "@/jolli/slash-groups"
 import { useCourseSession } from "@/jolli/session-binding"
@@ -103,7 +102,7 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
        * input at a fixed distance whatever else appears.
        *
        * ⚠ IT ALSO CARRIES WHATEVER THE SCREEN PUT IN `courseBarTrailing` — on the draft route, the
-       * project and workspace selectors that used to sit under the box.
+       * project picker and branch; in a live session, the same two read-only.
        */}
       <SessionCourseBar onDone={props.controller.restoreFocus} trailing={props.courseBarTrailing} />
       <PromptInputV2
@@ -126,7 +125,6 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
         variantControlVisible={!props.controller.model.loading}
         attachKeybind={command.keybindParts("file.attach")}
         attachShortcut={command.keybind("file.attach")}
-        privacyControl={<PromptPrivacyControl />}
         modelControl={
           <PromptInputV2ModelControl
             loading={props.controller.model.loading}

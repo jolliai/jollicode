@@ -455,6 +455,26 @@ export function PromptProjectAddButton(props: { controller: PromptProjectControl
   )
 }
 
+/**
+ * The project a live session runs in, as a label rather than a menu. A session's directory is fixed
+ * once it starts, so there is nothing to pick; it owns the `/` before it like the rest of the row.
+ */
+export function PromptProjectLabel(props: { project: PromptProject }) {
+  return (
+    <>
+      <span class="mx-1 hidden select-none opacity-50 sm:inline">/</span>
+      <div class="flex h-7 min-w-0 max-w-[203px] items-center gap-1.5 px-1.5">
+        <ProjectAvatar
+          fallback={displayName(props.project)}
+          src={getProjectAvatarSource(props.project.id, props.project.icon)}
+          variant={getProjectAvatarVariant(props.project.icon?.color)}
+        />
+        <span class="min-w-0 truncate text-[13px] font-[440] leading-5">{displayName(props.project)}</span>
+      </div>
+    </>
+  )
+}
+
 function ProjectTrigger(props: ComponentProps<"button"> & { controller: PromptProjectController }) {
   const [local, rest] = splitProps(props, ["controller", "class", "classList", "onClick", "onKeyDown"])
   const project = () => local.controller.selected()

@@ -94,24 +94,3 @@ export function defaultSessionSharing(
 export function mayMakePrivate(course: Jolli.Course | undefined, assistants: Jolli.Assistant[] = []): boolean {
   return effectiveSharing(course, assistants) !== "staff-required"
 }
-
-/**
- * WHO CAN READ THIS SESSION, IN AS FEW WORDS AS THE ANSWER ALLOWS.
- *
- * ⚠ IT IS HOVER TEXT NOW, AND IT USED TO BE A LINE UNDER THE COMPOSER. The line sat between the
- * course row and the project row on every new session, restating what the eye icon beside it
- * already said and pushing two rows apart that belong together. The icon carries the state; this
- * carries the detail, for the reader who wants it.
- *
- * ⚠ NAMES THE READERS RATHER THAN SAYING "shared". The web mock spends a paragraph on why "visible
- * to others" is the wrong resolution: a student who has shared with their class and reads "shared"
- * has to open the control to find out with whom.
- */
-export function sharingSummary(sharing: Jolli.SessionSharing | undefined, course: Jolli.Course | undefined): string {
-  if (!sharing) return "Who can read this session"
-  const where = course ? course.code : "this course"
-  if (sharing.everyone && sharing.staff) return `Everyone in ${where} can read this, staff included`
-  if (sharing.everyone) return `Everyone in ${where} can read this`
-  if (sharing.staff) return `${where} staff can read this`
-  return "Private to you"
-}
