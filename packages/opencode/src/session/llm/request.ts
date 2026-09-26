@@ -15,6 +15,7 @@ import { Effect, Record } from "effect"
 import { jsonSchema, tool as aiTool, type ModelMessage, type Tool } from "ai"
 import type { Plugin } from "@/plugin"
 import { mergeDeep } from "remeda"
+import { McpCatalog } from "@/mcp/catalog"
 
 const USER_AGENT = `opencode/${InstallationVersion}`
 
@@ -27,6 +28,9 @@ type PrepareInput = {
   readonly stepIndex?: number
   readonly courseID?: string
   readonly courseAssistantID?: string
+  readonly mcpServers?: ReadonlyArray<string>
+  /** Every MCP tool name as MCP.tools() keys it, so a request's tools can be told apart exactly. */
+  readonly mcpToolNames?: ReadonlyArray<string>
   readonly model: Provider.Model
   readonly agent: Agent.Info
   readonly permission?: PermissionV1.Ruleset
@@ -65,9 +69,16 @@ export function jolliCodingAgentHeaders(input: {
   readonly stepIndex?: number
   readonly courseID?: string
   readonly courseAssistantID?: string
+  readonly command?: string
+  readonly mcpServers?: ReadonlyArray<string>
+  readonly nonMcpTools?: ReadonlyArray<string>
 }): Record<string, string> {
   if (!isJolliProviderId(input.providerID)) return {}
   if (input.turnID === undefined || input.clientAttemptID === undefined || input.stepIndex === undefined) return {}
+  // The same sanitize() MCP tool names are built with, so each entry is exactly the
+  // `<server>_` prefix the backend matches tool calls against.
+  const mcpServers = [...new Set((input.mcpServers ?? []).map(McpCatalog.sanitize))].filter(Boolean).toSorted()
+  const nonMcpTools = [...new Set(input.nonMcpTools ?? [])].toSorted()
   return {
     "x-jolli-conversation-id": input.sessionID,
     "x-jolli-turn-id": input.turnID,
@@ -77,7 +88,39 @@ export function jolliCodingAgentHeaders(input: {
     ...(input.courseID ? { "x-jolli-space-id": input.courseID } : {}),
     ...(input.courseAssistantID ? { "x-jolli-assistant-id": input.courseAssistantID } : {}),
     ...(input.parentSessionID ? { "x-jolli-parent-session-id": input.parentSessionID } : {}),
+    // Stats only: which slash command produced this turn's user message. Percent-encoded because
+    // a command is named after a file or skill and may be non-ASCII, which fetch refuses in a
+    // header value; the backend decodes it and drops anything it cannot validate. toWellFormed()
+    // first, since encodeURIComponent throws on a lone surrogate.
+    ...(input.command ? { "x-jolli-command": encodeURIComponent(input.command.toWellFormed()) } : {}),
+    ...(mcpServers.length > 0 ? { "x-jolli-mcp-servers": mcpServers.join(",") } : {}),
+    // Tools that are not MCP but whose name reads as `<server>_<tool>` under a reported server — a
+    // built-in like plan_exit beside a server named "plan", or a plugin or custom tool. Only this
+    // client knows which of its tools are MCP, so it says so rather than the backend guessing.
+    ...(nonMcpTools.length > 0 ? { "x-jolli-non-mcp-tools": nonMcpTools.join(",") } : {}),
   }
+}
+
+/**
+ * What a Jolli request reports about MCP: the connected servers with an MCP tool among the
+ * request's tools (so a permission-hidden server is not reported), and the request's non-MCP tools
+ * that carry one of those servers' `<server>_` prefix.
+ */
+export function jolliMcpReport(input: {
+  readonly toolNames: ReadonlyArray<string>
+  readonly mcpServers?: ReadonlyArray<string>
+  readonly mcpToolNames?: ReadonlyArray<string>
+}): { readonly mcpServers: ReadonlyArray<string>; readonly nonMcpTools: ReadonlyArray<string> } {
+  const mcpTools = new Set(input.mcpToolNames ?? [])
+  const offered = input.toolNames.filter((name) => mcpTools.has(name))
+  const mcpServers = (input.mcpServers ?? []).filter((server) =>
+    offered.some((name) => name.startsWith(`${McpCatalog.sanitize(server)}_`)),
+  )
+  const prefixes = mcpServers.map((server) => `${McpCatalog.sanitize(server)}_`)
+  const nonMcpTools = input.toolNames.filter(
+    (name) => !mcpTools.has(name) && prefixes.some((prefix) => name.startsWith(prefix)),
+  )
+  return { mcpServers, nonMcpTools }
 }
 
 const mergeOptions = (target: Record<string, any>, source: Record<string, any> | undefined): Record<string, any> =>
@@ -240,6 +283,12 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
         stepIndex: input.stepIndex,
         courseID: input.courseID,
         courseAssistantID: input.courseAssistantID,
+        command: input.user.command,
+        ...jolliMcpReport({
+          toolNames: Object.keys(tools),
+          mcpServers: input.mcpServers,
+          mcpToolNames: input.mcpToolNames,
+        }),
       }),
     },
   }

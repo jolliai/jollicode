@@ -152,7 +152,7 @@ const layer = Layer.effect(
       return {
         cancel: (sessionID: SessionID) => cancel(sessionID),
         resolvePromptParts: (template: string) => resolvePromptParts(template),
-        prompt: (input: PromptInput) => prompt(input).pipe(Effect.catch(Effect.die)),
+        prompt: (input: PromptRequest) => prompt(input).pipe(Effect.catch(Effect.die)),
       } satisfies TaskPromptOps
     })
 
@@ -342,6 +342,11 @@ const layer = Layer.effect(
         throw error
       }
 
+      // Count a subtask command once, on the side whose requests reach the Jolli gateway: the child
+      // session does the command's work, so it carries the command when it runs on Jolli (TaskTool
+      // picks the agent's model over taskModel the same way); otherwise the parent's follow-up does.
+      const childCommand = isJolliProviderId((taskAgent.model ?? taskModel).providerID) ? task.command : undefined
+
       let error: Error | undefined
       const taskAbort = new AbortController()
       const result = yield* taskTool
@@ -351,7 +356,7 @@ const layer = Layer.effect(
           sessionID,
           abort: taskAbort.signal,
           callID: part.callID,
-          extra: { bypassAgentCheck: true, promptOps },
+          extra: { bypassAgentCheck: true, promptOps, command: childCommand },
           messages: msgs,
           metadata: (val: { title?: string; metadata?: Record<string, any> }) =>
             Effect.gen(function* () {
@@ -459,6 +464,7 @@ const layer = Layer.effect(
         time: { created: Date.now() },
         agent: lastUser.agent,
         model: lastUser.model,
+        command: childCommand ? undefined : task.command,
       }
       yield* sessions.updateMessage(summaryUserMsg)
       yield* sessions.updatePart({
@@ -655,7 +661,7 @@ const layer = Layer.effect(
       return yield* provider.defaultModel().pipe(Effect.orDie)
     })
 
-    const createUserMessage = Effect.fn("SessionPrompt.createUserMessage")(function* (input: PromptInput) {
+    const createUserMessage = Effect.fn("SessionPrompt.createUserMessage")(function* (input: PromptRequest) {
       const agentName = input.agent
       const ag = agentName ? yield* agents.get(agentName) : yield* agents.defaultInfo()
       if (!ag) {
@@ -690,6 +696,7 @@ const layer = Layer.effect(
         },
         system: input.system,
         format: input.format,
+        command: input.command,
       }
 
       const current = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
@@ -1072,9 +1079,9 @@ const layer = Layer.effect(
       return { info, parts }
     }, Effect.scoped)
 
-    const prompt: (input: PromptInput) => Effect.Effect<SessionV1.WithParts, Image.Error> = Effect.fn(
+    const prompt: (input: PromptRequest) => Effect.Effect<SessionV1.WithParts, Image.Error> = Effect.fn(
       "SessionPrompt.prompt",
-    )(function* (input: PromptInput) {
+    )(function* (input: PromptRequest) {
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
       yield* revert.cleanup(session)
       const message = yield* createUserMessage(input)
@@ -1306,6 +1313,9 @@ const layer = Layer.effect(
               stepIndex: providerStepIndex,
               courseID: courseBinding?.courseId,
               courseAssistantID: courseBinding?.assistantId,
+              // Only the Jolli gateway reads these; prepare narrows them to servers with a tool in the request.
+              mcpServers: isJolliProviderId(model.providerID) ? Object.keys(yield* mcp.clients()) : undefined,
+              mcpToolNames: isJolliProviderId(model.providerID) ? Object.keys(yield* mcp.tools()) : undefined,
               system,
               messages: [
                 ...modelMsgs,
@@ -1502,6 +1512,7 @@ const layer = Layer.effect(
         agent: userAgent,
         parts,
         variant: input.variant,
+        command: input.command,
       })
       yield* events.publish(Command.Event.Executed, {
         name: input.command,
@@ -1551,6 +1562,11 @@ export const PromptInput = Schema.Struct({
   ),
 })
 export type PromptInput = Schema.Schema.Type<typeof PromptInput>
+/**
+ * A prompt plus the slash command that produced it. `command` attributes Jolli gateway usage, so it
+ * stays off the public PromptInput: only `command` and command subtasks set it.
+ */
+export type PromptRequest = PromptInput & { readonly command?: string }
 
 export class LoopInput extends Schema.Class<LoopInput>("SessionPrompt.LoopInput")({
   sessionID: SessionID,
