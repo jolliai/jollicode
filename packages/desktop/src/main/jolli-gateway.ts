@@ -8,7 +8,7 @@
  *
  * ⚠ IT ARRIVES AS `JOLLICODE_CONFIG_CONTENT`, WHICH IS THE STRONGEST LAYER SHORT OF MDM. Config
  * merges well-known → global → custom → project → this (`config/config.ts`), so a student who
- * writes an `opencode.json` into their coursework repository cannot widen the list.
+ * writes an `jollicode.json` into their coursework repository cannot widen the list.
  *
  * ⚠ IT NO LONGER CARRIES A CREDENTIAL OR A MODEL LIST, AND BOTH ABSENCES ARE DELIBERATE. The
  * sidecar resolves the signed-in student from the database it shares with the bare CLI, and builds

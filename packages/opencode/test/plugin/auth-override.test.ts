@@ -27,7 +27,7 @@ function providerAuthLayer(directory: string, plugins: string[]) {
             plugin: plugins,
             plugin_origins: plugins.map((plugin) => ({
               spec: plugin,
-              source: path.join(directory, "opencode.json"),
+              source: path.join(directory, "jollicode.json"),
               scope: "local" as const,
             })),
           }),
@@ -138,7 +138,7 @@ describe("plugin.auth-managed", () => {
                   plugin_origins: [
                     {
                       spec: pathToFileURL(pluginFile).href,
-                      source: path.join(tmp.directory, "opencode.json"),
+                      source: path.join(tmp.directory, "jollicode.json"),
                       scope: "local" as const,
                     },
                   ],

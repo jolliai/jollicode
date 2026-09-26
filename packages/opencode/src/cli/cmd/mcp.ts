@@ -188,7 +188,7 @@ export const McpAuthCommand = effectCmd({
 
     if (servers.length === 0) {
       prompts.log.warn("No OAuth-capable MCP servers configured")
-      prompts.log.info("Remote MCP servers support OAuth by default. Add a remote server in opencode.json:")
+      prompts.log.info("Remote MCP servers support OAuth by default. Add a remote server in jollicode.json:")
       prompts.log.info(`
   "mcp": {
     "my-server": {
@@ -394,10 +394,10 @@ export const McpLogoutCommand = effectCmd({
 
 async function resolveConfigPath(baseDir: string, global = false) {
   // Check for existing config files (prefer .jsonc over .json, check .jollicode/ subdirectory too)
-  const candidates = [path.join(baseDir, "opencode.json"), path.join(baseDir, "opencode.jsonc")]
+  const candidates = [path.join(baseDir, "jollicode.json"), path.join(baseDir, "jollicode.jsonc")]
 
   if (!global) {
-    candidates.push(path.join(baseDir, ".jollicode", "opencode.json"), path.join(baseDir, ".jollicode", "opencode.jsonc"))
+    candidates.push(path.join(baseDir, ".jollicode", "jollicode.json"), path.join(baseDir, ".jollicode", "jollicode.jsonc"))
   }
 
   for (const candidate of candidates) {
@@ -406,7 +406,7 @@ async function resolveConfigPath(baseDir: string, global = false) {
     }
   }
 
-  // Default to opencode.json if none exist
+  // Default to jollicode.json if none exist
   return candidates[0]
 }
 

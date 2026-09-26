@@ -23,14 +23,14 @@ shape before writing config, **fetch that URL and read the schema directly**
 rather than guessing. opencode hard-fails on invalid config, so the cost of a
 wrong shape is a broken startup.
 
-Independently, every `opencode.json` should declare
+Independently, every `jollicode.json` should declare
 `"$schema": "https://jolli.ai/config.json"` so the user's editor catches
 mistakes as they type.
 
 ## Applying changes
 
 Config is loaded once when opencode starts and is not hot-reloaded. After
-saving changes to `opencode.json`, an agent file, a skill, a plugin, or any
+saving changes to `jollicode.json`, an agent file, a skill, a plugin, or any
 other config-time file, **tell the user to quit and restart opencode** for
 the changes to take effect. The running session will keep using the
 already-loaded config until then.
@@ -39,8 +39,8 @@ already-loaded config until then.
 
 | Scope                         | Path                                                                                                                      |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Project config                | `./opencode.json`, `./opencode.jsonc`, or `.jollicode/opencode.json` (opencode walks up from the cwd to the worktree root) |
-| Global config                 | `~/.config/jollicode/opencode.json` or `~/.config/jollicode/opencode.jsonc` (NOT `~/.jollicode/`)                            |
+| Project config                | `./jollicode.json`, `./jollicode.jsonc`, or `.jollicode/jollicode.json` (opencode walks up from the cwd to the worktree root) |
+| Global config                 | `~/.config/jollicode/jollicode.json` or `~/.config/jollicode/jollicode.jsonc` (NOT `~/.jollicode/`)                            |
 | Project agents                | `.jollicode/agent/<name>.md` or `.jollicode/agents/<name>.md`                                                               |
 | Global agents                 | `~/.config/jollicode/agent(s)/<name>.md`                                                                                   |
 | Project commands              | `.jollicode/command/<name>.md` or `.jollicode/commands/<name>.md`                                                           |
@@ -50,9 +50,9 @@ already-loaded config until then.
 | External skills (auto-loaded) | `~/.claude/skills/<name>/SKILL.md`, `~/.agents/skills/<name>/SKILL.md`                                                    |
 
 Configs from each scope are deep-merged. Project overrides global. Unknown
-top-level keys in `opencode.json` are rejected with `ConfigInvalidError`.
+top-level keys in `jollicode.json` are rejected with `ConfigInvalidError`.
 
-## opencode.json
+## jollicode.json
 
 Every field is optional.
 
@@ -225,7 +225,7 @@ Local `path` values may be relative to the declaring config, absolute, or use
 
 Two ways to define an agent. Use the file form for anything non-trivial.
 
-### Inline (in `opencode.json`)
+### Inline (in `jollicode.json`)
 
 ```json
 {
@@ -426,7 +426,7 @@ the `plan` agent's permission ruleset (`edit: deny *`).
 
 When a user's config is broken and opencode won't start, these env vars help:
 
-- `OPENCODE_DISABLE_PROJECT_CONFIG=1`: skip the project's local `opencode.json`
+- `OPENCODE_DISABLE_PROJECT_CONFIG=1`: skip the project's local `jollicode.json`
   and start from globals only. Run from the project directory, opencode loads,
   the user edits the broken file, then they restart without the flag.
 - `OPENCODE_CONFIG=/path/to/file.json`: load an additional explicit config.
@@ -445,7 +445,7 @@ When a user's config is broken and opencode won't start, these env vars help:
   `https://jolli.ai/config.json` and read the schema rather than guessing.
 - Preserve `$schema` and any existing fields the user did not ask to change.
 - For agent, command, skill, and plugin definitions, prefer creating new files
-  in the correct location over inlining everything in `opencode.json`.
+  in the correct location over inlining everything in `jollicode.json`.
 - If the user's existing config is malformed, point them at the env-var escape
   hatches above so they can edit from inside opencode without breaking their
   session.

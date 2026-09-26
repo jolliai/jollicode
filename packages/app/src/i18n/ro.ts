@@ -378,7 +378,7 @@ export const dict = {
   "dialog.mcp.description": "{{enabled}} din {{total}} activate",
   "dialog.mcp.empty": "Niciun MCP configurat",
   "dialog.lsp.empty": "LSP-uri detectate automat din tipurile de fișiere",
-  "dialog.plugins.empty": "Pluginuri configurate în opencode.json",
+  "dialog.plugins.empty": "Pluginuri configurate în jollicode.json",
   "mcp.status.connected": "conectat",
   "mcp.status.failed": "eșuat",
   "mcp.status.needs_auth": "necesită autentificare",
@@ -637,7 +637,7 @@ export const dict = {
   "error.chain.responseBody": "Răspuns:\n{{body}}",
   "error.chain.didYouMean": "Ai vrut să scrii: {{suggestions}}",
   "error.chain.modelNotFound": "Modelul nu a fost găsit: {{provider}}/{{model}}",
-  "error.chain.checkConfig": "Verifică numele provider/model în config (opencode.json)",
+  "error.chain.checkConfig": "Verifică numele provider/model în config (jollicode.json)",
   "error.chain.mcpFailed": 'Serverul MCP "{{name}}" a eșuat. Atenție, Jolli Code nu suportă încă autentificarea MCP.',
   "error.chain.providerAuthFailed": "Autentificarea providerului a eșuat ({{provider}}): {{message}}",
   "error.chain.providerInitFailed":

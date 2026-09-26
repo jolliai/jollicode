@@ -51,7 +51,7 @@ Burada, Jolli Code ile belirli bir sıraya göre iyi çalışan birkaç model ye
 Bunlardan birini varsayılan model olarak ayarlamak için `model` anahtarınızı telefonunuzudan ayarlayabilirsiniz.
 Jolli Code yapılandırması
 
-```json title="opencode.json" {3}
+```json title="jollicode.json" {3}
 {
   "$schema": "https://jolli.ai/config.json",
   "model": "lmstudio/google/gemma-3n-e4b"
@@ -68,7 +68,7 @@ Bir [custom provider](/docs/providers#custom) yapılandırılmışsa, `provider_
 
 Bir modelin seçeneklerini genel olarak yapılandırma aracılığıyla yapılandırabilirsiniz.
 
-```jsonc title="opencode.jsonc" {7-12,19-24}
+```jsonc title="jollicode.jsonc" {7-12,19-24}
 {
   "$schema": "https://jolli.ai/config.json",
   "provider": {
@@ -107,7 +107,7 @@ Bu seçenekleri kullandığınız tüm aracılar için de yapılandırabilirsini
 
 Ayrıca yerleşik çeşitleri genişleten özel varyantlar da tanımlayabilirsiniz. Varyantlar, yinelenen girişler oluşturmadan aynı model için farklı ayarları yapılandırmanıza olanak tanır:
 
-```jsonc title="opencode.jsonc" {6-21}
+```jsonc title="jollicode.jsonc" {6-21}
 {
   "$schema": "https://jolli.ai/config.json",
   "provider": {
@@ -172,7 +172,7 @@ Bu liste kapsamlı değildir. Diğer birçok sağlayıcının da yerleşik varsa
 
 Mevcut varyantları geçersiz kılabilir veya kendinizinkini ekleyebilirsiniz:
 
-```jsonc title="opencode.jsonc" {7-18}
+```jsonc title="jollicode.jsonc" {7-18}
 {
   "$schema": "https://jolli.ai/config.json",
   "provider": {
@@ -209,7 +209,7 @@ Jolli Code başlatıldığında modelleri aşağıdaki öncelik sırasına göre
 
 2. Jolli Code yapılandırmasındaki model listesi.
 
-   ```json title="opencode.json"
+   ```json title="jollicode.json"
    {
      "$schema": "https://jolli.ai/config.json",
      "model": "anthropic/claude-sonnet-4-20250514"

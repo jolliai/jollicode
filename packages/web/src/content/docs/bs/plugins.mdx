@@ -26,7 +26,7 @@ Postavite JavaScript ili TypeScript datoteke u direktorij dodataka.
 
 Navedite npm pakete u vašoj konfiguracijskoj datoteci.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
@@ -49,8 +49,8 @@ Pregledajte dostupne dodatke u [ecosystem](/docs/ecosystem#plugins).
 
 Dodaci se učitavaju iz svih izvora i svi zakačnjaci rade u nizu. Redoslijed učitavanja je:
 
-1. Globalna konfiguracija (`~/.config/jollicode/opencode.json`)
-2. Konfiguracija projekta (`opencode.json`)
+1. Globalna konfiguracija (`~/.config/jollicode/jollicode.json`)
+2. Konfiguracija projekta (`jollicode.json`)
 3. Globalni direktorij dodataka (`~/.config/jollicode/plugins/`)
 4. Direktorij dodataka projekta (`.jollicode/plugins/`)
    Duplicirani npm paketi sa istim imenom i verzijom se učitavaju jednom. Međutim, lokalni dodatak i npm dodatak sa sličnim nazivima se učitavaju odvojeno.

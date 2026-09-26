@@ -290,7 +290,7 @@ function recordedNativeLLMLayer(scenario: RecordedScenario) {
 const writeConfig = (directory: string, scenario: RecordedScenario, model: ModelsDev.Provider["models"][string]) =>
   Effect.promise(() =>
     Bun.write(
-      path.join(directory, "opencode.json"),
+      path.join(directory, "jollicode.json"),
       JSON.stringify({ $schema: "https://jolli.ai/config.json", ...scenario.config(model) }),
     ),
   )

@@ -30,7 +30,7 @@ JavaScript または TypeScript ファイルをプラグインディレクトリ
 
 設定ファイルで npm パッケージを指定します。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
@@ -55,8 +55,8 @@ JavaScript または TypeScript ファイルをプラグインディレクトリ
 
 プラグインはすべてのソースからロードされ、すべてのフックが順番に実行されます。ロード順序は次のとおりです。
 
-1. グローバル設定 (`~/.config/jollicode/opencode.json`)
-2. プロジェクト設定 (`opencode.json`)
+1. グローバル設定 (`~/.config/jollicode/jollicode.json`)
+2. プロジェクト設定 (`jollicode.json`)
 3. グローバルプラグインディレクトリ (`~/.config/jollicode/plugins/`)
 4. プロジェクトプラグインディレクトリ (`.jollicode/plugins/`)
 

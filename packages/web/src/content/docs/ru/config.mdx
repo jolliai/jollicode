@@ -11,7 +11,7 @@ description: Использование конфигурации jollicode JSON.
 
 Jolli Code поддерживает форматы **JSON** и **JSONC** (JSON с комментариями).
 
-```jsonc title="opencode.jsonc"
+```jsonc title="jollicode.jsonc"
 {
   "$schema": "https://jolli.ai/config.json",
   // Theme configuration
@@ -43,9 +43,9 @@ Jolli Code поддерживает форматы **JSON** и **JSONC** (JSON �
 Источники конфигурации загружаются в следующем порядке (более поздние источники переопределяют более ранние):
 
 1. **Удаленная конфигурация** (от `.well-known/jollicode`) – организационные настройки по умолчанию.
-2. **Глобальная конфигурация** (`~/.config/jollicode/opencode.json`) — настройки пользователя.
+2. **Глобальная конфигурация** (`~/.config/jollicode/jollicode.json`) — настройки пользователя.
 3. **Пользовательская конфигурация** (`OPENCODE_CONFIG` env var) – пользовательские переопределения
-4. **Конфигурация проекта** (`opencode.json` в проекте) — настройки, специфичные для проекта.
+4. **Конфигурация проекта** (`jollicode.json` в проекте) — настройки, специфичные для проекта.
 5. **Каталоги `.jollicode`** — агенты, команды, плагины
 6. **Встроенная конфигурация** (`OPENCODE_CONFIG_CONTENT` env var) – переопределяет время выполнения
 
@@ -79,7 +79,7 @@ Jolli Code поддерживает форматы **JSON** и **JSONC** (JSON �
 
 Вы можете включить определенные серверы в локальной конфигурации:
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "mcp": {
     "jira": {
@@ -95,7 +95,7 @@ Jolli Code поддерживает форматы **JSON** и **JSONC** (JSON �
 
 ### Глобальная
 
-Поместите глобальную конфигурацию Jolli Code в `~/.config/jollicode/opencode.json`. Используйте глобальную конфигурацию для общепользовательских настроек, таких как темы, поставщики или привязки клавиш.
+Поместите глобальную конфигурацию Jolli Code в `~/.config/jollicode/jollicode.json`. Используйте глобальную конфигурацию для общепользовательских настроек, таких как темы, поставщики или привязки клавиш.
 
 Для настроек, специфичных для TUI, используйте `~/.config/jollicode/tui.json`.
 
@@ -105,7 +105,7 @@ Jolli Code поддерживает форматы **JSON** и **JSONC** (JSON �
 
 ### Проектная
 
-Добавьте `opencode.json` в корень вашего проекта. Конфигурация проекта имеет наивысший приоритет среди стандартных файлов конфигурации — она переопределяет как глобальные, так и удаленные конфигурации.
+Добавьте `jollicode.json` в корень вашего проекта. Конфигурация проекта имеет наивысший приоритет среди стандартных файлов конфигурации — она переопределяет как глобальные, так и удаленные конфигурации.
 
 Для настроек TUI, специфичных для проекта, добавьте `tui.json` рядом с ним.
 
@@ -172,7 +172,7 @@ jollicode run "Hello world"
 
 Используйте `OPENCODE_TUI_CONFIG`, чтобы указать на пользовательский файл конфигурации TUI.
 
-Устаревшие ключи `theme`, `keybinds` и `tui` в `opencode.json` устарели и автоматически переносятся, когда это возможно.
+Устаревшие ключи `theme`, `keybinds` и `tui` в `jollicode.json` устарели и автоматически переносятся, когда это возможно.
 
 [Подробнее об использовании TUI можно узнать здесь](/docs/tui#configure).
 
@@ -182,7 +182,7 @@ jollicode run "Hello world"
 
 Вы можете настроить параметры сервера для команд `jollicode serve` и `jollicode web` с помощью опции `server`.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "server": {
@@ -211,7 +211,7 @@ jollicode run "Hello world"
 
 Вы можете управлять инструментами, которые LLM может использовать, с помощью опции `tools`.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "tools": {
@@ -229,7 +229,7 @@ jollicode run "Hello world"
 
 Вы можете настроить поставщиков и модели, которые хотите использовать в своей конфигурации Jolli Code, с помощью параметров `provider`, `model` и `small_model`.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "provider": {},
@@ -242,7 +242,7 @@ jollicode run "Hello world"
 
 Опции провайдера могут включать `timeout` и `setCacheKey`:
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "provider": {
@@ -271,7 +271,7 @@ jollicode run "Hello world"
 
 Amazon Bedrock поддерживает конфигурацию, специфичную для AWS:
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "provider": {
@@ -317,7 +317,7 @@ Amazon Bedrock поддерживает конфигурацию, специфи
 
 Вы можете настроить специализированные агенты для конкретных задач с помощью опции `agent`.
 
-```jsonc title="opencode.jsonc"
+```jsonc title="jollicode.jsonc"
 {
   "$schema": "https://jolli.ai/config.json",
   "agent": {
@@ -343,7 +343,7 @@ Amazon Bedrock поддерживает конфигурацию, специфи
 
 Вы можете установить агента по умолчанию, используя опцию `default_agent`. Это определяет, какой агент используется, если ни один из них не указан явно.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "default_agent": "plan"
@@ -360,7 +360,7 @@ Amazon Bedrock поддерживает конфигурацию, специфи
 
 Функцию [share](/docs/share) можно настроить с помощью опции `share`.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "share": "manual"
@@ -381,7 +381,7 @@ Amazon Bedrock поддерживает конфигурацию, специфи
 
 Вы можете настроить собственные команды для повторяющихся задач с помощью опции `command`.
 
-```jsonc title="opencode.jsonc"
+```jsonc title="jollicode.jsonc"
 {
   "$schema": "https://jolli.ai/config.json",
   "command": {
@@ -422,7 +422,7 @@ Amazon Bedrock поддерживает конфигурацию, специфи
 
 Jolli Code автоматически загрузит все новые обновления при запуске. Вы можете отключить это с помощью опции `autoupdate`.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "autoupdate": false
@@ -438,7 +438,7 @@ Jolli Code автоматически загрузит все новые обн�
 
 Вы можете настроить форматировщики кода с помощью опции `formatter`.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "formatter": {
@@ -466,7 +466,7 @@ Jolli Code автоматически загрузит все новые обн�
 
 Например, чтобы гарантировать, что инструменты `edit` и `bash` требуют одобрения пользователя:
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -484,7 +484,7 @@ Jolli Code автоматически загрузит все новые обн�
 
 Вы можете управлять поведением сжатия контекста с помощью опции `compaction`.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "compaction": {
@@ -505,7 +505,7 @@ Jolli Code автоматически загрузит все новые обн�
 
 Вы можете настроить шаблоны игнорирования средства отслеживания файлов с помощью опции `watcher`.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "watcher": {
@@ -522,7 +522,7 @@ Jolli Code автоматически загрузит все новые обн�
 
 Вы можете настроить серверы MCP, которые хотите использовать, с помощью опции `mcp`.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "mcp": {}
@@ -539,7 +539,7 @@ Jolli Code автоматически загрузит все новые обн�
 
 Поместите файлы плагина в `.jollicode/plugins/` или `~/.config/jollicode/plugins/`. Вы также можете загружать плагины из npm с помощью опции `plugin`.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "@my-org/custom-plugin"]
@@ -554,7 +554,7 @@ Jolli Code автоматически загрузит все новые обн�
 
 Вы можете настроить инструкции для используемой вами модели с помощью опции `instructions`.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
@@ -569,7 +569,7 @@ Jolli Code автоматически загрузит все новые обн�
 
 Вы можете отключить поставщиков, которые загружаются автоматически, с помощью опции `disabled_providers`. Это полезно, если вы хотите запретить загрузку определенных поставщиков, даже если их учетные данные доступны.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "disabled_providers": ["openai", "gemini"]
@@ -592,7 +592,7 @@ Jolli Code автоматически загрузит все новые обн�
 
 Вы можете указать белый список поставщиков с помощью опции `enabled_providers`. Если этот параметр установлен, будут включены только указанные поставщики, а все остальные будут игнорироваться.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "enabled_providers": ["anthropic", "openai"]
@@ -613,7 +613,7 @@ Jolli Code автоматически загрузит все новые обн�
 
 Ключ `experimental` содержит параметры, находящиеся в активной разработке.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "experimental": {}
@@ -636,7 +636,7 @@ Jolli Code автоматически загрузит все новые обн�
 
 Используйте `{env:VARIABLE_NAME}` для замены переменных среды:
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "model": "{env:OPENCODE_MODEL}",
@@ -659,7 +659,7 @@ Jolli Code автоматически загрузит все новые обн�
 
 Используйте `{file:path/to/file}` для замены содержимого файла:
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["./custom-instructions.md"],

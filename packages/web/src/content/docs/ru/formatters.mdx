@@ -47,7 +47,7 @@ Jolli Code поставляется с несколькими встроенны
 
 Вы можете настроить форматтеры через раздел `formatter` в конфигурации Jolli Code.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "formatter": {}
@@ -71,7 +71,7 @@ Jolli Code поставляется с несколькими встроенны
 
 Чтобы глобально отключить **все** средства форматирования, установите для `formatter` значение `false`:
 
-```json title="opencode.json" {3}
+```json title="jollicode.json" {3}
 {
   "$schema": "https://jolli.ai/config.json",
   "formatter": false
@@ -80,7 +80,7 @@ Jolli Code поставляется с несколькими встроенны
 
 Чтобы отключить **конкретный** форматтер, установите для `disabled` значение `true`:
 
-```json title="opencode.json" {5}
+```json title="jollicode.json" {5}
 {
   "$schema": "https://jolli.ai/config.json",
   "formatter": {
@@ -97,7 +97,7 @@ Jolli Code поставляется с несколькими встроенны
 
 Вы можете переопределить встроенные средства форматирования или добавить новые, указав команду, переменные среды и расширения файлов:
 
-```json title="opencode.json" {4-14}
+```json title="jollicode.json" {4-14}
 {
   "$schema": "https://jolli.ai/config.json",
   "formatter": {

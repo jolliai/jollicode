@@ -30,7 +30,7 @@ description: 編寫自己的外掛來擴展 Jolli Code。
 
 在設定檔中指定 npm 套件。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
@@ -55,8 +55,8 @@ description: 編寫自己的外掛來擴展 Jolli Code。
 
 外掛從所有來源載入，所有鉤子按順序執行。載入順序為：
 
-1. 全域設定 (`~/.config/jollicode/opencode.json`)
-2. 專案設定 (`opencode.json`)
+1. 全域設定 (`~/.config/jollicode/jollicode.json`)
+2. 專案設定 (`jollicode.json`)
 3. 全域外掛目錄 (`~/.config/jollicode/plugins/`)
 4. 專案外掛目錄 (`.jollicode/plugins/`)
 

@@ -378,7 +378,7 @@ export const dict = {
   "dialog.mcp.description": "{{enabled}} av {{total}} virkið",
   "dialog.mcp.empty": "Ongin MCP uppsettur",
   "dialog.lsp.empty": "LSPs sjálvvirkandi uppdagað frá fílusløgum",
-  "dialog.plugins.empty": "Tilskot uppsett í opencode.json",
+  "dialog.plugins.empty": "Tilskot uppsett í jollicode.json",
   "mcp.status.connected": "tengt",
   "mcp.status.failed": "miseydnaðist",
   "mcp.status.needs_auth": "hevur brúk fyri auth",
@@ -638,7 +638,7 @@ export const dict = {
   "error.chain.responseBody": "Svarstovnur:\n{{body}}",
   "error.chain.didYouMean": "Meinti tú: {{suggestions}}",
   "error.chain.modelNotFound": "Fyrimynd ikki funnið: {{provider}}/{{model}}",
-  "error.chain.checkConfig": "Kanna tíni uppseting (opencode.json) veitara/modell nøvn",
+  "error.chain.checkConfig": "Kanna tíni uppseting (jollicode.json) veitara/modell nøvn",
   "error.chain.mcpFailed": 'MCP ambætarin "{{name}}" miseydnaðist. Viðmæli, Jolli Code stuðlar ikki MCP sannroynd enn.',
   "error.chain.providerAuthFailed": "Veitaragóðkenning miseydnaðist ({{provider}}): {{message}}",
   "error.chain.providerInitFailed":

@@ -98,11 +98,11 @@ Den første matchende filen vinner i hver kategori. For eksempel, hvis du har b�
 
 ## Brugerdefinerede instruktioner
 
-Du kan spesifisere egendefinerte instruksjonsfiler i din `opencode.json` eller den globale `~/.config/jollicode/opencode.json`. Dette lar deg og teamet ditt gjenbruge eksisterende regler i stedet for at måtte duplisere dem til AGENTS.md.
+Du kan spesifisere egendefinerte instruksjonsfiler i din `jollicode.json` eller den globale `~/.config/jollicode/jollicode.json`. Dette lar deg og teamet ditt gjenbruge eksisterende regler i stedet for at måtte duplisere dem til AGENTS.md.
 
 Eksempel:
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
@@ -111,7 +111,7 @@ Eksempel:
 
 Du kan også bruge eksterne URL-er for at laste instruksjoner fra nettet.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["https://raw.githubusercontent.com/my-org/shared-rules/main/style.md"]
@@ -128,11 +128,11 @@ Alle instruksjonsfilene er kombinert med `AGENTS.md`-filene dine.
 
 Selv om Jolli Code ikke automatisk analyserer filreferanser i `AGENTS.md`, kan du oppnå lignende funksjonalitet på to måter:
 
-### Brug af opencode.json
+### Brug af jollicode.json
 
-Den anbefalte tilnærmingen er at bruge feltet `instructions` i `opencode.json`:
+Den anbefalte tilnærmingen er at bruge feltet `instructions` i `jollicode.json`:
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["docs/development-standards.md", "test/testing-guidelines.md", "packages/*/AGENTS.md"]
@@ -176,5 +176,5 @@ Denne tilnærmingen lar deg:
 - Sørg for at Jolli Code laster filer kun når det er nødvendig for den spesifikke oppgaven
 
 :::tip
-For monorepos eller prosjekter med delte standarder er brug av `opencode.json` med glob-mønstre (som `packages/*/AGENTS.md`) mer vedlikeholdbart enn manuelle instruksjoner.
+For monorepos eller prosjekter med delte standarder er brug av `jollicode.json` med glob-mønstre (som `packages/*/AGENTS.md`) mer vedlikeholdbart enn manuelle instruksjoner.
 :::

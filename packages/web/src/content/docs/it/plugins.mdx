@@ -30,7 +30,7 @@ I file in queste directory vengono caricati automaticamente all'avvio.
 
 Specifica i pacchetti npm nel tuo file di configurazione.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
@@ -55,8 +55,8 @@ I **plugin locali** vengono caricati direttamente dalla directory dei plugin. Pe
 
 I plugin vengono caricati da tutte le sorgenti e tutti gli hook vengono eseguiti in sequenza. L'ordine di caricamento è:
 
-1. Config globale (`~/.config/jollicode/opencode.json`)
-2. Config di progetto (`opencode.json`)
+1. Config globale (`~/.config/jollicode/jollicode.json`)
+2. Config di progetto (`jollicode.json`)
 3. Directory plugin globale (`~/.config/jollicode/plugins/`)
 4. Directory plugin di progetto (`.jollicode/plugins/`)
 

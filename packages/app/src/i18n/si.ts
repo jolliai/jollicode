@@ -378,7 +378,7 @@ export const dict: Record<string, string> = {
   "dialog.mcp.description": "{{total}} න් {{enabled}} සබලයි",
   "dialog.mcp.empty": "MCPs වින්‍යාස කර නැත",
   "dialog.lsp.empty": "LSPs ගොනු වර්ග වලින් ස්වයංක්‍රීයව අනාවරණය කර ඇත",
-  "dialog.plugins.empty": "ප්ලගීන opencode.json හි වින්‍යාස කර ඇත",
+  "dialog.plugins.empty": "ප්ලගීන jollicode.json හි වින්‍යාස කර ඇත",
   "mcp.status.connected": "සම්බන්ධයි",
   "mcp.status.failed": "අසාර්ථක විය",
   "mcp.status.needs_auth": "auth අවශ්‍යයි",
@@ -636,7 +636,7 @@ export const dict: Record<string, string> = {
   "error.chain.responseBody": "ප්‍රතිචාර අන්තර්ගතය:\n{{body}}",
   "error.chain.didYouMean": "ඔබ අදහස් කළේ: {{suggestions}}",
   "error.chain.modelNotFound": "ආකෘතිය හමු නොවීය: {{provider}}/{{model}}",
-  "error.chain.checkConfig": "ඔබගේ වින්‍යාසය (opencode.json) සපයන්නා/ආදර්ශ නම් පරීක්ෂා කරන්න",
+  "error.chain.checkConfig": "ඔබගේ වින්‍යාසය (jollicode.json) සපයන්නා/ආදර්ශ නම් පරීක්ෂා කරන්න",
   "error.chain.mcpFailed": 'MCP සේවාදායකය "{{name}}" අසාර්ථක විය. සටහන, Jolli Code තවමත් MCP සත්‍යාපනයට සහය නොදක්වයි.',
   "error.chain.providerAuthFailed": "සැපයුම්කරු සත්‍යාපනය අසාර්ථක විය ({{provider}}): {{message}}",
   "error.chain.providerInitFailed":

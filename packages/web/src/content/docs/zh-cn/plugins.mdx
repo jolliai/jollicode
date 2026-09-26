@@ -30,7 +30,7 @@ description: 编写自己的插件来扩展 Jolli Code。
 
 在配置文件中指定 npm 包。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
@@ -55,8 +55,8 @@ description: 编写自己的插件来扩展 Jolli Code。
 
 插件从所有来源加载，所有钩子按顺序执行。加载顺序为：
 
-1. 全局配置 (`~/.config/jollicode/opencode.json`)
-2. 项目配置 (`opencode.json`)
+1. 全局配置 (`~/.config/jollicode/jollicode.json`)
+2. 项目配置 (`jollicode.json`)
 3. 全局插件目录 (`~/.config/jollicode/plugins/`)
 4. 项目插件目录 (`.jollicode/plugins/`)
 

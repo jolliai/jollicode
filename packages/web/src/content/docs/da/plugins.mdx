@@ -30,7 +30,7 @@ Filer i disse mapper indlæses automatisk ved opstart.
 
 Angiv npm-pakker i din konfigurationsfil.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
@@ -55,8 +55,8 @@ Gennemse tilgængelige plugins i [ecosystem](/docs/ecosystem#plugins).
 
 Plugins indlæses fra alle kilder, og alle hooks kører i rækkefølge. Indlæsningsrækkefølgen er:
 
-1. Global konfiguration (`~/.config/jollicode/opencode.json`)
-2. Projektkonfiguration (`opencode.json`)
+1. Global konfiguration (`~/.config/jollicode/jollicode.json`)
+2. Projektkonfiguration (`jollicode.json`)
 3. Global plugin-mappe (`~/.config/jollicode/plugins/`)
 4. Projekt plugin bibliotek (`.jollicode/plugins/`)
 

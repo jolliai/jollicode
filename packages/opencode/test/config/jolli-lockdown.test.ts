@@ -30,7 +30,7 @@ import path from "path"
  * defaults to Jolli alone whether or not anyone has signed in.
  *
  * ⚠ ON THIS SURFACE IT IS A FLOOR, NOT A CEILING, AND THAT IS WHAT THE LAST TWO TESTS PIN. The CLI
- * seeds the lockdown as the bottom config layer, so a global or project `opencode.json` overrides
+ * seeds the lockdown as the bottom config layer, so a global or project `jollicode.json` overrides
  * it. Enforcement on the shipped student surface comes from the desktop app's
  * `JOLLICODE_CONFIG_CONTENT`, which is merged near the top; `jolli/gateway-config.ts` explains the
  * split. Asserting the opposite here would pin a guarantee the CLI does not make.
@@ -107,7 +107,7 @@ async function loadConfig(
   const layer = layerWith(session, auth)
   const directory = path.join(os.tmpdir(), "jolli-lockdown-test-" + Math.random().toString(36).slice(2))
   await fs.mkdir(directory, { recursive: true })
-  if (projectConfig) await fs.writeFile(path.join(directory, "opencode.json"), JSON.stringify(projectConfig))
+  if (projectConfig) await fs.writeFile(path.join(directory, "jollicode.json"), JSON.stringify(projectConfig))
   return withTestInstance({
     directory,
     fn: (ctx) =>

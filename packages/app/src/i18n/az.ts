@@ -382,7 +382,7 @@ export const dict = {
   "dialog.mcp.description": "{{total}}-dən {{enabled}} aktiv",
   "dialog.mcp.empty": "MCP konfiqurasiya edilməyib",
   "dialog.lsp.empty": "LSP-lər fayl növlərindən avtomatik aşkarlanır",
-  "dialog.plugins.empty": "Plaginlər opencode.json-da konfiqurasiya edilib",
+  "dialog.plugins.empty": "Plaginlər jollicode.json-da konfiqurasiya edilib",
   "mcp.status.connected": "qoşulub",
   "mcp.status.failed": "uğursuz",
   "mcp.status.needs_auth": "avtorizasiya lazımdır",
@@ -645,7 +645,7 @@ export const dict = {
   "error.chain.responseBody": "Cavab gövdəsi:\n{{body}}",
   "error.chain.didYouMean": "Bunu nəzərdə tuturdunuz: {{suggestions}}",
   "error.chain.modelNotFound": "Model tapılmadı: {{provider}}/{{model}}",
-  "error.chain.checkConfig": "Konfiqurasiyanızdakı (opencode.json) provayder/model adlarını yoxlayın",
+  "error.chain.checkConfig": "Konfiqurasiyanızdakı (jollicode.json) provayder/model adlarını yoxlayın",
   "error.chain.mcpFailed":
     'MCP server "{{name}}" uğursuz oldu. Qeyd: Jolli Code hələ MCP autentifikasiyasını dəstəkləmir.',
   "error.chain.providerAuthFailed": "Provayder autentifikasiyası uğursuz oldu ({{provider}}): {{message}}",

@@ -104,7 +104,7 @@ const loadState = Effect.fn("TuiConfig.loadState")(function* (ctx: { directory: 
       const data = ConfigParse.jsonc(expanded, configFilepath)
       if (!isRecord(data)) return {} as Info
       // Flatten a nested "tui" key so users who wrote `{ "tui": { ... } }` inside tui.json
-      // (mirroring the old opencode.json shape) still get their settings applied.
+      // (mirroring the old jollicode.json shape) still get their settings applied.
       const normalized = dropUnknownKeybinds(normalize(data))
       const parsed = ConfigParse.schema(Info, normalized, configFilepath)
       const validated = parsed.attention?.sounds
