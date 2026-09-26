@@ -16,6 +16,8 @@ import { Command } from "../../src/command"
 import { Config } from "@/config/config"
 import { LSP } from "@/lsp/lsp"
 import { MCP } from "../../src/mcp"
+import { McpCatalog } from "../../src/mcp/catalog"
+import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { Permission } from "../../src/permission"
 import { Plugin } from "../../src/plugin"
 import { Provider as ProviderSvc } from "@/provider/provider"
@@ -115,14 +117,22 @@ function errorTool(parts: SessionV1.Part[]) {
   return part?.state.status === "error" ? (part as ErrorToolPart) : undefined
 }
 
-function makeMcp(instructions: MCP.ServerInstructions[] = []) {
+// Each server is an unconnected client offering a single `lookup` tool.
+function makeMcp(instructions: MCP.ServerInstructions[] = [], servers: string[] = []) {
+  const clients = Object.fromEntries(servers.map((name) => [name, new Client({ name, version: "0.0.0" })]))
+  const tools = Object.fromEntries(
+    Object.entries(clients).map(([name, client]) => [
+      McpCatalog.toolName(name, "lookup"),
+      { def: { name: "lookup", inputSchema: { type: "object" as const, properties: {} } }, client },
+    ]),
+  )
   return Layer.succeed(
     MCP.Service,
     MCP.Service.of({
       status: () => Effect.succeed({}),
-      clients: () => Effect.succeed({}),
+      clients: () => Effect.succeed(clients),
       instructions: () => Effect.succeed(instructions),
-      tools: () => Effect.succeed({}),
+      tools: () => Effect.succeed(tools),
       prompts: () => Effect.succeed({}),
       resources: () => Effect.succeed({}),
       resourceTemplates: () => Effect.succeed({}),
@@ -227,12 +237,16 @@ function makePrompt(input?: { mcpInstructions?: MCP.ServerInstructions[]; proces
   return LayerNode.compile(promptRoot, replacements)
 }
 
-function makeHttp(input?: { mcpInstructions?: MCP.ServerInstructions[]; processor?: "blocking" }) {
+function makeHttp(input?: {
+  mcpInstructions?: MCP.ServerInstructions[]
+  mcpServers?: string[]
+  processor?: "blocking"
+}) {
   const root = LayerNode.group([promptRoot, testLLMServerNode])
   const replacements = [
     [SessionSummary.node, summary],
     [LSP.node, lsp],
-    [MCP.node, makeMcp(input?.mcpInstructions)],
+    [MCP.node, makeMcp(input?.mcpInstructions, input?.mcpServers)],
     [RuntimeFlags.node, runtimeFlags],
   ] as const
   if (input?.processor === "blocking") {
@@ -259,6 +273,7 @@ const withMcpInstructions = testEffect(
     ],
   }),
 )
+const withMcpServers = testEffect(makeHttp({ mcpServers: ["guide server", "hidden"] }))
 const unix = process.platform !== "win32" ? it.instance : it.instance.skip
 const unixNoLLMServer = process.platform !== "win32" ? noLLMServer.instance : noLLMServer.instance.skip
 
@@ -1082,6 +1097,93 @@ it.instance("subtask uses independent zero-based Jolli identities and inherits t
       expect(hit.headers["x-jolli-space-id"]).toBe("7")
       expect(hit.headers["x-jolli-assistant-id"]).toBe("12")
     }
+  }),
+)
+
+const commandSubtask = Effect.fn("test.commandSubtask")(function* (model: typeof ref) {
+  const prompt = yield* SessionPrompt.Service
+  const sessions = yield* Session.Service
+  const chat = yield* sessions.create({ title: "Pinned" })
+  const msg = yield* prompt.prompt({
+    sessionID: chat.id,
+    agent: "build",
+    model: jolliRef,
+    noReply: true,
+    parts: [{ type: "text", text: "hello" }],
+  })
+  yield* sessions.updatePart({
+    id: PartID.ascending(),
+    messageID: msg.info.id,
+    sessionID: chat.id,
+    type: "subtask",
+    prompt: "review the diff",
+    description: "review",
+    agent: "general",
+    model,
+    command: "review",
+  })
+  return { prompt, chat }
+})
+
+it.instance("a slash-command subtask on Jolli attributes its command to the child session", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(jolliProviderCfg)
+    const { prompt, chat } = yield* commandSubtask(jolliRef)
+    yield* llm.text("child response")
+    yield* llm.text("parent response")
+
+    yield* prompt.loop({ sessionID: chat.id })
+
+    const hits = yield* llm.hits
+    const parent = hits.find((hit) => hit.headers["x-jolli-conversation-id"] === chat.id)
+    const child = hits.find((hit) => hit.headers["x-jolli-parent-session-id"] === chat.id)
+    // Counted once, on the child: it does the command's work.
+    expect(child?.headers["x-jolli-command"]).toBe("review")
+    expect(parent?.headers["x-jolli-command"]).toBeUndefined()
+  }),
+)
+
+it.instance("a slash-command subtask off Jolli attributes its command to the parent's follow-up turn", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig((url) => ({
+      ...cfg,
+      provider: { ...providerCfg(url).provider, ...jolliProviderCfg(url).provider },
+    }))
+    const { prompt, chat } = yield* commandSubtask(ref)
+    yield* llm.text("child response")
+    yield* llm.text("parent response")
+
+    yield* prompt.loop({ sessionID: chat.id })
+
+    const hits = yield* llm.hits
+    expect(hits).toHaveLength(2)
+    const parent = hits.find((hit) => hit.headers["x-jolli-conversation-id"] === chat.id)
+    expect(parent?.headers["x-jolli-command"]).toBe("review")
+    expect(hits.filter((hit) => hit.headers["x-jolli-command"] !== undefined)).toHaveLength(1)
+  }),
+)
+
+withMcpServers.instance("a Jolli request names the MCP servers whose tools it offers", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(jolliProviderCfg)
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const chat = yield* sessions.create({
+      title: "Pinned",
+      permission: [
+        { permission: "*", pattern: "*", action: "allow" },
+        { permission: "hidden_*", pattern: "*", action: "deny" },
+      ],
+    })
+    yield* llm.text("done")
+
+    yield* prompt.prompt({ sessionID: chat.id, agent: "build", model: jolliRef, parts: [{ type: "text", text: "hi" }] })
+
+    const hits = yield* llm.hits
+    // "hidden" is connected, but its only tool is denied, so it is not offered or reported.
+    expect(hits[0]?.headers["x-jolli-mcp-servers"]).toBe("guide_server")
+    // Every offered tool under that prefix is a real MCP tool, so there is nothing to disown.
+    expect(hits[0]?.headers["x-jolli-non-mcp-tools"]).toBeUndefined()
   }),
 )
 
@@ -1910,6 +2012,32 @@ unix(
         expect(JSON.stringify(inputs.at(-1)?.messages)).toContain("configured")
       }),
     ),
+  30_000,
+)
+
+unix(
+  "command stamps its name on the user message and the Jolli request",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig((url) => ({
+        ...jolliProviderCfg(url),
+        command: { probe: { template: "Probe the repo" } },
+      }))
+      const { prompt, sessions, chat } = yield* boot()
+      yield* llm.text("done")
+
+      yield* prompt.command({
+        sessionID: chat.id,
+        command: "probe",
+        arguments: "",
+        model: `${jolliRef.providerID}/${jolliRef.modelID}`,
+      })
+
+      const messages = yield* sessions.messages({ sessionID: chat.id })
+      const user = messages.find((m) => m.info.role === "user")
+      expect(user?.info.role === "user" ? user.info.command : undefined).toBe("probe")
+      expect((yield* llm.hits)[0]?.headers["x-jolli-command"]).toBe("probe")
+    }),
   30_000,
 )
 

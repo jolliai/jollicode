@@ -18,7 +18,7 @@ import { Database } from "@opencode-ai/core/database/database"
 export interface TaskPromptOps {
   cancel(sessionID: SessionID): Effect.Effect<void>
   resolvePromptParts(template: string): Effect.Effect<SessionPrompt.PromptInput["parts"]>
-  prompt(input: SessionPrompt.PromptInput): Effect.Effect<SessionV1.WithParts>
+  prompt(input: SessionPrompt.PromptRequest): Effect.Effect<SessionV1.WithParts>
 }
 
 const id = "task"
@@ -210,6 +210,8 @@ export const TaskTool = Tool.define(
           variant: next.model ? undefined : variant,
           agent: next.name,
           parts,
+          // Set by SessionPrompt for a command subtask, never from params.command, which the model can fill.
+          command: typeof ctx.extra?.command === "string" ? ctx.extra.command : undefined,
         })
         if (result.info.role === "assistant" && result.info.error) {
           const message =
