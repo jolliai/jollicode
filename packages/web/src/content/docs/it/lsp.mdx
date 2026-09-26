@@ -78,7 +78,7 @@ Puoi abilitare e personalizzare i server LSP tramite la sezione `lsp` nella conf
 
 Per abilitare tutti i server LSP integrati, imposta `lsp` a `true`.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "lsp": true
@@ -87,7 +87,7 @@ Per abilitare tutti i server LSP integrati, imposta `lsp` a `true`.
 
 Usa un oggetto per mantenere abilitati i server integrati mentre configuri override o server personalizzati.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "lsp": {}
@@ -112,7 +112,7 @@ Vediamo alcuni esempi.
 
 Usa la proprieta `env` per impostare variabili d'ambiente quando avvii il server LSP:
 
-```json title="opencode.json" {5-7}
+```json title="jollicode.json" {5-7}
 {
   "$schema": "https://jolli.ai/config.json",
   "lsp": {
@@ -131,7 +131,7 @@ Usa la proprieta `env` per impostare variabili d'ambiente quando avvii il server
 
 Usa la proprieta `initialization` per passare opzioni di inizializzazione al server LSP. Sono impostazioni specifiche del server inviate durante la richiesta LSP `initialize`:
 
-```json title="opencode.json" {5-9}
+```json title="jollicode.json" {5-9}
 {
   "$schema": "https://jolli.ai/config.json",
   "lsp": {
@@ -156,7 +156,7 @@ Le opzioni di inizializzazione variano da server a server. Consulta la documenta
 
 Se `lsp` è omesso, tutti i server LSP sono disabilitati. Per disabilitare tutti i server LSP dopo che un'altra configurazione li ha abilitati, imposta `lsp` a `false`:
 
-```json title="opencode.json" {3}
+```json title="jollicode.json" {3}
 {
   "$schema": "https://jolli.ai/config.json",
   "lsp": false
@@ -165,7 +165,7 @@ Se `lsp` è omesso, tutti i server LSP sono disabilitati. Per disabilitare tutti
 
 Per disabilitare un server LSP **specifico**, imposta `disabled` a `true`:
 
-```json title="opencode.json" {5}
+```json title="jollicode.json" {5}
 {
   "$schema": "https://jolli.ai/config.json",
   "lsp": {
@@ -182,7 +182,7 @@ Per disabilitare un server LSP **specifico**, imposta `disabled` a `true`:
 
 Puoi aggiungere server LSP personalizzati specificando il comando e le estensioni file:
 
-```json title="opencode.json" {4-7}
+```json title="jollicode.json" {4-7}
 {
   "$schema": "https://jolli.ai/config.json",
   "lsp": {

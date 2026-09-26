@@ -98,11 +98,11 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 ## تعليمات مخصصة
 
-يمكنك تحديد ملفات تعليمات مخصصة في `opencode.json` أو في الملف العام `~/.config/jollicode/opencode.json`. يتيح ذلك لك ولفريقك إعادة استخدام القواعد الموجودة بدلًا من تكرارها داخل AGENTS.md.
+يمكنك تحديد ملفات تعليمات مخصصة في `jollicode.json` أو في الملف العام `~/.config/jollicode/jollicode.json`. يتيح ذلك لك ولفريقك إعادة استخدام القواعد الموجودة بدلًا من تكرارها داخل AGENTS.md.
 
 مثال:
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
@@ -111,7 +111,7 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 يمكنك أيضًا استخدام عناوين URL بعيدة لتحميل التعليمات من الويب.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["https://raw.githubusercontent.com/my-org/shared-rules/main/style.md"]
@@ -128,11 +128,11 @@ export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 
 على الرغم من أن Jolli Code لا يقوم تلقائيًا بتحليل مراجع الملفات داخل `AGENTS.md`، يمكنك تحقيق وظيفة مشابهة بطريقتين:
 
-### استخدام opencode.json
+### استخدام jollicode.json
 
-النهج الموصى به هو استخدام الحقل `instructions` في `opencode.json`:
+النهج الموصى به هو استخدام الحقل `instructions` في `jollicode.json`:
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["docs/development-standards.md", "test/testing-guidelines.md", "packages/*/AGENTS.md"]
@@ -176,5 +176,5 @@ Read the following file immediately as it's relevant to all workflows: @rules/ge
 - ضمان أن Jolli Code يحمّل الملفات فقط عند الحاجة للمهمة المحددة
 
 :::tip
-بالنسبة للمستودعات متعددة الحزم (monorepos) أو المشاريع ذات المعايير المشتركة، فإن استخدام `opencode.json` مع أنماط glob (مثل `packages/*/AGENTS.md`) أسهل للصيانة من التعليمات اليدوية.
+بالنسبة للمستودعات متعددة الحزم (monorepos) أو المشاريع ذات المعايير المشتركة، فإن استخدام `jollicode.json` مع أنماط glob (مثل `packages/*/AGENTS.md`) أسهل للصيانة من التعليمات اليدوية.
 :::

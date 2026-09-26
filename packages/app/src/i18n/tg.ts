@@ -381,7 +381,7 @@ export const dict = {
   "dialog.mcp.description": "{{enabled}} аз {{total}} фаъол",
   "dialog.mcp.empty": "Ягон MCP танзим карда нашудааст",
   "dialog.lsp.empty": "LSPs аз намуди файлҳо худкор муайян карда мешавад",
-  "dialog.plugins.empty": "Плагинҳо дар opencode.json танзим карда шудаанд",
+  "dialog.plugins.empty": "Плагинҳо дар jollicode.json танзим карда шудаанд",
   "mcp.status.connected": "пайваст",
   "mcp.status.failed": "ноком шуд",
   "mcp.status.needs_auth": "аутент лозим аст",
@@ -640,7 +640,7 @@ export const dict = {
   "error.chain.responseBody": "Мақомоти вокуниш:\n{{body}}",
   "error.chain.didYouMean": "Оё шумо дар назар доштед: {{suggestions}}",
   "error.chain.modelNotFound": "Модели ёфт нашуд: {{provider}}/{{model}}",
-  "error.chain.checkConfig": "Номҳои провайдери конфигуратсияи худро (opencode.json) санҷед",
+  "error.chain.checkConfig": "Номҳои провайдери конфигуратсияи худро (jollicode.json) санҷед",
   "error.chain.mcpFailed":
     'MCP сервери "{{name}}" ноком шуд. Дар хотир доред, ки Jolli Code тасдиқи MCP-ро ҳанӯз дастгирӣ намекунад.',
   "error.chain.providerAuthFailed": "Аутентификатсияи провайдер ноком шуд ({{provider}}): {{message}}",

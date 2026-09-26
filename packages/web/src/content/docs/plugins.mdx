@@ -30,7 +30,7 @@ Files in these directories are automatically loaded at startup.
 
 Specify npm packages in your config file.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
@@ -55,8 +55,8 @@ Browse available plugins in the [ecosystem](/docs/ecosystem#plugins).
 
 Plugins are loaded from all sources and all hooks run in sequence. The load order is:
 
-1. Global config (`~/.config/jollicode/opencode.json`)
-2. Project config (`opencode.json`)
+1. Global config (`~/.config/jollicode/jollicode.json`)
+2. Project config (`jollicode.json`)
 3. Global plugin directory (`~/.config/jollicode/plugins/`)
 4. Project plugin directory (`.jollicode/plugins/`)
 

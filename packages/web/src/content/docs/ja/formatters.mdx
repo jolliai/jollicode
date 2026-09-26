@@ -60,7 +60,7 @@ Jolli Code がファイルを書き込んだり編集したりすると、次の
 
 Jolli Code 設定の `formatter` セクションを通じてフォーマッタをカスタマイズできます。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "formatter": {}
@@ -84,7 +84,7 @@ Jolli Code 設定の `formatter` セクションを通じてフォーマッタ�
 
 **すべて**のフォーマッタをグローバルに無効にするには、`formatter` を `false` に設定します。
 
-```json title="opencode.json" {3}
+```json title="jollicode.json" {3}
 {
   "$schema": "https://jolli.ai/config.json",
   "formatter": false
@@ -93,7 +93,7 @@ Jolli Code 設定の `formatter` セクションを通じてフォーマッタ�
 
 **特定**のフォーマッタを無効にするには、`disabled` を `true` に設定します。
 
-```json title="opencode.json" {5}
+```json title="jollicode.json" {5}
 {
   "$schema": "https://jolli.ai/config.json",
   "formatter": {
@@ -110,7 +110,7 @@ Jolli Code 設定の `formatter` セクションを通じてフォーマッタ�
 
 コマンド、環境変数、ファイル拡張子を指定することで、組み込みフォーマッタをオーバーライドしたり、新しいフォーマッタを追加したりできます。
 
-```json title="opencode.json" {4-14}
+```json title="jollicode.json" {4-14}
 {
   "$schema": "https://jolli.ai/config.json",
   "formatter": {

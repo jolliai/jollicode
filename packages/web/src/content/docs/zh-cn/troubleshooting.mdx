@@ -57,9 +57,9 @@ Jolli Code Desktop 会在后台运行一个本地 Jolli Code 服务器（即 `jo
 
 打开你的全局配置文件，查找 `plugin` 键。
 
-- **macOS/Linux**: `~/.config/jollicode/opencode.jsonc`（或 `~/.config/jollicode/opencode.json`）
-- **macOS/Linux**（旧版安装）: `~/.local/share/jollicode/opencode.jsonc`
-- **Windows**: 按 `WIN+R` 并粘贴 `%USERPROFILE%\.config\jollicode\opencode.jsonc`
+- **macOS/Linux**: `~/.config/jollicode/jollicode.jsonc`（或 `~/.config/jollicode/jollicode.json`）
+- **macOS/Linux**（旧版安装）: `~/.local/share/jollicode/jollicode.jsonc`
+- **Windows**: 按 `WIN+R` 并粘贴 `%USERPROFILE%\.config\jollicode\jollicode.jsonc`
 
 如果你配置了插件，请通过移除该键或将其设置为空数组来临时禁用它们：
 
@@ -111,7 +111,7 @@ Jolli Code Desktop 可以启动自己的本地服务器（默认行为），也�
 
 #### 从配置中移除 `server.port` / `server.hostname`
 
-如果你的 `opencode.json(c)` 包含 `server` 部分，请临时移除该部分并重新启动桌面应用。
+如果你的 `jollicode.json(c)` 包含 `server` 部分，请临时移除该部分并重新启动桌面应用。
 
 #### 检查环境变量
 

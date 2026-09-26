@@ -383,7 +383,7 @@ export const dict = {
   "dialog.mcp.description": "{{enabled}} ၏ {{total}} ဖွင့်ထားသည်။",
   "dialog.mcp.empty": "MCP များကို ပြင်ဆင်သတ်မှတ်ထားခြင်းမရှိပါ။",
   "dialog.lsp.empty": "ဖိုင်အမျိုးအစားများမှ LSP များကို အလိုအလျောက်တွေ့ရှိသည်။",
-  "dialog.plugins.empty": "opencode.json တွင် ပြင်ဆင်ထားသော ပလပ်အင်များ",
+  "dialog.plugins.empty": "jollicode.json တွင် ပြင်ဆင်ထားသော ပလပ်အင်များ",
   "mcp.status.connected": "ချိတ်ဆက်ထားသည်။",
   "mcp.status.failed": "မအောင်မြင်ပါ။",
   "mcp.status.needs_auth": "အထောက်အထား လိုအပ်သည်။",
@@ -643,7 +643,7 @@ export const dict = {
   "error.chain.responseBody": "တုံ့ပြန်မှုကိုယ်ထည်-\n{{body}}",
   "error.chain.didYouMean": "ဆိုလိုတာက {{suggestions}}",
   "error.chain.modelNotFound": "မော်ဒယ်ကို ရှာမတွေ့ပါ- {{provider}}/{{model}}",
-  "error.chain.checkConfig": "သင်၏ config (opencode.json) ဝန်ဆောင်မှုပေးသူ/မော်ဒယ်အမည်များကို စစ်ဆေးပါ။",
+  "error.chain.checkConfig": "သင်၏ config (jollicode.json) ဝန်ဆောင်မှုပေးသူ/မော်ဒယ်အမည်များကို စစ်ဆေးပါ။",
   "error.chain.mcpFailed":
     'MCP ဆာဗာ "{{name}}" မအောင်မြင်ပါ။ မှတ်ချက်၊ Jolli Code သည် MCP စစ်မှန်ကြောင်းအထောက်အထားမခိုင်လုံသေးပါ။',
   "error.chain.providerAuthFailed": "ပံ့ပိုးသူ စစ်မှန်ကြောင်း အထောက်အထား မအောင်မြင်ပါ ({{provider}}): {{message}}",

@@ -30,7 +30,7 @@ Filer i disse katalogene lastes automatisk ved oppstart.
 
 Spesifiser npm-pakker i konfigurasjonsfilen.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
@@ -55,8 +55,8 @@ Bla gjennom tilgjengelige plugins i [økosystemet](/docs/ecosystem#plugins).
 
 Plugins lastes inn fra alle kilder og alle kroker kjøres i rekkefølge. Lastrekkefølgen er:
 
-1. Global konfigurasjon (`~/.config/jollicode/opencode.json`)
-2. Prosjektkonfigurasjon (`opencode.json`)
+1. Global konfigurasjon (`~/.config/jollicode/jollicode.json`)
+2. Prosjektkonfigurasjon (`jollicode.json`)
 3. Global plugin-katalog (`~/.config/jollicode/plugins/`)
 4. Prosjektpluginkatalog (`.jollicode/plugins/`)
 

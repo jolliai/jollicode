@@ -98,11 +98,11 @@ O primeiro arquivo correspondente vence em cada categoria. Por exemplo, se você
 
 ## Instruções Personalizadas
 
-Você pode especificar arquivos de instrução personalizados no seu `opencode.json` ou no global `~/.config/jollicode/opencode.json`. Isso permite que você e sua equipe reutilizem regras existentes em vez de ter que duplicá-las no AGENTS.md.
+Você pode especificar arquivos de instrução personalizados no seu `jollicode.json` ou no global `~/.config/jollicode/jollicode.json`. Isso permite que você e sua equipe reutilizem regras existentes em vez de ter que duplicá-las no AGENTS.md.
 
 Exemplo:
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
@@ -111,7 +111,7 @@ Exemplo:
 
 Você também pode usar URLs remotas para carregar instruções da web.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["https://raw.githubusercontent.com/my-org/shared-rules/main/style.md"]
@@ -128,11 +128,11 @@ Todos os arquivos de instrução são combinados com seus arquivos `AGENTS.md`.
 
 Embora o Jolli Code não analise automaticamente referências de arquivos em `AGENTS.md`, você pode alcançar funcionalidade semelhante de duas maneiras:
 
-### Usando opencode.json
+### Usando jollicode.json
 
-A abordagem recomendada é usar o campo `instructions` em `opencode.json`:
+A abordagem recomendada é usar o campo `instructions` em `jollicode.json`:
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["docs/development-standards.md", "test/testing-guidelines.md", "packages/*/AGENTS.md"]
@@ -176,5 +176,5 @@ Essa abordagem permite que você:
 - Garanta que o Jolli Code carregue arquivos apenas quando necessário para a tarefa específica
 
 :::tip
-Para monorepos ou projetos com padrões compartilhados, usar `opencode.json` com padrões glob (como `packages/*/AGENTS.md`) é mais sustentável do que instruções manuais.
+Para monorepos ou projetos com padrões compartilhados, usar `jollicode.json` com padrões glob (como `packages/*/AGENTS.md`) é mais sustentável do que instruções manuais.
 :::

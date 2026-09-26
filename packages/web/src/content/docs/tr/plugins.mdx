@@ -30,7 +30,7 @@ Bu dizinlerdeki dosyalar başlangıçta otomatik olarak yüklenir.
 
 Yapılandırma dosyanızda npm paketlerini belirtin.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
@@ -55,8 +55,8 @@ Hem normal hem de kapsamlı npm paketleri desteklenir.
 
 Eklentiler tüm kaynaklardan yüklenir ve tüm kancalar sırayla çalışır. Yükleme sırası şöyledir:
 
-1. Global config (`~/.config/jollicode/opencode.json`)
-2. Project config (`opencode.json`)
+1. Global config (`~/.config/jollicode/jollicode.json`)
+2. Project config (`jollicode.json`)
 3. Global eklenti dizini (`~/.config/jollicode/plugins/`)
 4. Proje eklenti dizini (`.jollicode/plugins/`)
 

@@ -287,7 +287,7 @@ export const dict = {
   "dialog.mcp.description": "{{enabled}}/{{total}} käytössä",
   "dialog.mcp.empty": "MCP:tä ei ole määritetty",
   "dialog.lsp.empty": "LSP:t tunnistetaan automaattisesti tiedostotyypeistä",
-  "dialog.plugins.empty": "Laajennukset määritetään opencode.json-tiedostossa",
+  "dialog.plugins.empty": "Laajennukset määritetään jollicode.json-tiedostossa",
   "mcp.status.connected": "yhdistetty",
   "mcp.status.failed": "epäonnistunut",
   "mcp.status.needs_auth": "tarvitsee todennusta",
@@ -536,7 +536,7 @@ export const dict = {
   "error.chain.responseBody": "Vastausteksti:\n{{body}}",
   "error.chain.didYouMean": "Tarkoititko: {{suggestions}}",
   "error.chain.modelNotFound": "Mallia ei löydy: {{provider}}/{{model}}",
-  "error.chain.checkConfig": "Tarkista määritysten (opencode.json) palveluntarjoajien ja mallien nimet",
+  "error.chain.checkConfig": "Tarkista määritysten (jollicode.json) palveluntarjoajien ja mallien nimet",
   "error.chain.mcpFailed": 'MCP-palvelin "{{name}}" epäonnistui. Huomaa, että Jolli Code ei vielä tue MCP-todennusta.',
   "error.chain.providerAuthFailed": "Palveluntarjoajan todennus epäonnistui ({{provider}}): {{message}}",
   "error.chain.providerInitFailed":

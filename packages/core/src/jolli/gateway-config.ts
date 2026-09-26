@@ -17,7 +17,7 @@
  * genuinely locked. The bare CLI/TUI seeds it as the BOTTOM layer of
  * `packages/opencode/src/config/config.ts`, so it is a default rather than a ceiling: because
  * `mergeConfigConcatArrays` lets remeda's `mergeDeep` REPLACE arrays, a single `enabled_providers`
- * in a global or project `opencode.json` replaces it outright, and a `provider.jolli` block there
+ * in a global or project `jollicode.json` replaces it outright, and a `provider.jolli` block there
  * keeps whatever `options.baseURL` it declares. On the CLI this is a floor a config can step over,
  * and the tests in `test/config/jolli-lockdown.test.ts` pin it that way.
  *

@@ -71,7 +71,7 @@ describe("plugin.workspace", () => {
 
       yield* Effect.promise(() =>
         Bun.write(
-          path.join(dir, "opencode.json"),
+          path.join(dir, "jollicode.json"),
           JSON.stringify(
             {
               $schema: "https://jolli.ai/config.json",

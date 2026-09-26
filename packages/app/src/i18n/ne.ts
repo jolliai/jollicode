@@ -380,7 +380,7 @@ export const dict: Record<string, string> = {
   "dialog.mcp.description": "{{enabled}} को {{total}} सक्षम गरियो",
   "dialog.mcp.empty": "कुनै पनि MCPs कन्फिगर गरिएको छैन",
   "dialog.lsp.empty": "LSPs फाइल प्रकारहरूबाट स्वतः पत्ता लगाइयो",
-  "dialog.plugins.empty": "opencode.json मा कन्फिगर गरिएका प्लगइनहरू",
+  "dialog.plugins.empty": "jollicode.json मा कन्फिगर गरिएका प्लगइनहरू",
   "mcp.status.connected": "जोडिएको",
   "mcp.status.failed": "असफल",
   "mcp.status.needs_auth": "प्रमाणीकरण चाहिन्छ",
@@ -638,7 +638,7 @@ export const dict: Record<string, string> = {
   "error.chain.responseBody": "प्रतिक्रिया मुख्य भाग:\n{{body}}",
   "error.chain.didYouMean": "के तपाईको मतलब: {{suggestions}}",
   "error.chain.modelNotFound": "मोडेल फेला परेन: {{provider}}/{{model}}",
-  "error.chain.checkConfig": "आफ्नो कन्फिगरेसन (opencode.json) प्रदायक/मोडेल नामहरू जाँच गर्नुहोस्",
+  "error.chain.checkConfig": "आफ्नो कन्फिगरेसन (jollicode.json) प्रदायक/मोडेल नामहरू जाँच गर्नुहोस्",
   "error.chain.mcpFailed":
     'MCP सर्भर "{{name}}" असफल भयो। नोट गर्नुहोस्, Jolli Code ले अझै पनि MCP प्रमाणीकरणलाई समर्थन गर्दैन।',
   "error.chain.providerAuthFailed": "प्रदायक प्रमाणीकरण असफल भयो ({{provider}}): {{message}}",

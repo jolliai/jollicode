@@ -98,11 +98,11 @@ El primer archivo coincidente gana en cada categoría. Por ejemplo, si tiene `AG
 
 ## Instrucciones personalizadas
 
-Puede especificar archivos de instrucciones personalizados en su `opencode.json` o el `~/.config/jollicode/opencode.json` global. Esto le permite a usted y a su equipo reutilizar las reglas existentes en lugar de tener que duplicarlas en AGENTS.md.
+Puede especificar archivos de instrucciones personalizados en su `jollicode.json` o el `~/.config/jollicode/jollicode.json` global. Esto le permite a usted y a su equipo reutilizar las reglas existentes en lugar de tener que duplicarlas en AGENTS.md.
 
 Ejemplo:
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
@@ -111,7 +111,7 @@ Ejemplo:
 
 También puede utilizar URL remotas para cargar instrucciones desde la web.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["https://raw.githubusercontent.com/my-org/shared-rules/main/style.md"]
@@ -128,11 +128,11 @@ Todos los archivos de instrucciones se combinan con sus archivos `AGENTS.md`.
 
 Si bien Jolli Code no analiza automáticamente las referencias de archivos en `AGENTS.md`, puedes lograr una funcionalidad similar de dos maneras:
 
-### Usar opencode.json
+### Usar jollicode.json
 
-El enfoque recomendado es utilizar el campo `instructions` en `opencode.json`:
+El enfoque recomendado es utilizar el campo `instructions` en `jollicode.json`:
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["docs/development-standards.md", "test/testing-guidelines.md", "packages/*/AGENTS.md"]
@@ -176,5 +176,5 @@ Este enfoque le permite:
 - Asegúrese de que Jolli Code cargue archivos solo cuando sea necesario para la tarea específica
 
 :::tip
-Para monorepos o proyectos con estándares compartidos, usar `opencode.json` con patrones globales (como `packages/*/AGENTS.md`) es más fácil de mantener que las instrucciones manuales.
+Para monorepos o proyectos con estándares compartidos, usar `jollicode.json` con patrones globales (como `packages/*/AGENTS.md`) es más fácil de mantener que las instrucciones manuales.
 :::

@@ -30,7 +30,7 @@ Los archivos en estos directorios se cargan automáticamente al inicio.
 
 Especifique paquetes npm en su archivo de configuración.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
@@ -55,8 +55,8 @@ Los **complementos npm** se instalan automáticamente usando Bun al inicio. Los 
 
 Los complementos se cargan desde todas las fuentes y todos los enlaces se ejecutan en secuencia. El orden de carga es:
 
-1. Configuración global (`~/.config/jollicode/opencode.json`)
-2. Configuración del proyecto (`opencode.json`)
+1. Configuración global (`~/.config/jollicode/jollicode.json`)
+2. Configuración del proyecto (`jollicode.json`)
 3. Directorio global de complementos (`~/.config/jollicode/plugins/`)
 4. Directorio de complementos del proyecto (`.jollicode/plugins/`)
 

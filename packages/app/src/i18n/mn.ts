@@ -382,7 +382,7 @@ export const dict = {
   "dialog.mcp.description": "{{total}}-ийн {{enabled}}-г идэвхжүүлсэн",
   "dialog.mcp.empty": "Тохируулсан MCPс байхгүй",
   "dialog.lsp.empty": "LSPс файлын төрлөөс автоматаар илэрсэн",
-  "dialog.plugins.empty": "opencode.json-д тохируулсан залгаасууд",
+  "dialog.plugins.empty": "jollicode.json-д тохируулсан залгаасууд",
   "mcp.status.connected": "холбогдсон",
   "mcp.status.failed": "амжилтгүй болсон",
   "mcp.status.needs_auth": "auth хэрэгтэй",
@@ -641,7 +641,7 @@ export const dict = {
   "error.chain.responseBody": "Хариу өгөх байгууллага:\n{{body}}",
   "error.chain.didYouMean": "Та: {{suggestions}} гэсэн үг үү",
   "error.chain.modelNotFound": "Загвар олдсонгүй: {{provider}}/{{model}}",
-  "error.chain.checkConfig": "Өөрийн тохиргооны (opencode.json) үйлчилгээ үзүүлэгч/загварын нэрийг шалгана уу",
+  "error.chain.checkConfig": "Өөрийн тохиргооны (jollicode.json) үйлчилгээ үзүүлэгч/загварын нэрийг шалгана уу",
   "error.chain.mcpFailed":
     'MCP сервер "{{name}}" амжилтгүй боллоо. Jolli Code нь MCP баталгаажуулалтыг хараахан дэмждэггүйг анхаарна уу.',
   "error.chain.providerAuthFailed":

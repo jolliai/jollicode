@@ -30,7 +30,7 @@ description: Jolli Code를 확장하기 위해 자신만의 플러그인을 작�
 
 config 파일에 npm 패키지를 지정합니다.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
@@ -55,8 +55,8 @@ config 파일에 npm 패키지를 지정합니다.
 
 플러그인은 모든 소스에서 로드되며 모든 후크는 순서대로 실행됩니다. 로드 순서는 다음과 같습니다:
 
-1. 글로벌 구성 (`~/.config/jollicode/opencode.json`)
-2. 프로젝트 구성 (`opencode.json`)
+1. 글로벌 구성 (`~/.config/jollicode/jollicode.json`)
+2. 프로젝트 구성 (`jollicode.json`)
 3. 글로벌 플러그인 디렉토리 (`~/.config/jollicode/plugins/`)
 4. 프로젝트 플러그인 디렉토리 (`.jollicode/plugins/`)
 

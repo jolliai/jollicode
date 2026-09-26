@@ -11,7 +11,7 @@ description: 使用 Jolli Code JSON 設定。
 
 Jolli Code 支援 **JSON** 和 **JSONC**（帶註解的 JSON）格式。
 
-```jsonc title="opencode.jsonc"
+```jsonc title="jollicode.jsonc"
 {
   "$schema": "https://jolli.ai/config.json",
   "model": "anthropic/claude-sonnet-4-5",
@@ -43,9 +43,9 @@ Jolli Code 支援 **JSON** 和 **JSONC**（帶註解的 JSON）格式。
 設定來源按以下順序載入（後面的來源覆寫前面的來源）：
 
 1. **遠端設定**（來自 `.well-known/jollicode`）- 組織預設值
-2. **全域設定**（`~/.config/jollicode/opencode.json`）- 使用者偏好
+2. **全域設定**（`~/.config/jollicode/jollicode.json`）- 使用者偏好
 3. **自訂設定**（`OPENCODE_CONFIG` 環境變數）- 自訂覆寫
-4. **專案設定**（專案中的 `opencode.json`）- 專案特定設定
+4. **專案設定**（專案中的 `jollicode.json`）- 專案特定設定
 5. **`.jollicode` 目錄** - 代理、指令、外掛程式
 6. **內嵌設定**（`OPENCODE_CONFIG_CONTENT` 環境變數）- 執行時覆寫
 
@@ -79,7 +79,7 @@ Jolli Code 支援 **JSON** 和 **JSONC**（帶註解的 JSON）格式。
 
 您可以在本地設定中啟用特定伺服器：
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "mcp": {
     "jira": {
@@ -95,7 +95,7 @@ Jolli Code 支援 **JSON** 和 **JSONC**（帶註解的 JSON）格式。
 
 ### 全域
 
-將全域 Jolli Code 設定放在 `~/.config/jollicode/opencode.json` 中。使用全域設定來設定使用者層級的偏好，例如主題、供應商或快捷鍵。
+將全域 Jolli Code 設定放在 `~/.config/jollicode/jollicode.json` 中。使用全域設定來設定使用者層級的偏好，例如主題、供應商或快捷鍵。
 
 全域設定覆寫遠端組織預設值。
 
@@ -103,7 +103,7 @@ Jolli Code 支援 **JSON** 和 **JSONC**（帶註解的 JSON）格式。
 
 ### 專案層級
 
-在專案根目錄中新增 `opencode.json`。專案設定在標準設定檔中具有最高優先級——它會覆寫全域設定和遠端設定。
+在專案根目錄中新增 `jollicode.json`。專案設定在標準設定檔中具有最高優先級——它會覆寫全域設定和遠端設定。
 
 :::tip
 將專案特定設定放在專案的根目錄中。
@@ -153,7 +153,7 @@ jollicode run "Hello world"
 
 您可以透過 `tui` 選項設定 TUI 相關設定。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "tui": {
@@ -174,7 +174,7 @@ jollicode run "Hello world"
 
 使用 `OPENCODE_TUI_CONFIG` 指向自訂 TUI 設定檔。
 
-`opencode.json` 中的舊版 `theme`、`keybinds` 和 `tui` 鍵已被棄用，並將在可能的情況下自動遷移。
+`jollicode.json` 中的舊版 `theme`、`keybinds` 和 `tui` 鍵已被棄用，並將在可能的情況下自動遷移。
 
 [在此了解更多關於 TUI 的資訊](/docs/tui)。
 
@@ -184,7 +184,7 @@ jollicode run "Hello world"
 
 您可以透過 `server` 選項為 `jollicode serve` 和 `jollicode web` 指令設定伺服器設定。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "server": {
@@ -213,7 +213,7 @@ jollicode run "Hello world"
 
 您可以透過 `tools` 選項管理 LLM 可以使用的工具。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "tools": {
@@ -231,7 +231,7 @@ jollicode run "Hello world"
 
 您可以透過 `provider`、`model` 和 `small_model` 選項在 Jolli Code 設定中設定要使用的供應商和模型。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "provider": {},
@@ -244,7 +244,7 @@ jollicode run "Hello world"
 
 供應商選項可以包括 `timeout` 和 `setCacheKey`：
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "provider": {
@@ -273,7 +273,7 @@ jollicode run "Hello world"
 
 Amazon Bedrock 支援 AWS 特定設定：
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "provider": {
@@ -319,7 +319,7 @@ Bearer Token（`AWS_BEARER_TOKEN_BEDROCK` 或 `/connect`）優先於基於設定
 
 您可以透過 `agent` 選項為特定任務設定專用代理。
 
-```jsonc title="opencode.jsonc"
+```jsonc title="jollicode.jsonc"
 {
   "$schema": "https://jolli.ai/config.json",
   "agent": {
@@ -345,7 +345,7 @@ Bearer Token（`AWS_BEARER_TOKEN_BEDROCK` 或 `/connect`）優先於基於設定
 
 您可以使用 `default_agent` 選項設定預設代理。當未明確指定代理時，將使用該預設代理。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "default_agent": "plan"
@@ -362,7 +362,7 @@ Bearer Token（`AWS_BEARER_TOKEN_BEDROCK` 或 `/connect`）優先於基於設定
 
 您可以透過 `share` 選項設定[分享](/docs/share)功能。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "share": "manual"
@@ -383,7 +383,7 @@ Bearer Token（`AWS_BEARER_TOKEN_BEDROCK` 或 `/connect`）優先於基於設定
 
 您可以透過 `command` 選項為重複任務設定自訂指令。
 
-```jsonc title="opencode.jsonc"
+```jsonc title="jollicode.jsonc"
 {
   "$schema": "https://jolli.ai/config.json",
   "command": {
@@ -424,7 +424,7 @@ Bearer Token（`AWS_BEARER_TOKEN_BEDROCK` 或 `/connect`）優先於基於設定
 
 Jolli Code 啟動時會自動下載新版本。您可以使用 `autoupdate` 選項停用此功能。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "autoupdate": false
@@ -440,7 +440,7 @@ Jolli Code 啟動時會自動下載新版本。您可以使用 `autoupdate` 選�
 
 您可以透過 `formatter` 選項設定程式碼格式化器。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "formatter": {
@@ -468,7 +468,7 @@ Jolli Code 啟動時會自動下載新版本。您可以使用 `autoupdate` 選�
 
 例如，要讓 `edit` 和 `bash` 工具需要使用者確認：
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -486,7 +486,7 @@ Jolli Code 啟動時會自動下載新版本。您可以使用 `autoupdate` 選�
 
 您可以透過 `compaction` 選項控制上下文壓縮行為。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "compaction": {
@@ -507,7 +507,7 @@ Jolli Code 啟動時會自動下載新版本。您可以使用 `autoupdate` 選�
 
 您可以透過 `watcher` 選項設定檔案監看器的忽略模式。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "watcher": {
@@ -524,7 +524,7 @@ Jolli Code 啟動時會自動下載新版本。您可以使用 `autoupdate` 選�
 
 您可以透過 `mcp` 選項設定要使用的 MCP 伺服器。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "mcp": {}
@@ -541,7 +541,7 @@ Jolli Code 啟動時會自動下載新版本。您可以使用 `autoupdate` 選�
 
 將外掛程式檔案放置在 `.jollicode/plugins/` 或 `~/.config/jollicode/plugins/` 中。您還可以透過 `plugin` 選項從 npm 載入外掛程式。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "@my-org/custom-plugin"]
@@ -556,7 +556,7 @@ Jolli Code 啟動時會自動下載新版本。您可以使用 `autoupdate` 選�
 
 您可以透過 `instructions` 選項為所使用的模型設定指示。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
@@ -571,7 +571,7 @@ Jolli Code 啟動時會自動下載新版本。您可以使用 `autoupdate` 選�
 
 您可以透過 `disabled_providers` 選項停用自動載入的供應商。當您希望阻止某些供應商被載入（即使其憑證可用）時，此選項非常有用。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "disabled_providers": ["openai", "gemini"]
@@ -594,7 +594,7 @@ Jolli Code 啟動時會自動下載新版本。您可以使用 `autoupdate` 選�
 
 您可以透過 `enabled_providers` 選項指定允許使用的供應商白名單。設定後，僅啟用指定的供應商，所有其他供應商將被忽略。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "enabled_providers": ["anthropic", "openai"]
@@ -615,7 +615,7 @@ Jolli Code 啟動時會自動下載新版本。您可以使用 `autoupdate` 選�
 
 `experimental` 鍵包含正在積極開發中的選項。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "experimental": {}
@@ -638,7 +638,7 @@ Jolli Code 啟動時會自動下載新版本。您可以使用 `autoupdate` 選�
 
 使用 `{env:VARIABLE_NAME}` 來替換環境變數：
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "model": "{env:OPENCODE_MODEL}",
@@ -661,7 +661,7 @@ Jolli Code 啟動時會自動下載新版本。您可以使用 `autoupdate` 選�
 
 使用 `{file:path/to/file}` 來替換檔案內容：
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "instructions": ["./custom-instructions.md"],

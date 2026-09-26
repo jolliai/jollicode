@@ -13,7 +13,7 @@ description: LLM が使用できるツールを管理します。
 
 `permission` フィールドを使用してツールの動作を制御します。各ツールを許可、拒否、または承認を要求することができます。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -26,7 +26,7 @@ description: LLM が使用できるツールを管理します。
 
 ワイルドカードを使用して複数のツールを一度に制御することもできます。たとえば、MCP サーバーからのすべてのツールの承認を要求するには、次のようにします。
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -49,7 +49,7 @@ Jolli Code で利用可能なすべての組み込みツールを次に示しま
 
 プロジェクト環境でシェルコマンドを実行します。
 
-```json title="opencode.json" {4}
+```json title="jollicode.json" {4}
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -66,7 +66,7 @@ Jolli Code で利用可能なすべての組み込みツールを次に示しま
 
 正確な文字列置換を使用して既存のファイルを変更します。
 
-```json title="opencode.json" {4}
+```json title="jollicode.json" {4}
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -83,7 +83,7 @@ Jolli Code で利用可能なすべての組み込みツールを次に示しま
 
 新しいファイルを作成するか、既存のファイルを上書きします。
 
-```json title="opencode.json" {4}
+```json title="jollicode.json" {4}
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -104,7 +104,7 @@ Jolli Code で利用可能なすべての組み込みツールを次に示しま
 
 コードベースからファイルの内容を読み取ります。
 
-```json title="opencode.json" {4}
+```json title="jollicode.json" {4}
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -121,7 +121,7 @@ Jolli Code で利用可能なすべての組み込みツールを次に示しま
 
 正規表現を使用してファイルの内容を検索します。
 
-```json title="opencode.json" {4}
+```json title="jollicode.json" {4}
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -138,7 +138,7 @@ Jolli Code で利用可能なすべての組み込みツールを次に示しま
 
 パターンマッチングによりファイルを検索します。
 
-```json title="opencode.json" {4}
+```json title="jollicode.json" {4}
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -159,7 +159,7 @@ Jolli Code で利用可能なすべての組み込みツールを次に示しま
 このツールは、`OPENCODE_EXPERIMENTAL_LSP_TOOL=true` (または `OPENCODE_EXPERIMENTAL=true`) の場合にのみ使用できます。
 :::
 
-```json title="opencode.json" {4}
+```json title="jollicode.json" {4}
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -178,7 +178,7 @@ Jolli Code で利用可能なすべての組み込みツールを次に示しま
 
 ファイルにパッチを適用します。
 
-```json title="opencode.json" {4}
+```json title="jollicode.json" {4}
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -199,7 +199,7 @@ Jolli Code で利用可能なすべての組み込みツールを次に示しま
 
 [skill](/docs/skills) (`SKILL.md` ファイル) をロードし、会話でその内容を返します。
 
-```json title="opencode.json" {4}
+```json title="jollicode.json" {4}
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -214,7 +214,7 @@ Jolli Code で利用可能なすべての組み込みツールを次に示しま
 
 コーディングセッション中に ToDo リストを管理します。
 
-```json title="opencode.json" {4}
+```json title="jollicode.json" {4}
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -235,7 +235,7 @@ Jolli Code で利用可能なすべての組み込みツールを次に示しま
 
 Web コンテンツを取得します。
 
-```json title="opencode.json" {4}
+```json title="jollicode.json" {4}
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -263,7 +263,7 @@ OPENCODE_ENABLE_EXA=1 jollicode
 
 :::
 
-```json title="opencode.json" {4}
+```json title="jollicode.json" {4}
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {
@@ -286,7 +286,7 @@ API キーは必要ありません。ツールは認証なしで Exa AI のホ�
 
 実行中にユーザーに質問します。
 
-```json title="opencode.json" {4}
+```json title="jollicode.json" {4}
 {
   "$schema": "https://jolli.ai/config.json",
   "permission": {

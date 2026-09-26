@@ -57,9 +57,9 @@ Jolli Code Desktop は、ローカル Jolli Code サーバー (`jollicode-cli` �
 
 グローバル設定ファイルを開き、`plugin` キーを探します。
 
-- **macOS/Linux**: `~/.config/jollicode/opencode.jsonc` (または `~/.config/jollicode/opencode.json`)
-- **macOS/Linux** (古いインストール): `~/.local/share/jollicode/opencode.jsonc`
-- **Windows**: `WIN+R` を押して `%USERPROFILE%\.config\jollicode\opencode.jsonc` を貼り付けます
+- **macOS/Linux**: `~/.config/jollicode/jollicode.jsonc` (または `~/.config/jollicode/jollicode.json`)
+- **macOS/Linux** (古いインストール): `~/.local/share/jollicode/jollicode.jsonc`
+- **Windows**: `WIN+R` を押して `%USERPROFILE%\.config\jollicode\jollicode.jsonc` を貼り付けます
 
 プラグインを構成している場合は、キーを削除するか空の配列に設定して、プラグインを一時的に無効にします。
 
@@ -111,7 +111,7 @@ Jolli Code Desktop は、独自のローカルサーバー (デフォルト) を
 
 #### 設定から `server.port` / `server.hostname` を削除します
 
-`opencode.json(c)` に `server` セクションが含まれている場合は、それを一時的に削除し、デスクトップアプリを再起動します。
+`jollicode.json(c)` に `server` セクションが含まれている場合は、それを一時的に削除し、デスクトップアプリを再起動します。
 
 #### 環境変数を確認する
 

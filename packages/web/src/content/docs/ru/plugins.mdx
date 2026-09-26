@@ -30,7 +30,7 @@ description: Напишите свои собственные плагины д�
 
 Укажите пакеты npm в файле конфигурации.
 
-```json title="opencode.json"
+```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
@@ -55,8 +55,8 @@ description: Напишите свои собственные плагины д�
 
 Плагины загружаются из всех источников, и все хуки запускаются последовательно. Порядок загрузки следующий:
 
-1. Глобальная конфигурация (`~/.config/jollicode/opencode.json`)
-2. Конфигурация проекта (`opencode.json`)
+1. Глобальная конфигурация (`~/.config/jollicode/jollicode.json`)
+2. Конфигурация проекта (`jollicode.json`)
 3. Глобальный каталог плагинов (`~/.config/jollicode/plugins/`)
 4. Каталог плагинов проекта (`.jollicode/plugins/`)
 

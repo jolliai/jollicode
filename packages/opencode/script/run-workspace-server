@@ -5,7 +5,7 @@
 // debugger easier
 //
 // *Important*: make sure you add the debug workspace plugin first.
-// In `.jollicode/opencode.jsonc` in the root of this project add:
+// In `.jollicode/jollicode.jsonc` in the root of this project add:
 //
 // "plugin": ["../packages/opencode/src/control-plane/dev/debug-workspace-plugin.ts"]
 //

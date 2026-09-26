@@ -51,7 +51,7 @@ Jolli Code использует [AI SDK](https://ai-sdk.dev/) и [Models.dev](ht
 Чтобы установить одну из них в качестве модели по умолчанию, вы можете установить ключ `model` в вашем
 Конфигурация Jolli Code.
 
-```json title="opencode.json" {3}
+```json title="jollicode.json" {3}
 {
   "$schema": "https://jolli.ai/config.json",
   "model": "lmstudio/google/gemma-3n-e4b"
@@ -68,7 +68,7 @@ Jolli Code использует [AI SDK](https://ai-sdk.dev/) и [Models.dev](ht
 
 Вы можете глобально настроить параметры модели через файл config.
 
-```jsonc title="opencode.jsonc" {7-12,19-24}
+```jsonc title="jollicode.jsonc" {7-12,19-24}
 {
   "$schema": "https://jolli.ai/config.json",
   "provider": {
@@ -107,7 +107,7 @@ Jolli Code использует [AI SDK](https://ai-sdk.dev/) и [Models.dev](ht
 
 Вы также можете определить собственные варианты, расширяющие встроенные. Варианты позволяют настраивать разные параметры для одной и той же модели без создания повторяющихся записей:
 
-```jsonc title="opencode.jsonc" {6-21}
+```jsonc title="jollicode.jsonc" {6-21}
 {
   "$schema": "https://jolli.ai/config.json",
   "provider": {
@@ -172,7 +172,7 @@ Jolli Code поставляется с вариантами по умолчан�
 
 Вы можете переопределить существующие варианты или добавить свои собственные:
 
-```jsonc title="opencode.jsonc" {7-18}
+```jsonc title="jollicode.jsonc" {7-18}
 {
   "$schema": "https://jolli.ai/config.json",
   "provider": {
@@ -209,7 +209,7 @@ Jolli Code поставляется с вариантами по умолчан�
 
 2. Список моделей в конфигурации Jolli Code.
 
-   ```json title="opencode.json"
+   ```json title="jollicode.json"
    {
      "$schema": "https://jolli.ai/config.json",
      "model": "anthropic/claude-sonnet-4-20250514"
