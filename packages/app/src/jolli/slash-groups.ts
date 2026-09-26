@@ -7,7 +7,7 @@
  * course under everything that shipped with the editor.
  *
  * ⚠ THE OWNERSHIP TEST IS `skillId`, NOT THE SERVER'S `source: "skill"`. The server marks EVERY
- * skill that way — its own `customize-opencode`, and whatever a repository happens to ship in
+ * skill that way — its own `customize-jollicode`, and whatever a repository happens to ship in
  * `.jollicode/skill` — so grouping on it would file those under the professor's name. The
  * assistant's own `skills` list is the only thing that knows which ones belong to the course.
  *
