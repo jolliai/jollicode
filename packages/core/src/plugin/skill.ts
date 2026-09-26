@@ -6,9 +6,9 @@ import { define } from "./internal"
 import { Effect } from "effect"
 import { AbsolutePath } from "../schema"
 import { SkillV2 } from "../skill"
-import customizeOpencodeContent from "./skill/customize-opencode.md" with { type: "text" }
+import customizeJollicodeContent from "./skill/customize-jollicode.md" with { type: "text" }
 
-export const CustomizeOpencodeContent = customizeOpencodeContent
+export const CustomizeJollicodeContent = customizeJollicodeContent
 
 export const Plugin = define({
   id: "skill",
@@ -18,11 +18,11 @@ export const Plugin = define({
         SkillV2.EmbeddedSource.make({
           type: "embedded",
           skill: SkillV2.Info.make({
-            name: "customize-opencode",
+            name: "customize-jollicode",
             description:
-              "Use ONLY when the user is editing or creating opencode's own configuration: jollicode.json, jollicode.jsonc, files under .jollicode/, or files under ~/.config/jollicode/. Also use when creating or fixing opencode agents, subagents, commands, skills, plugins, MCP servers, or permission rules. Do not use for the user's own application code, or for any project that is not configuring opencode itself.",
-            location: AbsolutePath.make("/builtin/customize-opencode.md"),
-            content: CustomizeOpencodeContent,
+              "Use ONLY when the user is editing or creating Jolli Code's own configuration: jollicode.json, jollicode.jsonc, files under .jollicode/, or files under ~/.config/jollicode/. Also use when creating or fixing Jolli Code agents, subagents, commands, skills, plugins, MCP servers, or permission rules. Do not use for the user's own application code, or for any project that is not configuring Jolli Code itself.",
+            location: AbsolutePath.make("/builtin/customize-jollicode.md"),
+            content: CustomizeJollicodeContent,
           }),
         }),
       )
