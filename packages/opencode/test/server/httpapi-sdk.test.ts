@@ -397,7 +397,8 @@ describe("HttpApi SDK", () => {
         const url = new URL(request!.url)
 
         expect(found.response.status).toBe(200)
-        expect(found.data).toMatchObject({ data: [{ path: "hello.txt", type: "file" }] })
+        // Fuzzy search also ranks the fixture's jollicode.json (its "llo") below the exact hit.
+        expect(found.data?.data[0]).toMatchObject({ path: "hello.txt", type: "file" })
         expect(url.searchParams.get("directory")).toBe(directory)
         expect(url.searchParams.get("workspace")).toBe(workspaceID)
         expect(url.searchParams.get("location[directory]")).toBe(directory)
