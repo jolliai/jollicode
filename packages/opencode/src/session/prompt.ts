@@ -35,6 +35,7 @@ import { Tool } from "@/tool/tool"
 import { Permission } from "@/permission"
 import { SessionStatus } from "./status"
 import { LLM } from "./llm"
+import { LLMRequestPrep } from "./llm/request"
 import { Shell } from "@opencode-ai/core/shell"
 import { ShellID } from "@/tool/shell/id"
 import { FSUtil } from "@opencode-ai/core/fs-util"
@@ -267,10 +268,12 @@ const layer = Layer.effect(
         .find((line) => line.length > 0)
       if (!cleaned) return
       const t = cleaned.length > 100 ? cleaned.substring(0, 97) + "..." : cleaned
-      yield* sessions.setTitle({ sessionID: input.session.id, title: t }).pipe(
-        Effect.andThen(sync(t)),
-        Effect.catchCause((cause) => Effect.logError("failed to generate title", { error: Cause.squash(cause) })),
-      )
+      yield* sessions
+        .setTitle({ sessionID: input.session.id, title: t })
+        .pipe(
+          Effect.andThen(sync(t)),
+          Effect.catchCause((cause) => Effect.logError("failed to generate title", { error: Cause.squash(cause) })),
+        )
     })
 
     const handleSubtask = Effect.fn("SessionPrompt.handleSubtask")(function* (input: {
@@ -344,6 +347,20 @@ const layer = Layer.effect(
       // session does the command's work, so it carries the command when it runs on Jolli (TaskTool
       // picks the agent's model over taskModel the same way); otherwise the parent's follow-up does.
       const childCommand = isJolliProviderId((taskAgent.model ?? taskModel).providerID) ? task.command : undefined
+      // TaskTool can fail before the child admits its prompt (creating the session, a missing assistant
+      // message), so the child counts as carrying the command only once its prompt went through.
+      let childCarried = false
+      const childOps: TaskPromptOps = {
+        ...promptOps,
+        prompt: (request) =>
+          promptOps.prompt(request).pipe(
+            Effect.tap(() =>
+              Effect.sync(() => {
+                if (request.command !== undefined) childCarried = true
+              }),
+            ),
+          ),
+      }
 
       let error: Error | undefined
       const taskAbort = new AbortController()
@@ -354,7 +371,7 @@ const layer = Layer.effect(
           sessionID,
           abort: taskAbort.signal,
           callID: part.callID,
-          extra: { bypassAgentCheck: true, promptOps, command: childCommand },
+          extra: { bypassAgentCheck: true, promptOps: childOps, command: childCommand },
           messages: msgs,
           metadata: (val: { title?: string; metadata?: Record<string, any> }) =>
             Effect.gen(function* () {
@@ -454,19 +471,6 @@ const layer = Layer.effect(
       }
 
       if (!task.command) return
-
-      // TaskTool can fail before the child admits its prompt (creating the session, a missing
-      // assistant message or promptOps), so the child counts as carrying the command only once a
-      // user message of its own holds it; otherwise the parent's follow-up carries it instead.
-      const childSessionID = part.state.status === "running" ? part.state.metadata?.sessionId : undefined
-      const childCarried =
-        childCommand !== undefined &&
-        typeof childSessionID === "string" &&
-        (yield* sessions
-          .messages({ sessionID: SessionID.make(childSessionID) })
-          .pipe(Effect.orElseSucceed(() => []))).some(
-          (msg) => msg.info.role === "user" && msg.info.command === childCommand,
-        )
 
       const summaryUserMsg: SessionV1.User = {
         id: MessageID.ascending(),
@@ -1325,6 +1329,7 @@ const layer = Layer.effect(
               courseID: courseBinding?.courseId,
               courseAssistantID: courseBinding?.assistantId,
               mcpToolServers: resolved.mcpToolServers,
+              toolErrors: LLMRequestPrep.jolliToolErrors(msgs),
               system,
               messages: [
                 ...modelMsgs,

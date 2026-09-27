@@ -1200,8 +1200,45 @@ withMcpServers.instance("a Jolli request names the MCP servers whose tools it of
     const hits = yield* llm.hits
     // "hidden" is connected, but its only tool is denied, so it is not offered or reported.
     expect(hits[0]?.headers["x-jolli-mcp-servers"]).toBe("guide_server")
-    // Every offered tool under that prefix is a real MCP tool, so there is nothing to disown.
-    expect(hits[0]?.headers["x-jolli-non-mcp-tools"]).toBeUndefined()
+    // Every offered tool under that prefix belongs to it, so the longest-prefix rule needs no override.
+    expect(hits[0]?.headers["x-jolli-mcp-tool-overrides"]).toBeUndefined()
+  }),
+)
+
+it.instance("a Jolli request reports each failed tool once, and not a call a permission rule refused", () =>
+  Effect.gen(function* () {
+    const { dir, llm } = yield* useServerConfig(jolliProviderCfg)
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const chat = yield* sessions.create({
+      title: "Pinned",
+      permission: [
+        { permission: "*", pattern: "*", action: "allow" },
+        { permission: "external_directory", pattern: "*", action: "deny" },
+      ],
+    })
+    yield* prompt.prompt({
+      sessionID: chat.id,
+      agent: "build",
+      model: jolliRef,
+      noReply: true,
+      parts: [{ type: "text", text: "read them" }],
+    })
+    yield* llm.tool("read", { filePath: path.join(dir, "missing.txt") })
+    yield* llm.tool("read", { filePath: "/outside-the-project/secret.txt" })
+    yield* llm.tool("glob", { pattern: "**/*.txt" })
+    yield* llm.text("done")
+
+    yield* prompt.loop({ sessionID: chat.id })
+
+    const hits = yield* llm.hits
+    expect(hits).toHaveLength(4)
+    expect(hits[0]?.headers["x-jolli-tool-errors"]).toBeUndefined()
+    expect(hits[1]?.headers["x-jolli-tool-errors"]).toBe("read")
+    // The deny rule refused the external read, which is not a tool failure, and the earlier failed read,
+    // though still carried, was already reported.
+    expect(hits[2]?.headers["x-jolli-tool-errors"]).toBe("none")
+    expect(hits[3]?.headers["x-jolli-tool-errors"]).toBe("none")
   }),
 )
 

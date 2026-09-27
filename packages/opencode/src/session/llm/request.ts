@@ -29,6 +29,8 @@ type PrepareInput = {
   readonly courseAssistantID?: string
   /** Each MCP tool's key -> the sanitized name of its server, from the same resolve that built `tools`. */
   readonly mcpToolServers?: ReadonlyMap<string, string>
+  /** Names of the tools whose results this request carries for the first time and that failed. */
+  readonly toolErrors?: ReadonlyArray<string>
   readonly model: Provider.Model
   readonly agent: Agent.Info
   readonly permission?: PermissionV1.Ruleset
@@ -69,7 +71,7 @@ export function jolliCodingAgentHeaders(input: {
   readonly courseAssistantID?: string
   readonly command?: string
   readonly mcpServers?: ReadonlyArray<string>
-  readonly nonMcpTools?: ReadonlyArray<string>
+  readonly mcpToolOverrides?: ReadonlyArray<readonly [tool: string, server: string]>
   readonly toolErrors?: ReadonlyArray<string>
 }): Record<string, string> {
   if (!isJolliProviderId(input.providerID)) return {}
@@ -90,20 +92,22 @@ export function jolliCodingAgentHeaders(input: {
     ...(input.command ? { "x-jolli-command": encodeURIComponent(input.command.toWellFormed()) } : {}),
     // Sanitized names are plain ASCII with no comma, so the list needs no encoding.
     ...(input.mcpServers?.length ? { "x-jolli-mcp-servers": input.mcpServers.join(",") } : {}),
-    // A plugin or custom tool is named after a file and may be non-ASCII or contain a comma, so each
-    // name is percent-encoded like the command.
-    ...(input.nonMcpTools?.length
+    // Tool names are percent-encoded: a plugin or custom tool is named after a file and may be
+    // non-ASCII or contain a comma or "=". An empty server marks a tool that is not MCP.
+    ...(input.mcpToolOverrides?.length
       ? {
-          "x-jolli-non-mcp-tools": input.nonMcpTools.map((name) => encodeURIComponent(name.toWellFormed())).join(","),
+          "x-jolli-mcp-tool-overrides": input.mcpToolOverrides
+            .map(([tool, server]) => `${encodeURIComponent(tool.toWellFormed())}=${server}`)
+            .join(","),
         }
       : {}),
-    // Sent whenever the request carries a tool result, as "none" when none failed, so the backend can
-    // tell "nothing failed" from a client that does not report. Ids are the provider's; encoded like
-    // the tool names since nothing promises they are plain ASCII.
+    // Sent whenever the request carries a tool result for the first time, as "none" when none failed,
+    // so the backend can tell "nothing failed" from a client that does not report. Encoded like the
+    // override tool names; a name repeats once per failed call.
     ...(input.toolErrors
       ? {
           "x-jolli-tool-errors": input.toolErrors.length
-            ? input.toolErrors.map((id) => encodeURIComponent(id.toWellFormed())).join(",")
+            ? input.toolErrors.map((name) => encodeURIComponent(name.toWellFormed())).join(",")
             : "none",
         }
       : {}),
@@ -114,40 +118,54 @@ export function jolliCodingAgentHeaders(input: {
 const JOLLI_TOOL_ERRORS_MAX = 32
 
 /**
- * The ids of the failed tool results among the messages a Jolli request sends, for the backend's MCP
- * failure stats: the OpenAI and Google protocols carry no error flag on a tool result, so it cannot
- * see a failure otherwise. "Failed" is what the Anthropic SDK flags `is_error` — an `error-text` or
- * `error-json` output — so every protocol counts the same thing. Undefined when the request carries
- * no tool result at all; the most recent ids when more failed than the backend keeps.
+ * The names of the failed tools among the results a Jolli request sends for the first time, for the
+ * backend's MCP failure stats: the OpenAI and Google protocols carry no error flag on a tool result.
+ * Only the latest assistant message's tool calls are new — every earlier result already went out with
+ * the step that followed it — so each failure is reported once, not again on every later step. A call
+ * the user or a permission rule refused, or one cut off by an abort or crash, is not a tool failure.
+ * Undefined when the latest assistant message ran no tools.
  */
-export function jolliToolErrors(messages: ReadonlyArray<ModelMessage>): ReadonlyArray<string> | undefined {
-  const results = messages.flatMap((message) =>
-    message.role === "tool" ? message.content.flatMap((part) => (part.type === "tool-result" ? [part] : [])) : [],
+export function jolliToolErrors(history: ReadonlyArray<SessionV1.WithParts>): ReadonlyArray<string> | undefined {
+  const calls = (history.findLast((msg) => msg.info.role === "assistant")?.parts ?? []).filter(
+    (part) => part.type === "tool",
   )
-  if (results.length === 0) return undefined
-  return results
-    .filter((part) => part.output.type === "error-text" || part.output.type === "error-json")
-    .map((part) => part.toolCallId)
+  if (calls.length === 0) return undefined
+  return calls
+    .filter(
+      (part) =>
+        part.state.status === "error" &&
+        part.state.metadata?.interrupted !== true &&
+        part.state.metadata?.rejected !== true,
+    )
+    .map((part) => part.tool)
     .slice(-JOLLI_TOOL_ERRORS_MAX)
 }
 
 /**
  * What a Jolli request reports about MCP, read off the tools it actually sends: the servers with a
- * tool among them (so a permission-hidden server is not reported), and the non-MCP tools whose name
- * reads as `<server>_<tool>` under one of those servers — a built-in like plan_exit beside a server
- * named "plan", or a plugin or custom tool. The backend attributes a tool call to the longest
- * reported server prefix unless the tool is listed as non-MCP.
+ * tool among them (so a permission-hidden server is not reported), and the tools the backend's
+ * longest-`<server>_`-prefix rule would attribute wrongly, each paired with its real server or "" when
+ * it is not MCP — `github_enterprise_list` from server "github" beside a server "github_enterprise",
+ * or the built-in plan_exit beside a server named "plan". Only exceptions are listed, so the header
+ * stays short however many MCP tools a request carries.
  */
 export function jolliMcpReport(input: {
   readonly toolNames: ReadonlyArray<string>
   readonly mcpToolServers?: ReadonlyMap<string, string>
-}): { readonly mcpServers: ReadonlyArray<string>; readonly nonMcpTools: ReadonlyArray<string> } {
+}): {
+  readonly mcpServers: ReadonlyArray<string>
+  readonly mcpToolOverrides: ReadonlyArray<readonly [tool: string, server: string]>
+} {
   const mcpToolServers = input.mcpToolServers ?? new Map<string, string>()
   const mcpServers = [...new Set(input.toolNames.flatMap((name) => mcpToolServers.get(name) ?? []))].toSorted()
-  const nonMcpTools = input.toolNames
-    .filter((name) => !mcpToolServers.has(name) && mcpServers.some((server) => name.startsWith(`${server}_`)))
-    .toSorted()
-  return { mcpServers, nonMcpTools }
+  const mcpToolOverrides = input.toolNames.toSorted().flatMap((name): Array<readonly [string, string]> => {
+    const server = mcpToolServers.get(name) ?? ""
+    const guessed = mcpServers
+      .filter((candidate) => name.startsWith(`${candidate}_`))
+      .reduce((longest, candidate) => (candidate.length > longest.length ? candidate : longest), "")
+    return server === guessed ? [] : [[name, server]]
+  })
+  return { mcpServers, mcpToolOverrides }
 }
 
 const mergeOptions = (target: Record<string, any>, source: Record<string, any> | undefined): Record<string, any> =>
@@ -311,7 +329,7 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
         courseID: input.courseID,
         courseAssistantID: input.courseAssistantID,
         command: input.user.command,
-        toolErrors: jolliToolErrors(input.messages),
+        toolErrors: input.toolErrors,
         ...jolliMcpReport({
           toolNames: Object.keys(tools),
           mcpToolServers: input.mcpToolServers,

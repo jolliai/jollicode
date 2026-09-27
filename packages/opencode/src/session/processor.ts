@@ -186,6 +186,12 @@ const layer = Layer.effect(
       const failToolCall = Effect.fn("SessionProcessor.failToolCall")(function* (toolCallID: string, error: unknown) {
         const match = yield* readToolCall(toolCallID)
         if (!match || match.part.state.status !== "running") return false
+        // A call the user or a permission rule refused did not fail as a tool; Jolli failure stats skip it.
+        const rejected =
+          error instanceof PermissionV1.RejectedError ||
+          error instanceof PermissionV1.CorrectedError ||
+          error instanceof PermissionV1.DeniedError ||
+          error instanceof Question.RejectedError
         yield* session.updatePart({
           ...match.part,
           state: {
@@ -193,7 +199,7 @@ const layer = Layer.effect(
             input: match.part.state.input,
             error: errorMessage(error),
             // Keep metadata streamed while running so failures retain progress detail (e.g. execute's child calls).
-            metadata: match.part.state.metadata,
+            metadata: rejected ? { ...match.part.state.metadata, rejected: true } : match.part.state.metadata,
             time: { start: match.part.state.time.start, end: Date.now() },
           },
         })
