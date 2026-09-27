@@ -12,6 +12,7 @@ import { Deferred, Effect, Fiber } from "effect"
 import contextMenu from "electron-context-menu"
 
 import { Brand } from "@opencode-ai/app/brand"
+import { env } from "@opencode-ai/core/flag/flag"
 import type { ServerReadyData } from "../preload/types"
 import { isSignedIn, refreshInstance, signIn, signOut } from "./jolli-auth"
 import { sidecarCall } from "./jolli-sidecar"
@@ -171,7 +172,7 @@ const main = Effect.gen(function* () {
     process.chdir(homedir())
   } catch {}
 
-  process.env.OPENCODE_DISABLE_EMBEDDED_WEB_UI = "true"
+  process.env.JOLLICODE_DISABLE_EMBEDDED_WEB_UI = "true"
 
   const appId = app.isPackaged ? APP_IDS[CHANNEL] : `${Brand.appId}.dev`
   const onboardingTestRoot = ((): string | undefined => {
@@ -463,7 +464,7 @@ const main = Effect.gen(function* () {
     }
 
     const port = yield* Effect.gen(function* () {
-      const fromEnv = process.env.OPENCODE_PORT
+      const fromEnv = env("PORT")
       if (fromEnv) {
         const parsed = Number.parseInt(fromEnv, 10)
         if (!Number.isNaN(parsed)) return parsed

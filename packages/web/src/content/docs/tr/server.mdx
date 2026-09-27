@@ -36,10 +36,10 @@ jollicode serve --cors http://localhost:5173 --cors https://app.example.com
 
 ### Kimlik Doğrulama
 
-Sunucuyu HTTP temel kimlik doğrulama (basic auth) ile korumak için `OPENCODE_SERVER_PASSWORD` ayarlayın. Kullanıcı adı varsayılan olarak `jollicode` değeridir; değiştirmek isterseniz `OPENCODE_SERVER_USERNAME` ayarlayabilirsiniz. Bu ayar hem `jollicode serve` hem de `jollicode web` için geçerlidir.
+Sunucuyu HTTP temel kimlik doğrulama (basic auth) ile korumak için `JOLLICODE_SERVER_PASSWORD` ayarlayın. Kullanıcı adı varsayılan olarak `jollicode` değeridir; değiştirmek isterseniz `JOLLICODE_SERVER_USERNAME` ayarlayabilirsiniz. Bu ayar hem `jollicode serve` hem de `jollicode web` için geçerlidir.
 
 ```bash
-OPENCODE_SERVER_PASSWORD=your-password jollicode serve
+JOLLICODE_SERVER_PASSWORD=your-password jollicode serve
 ```
 
 ---

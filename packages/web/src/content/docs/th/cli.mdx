@@ -78,14 +78,14 @@ jollicode attach http://10.20.30.40:4096
 
 #### แฟล็ก
 
-| แฟล็ก                                    | สั้น | คำอธิบาย                                                                                    |
-| ---------------------------------------- | ---- | ------------------------------------------------------------------------------------------- |
-| <nobr><code>{"--dir"}</code></nobr>      |      | ไดเร็กทอรีการทำงานเพื่อเริ่มต้น TUI ใน                                                      |
-| <nobr><code>{"--continue"}</code></nobr> | `-c` | ดำเนินการต่อจากเซสชันล่าสุด                                                                 |
-| <nobr><code>{"--session"}</code></nobr>  | `-s` | ID เซสชันเพื่อดำเนินการต่อ                                                                  |
-| <nobr><code>{"--fork"}</code></nobr>     |      | แยกเซสชันเมื่อดำเนินการต่อ (ใช้กับ `--continue` หรือ `--session`)                           |
-| <nobr><code>{"--password"}</code></nobr> | `-p` | รหัสผ่านการยืนยันตัวตนพื้นฐาน (ค่าเริ่มต้นคือ `OPENCODE_SERVER_PASSWORD`)                   |
-| <nobr><code>{"--username"}</code></nobr> | `-u` | ชื่อผู้ใช้การยืนยันตัวตนพื้นฐาน (ค่าเริ่มต้นคือ `OPENCODE_SERVER_USERNAME` หรือ `jollicode`) |
+| แฟล็ก                                    | สั้น | คำอธิบาย                                                                                      |
+| ---------------------------------------- | ---- | --------------------------------------------------------------------------------------------- |
+| <nobr><code>{"--dir"}</code></nobr>      |      | ไดเร็กทอรีการทำงานเพื่อเริ่มต้น TUI ใน                                                        |
+| <nobr><code>{"--continue"}</code></nobr> | `-c` | ดำเนินการต่อจากเซสชันล่าสุด                                                                   |
+| <nobr><code>{"--session"}</code></nobr>  | `-s` | ID เซสชันเพื่อดำเนินการต่อ                                                                    |
+| <nobr><code>{"--fork"}</code></nobr>     |      | แยกเซสชันเมื่อดำเนินการต่อ (ใช้กับ `--continue` หรือ `--session`)                             |
+| <nobr><code>{"--password"}</code></nobr> | `-p` | รหัสผ่านการยืนยันตัวตนพื้นฐาน (ค่าเริ่มต้นคือ `JOLLICODE_SERVER_PASSWORD`)                    |
+| <nobr><code>{"--username"}</code></nobr> | `-u` | ชื่อผู้ใช้การยืนยันตัวตนพื้นฐาน (ค่าเริ่มต้นคือ `JOLLICODE_SERVER_USERNAME` หรือ `jollicode`) |
 
 ---
 
@@ -340,25 +340,25 @@ jollicode run --attach http://localhost:4096 "Explain async/await in JavaScript"
 
 #### แฟล็ก
 
-| แฟล็ก                                    | สั้น | คำอธิบาย                                                                                    |
-| ---------------------------------------- | ---- | ------------------------------------------------------------------------------------------- |
-| <nobr><code>{"--command"}</code></nobr>  |      | คำสั่งที่จะรัน (ใช้ส่วนที่เหลือของ args เป็นอาร์กิวเมนต์)                                   |
-| <nobr><code>{"--continue"}</code></nobr> | `-c` | ดำเนินการต่อจากเซสชันล่าสุด                                                                 |
-| <nobr><code>{"--session"}</code></nobr>  | `-s` | ID เซสชันเพื่อดำเนินการต่อ                                                                  |
-| <nobr><code>{"--fork"}</code></nobr>     |      | แยกเซสชันเมื่อทำต่อ (ใช้กับ `--continue` หรือ `--session`)                                  |
-| <nobr><code>{"--share"}</code></nobr>    |      | สร้างลิงก์แชร์สำหรับเซสชัน                                                                  |
-| <nobr><code>{"--model"}</code></nobr>    | `-m` | โมเดลที่จะใช้ในรูปแบบ provider/model                                                        |
-| <nobr><code>{"--agent"}</code></nobr>    |      | เอเจนต์ที่จะใช้                                                                             |
-| <nobr><code>{"--file"}</code></nobr>     | `-f` | แนบไฟล์ไปกับข้อความ                                                                         |
-| <nobr><code>{"--format"}</code></nobr>   |      | รูปแบบเอาต์พุต: text (จัดรูปแบบ) หรือ json (JSON ดิบ)                                       |
-| <nobr><code>{"--title"}</code></nobr>    |      | ชื่อสำหรับเซสชัน (หากไม่ได้ระบุ จะสร้างจากพรอมต์)                                           |
+| แฟล็ก                                    | สั้น | คำอธิบาย                                                                                      |
+| ---------------------------------------- | ---- | --------------------------------------------------------------------------------------------- |
+| <nobr><code>{"--command"}</code></nobr>  |      | คำสั่งที่จะรัน (ใช้ส่วนที่เหลือของ args เป็นอาร์กิวเมนต์)                                     |
+| <nobr><code>{"--continue"}</code></nobr> | `-c` | ดำเนินการต่อจากเซสชันล่าสุด                                                                   |
+| <nobr><code>{"--session"}</code></nobr>  | `-s` | ID เซสชันเพื่อดำเนินการต่อ                                                                    |
+| <nobr><code>{"--fork"}</code></nobr>     |      | แยกเซสชันเมื่อทำต่อ (ใช้กับ `--continue` หรือ `--session`)                                    |
+| <nobr><code>{"--share"}</code></nobr>    |      | สร้างลิงก์แชร์สำหรับเซสชัน                                                                    |
+| <nobr><code>{"--model"}</code></nobr>    | `-m` | โมเดลที่จะใช้ในรูปแบบ provider/model                                                          |
+| <nobr><code>{"--agent"}</code></nobr>    |      | เอเจนต์ที่จะใช้                                                                               |
+| <nobr><code>{"--file"}</code></nobr>     | `-f` | แนบไฟล์ไปกับข้อความ                                                                           |
+| <nobr><code>{"--format"}</code></nobr>   |      | รูปแบบเอาต์พุต: text (จัดรูปแบบ) หรือ json (JSON ดิบ)                                         |
+| <nobr><code>{"--title"}</code></nobr>    |      | ชื่อสำหรับเซสชัน (หากไม่ได้ระบุ จะสร้างจากพรอมต์)                                             |
 | <nobr><code>{"--attach"}</code></nobr>   |      | แนบไปกับเซิร์ฟเวอร์ Jolli Code ที่ทำงานอยู่ (เช่น http://localhost:4096)                      |
-| <nobr><code>{"--password"}</code></nobr> | `-p` | รหัสผ่านการยืนยันตัวตนพื้นฐาน (ค่าเริ่มต้นคือ `OPENCODE_SERVER_PASSWORD`)                   |
-| <nobr><code>{"--username"}</code></nobr> | `-u` | ชื่อผู้ใช้การยืนยันตัวตนพื้นฐาน (ค่าเริ่มต้นคือ `OPENCODE_SERVER_USERNAME` หรือ `jollicode`) |
-| <nobr><code>{"--dir"}</code></nobr>      |      | ไดเร็กทอรีสำหรับรัน หรือเส้นทางบนเซิร์ฟเวอร์ระยะไกลเมื่อแนบ                                 |
-| <nobr><code>{"--variant"}</code></nobr>  |      | ตัวแปรโมเดล (ระดับการใช้เหตุผลเฉพาะผู้ให้บริการ)                                            |
-| <nobr><code>{"--thinking"}</code></nobr> |      | แสดงบล็อกความคิด                                                                            |
-| <nobr><code>{"--port"}</code></nobr>     |      | พอร์ตสำหรับเซิร์ฟเวอร์ภายในเครื่อง (หากไม่ได้ระบุ จะใช้พอร์ตสุ่ม)                           |
+| <nobr><code>{"--password"}</code></nobr> | `-p` | รหัสผ่านการยืนยันตัวตนพื้นฐาน (ค่าเริ่มต้นคือ `JOLLICODE_SERVER_PASSWORD`)                    |
+| <nobr><code>{"--username"}</code></nobr> | `-u` | ชื่อผู้ใช้การยืนยันตัวตนพื้นฐาน (ค่าเริ่มต้นคือ `JOLLICODE_SERVER_USERNAME` หรือ `jollicode`) |
+| <nobr><code>{"--dir"}</code></nobr>      |      | ไดเร็กทอรีสำหรับรัน หรือเส้นทางบนเซิร์ฟเวอร์ระยะไกลเมื่อแนบ                                   |
+| <nobr><code>{"--variant"}</code></nobr>  |      | ตัวแปรโมเดล (ระดับการใช้เหตุผลเฉพาะผู้ให้บริการ)                                              |
+| <nobr><code>{"--thinking"}</code></nobr> |      | แสดงบล็อกความคิด                                                                              |
+| <nobr><code>{"--port"}</code></nobr>     |      | พอร์ตสำหรับเซิร์ฟเวอร์ภายในเครื่อง (หากไม่ได้ระบุ จะใช้พอร์ตสุ่ม)                             |
 
 ---
 
@@ -370,7 +370,7 @@ jollicode run --attach http://localhost:4096 "Explain async/await in JavaScript"
 jollicode serve
 ```
 
-คำสั่งนี้จะเริ่มต้นเซิร์ฟเวอร์ HTTP ให้ API เข้าถึงฟังก์ชันการทำงานของ Jolli Code ได้โดยไม่ต้องมี TUI นอกจากนี้ยังรองรับการตรวจสอบสิทธิ์พื้นฐาน HTTP (ชื่อผู้ใช้เริ่มต้นคือ `jollicode` และรหัสผ่านระบุโดย `OPENCODE_SERVER_PASSWORD`)
+คำสั่งนี้จะเริ่มต้นเซิร์ฟเวอร์ HTTP ให้ API เข้าถึงฟังก์ชันการทำงานของ Jolli Code ได้โดยไม่ต้องมี TUI นอกจากนี้ยังรองรับการตรวจสอบสิทธิ์พื้นฐาน HTTP (ชื่อผู้ใช้เริ่มต้นคือ `jollicode` และรหัสผ่านระบุโดย `JOLLICODE_SERVER_PASSWORD`)
 
 #### แฟล็ก
 
@@ -466,7 +466,7 @@ jollicode import https://opncd.ai/s/abc123
 jollicode web
 ```
 
-คำสั่งนี้จะเริ่มต้นเซิร์ฟเวอร์ HTTP และเปิดเว็บเบราว์เซอร์เพื่อเข้าถึง Jolli Code ผ่านทางเว็บอินเตอร์เฟส รองรับการตรวจสอบสิทธิ์พื้นฐาน HTTP (ชื่อผู้ใช้เริ่มต้นคือ `jollicode` และรหัสผ่านระบุโดย `OPENCODE_SERVER_PASSWORD`)
+คำสั่งนี้จะเริ่มต้นเซิร์ฟเวอร์ HTTP และเปิดเว็บเบราว์เซอร์เพื่อเข้าถึง Jolli Code ผ่านทางเว็บอินเตอร์เฟส รองรับการตรวจสอบสิทธิ์พื้นฐาน HTTP (ชื่อผู้ใช้เริ่มต้นคือ `jollicode` และรหัสผ่านระบุโดย `JOLLICODE_SERVER_PASSWORD`)
 
 #### แฟล็ก
 
@@ -563,32 +563,32 @@ Jolli Code CLI ยอมรับแฟล็กสากลต่อไปน�
 
 Jolli Code สามารถกำหนดค่าโดยใช้ตัวแปรสภาพแวดล้อม
 
-| ตัวแปร                                | ชนิด    | คำอธิบาย                                                         |
-| ------------------------------------- | ------- | ---------------------------------------------------------------- |
-| `OPENCODE_AUTO_SHARE`                 | Boolean | แชร์เซสชันอัตโนมัติเมื่อสร้าง                                    |
-| `OPENCODE_GIT_BASH_PATH`              | String  | เส้นทางไปยัง Git Bash บน Windows                                 |
-| `OPENCODE_CONFIG`                     | String  | เส้นทางไปยังไฟล์การกำหนดค่า                                      |
-| `OPENCODE_TUI_CONFIG`                 | String  | เส้นทางไปยังไฟล์การกำหนดค่า TUI                                  |
-| `OPENCODE_CONFIG_DIR`                 | String  | เส้นทางไปยังไดเร็กทอรีการกำหนดค่า                                |
-| `OPENCODE_CONFIG_CONTENT`             | String  | เนื้อหาการกำหนดค่าแบบ inline JSON                                |
-| `OPENCODE_DISABLE_AUTOUPDATE`         | Boolean | ปิดใช้งานการอัปเดตอัตโนมัติ                                      |
-| `OPENCODE_DISABLE_PRUNE`              | Boolean | ปิดใช้งานการลบข้อมูลเซสชันเก่า                                   |
-| `OPENCODE_DISABLE_TERMINAL_TITLE`     | Boolean | ปิดใช้งานการตั้งชื่อหน้าต่าง terminal                            |
-| `OPENCODE_PERMISSION`                 | String  | การกำหนดค่าสิทธิ์แบบ inline JSON                                 |
-| `OPENCODE_DISABLE_DEFAULT_PLUGINS`    | Boolean | ปิดใช้งานปลั๊กอินเริ่มต้น                                        |
-| `OPENCODE_DISABLE_LSP_DOWNLOAD`       | Boolean | ปิดใช้งานการดาวน์โหลด LSP อัตโนมัติ                              |
-| `OPENCODE_ENABLE_EXPERIMENTAL_MODELS` | Boolean | เปิดใช้งานโมเดลทดลอง                                             |
-| `OPENCODE_DISABLE_AUTOCOMPACT`        | Boolean | ปิดใช้งานการบีบอัดบริบทอัตโนมัติ                                 |
-| `OPENCODE_DISABLE_CLAUDE_CODE`        | Boolean | ปิดใช้งานการนำเข้าจาก `.claude` (prompt + skills)                |
-| `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT` | Boolean | ปิดใช้งานการนำเข้า `~/.claude/CLAUDE.md`                         |
-| `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` | Boolean | ปิดใช้งานการนำเข้า `.claude/skills`                              |
-| `OPENCODE_DISABLE_MODELS_FETCH`       | Boolean | ปิดใช้งานการดึงรายการโมเดลจากระยะไกล                             |
-| `OPENCODE_FAKE_VCS`                   | String  | เปิดใช้งาน VCS จำลองสำหรับการทดสอบ                               |
-| `OPENCODE_CLIENT`                     | String  | ตัวระบุไคลเอนต์ (ค่าเริ่มต้นคือ `cli`)                           |
-| `OPENCODE_ENABLE_EXA`                 | Boolean | เปิดใช้งานการใช้ Exa แทน ls หากมี                                |
-| `OPENCODE_SERVER_PASSWORD`            | String  | รหัสผ่านสำหรับการตรวจสอบสิทธิ์พื้นฐาน `serve`/`web`              |
-| `OPENCODE_SERVER_USERNAME`            | String  | ชื่อผู้ใช้สำหรับการตรวจสอบสิทธิ์พื้นฐาน (ค่าเริ่มต้น `jollicode`) |
-| `OPENCODE_MODELS_URL`                 | String  | URL ที่กำหนดเองสำหรับการดึงรายการโมเดล                           |
+| ตัวแปร                                 | ชนิด    | คำอธิบาย                                                          |
+| -------------------------------------- | ------- | ----------------------------------------------------------------- |
+| `JOLLICODE_AUTO_SHARE`                 | Boolean | แชร์เซสชันอัตโนมัติเมื่อสร้าง                                     |
+| `JOLLICODE_GIT_BASH_PATH`              | String  | เส้นทางไปยัง Git Bash บน Windows                                  |
+| `JOLLICODE_CONFIG`                     | String  | เส้นทางไปยังไฟล์การกำหนดค่า                                       |
+| `JOLLICODE_TUI_CONFIG`                 | String  | เส้นทางไปยังไฟล์การกำหนดค่า TUI                                   |
+| `JOLLICODE_CONFIG_DIR`                 | String  | เส้นทางไปยังไดเร็กทอรีการกำหนดค่า                                 |
+| `JOLLICODE_CONFIG_CONTENT`             | String  | เนื้อหาการกำหนดค่าแบบ inline JSON                                 |
+| `JOLLICODE_DISABLE_AUTOUPDATE`         | Boolean | ปิดใช้งานการอัปเดตอัตโนมัติ                                       |
+| `JOLLICODE_DISABLE_PRUNE`              | Boolean | ปิดใช้งานการลบข้อมูลเซสชันเก่า                                    |
+| `JOLLICODE_DISABLE_TERMINAL_TITLE`     | Boolean | ปิดใช้งานการตั้งชื่อหน้าต่าง terminal                             |
+| `JOLLICODE_PERMISSION`                 | String  | การกำหนดค่าสิทธิ์แบบ inline JSON                                  |
+| `JOLLICODE_DISABLE_DEFAULT_PLUGINS`    | Boolean | ปิดใช้งานปลั๊กอินเริ่มต้น                                         |
+| `JOLLICODE_DISABLE_LSP_DOWNLOAD`       | Boolean | ปิดใช้งานการดาวน์โหลด LSP อัตโนมัติ                               |
+| `JOLLICODE_ENABLE_EXPERIMENTAL_MODELS` | Boolean | เปิดใช้งานโมเดลทดลอง                                              |
+| `JOLLICODE_DISABLE_AUTOCOMPACT`        | Boolean | ปิดใช้งานการบีบอัดบริบทอัตโนมัติ                                  |
+| `JOLLICODE_DISABLE_CLAUDE_CODE`        | Boolean | ปิดใช้งานการนำเข้าจาก `.claude` (prompt + skills)                 |
+| `JOLLICODE_DISABLE_CLAUDE_CODE_PROMPT` | Boolean | ปิดใช้งานการนำเข้า `~/.claude/CLAUDE.md`                          |
+| `JOLLICODE_DISABLE_CLAUDE_CODE_SKILLS` | Boolean | ปิดใช้งานการนำเข้า `.claude/skills`                               |
+| `JOLLICODE_DISABLE_MODELS_FETCH`       | Boolean | ปิดใช้งานการดึงรายการโมเดลจากระยะไกล                              |
+| `JOLLICODE_FAKE_VCS`                   | String  | เปิดใช้งาน VCS จำลองสำหรับการทดสอบ                                |
+| `JOLLICODE_CLIENT`                     | String  | ตัวระบุไคลเอนต์ (ค่าเริ่มต้นคือ `cli`)                            |
+| `JOLLICODE_ENABLE_EXA`                 | Boolean | เปิดใช้งานการใช้ Exa แทน ls หากมี                                 |
+| `JOLLICODE_SERVER_PASSWORD`            | String  | รหัสผ่านสำหรับการตรวจสอบสิทธิ์พื้นฐาน `serve`/`web`               |
+| `JOLLICODE_SERVER_USERNAME`            | String  | ชื่อผู้ใช้สำหรับการตรวจสอบสิทธิ์พื้นฐาน (ค่าเริ่มต้น `jollicode`) |
+| `JOLLICODE_MODELS_URL`                 | String  | URL ที่กำหนดเองสำหรับการดึงรายการโมเดล                            |
 
 ---
 
@@ -596,23 +596,23 @@ Jolli Code สามารถกำหนดค่าโดยใช้ตัว
 
 ตัวแปรสภาพแวดล้อมเหล่านี้เปิดใช้งานฟีเจอร์ทดลองที่อาจมีการเปลี่ยนแปลงหรือถูกลบออก
 
-| ตัวแปร                                          | ชนิด    | คำอธิบาย                                       |
-| ----------------------------------------------- | ------- | ---------------------------------------------- |
-| `OPENCODE_EXPERIMENTAL`                         | Boolean | เปิดใช้งานฟีเจอร์ทดลองภายใต้แฟล็กรวม           |
-| `OPENCODE_EXPERIMENTAL_ICON_DISCOVERY`          | Boolean | การค้นหาไอคอนทดลอง                             |
-| `OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT`  | Boolean | ปิดใช้งานการคัดลอกเมื่อเลือกใน TUI             |
-| `OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` | Number  | การหมดเวลาเริ่มต้นสำหรับคำสั่ง bash ในหน่วย ms |
-| `OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX`        | Number  | ขีดจำกัดสูงสุดสำหรับโทเค็นเอาต์พุต LLM         |
-| `OPENCODE_EXPERIMENTAL_FILEWATCHER`             | Boolean | เปิดใช้งานตัวเฝ้าดูไฟล์สำหรับไดเร็กทอรีทั้งหมด |
-| `OPENCODE_EXPERIMENTAL_OXFMT`                   | Boolean | ใช้ oxfmt เป็นตัวจัดรูปแบบ                     |
-| `OPENCODE_EXPERIMENTAL_LSP_TOOL`                | Boolean | เปิดใช้งานเครื่องมือ LSP ทดลอง                 |
-| `OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER`     | Boolean | ปิดใช้งานตัวเฝ้าดูไฟล์                         |
-| `OPENCODE_EXPERIMENTAL_EXA`                     | Boolean | ฟีเจอร์ Exa ทดลอง                              |
-| `OPENCODE_EXPERIMENTAL_LSP_TY`                  | Boolean | เปิดใช้งาน TY LSP สำหรับไฟล์ python            |
-| `OPENCODE_EXPERIMENTAL_PLAN_MODE`               | Boolean | เปิดใช้งาน Plan mode                           |
-| `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS`    | Boolean | เปิดใช้งานงาน subagent เบื้องหลัง              |
-| `OPENCODE_EXPERIMENTAL_EVENT_SYSTEM`            | Boolean | เปิดใช้งานระบบเหตุการณ์ทดลอง                   |
-| `OPENCODE_EXPERIMENTAL_NATIVE_LLM`              | Boolean | เปิดใช้งานเส้นทางคำขอ LLM แบบ native           |
-| `OPENCODE_EXPERIMENTAL_PARALLEL`                | Boolean | เปิดใช้งานการค้นหาเว็บแบบขนาน                  |
-| `OPENCODE_EXPERIMENTAL_SCOUT`                   | Boolean | เปิดใช้งาน Scout subagent                      |
-| `OPENCODE_EXPERIMENTAL_WORKSPACES`              | Boolean | เปิดใช้งานการรองรับ workspace                  |
+| ตัวแปร                                           | ชนิด    | คำอธิบาย                                       |
+| ------------------------------------------------ | ------- | ---------------------------------------------- |
+| `JOLLICODE_EXPERIMENTAL`                         | Boolean | เปิดใช้งานฟีเจอร์ทดลองภายใต้แฟล็กรวม           |
+| `JOLLICODE_EXPERIMENTAL_ICON_DISCOVERY`          | Boolean | การค้นหาไอคอนทดลอง                             |
+| `JOLLICODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT`  | Boolean | ปิดใช้งานการคัดลอกเมื่อเลือกใน TUI             |
+| `JOLLICODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` | Number  | การหมดเวลาเริ่มต้นสำหรับคำสั่ง bash ในหน่วย ms |
+| `JOLLICODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX`        | Number  | ขีดจำกัดสูงสุดสำหรับโทเค็นเอาต์พุต LLM         |
+| `JOLLICODE_EXPERIMENTAL_FILEWATCHER`             | Boolean | เปิดใช้งานตัวเฝ้าดูไฟล์สำหรับไดเร็กทอรีทั้งหมด |
+| `JOLLICODE_EXPERIMENTAL_OXFMT`                   | Boolean | ใช้ oxfmt เป็นตัวจัดรูปแบบ                     |
+| `JOLLICODE_EXPERIMENTAL_LSP_TOOL`                | Boolean | เปิดใช้งานเครื่องมือ LSP ทดลอง                 |
+| `JOLLICODE_EXPERIMENTAL_DISABLE_FILEWATCHER`     | Boolean | ปิดใช้งานตัวเฝ้าดูไฟล์                         |
+| `JOLLICODE_EXPERIMENTAL_EXA`                     | Boolean | ฟีเจอร์ Exa ทดลอง                              |
+| `JOLLICODE_EXPERIMENTAL_LSP_TY`                  | Boolean | เปิดใช้งาน TY LSP สำหรับไฟล์ python            |
+| `JOLLICODE_EXPERIMENTAL_PLAN_MODE`               | Boolean | เปิดใช้งาน Plan mode                           |
+| `JOLLICODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS`    | Boolean | เปิดใช้งานงาน subagent เบื้องหลัง              |
+| `JOLLICODE_EXPERIMENTAL_EVENT_SYSTEM`            | Boolean | เปิดใช้งานระบบเหตุการณ์ทดลอง                   |
+| `JOLLICODE_EXPERIMENTAL_NATIVE_LLM`              | Boolean | เปิดใช้งานเส้นทางคำขอ LLM แบบ native           |
+| `JOLLICODE_EXPERIMENTAL_PARALLEL`                | Boolean | เปิดใช้งานการค้นหาเว็บแบบขนาน                  |
+| `JOLLICODE_EXPERIMENTAL_SCOUT`                   | Boolean | เปิดใช้งาน Scout subagent                      |
+| `JOLLICODE_EXPERIMENTAL_WORKSPACES`              | Boolean | เปิดใช้งานการรองรับ workspace                  |

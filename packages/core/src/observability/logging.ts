@@ -2,6 +2,7 @@ import { Formatter, Logger, type LogLevel } from "effect"
 import path from "path"
 import { Global } from "../global"
 import { Brand } from "../brand"
+import { env } from "../flag/flag"
 import { runID } from "./shared"
 
 function formatter(id: string = runID) {
@@ -55,7 +56,7 @@ export function fileLogger(file = path.join(Global.Path.log, `${Brand.bin}.log`)
 const stderrLogger = Logger.make((options) => process.stderr.write(formatter().log(options) + "\n"))
 
 export function minimumLogLevel() {
-  const value = process.env.OPENCODE_LOG_LEVEL?.toUpperCase()
+  const value = env("LOG_LEVEL")?.toUpperCase()
   const levels = {
     DEBUG: "Debug",
     INFO: "Info",
@@ -66,7 +67,7 @@ export function minimumLogLevel() {
 }
 
 export function loggers() {
-  return process.env.OPENCODE_PRINT_LOGS === "1" ? [fileLogger(), stderrLogger] : [fileLogger()]
+  return env("PRINT_LOGS") === "1" ? [fileLogger(), stderrLogger] : [fileLogger()]
 }
 
 export * as Logging from "./logging"

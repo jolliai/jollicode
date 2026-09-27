@@ -78,14 +78,14 @@ jollicode attach http://10.20.30.40:4096
 
 #### Opções
 
-| Flag                                     | Curto | Descrição                                                                         |
-| ---------------------------------------- | ----- | --------------------------------------------------------------------------------- |
-| <nobr><code>{"--dir"}</code></nobr>      |       | Diretório de trabalho para iniciar o TUI                                          |
-| <nobr><code>{"--continue"}</code></nobr> | `-c`  | Continuar a última sessão                                                         |
-| <nobr><code>{"--session"}</code></nobr>  | `-s`  | ID da sessão para continuar                                                       |
-| <nobr><code>{"--fork"}</code></nobr>     |       | Bifurcar a sessão ao continuar (use com `--continue` ou `--session`)              |
-| <nobr><code>{"--password"}</code></nobr> | `-p`  | Senha de autenticação básica (padrão: `OPENCODE_SERVER_PASSWORD`)                 |
-| <nobr><code>{"--username"}</code></nobr> | `-u`  | Usuário de autenticação básica (padrão: `OPENCODE_SERVER_USERNAME` ou `jollicode`) |
+| Flag                                     | Curto | Descrição                                                                           |
+| ---------------------------------------- | ----- | ----------------------------------------------------------------------------------- |
+| <nobr><code>{"--dir"}</code></nobr>      |       | Diretório de trabalho para iniciar o TUI                                            |
+| <nobr><code>{"--continue"}</code></nobr> | `-c`  | Continuar a última sessão                                                           |
+| <nobr><code>{"--session"}</code></nobr>  | `-s`  | ID da sessão para continuar                                                         |
+| <nobr><code>{"--fork"}</code></nobr>     |       | Bifurcar a sessão ao continuar (use com `--continue` ou `--session`)                |
+| <nobr><code>{"--password"}</code></nobr> | `-p`  | Senha de autenticação básica (padrão: `JOLLICODE_SERVER_PASSWORD`)                  |
+| <nobr><code>{"--username"}</code></nobr> | `-u`  | Usuário de autenticação básica (padrão: `JOLLICODE_SERVER_USERNAME` ou `jollicode`) |
 
 ---
 
@@ -339,25 +339,25 @@ jollicode run --attach http://localhost:4096 "Explique async/await em JavaScript
 
 #### Opções
 
-| Flag                                     | Curto | Descrição                                                                         |
-| ---------------------------------------- | ----- | --------------------------------------------------------------------------------- |
-| <nobr><code>{"--command"}</code></nobr>  |       | O comando a ser executado, use mensagem para argumentos                           |
-| <nobr><code>{"--continue"}</code></nobr> | `-c`  | Continue a última sessão                                                          |
-| <nobr><code>{"--session"}</code></nobr>  | `-s`  | ID da sessão para continuar                                                       |
-| <nobr><code>{"--fork"}</code></nobr>     |       | Criar um fork da sessão ao continuar (use com `--continue` ou `--session`)        |
-| <nobr><code>{"--share"}</code></nobr>    |       | Compartilhe a sessão                                                              |
-| <nobr><code>{"--model"}</code></nobr>    | `-m`  | Modelo a ser usado na forma de provider/model                                     |
-| <nobr><code>{"--agent"}</code></nobr>    |       | Agente a ser usado                                                                |
-| <nobr><code>{"--file"}</code></nobr>     | `-f`  | Arquivo(s) a serem anexados à mensagem                                            |
-| <nobr><code>{"--format"}</code></nobr>   |       | Formato: padrão (formatado) ou json (eventos JSON brutos)                         |
-| <nobr><code>{"--title"}</code></nobr>    |       | Título para a sessão (usa o prompt truncado se nenhum valor for fornecido)        |
+| Flag                                     | Curto | Descrição                                                                           |
+| ---------------------------------------- | ----- | ----------------------------------------------------------------------------------- |
+| <nobr><code>{"--command"}</code></nobr>  |       | O comando a ser executado, use mensagem para argumentos                             |
+| <nobr><code>{"--continue"}</code></nobr> | `-c`  | Continue a última sessão                                                            |
+| <nobr><code>{"--session"}</code></nobr>  | `-s`  | ID da sessão para continuar                                                         |
+| <nobr><code>{"--fork"}</code></nobr>     |       | Criar um fork da sessão ao continuar (use com `--continue` ou `--session`)          |
+| <nobr><code>{"--share"}</code></nobr>    |       | Compartilhe a sessão                                                                |
+| <nobr><code>{"--model"}</code></nobr>    | `-m`  | Modelo a ser usado na forma de provider/model                                       |
+| <nobr><code>{"--agent"}</code></nobr>    |       | Agente a ser usado                                                                  |
+| <nobr><code>{"--file"}</code></nobr>     | `-f`  | Arquivo(s) a serem anexados à mensagem                                              |
+| <nobr><code>{"--format"}</code></nobr>   |       | Formato: padrão (formatado) ou json (eventos JSON brutos)                           |
+| <nobr><code>{"--title"}</code></nobr>    |       | Título para a sessão (usa o prompt truncado se nenhum valor for fornecido)          |
 | <nobr><code>{"--attach"}</code></nobr>   |       | Anexe a um servidor Jolli Code em execução (por exemplo, http://localhost:4096)     |
-| <nobr><code>{"--password"}</code></nobr> | `-p`  | Senha de autenticação básica (padrão: `OPENCODE_SERVER_PASSWORD`)                 |
-| <nobr><code>{"--username"}</code></nobr> | `-u`  | Usuário de autenticação básica (padrão: `OPENCODE_SERVER_USERNAME` ou `jollicode`) |
-| <nobr><code>{"--dir"}</code></nobr>      |       | Diretório de execução, ou caminho no servidor remoto ao anexar                    |
-| <nobr><code>{"--variant"}</code></nobr>  |       | Variante do modelo (nível de raciocínio específico do provedor)                   |
-| <nobr><code>{"--thinking"}</code></nobr> |       | Mostrar blocos de pensamento                                                      |
-| <nobr><code>{"--port"}</code></nobr>     |       | Porta para o servidor local (padrão para porta aleatória)                         |
+| <nobr><code>{"--password"}</code></nobr> | `-p`  | Senha de autenticação básica (padrão: `JOLLICODE_SERVER_PASSWORD`)                  |
+| <nobr><code>{"--username"}</code></nobr> | `-u`  | Usuário de autenticação básica (padrão: `JOLLICODE_SERVER_USERNAME` ou `jollicode`) |
+| <nobr><code>{"--dir"}</code></nobr>      |       | Diretório de execução, ou caminho no servidor remoto ao anexar                      |
+| <nobr><code>{"--variant"}</code></nobr>  |       | Variante do modelo (nível de raciocínio específico do provedor)                     |
+| <nobr><code>{"--thinking"}</code></nobr> |       | Mostrar blocos de pensamento                                                        |
+| <nobr><code>{"--port"}</code></nobr>     |       | Porta para o servidor local (padrão para porta aleatória)                           |
 
 ---
 
@@ -369,7 +369,7 @@ Inicie um servidor Jolli Code sem cabeça para acesso à API. Confira a [documen
 jollicode serve
 ```
 
-Isso inicia um servidor HTTP que fornece acesso à funcionalidade do Jolli Code sem a interface TUI. Defina `OPENCODE_SERVER_PASSWORD` para habilitar a autenticação básica HTTP (o nome de usuário padrão é `jollicode`).
+Isso inicia um servidor HTTP que fornece acesso à funcionalidade do Jolli Code sem a interface TUI. Defina `JOLLICODE_SERVER_PASSWORD` para habilitar a autenticação básica HTTP (o nome de usuário padrão é `jollicode`).
 
 #### Opções
 
@@ -465,7 +465,7 @@ Inicie um servidor Jolli Code sem cabeça com uma interface web.
 jollicode web
 ```
 
-Isso inicia um servidor HTTP e abre um navegador para acessar o Jolli Code através de uma interface web. Defina `OPENCODE_SERVER_PASSWORD` para habilitar a autenticação básica HTTP (o nome de usuário padrão é `jollicode`).
+Isso inicia um servidor HTTP e abre um navegador para acessar o Jolli Code através de uma interface web. Defina `JOLLICODE_SERVER_PASSWORD` para habilitar a autenticação básica HTTP (o nome de usuário padrão é `jollicode`).
 
 #### Opções
 
@@ -562,31 +562,31 @@ A CLI do Jolli Code aceita as seguintes flags globais.
 
 O Jolli Code pode ser configurado usando variáveis de ambiente.
 
-| Variável                              | Tipo    | Descrição                                                             |
-| ------------------------------------- | ------- | --------------------------------------------------------------------- |
-| `OPENCODE_AUTO_SHARE`                 | boolean | Compartilhar sessões automaticamente                                  |
-| `OPENCODE_GIT_BASH_PATH`              | string  | Caminho para o executável do Git Bash no Windows                      |
-| `OPENCODE_CONFIG`                     | string  | Caminho para o arquivo de configuração                                |
-| `OPENCODE_CONFIG_DIR`                 | string  | Caminho para o diretório de configuração                              |
-| `OPENCODE_CONFIG_CONTENT`             | string  | Conteúdo de configuração json inline                                  |
-| `OPENCODE_DISABLE_AUTOUPDATE`         | boolean | Desabilitar verificações de atualização automática                    |
-| `OPENCODE_DISABLE_PRUNE`              | boolean | Desabilitar a poda de dados antigos                                   |
-| `OPENCODE_DISABLE_TERMINAL_TITLE`     | boolean | Desabilitar atualizações automáticas do título do terminal            |
-| `OPENCODE_PERMISSION`                 | string  | Configuração de permissões json inline                                |
-| `OPENCODE_DISABLE_DEFAULT_PLUGINS`    | boolean | Desabilitar plugins padrão                                            |
-| `OPENCODE_DISABLE_LSP_DOWNLOAD`       | boolean | Desabilitar downloads automáticos do servidor LSP                     |
-| `OPENCODE_ENABLE_EXPERIMENTAL_MODELS` | boolean | Habilitar modelos experimentais                                       |
-| `OPENCODE_DISABLE_AUTOCOMPACT`        | boolean | Desabilitar compactação automática de contexto                        |
-| `OPENCODE_DISABLE_CLAUDE_CODE`        | boolean | Desabilitar leitura de `.claude` (prompt + habilidades)               |
-| `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT` | boolean | Desabilitar leitura de `~/.claude/CLAUDE.md`                          |
-| `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` | boolean | Desabilitar carregamento de `.claude/skills`                          |
-| `OPENCODE_DISABLE_MODELS_FETCH`       | boolean | Desabilitar busca de modelos de fontes remotas                        |
-| `OPENCODE_FAKE_VCS`                   | string  | Provedor VCS falso para fins de teste                                 |
-| `OPENCODE_CLIENT`                     | string  | Identificador do cliente (padrão é `cli`)                             |
-| `OPENCODE_ENABLE_EXA`                 | boolean | Habilitar ferramentas de busca web Exa                                |
-| `OPENCODE_SERVER_PASSWORD`            | string  | Habilitar autenticação básica para `serve`/`web`                      |
-| `OPENCODE_SERVER_USERNAME`            | string  | Substituir nome de usuário de autenticação básica (padrão `jollicode`) |
-| `OPENCODE_MODELS_URL`                 | string  | URL personalizada para buscar configuração de modelos                 |
+| Variável                               | Tipo    | Descrição                                                              |
+| -------------------------------------- | ------- | ---------------------------------------------------------------------- |
+| `JOLLICODE_AUTO_SHARE`                 | boolean | Compartilhar sessões automaticamente                                   |
+| `JOLLICODE_GIT_BASH_PATH`              | string  | Caminho para o executável do Git Bash no Windows                       |
+| `JOLLICODE_CONFIG`                     | string  | Caminho para o arquivo de configuração                                 |
+| `JOLLICODE_CONFIG_DIR`                 | string  | Caminho para o diretório de configuração                               |
+| `JOLLICODE_CONFIG_CONTENT`             | string  | Conteúdo de configuração json inline                                   |
+| `JOLLICODE_DISABLE_AUTOUPDATE`         | boolean | Desabilitar verificações de atualização automática                     |
+| `JOLLICODE_DISABLE_PRUNE`              | boolean | Desabilitar a poda de dados antigos                                    |
+| `JOLLICODE_DISABLE_TERMINAL_TITLE`     | boolean | Desabilitar atualizações automáticas do título do terminal             |
+| `JOLLICODE_PERMISSION`                 | string  | Configuração de permissões json inline                                 |
+| `JOLLICODE_DISABLE_DEFAULT_PLUGINS`    | boolean | Desabilitar plugins padrão                                             |
+| `JOLLICODE_DISABLE_LSP_DOWNLOAD`       | boolean | Desabilitar downloads automáticos do servidor LSP                      |
+| `JOLLICODE_ENABLE_EXPERIMENTAL_MODELS` | boolean | Habilitar modelos experimentais                                        |
+| `JOLLICODE_DISABLE_AUTOCOMPACT`        | boolean | Desabilitar compactação automática de contexto                         |
+| `JOLLICODE_DISABLE_CLAUDE_CODE`        | boolean | Desabilitar leitura de `.claude` (prompt + habilidades)                |
+| `JOLLICODE_DISABLE_CLAUDE_CODE_PROMPT` | boolean | Desabilitar leitura de `~/.claude/CLAUDE.md`                           |
+| `JOLLICODE_DISABLE_CLAUDE_CODE_SKILLS` | boolean | Desabilitar carregamento de `.claude/skills`                           |
+| `JOLLICODE_DISABLE_MODELS_FETCH`       | boolean | Desabilitar busca de modelos de fontes remotas                         |
+| `JOLLICODE_FAKE_VCS`                   | string  | Provedor VCS falso para fins de teste                                  |
+| `JOLLICODE_CLIENT`                     | string  | Identificador do cliente (padrão é `cli`)                              |
+| `JOLLICODE_ENABLE_EXA`                 | boolean | Habilitar ferramentas de busca web Exa                                 |
+| `JOLLICODE_SERVER_PASSWORD`            | string  | Habilitar autenticação básica para `serve`/`web`                       |
+| `JOLLICODE_SERVER_USERNAME`            | string  | Substituir nome de usuário de autenticação básica (padrão `jollicode`) |
+| `JOLLICODE_MODELS_URL`                 | string  | URL personalizada para buscar configuração de modelos                  |
 
 ---
 
@@ -594,23 +594,23 @@ O Jolli Code pode ser configurado usando variáveis de ambiente.
 
 Essas variáveis de ambiente habilitam recursos experimentais que podem mudar ou ser removidos.
 
-| Variável                                        | Tipo    | Descrição                                                 |
-| ----------------------------------------------- | ------- | --------------------------------------------------------- |
-| `OPENCODE_EXPERIMENTAL`                         | boolean | Habilitar recursos experimentais sob o sinalizador global |
-| `OPENCODE_EXPERIMENTAL_ICON_DISCOVERY`          | boolean | Habilitar descoberta de ícones                            |
-| `OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT`  | boolean | Desabilitar cópia ao selecionar no TUI                    |
-| `OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` | number  | Tempo limite padrão para comandos bash em ms              |
-| `OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX`        | number  | Máximo de tokens de saída para respostas LLM              |
-| `OPENCODE_EXPERIMENTAL_FILEWATCHER`             | boolean | Habilitar monitoramento de arquivos para todo o diretório |
-| `OPENCODE_EXPERIMENTAL_OXFMT`                   | boolean | Habilitar formatador oxfmt                                |
-| `OPENCODE_EXPERIMENTAL_LSP_TOOL`                | boolean | Habilitar ferramenta LSP experimental                     |
-| `OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER`     | boolean | Desabilitar monitoramento de arquivos                     |
-| `OPENCODE_EXPERIMENTAL_EXA`                     | boolean | Habilitar recursos experimentais do Exa                   |
-| `OPENCODE_EXPERIMENTAL_LSP_TY`                  | boolean | Habilitar TY LSP para arquivos python                     |
-| `OPENCODE_EXPERIMENTAL_PLAN_MODE`               | boolean | Habilitar modo de plano                                   |
-| `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS`    | boolean | Habilitar tarefas de subagentes em segundo plano          |
-| `OPENCODE_EXPERIMENTAL_EVENT_SYSTEM`            | boolean | Habilitar sistema de eventos experimental                 |
-| `OPENCODE_EXPERIMENTAL_NATIVE_LLM`              | boolean | Habilitar caminho nativo de requisição LLM                |
-| `OPENCODE_EXPERIMENTAL_PARALLEL`                | boolean | Habilitar execução paralela de busca web                  |
-| `OPENCODE_EXPERIMENTAL_SCOUT`                   | boolean | Habilitar subagente Scout                                 |
-| `OPENCODE_EXPERIMENTAL_WORKSPACES`              | boolean | Habilitar suporte a espaços de trabalho                   |
+| Variável                                         | Tipo    | Descrição                                                 |
+| ------------------------------------------------ | ------- | --------------------------------------------------------- |
+| `JOLLICODE_EXPERIMENTAL`                         | boolean | Habilitar recursos experimentais sob o sinalizador global |
+| `JOLLICODE_EXPERIMENTAL_ICON_DISCOVERY`          | boolean | Habilitar descoberta de ícones                            |
+| `JOLLICODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT`  | boolean | Desabilitar cópia ao selecionar no TUI                    |
+| `JOLLICODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` | number  | Tempo limite padrão para comandos bash em ms              |
+| `JOLLICODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX`        | number  | Máximo de tokens de saída para respostas LLM              |
+| `JOLLICODE_EXPERIMENTAL_FILEWATCHER`             | boolean | Habilitar monitoramento de arquivos para todo o diretório |
+| `JOLLICODE_EXPERIMENTAL_OXFMT`                   | boolean | Habilitar formatador oxfmt                                |
+| `JOLLICODE_EXPERIMENTAL_LSP_TOOL`                | boolean | Habilitar ferramenta LSP experimental                     |
+| `JOLLICODE_EXPERIMENTAL_DISABLE_FILEWATCHER`     | boolean | Desabilitar monitoramento de arquivos                     |
+| `JOLLICODE_EXPERIMENTAL_EXA`                     | boolean | Habilitar recursos experimentais do Exa                   |
+| `JOLLICODE_EXPERIMENTAL_LSP_TY`                  | boolean | Habilitar TY LSP para arquivos python                     |
+| `JOLLICODE_EXPERIMENTAL_PLAN_MODE`               | boolean | Habilitar modo de plano                                   |
+| `JOLLICODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS`    | boolean | Habilitar tarefas de subagentes em segundo plano          |
+| `JOLLICODE_EXPERIMENTAL_EVENT_SYSTEM`            | boolean | Habilitar sistema de eventos experimental                 |
+| `JOLLICODE_EXPERIMENTAL_NATIVE_LLM`              | boolean | Habilitar caminho nativo de requisição LLM                |
+| `JOLLICODE_EXPERIMENTAL_PARALLEL`                | boolean | Habilitar execução paralela de busca web                  |
+| `JOLLICODE_EXPERIMENTAL_SCOUT`                   | boolean | Habilitar subagente Scout                                 |
+| `JOLLICODE_EXPERIMENTAL_WORKSPACES`              | boolean | Habilitar suporte a espaços de trabalho                   |

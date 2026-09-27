@@ -426,16 +426,16 @@ the `plan` agent's permission ruleset (`edit: deny *`).
 
 When a user's config is broken and Jolli Code won't start, these env vars help:
 
-- `OPENCODE_DISABLE_PROJECT_CONFIG=1`: skip the project's local `jollicode.json`
+- `JOLLICODE_DISABLE_PROJECT_CONFIG=1`: skip the project's local `jollicode.json`
   and start from globals only. Run from the project directory, Jolli Code loads,
   the user edits the broken file, then they restart without the flag.
-- `OPENCODE_CONFIG=/path/to/file.json`: load an additional explicit config.
-- `OPENCODE_CONFIG_CONTENT='{"$schema":"https://jolli.ai/config.json"}'`:
+- `JOLLICODE_CONFIG=/path/to/file.json`: load an additional explicit config.
+- `JOLLICODE_CONFIG_CONTENT='{"$schema":"https://jolli.ai/config.json"}'`:
   inject inline JSON as a final local-scope merge.
-- `OPENCODE_DISABLE_DEFAULT_PLUGINS=1`: skip default plugins.
-- `OPENCODE_PURE=1`: skip external plugins entirely.
-- `OPENCODE_DISABLE_EXTERNAL_SKILLS=1`,
-  `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`: skip the external skill scans under
+- `JOLLICODE_DISABLE_DEFAULT_PLUGINS=1`: skip default plugins.
+- `JOLLICODE_PURE=1`: skip external plugins entirely.
+- `JOLLICODE_DISABLE_EXTERNAL_SKILLS=1`,
+  `JOLLICODE_DISABLE_CLAUDE_CODE_SKILLS=1`: skip the external skill scans under
   `~/.claude/` and `~/.agents/`.
 
 ## When proposing edits

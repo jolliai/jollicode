@@ -45,10 +45,10 @@ As fontes de configuração são carregadas nesta ordem (fontes posteriores subs
 
 1. **Configuração remota** (de `.well-known/jollicode`) - padrões organizacionais
 2. **Configuração global** (`~/.config/jollicode/jollicode.json`) - preferências do usuário
-3. **Configuração personalizada** (`OPENCODE_CONFIG` var de ambiente) - substituições personalizadas
+3. **Configuração personalizada** (`JOLLICODE_CONFIG` var de ambiente) - substituições personalizadas
 4. **Configuração do projeto** (`jollicode.json` no projeto) - configurações específicas do projeto
 5. **Diretórios `.jollicode`** - agentes, comandos, plugins
-6. **Configuração inline** (`OPENCODE_CONFIG_CONTENT` var de ambiente) - substituições em tempo de execução
+6. **Configuração inline** (`JOLLICODE_CONFIG_CONTENT` var de ambiente) - substituições em tempo de execução
 
 Isso significa que as configurações do projeto podem substituir os padrões globais, e as configurações globais podem substituir os padrões organizacionais remotos.
 
@@ -122,10 +122,10 @@ Isso também é seguro para ser verificado no Git e usa o mesmo esquema que o gl
 
 ### Caminho personalizado
 
-Especifique um caminho de arquivo de configuração personalizado usando a variável de ambiente `OPENCODE_CONFIG`.
+Especifique um caminho de arquivo de configuração personalizado usando a variável de ambiente `JOLLICODE_CONFIG`.
 
 ```bash
-export OPENCODE_CONFIG=/path/to/my/custom-config.json
+export JOLLICODE_CONFIG=/path/to/my/custom-config.json
 jollicode run "Hello world"
 ```
 
@@ -135,10 +135,10 @@ A configuração personalizada é carregada entre as configurações globais e d
 
 ### Diretório personalizado
 
-Especifique um diretório de configuração personalizado usando a variável de ambiente `OPENCODE_CONFIG_DIR`. Este diretório será pesquisado por agentes, comandos, modos e plugins, assim como o diretório padrão `.jollicode`, e deve seguir a mesma estrutura.
+Especifique um diretório de configuração personalizado usando a variável de ambiente `JOLLICODE_CONFIG_DIR`. Este diretório será pesquisado por agentes, comandos, modos e plugins, assim como o diretório padrão `.jollicode`, e deve seguir a mesma estrutura.
 
 ```bash
-export OPENCODE_CONFIG_DIR=/path/to/my/config-directory
+export JOLLICODE_CONFIG_DIR=/path/to/my/config-directory
 jollicode run "Hello world"
 ```
 
@@ -171,7 +171,7 @@ Use um arquivo `tui.json` (ou `tui.jsonc`) dedicado para configurações especí
 }
 ```
 
-Use `OPENCODE_TUI_CONFIG` para apontar para um arquivo de configuração TUI personalizado.
+Use `JOLLICODE_TUI_CONFIG` para apontar para um arquivo de configuração TUI personalizado.
 
 Chaves legadas `theme`, `keybinds` e `tui` em `jollicode.json` estão obsoletas e são migradas automaticamente quando possível.
 
@@ -640,7 +640,7 @@ Use `{env:VARIABLE_NAME}` para substituir variáveis de ambiente:
 ```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
-  "model": "{env:OPENCODE_MODEL}",
+  "model": "{env:JOLLICODE_MODEL}",
   "provider": {
     "anthropic": {
       "models": {},
