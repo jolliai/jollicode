@@ -1,6 +1,6 @@
 ---
 title: Dostawcy
-description: Korzystanie z dowolnego dostawcy LLM w opencode.
+description: Korzystanie z dowolnego dostawcy LLM w Jolli Code.
 ---
 
 import config from "../../../../config.mjs"
@@ -1981,6 +1981,6 @@ Jeśli masz problemy z konfiguracją dostawcy, sprawdź następujące elementy:
    Nie dotyczy to dostawców takich jak Amazon Bedrock, którzy w procesie uwierzytelniania opierają się na zmiennych środowiskowych.
 
 2. W przypadku dostawców niestandardowych sprawdź konfigurację Jolli Code i:
-   - Upewnij się, że identyfikator dostawcy użyty w poleceniu `/connect` jest zgodny z identyfikatorem w konfiguracji opencode.
+   - Upewnij się, że identyfikator dostawcy użyty w poleceniu `/connect` jest zgodny z identyfikatorem w konfiguracji Jolli Code.
    - Dla dostawcy używany jest właściwy pakiet npm. Na przykład użyj `@ai-sdk/cerebras` dla Cerebras. W przypadku wszystkich innych dostawców zgodnych z OpenAI użyj `@ai-sdk/openai-compatible`.
    - Sprawdź, czy w polu `options.baseURL` użyto prawidłowego punktu końcowego API.

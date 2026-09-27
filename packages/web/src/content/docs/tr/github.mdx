@@ -103,10 +103,10 @@ Veya manuel olarak ayarlayabilirsiniz.
 
 Jolli Code aşağıdaki GitHub olayları tarafından tetiklenebilir:
 
-| Olay Tipi                     | Tetikleyen                                    | Detaylar                                                                                                                                            |
-| ----------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `issue_comment`               | Bir soruna veya halkla ilişkilere yorum yapın | Yorumunuzda `/jollicode` veya `/jc`'den bahsedin. Jolli Code bağlamı okur ve şubeler oluşturabilir, PR'leri açabilir veya yanıt verebilir.             |
-| `pull_request_review_comment` | PR'deki belirli kod satırlarına yorum yapın   | Kodu incelerken `/jollicode` veya `/jc`'den bahsedin. Jolli Code dosya yolunu, satır numaralarını ve fark içeriğini alır.                              |
+| Olay Tipi                     | Tetikleyen                                    | Detaylar                                                                                                                                              |
+| ----------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `issue_comment`               | Bir soruna veya halkla ilişkilere yorum yapın | Yorumunuzda `/jollicode` veya `/jc`'den bahsedin. Jolli Code bağlamı okur ve şubeler oluşturabilir, PR'leri açabilir veya yanıt verebilir.            |
+| `pull_request_review_comment` | PR'deki belirli kod satırlarına yorum yapın   | Kodu incelerken `/jollicode` veya `/jc`'den bahsedin. Jolli Code dosya yolunu, satır numaralarını ve fark içeriğini alır.                             |
 | `issues`                      | Sayı açıldı veya düzenlendi                   | Sorunlar oluşturulduğunda veya değiştirildiğinde Jolli Code'u otomatik olarak tetikleyin. `prompt` girişi gerektirir.                                 |
 | `pull_request`                | PR açıldı veya güncellendi                    | PR'ler açıldığında, senkronize edildiğinde veya yeniden açıldığında Jolli Code'u otomatik olarak tetikleyin. Otomatik incelemeler için kullanışlıdır. |
 | `schedule`                    | Cron tabanlı program                          | Jolli Code'u bir programa göre çalıştırın. `prompt` girişi gerektirir. Çıktı, günlüklere ve PR'lere gider (yorum yapılacak bir sorun yoktur).         |

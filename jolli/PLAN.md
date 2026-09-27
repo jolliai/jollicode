@@ -1,4 +1,8 @@
-# Jolli Code — demo fork plan (desktop IDE)
+# Jolli Code — plan (desktop IDE)
+
+> ⚠ **Historical document.** This is the plan from the early demo phase, kept for the reasoning
+> behind the design. Its status, phase progress and "demo" framing no longer describe the product,
+> which is now production code — see `DEV.md` for how things work today.
 
 > **Status.** Phase 0 done (builds and runs). The course/assistant/privacy UI described in
 > `.claude/plans/parsed-splashing-axolotl.md` is built and green — typecheck clean, 724 unit + 41
@@ -17,8 +21,7 @@
 
 
 Fork of [sst/opencode](https://github.com/sst/opencode) (MIT), cloned at upstream `9f8db119` (2026-09-09).
-Goal: a runnable, branded **desktop agent IDE** to show prospective customers what the
-professor/student product is. **Mock only** — not a production hardening pass.
+Goal: a branded **desktop agent IDE** that is the professor/student product.
 
 **Scope: the desktop application first.** The TUI (`packages/tui`) was originally out of scope and
 that line no longer holds — it carries the branding, it inherits the lockdown from the server's own
@@ -158,8 +161,7 @@ Cosmetic, but it's the whole first impression of a desktop app.
 - Local fixture serving the well-known contract, so login runs through the *real* upstream
   code path rather than faked UI.
 - A **Jolli sign-in screen** in first-launch onboarding, replacing provider connection as the
-  entry point. Stub the token exchange as a device-code flow — prints a code, polls, returns a
-  token. This is the best-demoing moment in the product; worth doing properly even in a mock.
+  entry point.
 - Remove the BYO routes from the UI: the `_custom` entry and custom-provider form in
   `dialog-connect-provider.tsx` / `dialog-custom-provider.tsx`, and the provider panes in
   `settings-providers.tsx` / `settings-v2/providers.tsx`.
