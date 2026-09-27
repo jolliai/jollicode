@@ -13,6 +13,6 @@ export const isAllowedAuthorizationRedirect = (clientID: string, redirectURI: st
   }
   return (
     redirect.protocol === "https:" &&
-    (redirect.hostname === "jolli.ai" || redirect.hostname.endsWith(".jolli.ai"))
+    ["jolli.ai", "jolli.dev", "jolli-local.me"].some((host) => redirect.hostname === host || redirect.hostname.endsWith(`.${host}`))
   )
 }

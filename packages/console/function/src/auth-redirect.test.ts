@@ -4,7 +4,8 @@ import { isAllowedAuthorizationRedirect } from "./auth-redirect"
 describe("authorization redirect validation", () => {
   test("allows registered OpenCode callbacks", () => {
     expect(isAllowedAuthorizationRedirect("app", "https://jolli.ai/auth/callback")).toBe(true)
-    expect(isAllowedAuthorizationRedirect("app", "https://dev.jolli.ai/auth/callback")).toBe(true)
+    expect(isAllowedAuthorizationRedirect("app", "https://jolli.dev/auth/callback")).toBe(true)
+    expect(isAllowedAuthorizationRedirect("app", "https://demo.jolli-local.me/auth/callback")).toBe(true)
     expect(isAllowedAuthorizationRedirect("app", "http://localhost:3000/auth/callback")).toBe(true)
     expect(isAllowedAuthorizationRedirect("app", "http://127.0.0.1:3000/auth/callback")).toBe(true)
   })
@@ -13,6 +14,7 @@ describe("authorization redirect validation", () => {
     expect(isAllowedAuthorizationRedirect("other", "https://jolli.ai/auth/callback")).toBe(false)
     expect(isAllowedAuthorizationRedirect("app", "https://evil.example/callback")).toBe(false)
     expect(isAllowedAuthorizationRedirect("app", "https://jolli.ai.evil.example/callback")).toBe(false)
+    expect(isAllowedAuthorizationRedirect("app", "http://jolli-local.me/auth/callback")).toBe(false)
     expect(isAllowedAuthorizationRedirect("app", "javascript:alert(1)")).toBe(false)
   })
 })
