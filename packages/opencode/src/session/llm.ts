@@ -41,8 +41,7 @@ export type StreamInput = {
   stepIndex?: number
   courseID?: string
   courseAssistantID?: string
-  mcpServers?: ReadonlyArray<string>
-  mcpToolNames?: ReadonlyArray<string>
+  mcpToolServers?: ReadonlyMap<string, string>
   model: Provider.Model
   agent: Agent.Info
   permission?: PermissionV1.Ruleset

@@ -15,7 +15,6 @@ import { Effect, Record } from "effect"
 import { jsonSchema, tool as aiTool, type ModelMessage, type Tool } from "ai"
 import type { Plugin } from "@/plugin"
 import { mergeDeep } from "remeda"
-import { McpCatalog } from "@/mcp/catalog"
 
 const USER_AGENT = `opencode/${InstallationVersion}`
 
@@ -28,9 +27,8 @@ type PrepareInput = {
   readonly stepIndex?: number
   readonly courseID?: string
   readonly courseAssistantID?: string
-  readonly mcpServers?: ReadonlyArray<string>
-  /** Every MCP tool name as MCP.tools() keys it, so a request's tools can be told apart exactly. */
-  readonly mcpToolNames?: ReadonlyArray<string>
+  /** Each MCP tool's key -> the sanitized name of its server, from the same resolve that built `tools`. */
+  readonly mcpToolServers?: ReadonlyMap<string, string>
   readonly model: Provider.Model
   readonly agent: Agent.Info
   readonly permission?: PermissionV1.Ruleset
@@ -75,10 +73,6 @@ export function jolliCodingAgentHeaders(input: {
 }): Record<string, string> {
   if (!isJolliProviderId(input.providerID)) return {}
   if (input.turnID === undefined || input.clientAttemptID === undefined || input.stepIndex === undefined) return {}
-  // The same sanitize() MCP tool names are built with, so each entry is exactly the
-  // `<server>_` prefix the backend matches tool calls against.
-  const mcpServers = [...new Set((input.mcpServers ?? []).map(McpCatalog.sanitize))].filter(Boolean).toSorted()
-  const nonMcpTools = [...new Set(input.nonMcpTools ?? [])].toSorted()
   return {
     "x-jolli-conversation-id": input.sessionID,
     "x-jolli-turn-id": input.turnID,
@@ -93,33 +87,34 @@ export function jolliCodingAgentHeaders(input: {
     // header value; the backend decodes it and drops anything it cannot validate. toWellFormed()
     // first, since encodeURIComponent throws on a lone surrogate.
     ...(input.command ? { "x-jolli-command": encodeURIComponent(input.command.toWellFormed()) } : {}),
-    ...(mcpServers.length > 0 ? { "x-jolli-mcp-servers": mcpServers.join(",") } : {}),
-    // Tools that are not MCP but whose name reads as `<server>_<tool>` under a reported server — a
-    // built-in like plan_exit beside a server named "plan", or a plugin or custom tool. Only this
-    // client knows which of its tools are MCP, so it says so rather than the backend guessing.
-    ...(nonMcpTools.length > 0 ? { "x-jolli-non-mcp-tools": nonMcpTools.join(",") } : {}),
+    // Sanitized names are plain ASCII with no comma, so the list needs no encoding.
+    ...(input.mcpServers?.length ? { "x-jolli-mcp-servers": input.mcpServers.join(",") } : {}),
+    // A plugin or custom tool is named after a file and may be non-ASCII or contain a comma, so each
+    // name is percent-encoded like the command.
+    ...(input.nonMcpTools?.length
+      ? {
+          "x-jolli-non-mcp-tools": input.nonMcpTools.map((name) => encodeURIComponent(name.toWellFormed())).join(","),
+        }
+      : {}),
   }
 }
 
 /**
- * What a Jolli request reports about MCP: the connected servers with an MCP tool among the
- * request's tools (so a permission-hidden server is not reported), and the request's non-MCP tools
- * that carry one of those servers' `<server>_` prefix.
+ * What a Jolli request reports about MCP, read off the tools it actually sends: the servers with a
+ * tool among them (so a permission-hidden server is not reported), and the non-MCP tools whose name
+ * reads as `<server>_<tool>` under one of those servers — a built-in like plan_exit beside a server
+ * named "plan", or a plugin or custom tool. The backend attributes a tool call to the longest
+ * reported server prefix unless the tool is listed as non-MCP.
  */
 export function jolliMcpReport(input: {
   readonly toolNames: ReadonlyArray<string>
-  readonly mcpServers?: ReadonlyArray<string>
-  readonly mcpToolNames?: ReadonlyArray<string>
+  readonly mcpToolServers?: ReadonlyMap<string, string>
 }): { readonly mcpServers: ReadonlyArray<string>; readonly nonMcpTools: ReadonlyArray<string> } {
-  const mcpTools = new Set(input.mcpToolNames ?? [])
-  const offered = input.toolNames.filter((name) => mcpTools.has(name))
-  const mcpServers = (input.mcpServers ?? []).filter((server) =>
-    offered.some((name) => name.startsWith(`${McpCatalog.sanitize(server)}_`)),
-  )
-  const prefixes = mcpServers.map((server) => `${McpCatalog.sanitize(server)}_`)
-  const nonMcpTools = input.toolNames.filter(
-    (name) => !mcpTools.has(name) && prefixes.some((prefix) => name.startsWith(prefix)),
-  )
+  const mcpToolServers = input.mcpToolServers ?? new Map<string, string>()
+  const mcpServers = [...new Set(input.toolNames.flatMap((name) => mcpToolServers.get(name) ?? []))].toSorted()
+  const nonMcpTools = input.toolNames
+    .filter((name) => !mcpToolServers.has(name) && mcpServers.some((server) => name.startsWith(`${server}_`)))
+    .toSorted()
   return { mcpServers, nonMcpTools }
 }
 
@@ -286,8 +281,7 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
         command: input.user.command,
         ...jolliMcpReport({
           toolNames: Object.keys(tools),
-          mcpServers: input.mcpServers,
-          mcpToolNames: input.mcpToolNames,
+          mcpToolServers: input.mcpToolServers,
         }),
       }),
     },

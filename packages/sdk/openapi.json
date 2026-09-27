@@ -16226,6 +16226,9 @@
             "additionalProperties": {
               "type": "boolean"
             }
+          },
+          "command": {
+            "type": "string"
           }
         },
         "required": ["id", "sessionID", "role", "time", "agent", "model"],
