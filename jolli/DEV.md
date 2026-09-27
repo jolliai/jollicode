@@ -101,7 +101,7 @@ host target and stages it as `resources/jollicode-cli` — the v2 background dae
 and serves the renderer at `http://localhost:5173/`.
 
 First run compiles the CLI and downloads a models.dev snapshot (cached at
-`~/.cache/opencode/models.json`), so it is slower than later ones.
+`~/.cache/jollicode/models.json`), so it is slower than later ones.
 
 ### Dev chrome is opt-in in this fork
 
@@ -122,7 +122,7 @@ or an unreachable bar.
 
 The Electron renderer cannot run in a plain browser — it needs the preload bridge, and
 `webview-zoom.ts` throws on `onZoomFactorChanged` without it. But `packages/app` runs standalone
-against any opencode server, which is enough to review most screens (and to screenshot them):
+against any Jolli Code server, which is enough to review most screens (and to screenshot them):
 
 ```bash
 bun run --cwd packages/opencode src/index.ts serve --port 4096   # a server to talk to
@@ -212,7 +212,7 @@ translation because a course grants by the same UUID. Enforced in `context/model
 and `context/local.tsx`'s `validModel` (the selection) — and refused for real by the gateway.
 
 ⚠ **A server you start by hand has none of this.** `bun run dev:web` against a plain
-`opencode serve` will show whatever that machine has connected. Give the server the student's
+`jollicode serve` will show whatever that machine has connected. Give the server the student's
 credential instead and let it fetch its own catalogue — the config is no longer something you can
 bake in one line, because the model list now comes from the gateway.
 
@@ -283,7 +283,7 @@ Three things differ on purpose:
   being *created* — see `submissionBlocker`. A session that already ran unbound stays usable,
   because the server refuses to bind a course after the first message and refusing to prompt in one
   would brick every transcript written before this existed.
-- **`/agents` and `/assistant` are different commands.** An agent is opencode's build-or-plan; an
+- **`/agents` and `/assistant` are different commands.** An agent is Jolli Code's build-or-plan; an
   assistant is the professor's, and it decides the instructions, guardrails and model grant.
 
 ⚠ **A context must not expose a field called `ready`.** `createSimpleContext` in the TUI gates its
@@ -316,11 +316,6 @@ which is the text's advance — they are a pair.
 
 ⚠ **`OpenCode Zen` is the one brand string left in the locale files, deliberately** — it names a
 third party's product. A blanket `s/OpenCode/Jolli Code/` will corrupt it.
-
-⚠ **`ai.opencode.desktop*` is not a brand string.** `main/index.ts` sets `userData` to
-`appData/<appId>`, so renaming the id moves the whole demo machine's state — projects, tabs,
-settings. Same for `app = "opencode"` in `packages/core/src/global.ts`. Both are Phase 1 leftovers
-on purpose.
 
 ### Regenerating the icons
 

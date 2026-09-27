@@ -1,6 +1,6 @@
 ---
 title: Provedores
-description: Usando qualquer provedor LLM no opencode.
+description: Usando qualquer provedor LLM no Jolli Code.
 ---
 
 import config from "../../../../config.mjs"
@@ -1984,6 +1984,6 @@ Se você estiver tendo problemas para configurar um provedor, verifique o seguin
    Isso não se aplica a provedores como Amazon Bedrock, que dependem de variáveis de ambiente para sua autenticação.
 
 2. Para provedores personalizados, verifique a configuração do Jolli Code e:
-   - Certifique-se de que o ID do provedor usado no comando `/connect` corresponda ao ID na sua configuração do opencode.
+   - Certifique-se de que o ID do provedor usado no comando `/connect` corresponda ao ID na sua configuração do Jolli Code.
    - O pacote npm correto está sendo usado para o provedor. Por exemplo, use `@ai-sdk/cerebras` para Cerebras. E para todos os outros provedores compatíveis com OpenAI, use `@ai-sdk/openai-compatible`.
    - Verifique se o endpoint da API correto está sendo usado no campo `options.baseURL`.

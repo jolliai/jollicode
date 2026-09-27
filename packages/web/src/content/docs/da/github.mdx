@@ -103,10 +103,10 @@ Eller du kan indstille det manuelt.
 
 Jolli Code kan udløses af følgende GitHub hændelser:
 
-| Begivenhedstype               | Udløst af                               | Detaljer                                                                                                                |
-| ----------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `issue_comment`               | Kommentarer og problemer eller PR       | Nævn `/jollicode` eller `/jc` i din kommentar. Jolli Code læser kontekst og kan oprette brancher, åbne PR'er eller svare.  |
-| `pull_request_review_comment` | Kommenter specifikke kodelinjer i en PR | Nævn `/jollicode` eller `/jc`, mens du gennemgår koden. Jolli Code modtager filsti, linjenumre og diff-kontekst.           |
+| Begivenhedstype               | Udløst af                               | Detaljer                                                                                                                  |
+| ----------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `issue_comment`               | Kommentarer og problemer eller PR       | Nævn `/jollicode` eller `/jc` i din kommentar. Jolli Code læser kontekst og kan oprette brancher, åbne PR'er eller svare. |
+| `pull_request_review_comment` | Kommenter specifikke kodelinjer i en PR | Nævn `/jollicode` eller `/jc`, mens du gennemgår koden. Jolli Code modtager filsti, linjenumre og diff-kontekst.          |
 | `issues`                      | Udgave åbnet eller redigeret            | Udløs automatisk Jolli Code, når problemer oprettes eller ændres. Kræver `prompt` input.                                  |
 | `pull_request`                | PR åbnet eller opdateret                | Udløs automatisk Jolli Code, når PR'er åbnes, synkroniseres eller genåbnes. Nyttigt til automatiserede kodegennemgange.   |
 | `schedule`                    | Cron-baseret tidsplan                   | Kør Jolli Code efter en tidsplan. Kræver `prompt` input. Output går til logfiler og PR'er (intet problem ved kommentere). |

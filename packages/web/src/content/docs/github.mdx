@@ -113,14 +113,14 @@ Or you can set it up manually.
 
 Jolli Code can be triggered by the following GitHub events:
 
-| Event Type                    | Triggered By                           | Details                                                                                                           |
-| ----------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Event Type                    | Triggered By                           | Details                                                                                                              |
+| ----------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `issue_comment`               | Comment on an issue or PR              | Mention `/jollicode` or `/jc` in your comment. Jolli Code reads context and can create branches, open PRs, or reply. |
 | `pull_request_review_comment` | Comment on specific code lines in a PR | Mention `/jollicode` or `/jc` while reviewing code. Jolli Code receives file path, line numbers, and diff context.   |
-| `issues`                      | Issue opened or edited                 | Automatically trigger Jolli Code when issues are created or modified. Requires `prompt` input.                      |
-| `pull_request`                | PR opened or updated                   | Automatically trigger Jolli Code when PRs are opened, synchronized, or reopened. Useful for automated reviews.      |
-| `schedule`                    | Cron-based schedule                    | Run Jolli Code on a schedule. Requires `prompt` input. Output goes to logs and PRs (no issue to comment on).        |
-| `workflow_dispatch`           | Manual trigger from GitHub UI          | Trigger Jolli Code on demand via Actions tab. Requires `prompt` input. Output goes to logs and PRs.                 |
+| `issues`                      | Issue opened or edited                 | Automatically trigger Jolli Code when issues are created or modified. Requires `prompt` input.                       |
+| `pull_request`                | PR opened or updated                   | Automatically trigger Jolli Code when PRs are opened, synchronized, or reopened. Useful for automated reviews.       |
+| `schedule`                    | Cron-based schedule                    | Run Jolli Code on a schedule. Requires `prompt` input. Output goes to logs and PRs (no issue to comment on).         |
+| `workflow_dispatch`           | Manual trigger from GitHub UI          | Trigger Jolli Code on demand via Actions tab. Requires `prompt` input. Output goes to logs and PRs.                  |
 
 ### Schedule Example
 
