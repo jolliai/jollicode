@@ -120,7 +120,6 @@ let octoGraph: typeof graphql
 let commentId: number
 let gitConfig: string
 let session: { id: string; title: string; version: string }
-let shareId: string | undefined
 let exitCode = 0
 type PromptFiles = Awaited<ReturnType<typeof getUserPrompt>>["promptFiles"]
 
@@ -146,16 +145,7 @@ try {
   const repoData = await fetchRepo()
   session = await client.session.create<true>().then((r) => r.data)
   await subscribeSessionEvents()
-  shareId = await (async () => {
-    if (useEnvShare() === false) return
-    if (!useEnvShare() && repoData.data.private) return
-    await client.session.share<true>({ path: session })
-    return session.id.slice(-8)
-  })()
   console.log("Jolli Code session", session.id)
-  if (shareId) {
-    console.log("Share link:", `${useShareUrl()}/s/${shareId}`)
-  }
 
   // Handle 3 cases
   // 1. Issue
@@ -172,8 +162,7 @@ try {
         const summary = await summarize(response)
         await pushToLocalBranch(summary)
       }
-      const hasShared = prData.comments.nodes.some((c) => c.body.includes(`${useShareUrl()}/s/${shareId}`))
-      await updateComment(`${response}${footer({ image: !hasShared })}`)
+      await updateComment(`${response}${footer()}`)
     }
     // Fork PR
     else {
@@ -184,8 +173,7 @@ try {
         const summary = await summarize(response)
         await pushToForkBranch(summary, prData)
       }
-      const hasShared = prData.comments.nodes.some((c) => c.body.includes(`${useShareUrl()}/s/${shareId}`))
-      await updateComment(`${response}${footer({ image: !hasShared })}`)
+      await updateComment(`${response}${footer()}`)
     }
   }
   // Issue
@@ -201,11 +189,11 @@ try {
         repoData.data.default_branch,
         branch,
         summary,
-        `${response}\n\nCloses #${useIssueId()}${footer({ image: true })}`,
+        `${response}\n\nCloses #${useIssueId()}${footer()}`,
       )
-      await updateComment(`Created PR #${pr}${footer({ image: true })}`)
+      await updateComment(`Created PR #${pr}${footer()}`)
     } else {
-      await updateComment(`${response}${footer({ image: true })}`)
+      await updateComment(`${response}${footer()}`)
     }
   }
 } catch (e: any) {
@@ -323,14 +311,6 @@ function useEnvAgent() {
   return process.env["AGENT"] || undefined
 }
 
-function useEnvShare() {
-  const value = process.env["SHARE"]
-  if (!value) return undefined
-  if (value === "true") return true
-  if (value === "false") return false
-  throw new Error(`Invalid share value: ${value}. Share must be a boolean.`)
-}
-
 function useEnvMock() {
   return {
     mockEvent: process.env["MOCK_EVENT"],
@@ -360,10 +340,6 @@ function useContext() {
 function useIssueId() {
   const payload = useContext().payload as IssueCommentEvent
   return payload.issue.number
-}
-
-function useShareUrl() {
-  return isMock() ? "https://dev.jolli.ai" : "https://jolli.ai"
 }
 
 async function getAccessToken() {
@@ -821,20 +797,8 @@ async function createPR(base: string, branch: string, title: string, body: strin
   return pr.data.number
 }
 
-function footer(opts?: { image?: boolean }) {
-  const { providerID, modelID } = useEnvModel()
-
-  const image = (() => {
-    if (!shareId) return ""
-    if (!opts?.image) return ""
-
-    const titleAlt = encodeURIComponent(session.title.substring(0, 50))
-    const title64 = Buffer.from(session.title.substring(0, 700), "utf8").toString("base64")
-
-    return `<a href="${useShareUrl()}/s/${shareId}"><img width="200" alt="${titleAlt}" src="https://social-cards.sst.dev/opencode-share/${title64}.png?model=${providerID}/${modelID}&version=${session.version}&id=${shareId}" /></a>\n`
-  })()
-  const shareUrl = shareId ? `[Jolli Code session](${useShareUrl()}/s/${shareId})&nbsp;&nbsp;|&nbsp;&nbsp;` : ""
-  return `\n\n${image}${shareUrl}[github run](${useEnvRunUrl()})`
+function footer() {
+  return `\n\n[github run](${useEnvRunUrl()})`
 }
 
 async function fetchRepo() {
