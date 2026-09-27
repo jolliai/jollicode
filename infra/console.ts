@@ -224,7 +224,7 @@ const AUTH_API_URL = new sst.Linkable("AUTH_API_URL", {
 })
 // Preview branches have independent databases; do not send their workspaces to shared dev.
 const migrationDomain =
-  $app.stage === "production" ? "jolli.ai" : $app.stage === "dev" ? "dev.jolli.ai" : undefined
+  $app.stage === "production" ? "jolli.ai" : $app.stage === "dev" ? "jolli.dev" : undefined
 const consoleMigration = new sst.Linkable("ConsoleMigration", {
   properties: {
     consoleUrl: migrationDomain ? `https://${migrationDomain}/console` : "",
