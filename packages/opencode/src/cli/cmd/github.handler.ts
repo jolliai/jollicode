@@ -430,7 +430,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
     let octoRest: Octokit
     let octoGraph: typeof graphql
     let gitConfig: string
-    let session: { id: SessionID; title: string; version: string }
+    let session: { id: SessionID }
     let exitCode = 0
     let githubClientReady = false
     type PromptFiles = Awaited<ReturnType<typeof getUserPrompt>>["promptFiles"]

@@ -1,10 +1,14 @@
-import { describe, expect } from "bun:test"
+import { afterEach, describe, expect } from "bun:test"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { Effect } from "effect"
 import { Auth } from "../../src/auth"
 import { testEffect } from "../lib/effect"
 
 const it = testEffect(LayerNode.compile(Auth.node))
+
+afterEach(() => {
+  delete process.env.JOLLICODE_AUTH_CONTENT
+})
 
 describe("Auth", () => {
   it.instance("set normalizes trailing slashes in keys", () =>
@@ -70,6 +74,27 @@ describe("Auth", () => {
       yield* auth.remove("anthropic")
       const after = yield* auth.all()
       expect(after["anthropic"]).toBeUndefined()
+    }),
+  )
+
+  it.instance("all reads JOLLICODE_AUTH_CONTENT instead of the file", () =>
+    Effect.gen(function* () {
+      const auth = yield* Auth.Service
+      yield* auth.set("from-file", { type: "api", key: "file" })
+      process.env.JOLLICODE_AUTH_CONTENT = JSON.stringify({ "from-env": { type: "api", key: "env" } })
+      const data = yield* auth.all()
+      expect(Object.keys(data)).toEqual(["from-env"])
+      expect(data["from-env"]).toMatchObject({ type: "api", key: "env" })
+    }),
+  )
+
+  it.instance("all falls back to the file when JOLLICODE_AUTH_CONTENT is invalid JSON", () =>
+    Effect.gen(function* () {
+      const auth = yield* Auth.Service
+      yield* auth.set("from-file", { type: "api", key: "file" })
+      process.env.JOLLICODE_AUTH_CONTENT = "{not json"
+      const data = yield* auth.all()
+      expect(data["from-file"]).toMatchObject({ type: "api", key: "file" })
     }),
   )
 })

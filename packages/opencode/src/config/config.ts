@@ -209,7 +209,7 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/Co
 export const use = serviceUse(Service)
 
 function globalConfigFile() {
-  const candidates = ["jollicode.jsonc", "jollicode.json", "config.json"].map((file) =>
+  const candidates = [`${Brand.bin}.jsonc`, `${Brand.bin}.json`, "config.json"].map((file) =>
     path.join(Global.Path.config, file),
   )
   for (const file of candidates) {
@@ -342,8 +342,9 @@ const layer = Layer.effect(
         }
       }
       result = mergeConfig(result, yield* loadFile(path.join(Global.Path.config, "config.json"), env))
-      result = mergeConfig(result, yield* loadFile(path.join(Global.Path.config, "jollicode.json"), env))
-      result = mergeConfig(result, yield* loadFile(path.join(Global.Path.config, "jollicode.jsonc"), env))
+      for (const file of ConfigPaths.fileInDirectory(Global.Path.config, Brand.bin)) {
+        result = mergeConfig(result, yield* loadFile(file, env))
+      }
 
       const legacy = path.join(Global.Path.config, "config")
       if (existsSync(legacy)) {
@@ -499,7 +500,7 @@ const layer = Layer.effect(
         }
 
         if (!Flag.OPENCODE_DISABLE_PROJECT_CONFIG) {
-          for (const file of yield* ConfigPaths.files("jollicode", ctx.directory, ctx.worktree).pipe(Effect.orDie)) {
+          for (const file of yield* ConfigPaths.files(Brand.bin, ctx.directory, ctx.worktree).pipe(Effect.orDie)) {
             yield* merge(file, yield* loadFile(file, authEnv), "local")
           }
         }
@@ -511,15 +512,16 @@ const layer = Layer.effect(
         const directories = yield* ConfigPaths.directories(ctx.directory, ctx.worktree)
 
         if (Flag.OPENCODE_CONFIG_DIR) {
-          yield* Effect.logDebug("loading config from JOLLICODE_CONFIG_DIR", { path: Flag.OPENCODE_CONFIG_DIR })
+          yield* Effect.logDebug(`loading config from ${envKey("CONFIG_DIR") ?? "JOLLICODE_CONFIG_DIR"}`, {
+            path: Flag.OPENCODE_CONFIG_DIR,
+          })
         }
 
         const deps: Fiber.Fiber<void>[] = []
 
         for (const dir of directories) {
           if (dir.endsWith(".jollicode") || dir === Flag.OPENCODE_CONFIG_DIR) {
-            for (const file of ["jollicode.json", "jollicode.jsonc"]) {
-              const source = path.join(dir, file)
+            for (const source of ConfigPaths.fileInDirectory(dir, Brand.bin)) {
               yield* Effect.logDebug(`loading config from ${source}`)
               yield* merge(source, yield* loadFile(source, authEnv))
               result.agent ??= {}
@@ -614,8 +616,7 @@ const layer = Layer.effect(
 
         const managedDir = ConfigManaged.managedConfigDir()
         if (existsSync(managedDir)) {
-          for (const file of ["jollicode.json", "jollicode.jsonc"]) {
-            const source = path.join(managedDir, file)
+          for (const source of ConfigPaths.fileInDirectory(managedDir, Brand.bin)) {
             yield* merge(source, yield* loadFile(source), "global")
           }
         }
@@ -645,7 +646,10 @@ const layer = Layer.effect(
           try {
             result.permission = mergeDeep(result.permission ?? {}, JSON.parse(Flag.OPENCODE_PERMISSION))
           } catch (err) {
-            yield* Effect.logWarning("JOLLICODE_PERMISSION contains invalid JSON, skipping", { err })
+            yield* Effect.logWarning(
+              `${envKey("PERMISSION") ?? "JOLLICODE_PERMISSION"} contains invalid JSON, skipping`,
+              { err },
+            )
           }
         }
 

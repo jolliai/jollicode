@@ -8,6 +8,7 @@ import {
 } from "jsonc-parser"
 
 import * as ConfigPaths from "@/config/paths"
+import { Brand } from "@opencode-ai/core/brand"
 import { Global } from "@opencode-ai/core/global"
 import { Filesystem } from "@/util/filesystem"
 import { Flock } from "@opencode-ai/core/util/flock"
@@ -31,7 +32,7 @@ export type PatchDeps = {
   readText: (file: string) => Promise<string>
   write: (file: string, text: string) => Promise<void>
   exists: (file: string) => Promise<boolean>
-  files: (dir: string, name: "jollicode" | "tui") => string[]
+  files: (dir: string, name: typeof Brand.bin | "tui") => string[]
 }
 
 export type PatchInput = {
@@ -337,8 +338,8 @@ function patchDir(input: PatchInput) {
   return path.join(root, ".jollicode")
 }
 
-function patchName(kind: Kind): "jollicode" | "tui" {
-  if (kind === "server") return "jollicode"
+function patchName(kind: Kind): typeof Brand.bin | "tui" {
+  if (kind === "server") return Brand.bin
   return "tui"
 }
 
