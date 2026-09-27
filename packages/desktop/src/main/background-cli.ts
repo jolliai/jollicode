@@ -88,12 +88,10 @@ async function run(
   const env = { ...process.env }
   // The daemon started by `service start` inherits this env and authenticates with
   // it, so the renderer's Brand.short credentials (see startBackgroundCli) match.
-  // Mirrors the v1 in-process sidecar and the WSL sidecar. NOTE: this must use the
-  // literal OPENCODE_ prefix, not the canonical JOLLICODE_ one: the server validates
-  // Basic auth against process.env.OPENCODE_SERVER_USERNAME read via
-  // ConfigProvider.fromEnv() (packages/opencode/src/server/auth.ts), which does not
-  // apply the JOLLICODE_ read-alias.
-  env.OPENCODE_SERVER_USERNAME = Brand.short
+  // Mirrors the v1 in-process sidecar and the WSL sidecar. The canonical JOLLICODE_ key
+  // is the one to write: the server reads it before the OPENCODE_ alias, so writing the
+  // alias would let an inherited JOLLICODE_SERVER_USERNAME win over this value.
+  env.JOLLICODE_SERVER_USERNAME = Brand.short
   if (options.stateHome === undefined) delete env.XDG_STATE_HOME
   else env.XDG_STATE_HOME = options.stateHome
   return execFileAsync(binary, args, { env, windowsHide: true }).then(

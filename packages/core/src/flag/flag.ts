@@ -36,6 +36,14 @@ export function truthyEnv(suffix: string): boolean {
   return value === "true" || value === "1"
 }
 
+/**
+ * The Effect `Config` counterpart of `env()`, for values read through a ConfigProvider:
+ * envConfig(Config.boolean, "PURE") reads JOLLICODE_PURE, falling back to OPENCODE_PURE.
+ */
+export function envConfig<A>(make: (name: string) => Config.Config<A>, suffix: string) {
+  return make(CANONICAL_PREFIX + suffix).pipe(Config.orElse(() => make(LEGACY_PREFIX + suffix)))
+}
+
 const copy = env("EXPERIMENTAL_DISABLE_COPY_ON_SELECT")
 const fff = env("DISABLE_FFF")
 
@@ -126,12 +134,10 @@ export const Flag = {
   OPENCODE_DISABLE_FFF: fff === undefined ? process.platform === "win32" : truthyEnv("DISABLE_FFF"),
 
   // Experimental
-  OPENCODE_EXPERIMENTAL_FILEWATCHER: Config.boolean("JOLLICODE_EXPERIMENTAL_FILEWATCHER").pipe(
-    Config.orElse(() => Config.boolean("OPENCODE_EXPERIMENTAL_FILEWATCHER")),
+  OPENCODE_EXPERIMENTAL_FILEWATCHER: envConfig(Config.boolean, "EXPERIMENTAL_FILEWATCHER").pipe(
     Config.withDefault(false),
   ),
-  OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: Config.boolean("JOLLICODE_EXPERIMENTAL_DISABLE_FILEWATCHER").pipe(
-    Config.orElse(() => Config.boolean("OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER")),
+  OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: envConfig(Config.boolean, "EXPERIMENTAL_DISABLE_FILEWATCHER").pipe(
     Config.withDefault(false),
   ),
   OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT:

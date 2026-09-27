@@ -18,6 +18,28 @@ describe("RuntimeFlags", () => {
     }),
   )
 
+  it.effect("layer prefers JOLLICODE_ keys over the OPENCODE_ alias", () =>
+    Effect.gen(function* () {
+      const flags = yield* readFlags.pipe(
+        Effect.provide(
+          fromConfig({
+            JOLLICODE_CLIENT: "desktop",
+            OPENCODE_CLIENT: "cli",
+            JOLLICODE_PURE: "false",
+            OPENCODE_PURE: "true",
+            OPENCODE_AUTO_SHARE: "true",
+            JOLLICODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX: "2048",
+          }),
+        ),
+      )
+
+      expect(flags.client).toBe("desktop")
+      expect(flags.pure).toBe(false)
+      expect(flags.autoShare).toBe(true)
+      expect(flags.outputTokenMax).toBe(2048)
+    }),
+  )
+
   it.effect("layer parses plugin flags from the active ConfigProvider", () =>
     Effect.gen(function* () {
       const flags = yield* readFlags.pipe(

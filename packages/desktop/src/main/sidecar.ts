@@ -83,8 +83,8 @@ async function stop() {
 
 function prepareSidecarEnv(password: string, userDataPath: string) {
   Object.assign(process.env, {
-    OPENCODE_SERVER_USERNAME: Brand.short,
-    OPENCODE_SERVER_PASSWORD: password,
+    JOLLICODE_SERVER_USERNAME: Brand.short,
+    JOLLICODE_SERVER_PASSWORD: password,
     XDG_STATE_HOME: process.env.XDG_STATE_HOME ?? userDataPath,
   })
 }

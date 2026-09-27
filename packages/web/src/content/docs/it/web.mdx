@@ -18,7 +18,7 @@ jollicode web
 Questo avvia un server locale su `127.0.0.1` con una porta disponibile scelta a caso e apre automaticamente Jolli Code nel browser predefinito.
 
 :::caution
-Se `OPENCODE_SERVER_PASSWORD` non e impostata, il server non sara protetto. Va bene per l'uso locale, ma va impostata per l'accesso in rete.
+Se `JOLLICODE_SERVER_PASSWORD` non e impostata, il server non sara protetto. Va bene per l'uso locale, ma va impostata per l'accesso in rete.
 :::
 
 :::tip[Utenti Windows]
@@ -80,13 +80,13 @@ jollicode web --cors https://example.com
 
 ### Autenticazione
 
-Per proteggere l'accesso, imposta una password usando la variabile d'ambiente `OPENCODE_SERVER_PASSWORD`:
+Per proteggere l'accesso, imposta una password usando la variabile d'ambiente `JOLLICODE_SERVER_PASSWORD`:
 
 ```bash
-OPENCODE_SERVER_PASSWORD=secret jollicode web
+JOLLICODE_SERVER_PASSWORD=secret jollicode web
 ```
 
-Lo username predefinito e `jollicode`, ma puo essere cambiato con `OPENCODE_SERVER_USERNAME`.
+Lo username predefinito e `jollicode`, ma puo essere cambiato con `JOLLICODE_SERVER_USERNAME`.
 
 ---
 

@@ -5,7 +5,7 @@ import { Context, Duration, Effect, Layer, Schema } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/unstable/http"
 import { makeLocationNode } from "../effect/app-node"
 import { LayerNodePlatform } from "../effect/app-node-platform"
-import { truthy } from "../flag/flag"
+import { env, truthyEnv } from "../flag/flag"
 import { InstallationVersion } from "../installation/version"
 import { PositiveInt } from "../schema"
 import { PermissionV2 } from "../permission"
@@ -73,12 +73,12 @@ export class ConfigService extends Context.Service<ConfigService, Config>()("@op
 /** Isolates the retained product environment contract from the generic tool implementation. */
 export const defaultConfigLayer = Layer.sync(ConfigService, () =>
   ConfigService.of({
-    provider:
-      process.env.OPENCODE_WEBSEARCH_PROVIDER === "exa" || process.env.OPENCODE_WEBSEARCH_PROVIDER === "parallel"
-        ? process.env.OPENCODE_WEBSEARCH_PROVIDER
-        : undefined,
-    enableExa: truthy("OPENCODE_EXPERIMENTAL") || truthy("OPENCODE_ENABLE_EXA") || truthy("OPENCODE_EXPERIMENTAL_EXA"),
-    enableParallel: truthy("OPENCODE_ENABLE_PARALLEL") || truthy("OPENCODE_EXPERIMENTAL_PARALLEL"),
+    provider: (() => {
+      const provider = env("WEBSEARCH_PROVIDER")
+      return provider === "exa" || provider === "parallel" ? provider : undefined
+    })(),
+    enableExa: truthyEnv("EXPERIMENTAL") || truthyEnv("ENABLE_EXA") || truthyEnv("EXPERIMENTAL_EXA"),
+    enableParallel: truthyEnv("ENABLE_PARALLEL") || truthyEnv("EXPERIMENTAL_PARALLEL"),
     exaApiKey: process.env.EXA_API_KEY,
     parallelApiKey: process.env.PARALLEL_API_KEY,
   }),

@@ -44,10 +44,10 @@ Jolli Code 支援 **JSON** 和 **JSONC**（帶註解的 JSON）格式。
 
 1. **遠端設定**（來自 `.well-known/jollicode`）- 組織預設值
 2. **全域設定**（`~/.config/jollicode/jollicode.json`）- 使用者偏好
-3. **自訂設定**（`OPENCODE_CONFIG` 環境變數）- 自訂覆寫
+3. **自訂設定**（`JOLLICODE_CONFIG` 環境變數）- 自訂覆寫
 4. **專案設定**（專案中的 `jollicode.json`）- 專案特定設定
 5. **`.jollicode` 目錄** - 代理、指令、外掛程式
-6. **內嵌設定**（`OPENCODE_CONFIG_CONTENT` 環境變數）- 執行時覆寫
+6. **內嵌設定**（`JOLLICODE_CONFIG_CONTENT` 環境變數）- 執行時覆寫
 
 這意味著專案設定可以覆寫全域預設值，全域設定可以覆寫遠端組織預設值。
 
@@ -117,10 +117,10 @@ Jolli Code 支援 **JSON** 和 **JSONC**（帶註解的 JSON）格式。
 
 ### 自訂路徑
 
-使用 `OPENCODE_CONFIG` 環境變數指定自訂設定檔路徑。
+使用 `JOLLICODE_CONFIG` 環境變數指定自訂設定檔路徑。
 
 ```bash
-export OPENCODE_CONFIG=/path/to/my/custom-config.json
+export JOLLICODE_CONFIG=/path/to/my/custom-config.json
 jollicode run "Hello world"
 ```
 
@@ -130,10 +130,10 @@ jollicode run "Hello world"
 
 ### 自訂目錄
 
-使用 `OPENCODE_CONFIG_DIR` 環境變數指定自訂設定目錄。該目錄會像標準 `.jollicode` 目錄一樣被搜尋代理、指令、模式和外掛程式，並且應遵循相同的結構。
+使用 `JOLLICODE_CONFIG_DIR` 環境變數指定自訂設定目錄。該目錄會像標準 `.jollicode` 目錄一樣被搜尋代理、指令、模式和外掛程式，並且應遵循相同的結構。
 
 ```bash
-export OPENCODE_CONFIG_DIR=/path/to/my/config-directory
+export JOLLICODE_CONFIG_DIR=/path/to/my/config-directory
 jollicode run "Hello world"
 ```
 
@@ -172,7 +172,7 @@ jollicode run "Hello world"
 - `scroll_speed` - 自訂捲動速度倍率（預設值：`3`，最小值：`1`）。如果 `scroll_acceleration.enabled` 為 `true`，則忽略此選項。
 - `diff_style` - 控制差異呈現方式。`"auto"` 根據終端機寬度自適應，`"stacked"` 始終顯示單列。
 
-使用 `OPENCODE_TUI_CONFIG` 指向自訂 TUI 設定檔。
+使用 `JOLLICODE_TUI_CONFIG` 指向自訂 TUI 設定檔。
 
 `jollicode.json` 中的舊版 `theme`、`keybinds` 和 `tui` 鍵已被棄用，並將在可能的情況下自動遷移。
 
@@ -641,7 +641,7 @@ Jolli Code 啟動時會自動下載新版本。您可以使用 `autoupdate` 選�
 ```json title="jollicode.json"
 {
   "$schema": "https://jolli.ai/config.json",
-  "model": "{env:OPENCODE_MODEL}",
+  "model": "{env:JOLLICODE_MODEL}",
   "provider": {
     "anthropic": {
       "models": {},

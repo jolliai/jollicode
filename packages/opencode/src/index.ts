@@ -64,10 +64,10 @@ const cli = yargs(args)
     type: "boolean",
   })
   .middleware(async (opts) => {
-    if (opts.printLogs) process.env.OPENCODE_PRINT_LOGS = "1"
-    if (opts.logLevel) process.env.OPENCODE_LOG_LEVEL = opts.logLevel
+    if (opts.printLogs) process.env.JOLLICODE_PRINT_LOGS = "1"
+    if (opts.logLevel) process.env.JOLLICODE_LOG_LEVEL = opts.logLevel
     if (opts.pure) {
-      process.env.OPENCODE_PURE = "1"
+      process.env.JOLLICODE_PURE = "1"
     }
 
     Heap.start()

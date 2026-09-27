@@ -1,6 +1,7 @@
 export * as ServerAuth from "./auth"
 
 import { Brand } from "@opencode-ai/core/brand"
+import { env, envConfig } from "@opencode-ai/core/flag/flag"
 import { Config as EffectConfig, Context, Effect, Layer, Option, Redacted } from "effect"
 
 export type Credentials = {
@@ -29,8 +30,8 @@ export class Config extends Context.Service<Config, Info>()("@opencode/ServerAut
       Effect.gen(function* () {
         return Config.of(
           yield* EffectConfig.all({
-            password: EffectConfig.string("OPENCODE_SERVER_PASSWORD").pipe(EffectConfig.option),
-            username: EffectConfig.string("OPENCODE_SERVER_USERNAME").pipe(EffectConfig.withDefault(Brand.bin)),
+            password: envConfig(EffectConfig.string, "SERVER_PASSWORD").pipe(EffectConfig.option),
+            username: envConfig(EffectConfig.string, "SERVER_USERNAME").pipe(EffectConfig.withDefault(Brand.bin)),
           }),
         )
       }),
@@ -51,10 +52,10 @@ export function authorized(credentials: DecodedCredentials, config: Info) {
 }
 
 export function header(credentials?: Credentials) {
-  const password = credentials?.password ?? process.env.OPENCODE_SERVER_PASSWORD
+  const password = credentials?.password ?? env("SERVER_PASSWORD")
   if (!password) return undefined
 
-  return `Basic ${Buffer.from(`${credentials?.username ?? process.env.OPENCODE_SERVER_USERNAME ?? Brand.bin}:${password}`).toString("base64")}`
+  return `Basic ${Buffer.from(`${credentials?.username ?? env("SERVER_USERNAME") ?? Brand.bin}:${password}`).toString("base64")}`
 }
 
 export function headers(credentials?: Credentials) {

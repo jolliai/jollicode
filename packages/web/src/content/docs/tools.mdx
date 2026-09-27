@@ -156,7 +156,7 @@ Search for files using glob patterns like `**/*.js` or `src/**/*.ts`. Returns ma
 Interact with your configured LSP servers to get code intelligence features like definitions, references, hover info, and call hierarchy.
 
 :::note
-This tool is only available when `OPENCODE_EXPERIMENTAL_LSP_TOOL=true` (or `OPENCODE_EXPERIMENTAL=true`).
+This tool is only available when `JOLLICODE_EXPERIMENTAL_LSP_TOOL=true` (or `JOLLICODE_EXPERIMENTAL=true`).
 :::
 
 ```json title="jollicode.json" {4}
@@ -257,14 +257,14 @@ Allows the LLM to fetch and read web pages. Useful for looking up documentation 
 Search the web for information.
 
 :::note
-This tool is only available when using the Jolli Code or Jolli Code Go provider, or when either the `OPENCODE_ENABLE_EXA` or `OPENCODE_ENABLE_PARALLEL` environment variable is set to any truthy value (e.g., `true` or `1`).
+This tool is only available when using the Jolli Code or Jolli Code Go provider, or when either the `JOLLICODE_ENABLE_EXA` or `JOLLICODE_ENABLE_PARALLEL` environment variable is set to any truthy value (e.g., `true` or `1`).
 
 To enable when launching Jolli Code:
 
 ```bash
-OPENCODE_ENABLE_EXA=1 jollicode
+JOLLICODE_ENABLE_EXA=1 jollicode
 # or
-OPENCODE_ENABLE_PARALLEL=1 jollicode
+JOLLICODE_ENABLE_PARALLEL=1 jollicode
 ```
 
 :::

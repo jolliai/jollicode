@@ -78,14 +78,14 @@ jollicode attach http://10.20.30.40:4096
 
 #### 标志
 
-| 标志                                     | 简写 | 描述                                                                |
-| ---------------------------------------- | ---- | ------------------------------------------------------------------- |
-| <nobr><code>{"--dir"}</code></nobr>      |      | 启动 TUI 的工作目录                                                 |
-| <nobr><code>{"--continue"}</code></nobr> | `-c` | 继续上一个会话                                                      |
-| <nobr><code>{"--session"}</code></nobr>  | `-s` | 要继续的会话 ID                                                     |
-| <nobr><code>{"--fork"}</code></nobr>     |      | 继续时派生会话（与 `--continue` 或 `--session` 一起使用）           |
-| <nobr><code>{"--password"}</code></nobr> | `-p` | 基本认证密码（默认使用 `OPENCODE_SERVER_PASSWORD`）                 |
-| <nobr><code>{"--username"}</code></nobr> | `-u` | 基本认证用户名（默认使用 `OPENCODE_SERVER_USERNAME` 或 `jollicode`） |
+| 标志                                     | 简写 | 描述                                                                  |
+| ---------------------------------------- | ---- | --------------------------------------------------------------------- |
+| <nobr><code>{"--dir"}</code></nobr>      |      | 启动 TUI 的工作目录                                                   |
+| <nobr><code>{"--continue"}</code></nobr> | `-c` | 继续上一个会话                                                        |
+| <nobr><code>{"--session"}</code></nobr>  | `-s` | 要继续的会话 ID                                                       |
+| <nobr><code>{"--fork"}</code></nobr>     |      | 继续时派生会话（与 `--continue` 或 `--session` 一起使用）             |
+| <nobr><code>{"--password"}</code></nobr> | `-p` | 基本认证密码（默认使用 `JOLLICODE_SERVER_PASSWORD`）                  |
+| <nobr><code>{"--username"}</code></nobr> | `-u` | 基本认证用户名（默认使用 `JOLLICODE_SERVER_USERNAME` 或 `jollicode`） |
 
 ---
 
@@ -339,25 +339,25 @@ jollicode run --attach http://localhost:4096 "Explain async/await in JavaScript"
 
 #### 标志
 
-| 标志                                     | 简写 | 描述                                                                |
-| ---------------------------------------- | ---- | ------------------------------------------------------------------- |
-| <nobr><code>{"--command"}</code></nobr>  |      | 要运行的命令，使用 message 作为参数                                 |
-| <nobr><code>{"--continue"}</code></nobr> | `-c` | 继续上一个会话                                                      |
-| <nobr><code>{"--session"}</code></nobr>  | `-s` | 要继续的会话 ID                                                     |
-| <nobr><code>{"--fork"}</code></nobr>     |      | 继续时分叉会话（与 `--continue` 或 `--session` 配合使用）           |
-| <nobr><code>{"--share"}</code></nobr>    |      | 分享会话                                                            |
-| <nobr><code>{"--model"}</code></nobr>    | `-m` | 要使用的模型，格式为 provider/model                                 |
-| <nobr><code>{"--agent"}</code></nobr>    |      | 要使用的代理                                                        |
-| <nobr><code>{"--file"}</code></nobr>     | `-f` | 附加到消息的文件                                                    |
-| <nobr><code>{"--format"}</code></nobr>   |      | 格式：default（格式化输出）或 json（原始 JSON 事件）                |
-| <nobr><code>{"--title"}</code></nobr>    |      | 会话标题（未提供值时使用截断的提示词）                              |
+| 标志                                     | 简写 | 描述                                                                  |
+| ---------------------------------------- | ---- | --------------------------------------------------------------------- |
+| <nobr><code>{"--command"}</code></nobr>  |      | 要运行的命令，使用 message 作为参数                                   |
+| <nobr><code>{"--continue"}</code></nobr> | `-c` | 继续上一个会话                                                        |
+| <nobr><code>{"--session"}</code></nobr>  | `-s` | 要继续的会话 ID                                                       |
+| <nobr><code>{"--fork"}</code></nobr>     |      | 继续时分叉会话（与 `--continue` 或 `--session` 配合使用）             |
+| <nobr><code>{"--share"}</code></nobr>    |      | 分享会话                                                              |
+| <nobr><code>{"--model"}</code></nobr>    | `-m` | 要使用的模型，格式为 provider/model                                   |
+| <nobr><code>{"--agent"}</code></nobr>    |      | 要使用的代理                                                          |
+| <nobr><code>{"--file"}</code></nobr>     | `-f` | 附加到消息的文件                                                      |
+| <nobr><code>{"--format"}</code></nobr>   |      | 格式：default（格式化输出）或 json（原始 JSON 事件）                  |
+| <nobr><code>{"--title"}</code></nobr>    |      | 会话标题（未提供值时使用截断的提示词）                                |
 | <nobr><code>{"--attach"}</code></nobr>   |      | 连接到正在运行的 Jolli Code 服务器（例如 http://localhost:4096）      |
-| <nobr><code>{"--password"}</code></nobr> | `-p` | 基本认证密码（默认使用 `OPENCODE_SERVER_PASSWORD`）                 |
-| <nobr><code>{"--username"}</code></nobr> | `-u` | 基本认证用户名（默认使用 `OPENCODE_SERVER_USERNAME` 或 `jollicode`） |
-| <nobr><code>{"--dir"}</code></nobr>      |      | 运行目录，或附加时远程服务器上的路径                                |
-| <nobr><code>{"--variant"}</code></nobr>  |      | 模型变体（特定于提供商的推理级别）                                  |
-| <nobr><code>{"--thinking"}</code></nobr> |      | 显示思考块                                                          |
-| <nobr><code>{"--port"}</code></nobr>     |      | 本地服务器端口（默认为随机端口）                                    |
+| <nobr><code>{"--password"}</code></nobr> | `-p` | 基本认证密码（默认使用 `JOLLICODE_SERVER_PASSWORD`）                  |
+| <nobr><code>{"--username"}</code></nobr> | `-u` | 基本认证用户名（默认使用 `JOLLICODE_SERVER_USERNAME` 或 `jollicode`） |
+| <nobr><code>{"--dir"}</code></nobr>      |      | 运行目录，或附加时远程服务器上的路径                                  |
+| <nobr><code>{"--variant"}</code></nobr>  |      | 模型变体（特定于提供商的推理级别）                                    |
+| <nobr><code>{"--thinking"}</code></nobr> |      | 显示思考块                                                            |
+| <nobr><code>{"--port"}</code></nobr>     |      | 本地服务器端口（默认为随机端口）                                      |
 
 ---
 
@@ -369,7 +369,7 @@ jollicode run --attach http://localhost:4096 "Explain async/await in JavaScript"
 jollicode serve
 ```
 
-此命令启动一个 HTTP 服务器，提供对 Jolli Code 功能的 API 访问，无需 TUI 界面。设置 `OPENCODE_SERVER_PASSWORD` 可启用 HTTP 基本认证（用户名默认为 `jollicode`）。
+此命令启动一个 HTTP 服务器，提供对 Jolli Code 功能的 API 访问，无需 TUI 界面。设置 `JOLLICODE_SERVER_PASSWORD` 可启用 HTTP 基本认证（用户名默认为 `jollicode`）。
 
 #### 标志
 
@@ -465,7 +465,7 @@ jollicode import https://opncd.ai/s/abc123
 jollicode web
 ```
 
-此命令启动一个 HTTP 服务器并打开浏览器，通过 Web 界面访问 Jolli Code。设置 `OPENCODE_SERVER_PASSWORD` 可启用 HTTP 基本认证（用户名默认为 `jollicode`）。
+此命令启动一个 HTTP 服务器并打开浏览器，通过 Web 界面访问 Jolli Code。设置 `JOLLICODE_SERVER_PASSWORD` 可启用 HTTP 基本认证（用户名默认为 `jollicode`）。
 
 #### 标志
 
@@ -562,32 +562,32 @@ Jolli Code CLI 接受以下全局标志。
 
 Jolli Code 可以通过环境变量进行配置。
 
-| 变量                                  | 类型    | 描述                                    |
-| ------------------------------------- | ------- | --------------------------------------- |
-| `OPENCODE_AUTO_SHARE`                 | boolean | 自动分享会话                            |
-| `OPENCODE_GIT_BASH_PATH`              | string  | Windows 上 Git Bash 可执行文件的路径    |
-| `OPENCODE_CONFIG`                     | string  | 配置文件路径                            |
-| `OPENCODE_TUI_CONFIG`                 | string  | TUI 配置文件路径                        |
-| `OPENCODE_CONFIG_DIR`                 | string  | 配置目录路径                            |
-| `OPENCODE_CONFIG_CONTENT`             | string  | 内联 JSON 配置内容                      |
-| `OPENCODE_DISABLE_AUTOUPDATE`         | boolean | 禁用自动更新检查                        |
-| `OPENCODE_DISABLE_PRUNE`              | boolean | 禁用旧数据清理                          |
-| `OPENCODE_DISABLE_TERMINAL_TITLE`     | boolean | 禁用自动终端标题更新                    |
-| `OPENCODE_PERMISSION`                 | string  | 内联 JSON 权限配置                      |
-| `OPENCODE_DISABLE_DEFAULT_PLUGINS`    | boolean | 禁用默认插件                            |
-| `OPENCODE_DISABLE_LSP_DOWNLOAD`       | boolean | 禁用 LSP 服务器自动下载                 |
-| `OPENCODE_ENABLE_EXPERIMENTAL_MODELS` | boolean | 启用实验性模型                          |
-| `OPENCODE_DISABLE_AUTOCOMPACT`        | boolean | 禁用自动上下文压缩                      |
-| `OPENCODE_DISABLE_CLAUDE_CODE`        | boolean | 禁用读取 `.claude`（提示词 + 技能）     |
-| `OPENCODE_DISABLE_CLAUDE_CODE_PROMPT` | boolean | 禁用读取 `~/.claude/CLAUDE.md`          |
-| `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS` | boolean | 禁用加载 `.claude/skills`               |
-| `OPENCODE_DISABLE_MODELS_FETCH`       | boolean | 禁用从远程源获取模型                    |
-| `OPENCODE_FAKE_VCS`                   | string  | 用于测试目的的模拟 VCS 提供商           |
-| `OPENCODE_CLIENT`                     | string  | 客户端标识符（默认为 `cli`）            |
-| `OPENCODE_ENABLE_EXA`                 | boolean | 启用 Exa 网络搜索工具                   |
-| `OPENCODE_SERVER_PASSWORD`            | string  | 为 `serve`/`web` 启用基本认证           |
-| `OPENCODE_SERVER_USERNAME`            | string  | 覆盖基本认证用户名（默认为 `jollicode`） |
-| `OPENCODE_MODELS_URL`                 | string  | 自定义模型配置获取 URL                  |
+| 变量                                   | 类型    | 描述                                     |
+| -------------------------------------- | ------- | ---------------------------------------- |
+| `JOLLICODE_AUTO_SHARE`                 | boolean | 自动分享会话                             |
+| `JOLLICODE_GIT_BASH_PATH`              | string  | Windows 上 Git Bash 可执行文件的路径     |
+| `JOLLICODE_CONFIG`                     | string  | 配置文件路径                             |
+| `JOLLICODE_TUI_CONFIG`                 | string  | TUI 配置文件路径                         |
+| `JOLLICODE_CONFIG_DIR`                 | string  | 配置目录路径                             |
+| `JOLLICODE_CONFIG_CONTENT`             | string  | 内联 JSON 配置内容                       |
+| `JOLLICODE_DISABLE_AUTOUPDATE`         | boolean | 禁用自动更新检查                         |
+| `JOLLICODE_DISABLE_PRUNE`              | boolean | 禁用旧数据清理                           |
+| `JOLLICODE_DISABLE_TERMINAL_TITLE`     | boolean | 禁用自动终端标题更新                     |
+| `JOLLICODE_PERMISSION`                 | string  | 内联 JSON 权限配置                       |
+| `JOLLICODE_DISABLE_DEFAULT_PLUGINS`    | boolean | 禁用默认插件                             |
+| `JOLLICODE_DISABLE_LSP_DOWNLOAD`       | boolean | 禁用 LSP 服务器自动下载                  |
+| `JOLLICODE_ENABLE_EXPERIMENTAL_MODELS` | boolean | 启用实验性模型                           |
+| `JOLLICODE_DISABLE_AUTOCOMPACT`        | boolean | 禁用自动上下文压缩                       |
+| `JOLLICODE_DISABLE_CLAUDE_CODE`        | boolean | 禁用读取 `.claude`（提示词 + 技能）      |
+| `JOLLICODE_DISABLE_CLAUDE_CODE_PROMPT` | boolean | 禁用读取 `~/.claude/CLAUDE.md`           |
+| `JOLLICODE_DISABLE_CLAUDE_CODE_SKILLS` | boolean | 禁用加载 `.claude/skills`                |
+| `JOLLICODE_DISABLE_MODELS_FETCH`       | boolean | 禁用从远程源获取模型                     |
+| `JOLLICODE_FAKE_VCS`                   | string  | 用于测试目的的模拟 VCS 提供商            |
+| `JOLLICODE_CLIENT`                     | string  | 客户端标识符（默认为 `cli`）             |
+| `JOLLICODE_ENABLE_EXA`                 | boolean | 启用 Exa 网络搜索工具                    |
+| `JOLLICODE_SERVER_PASSWORD`            | string  | 为 `serve`/`web` 启用基本认证            |
+| `JOLLICODE_SERVER_USERNAME`            | string  | 覆盖基本认证用户名（默认为 `jollicode`） |
+| `JOLLICODE_MODELS_URL`                 | string  | 自定义模型配置获取 URL                   |
 
 ---
 
@@ -595,23 +595,23 @@ Jolli Code 可以通过环境变量进行配置。
 
 这些环境变量用于启用可能会更改或移除的实验性功能。
 
-| 变量                                            | 类型    | 描述                            |
-| ----------------------------------------------- | ------- | ------------------------------- |
-| `OPENCODE_EXPERIMENTAL`                         | boolean | 启用受总开关控制的实验性功能    |
-| `OPENCODE_EXPERIMENTAL_ICON_DISCOVERY`          | boolean | 启用图标发现                    |
-| `OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT`  | boolean | 禁用 TUI 中的选中即复制         |
-| `OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` | number  | bash 命令的默认超时时间（毫秒） |
-| `OPENCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX`        | number  | LLM 响应的最大输出 Token 数     |
-| `OPENCODE_EXPERIMENTAL_FILEWATCHER`             | boolean | 启用整个目录的文件监听器        |
-| `OPENCODE_EXPERIMENTAL_OXFMT`                   | boolean | 启用 oxfmt 格式化器             |
-| `OPENCODE_EXPERIMENTAL_LSP_TOOL`                | boolean | 启用实验性 LSP 工具             |
-| `OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER`     | boolean | 禁用文件监听器                  |
-| `OPENCODE_EXPERIMENTAL_EXA`                     | boolean | 启用实验性 Exa 功能             |
-| `OPENCODE_EXPERIMENTAL_LSP_TY`                  | boolean | 为 python 文件启用 TY LSP       |
-| `OPENCODE_EXPERIMENTAL_PLAN_MODE`               | boolean | 启用计划模式                    |
-| `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS`    | boolean | 启用后台子代理任务              |
-| `OPENCODE_EXPERIMENTAL_EVENT_SYSTEM`            | boolean | 启用实验性事件系统              |
-| `OPENCODE_EXPERIMENTAL_NATIVE_LLM`              | boolean | 启用原生 LLM 请求路径           |
-| `OPENCODE_EXPERIMENTAL_PARALLEL`                | boolean | 启用并行 Web 搜索执行           |
-| `OPENCODE_EXPERIMENTAL_SCOUT`                   | boolean | 启用 Scout 子代理               |
-| `OPENCODE_EXPERIMENTAL_WORKSPACES`              | boolean | 启用工作区支持                  |
+| 变量                                             | 类型    | 描述                            |
+| ------------------------------------------------ | ------- | ------------------------------- |
+| `JOLLICODE_EXPERIMENTAL`                         | boolean | 启用受总开关控制的实验性功能    |
+| `JOLLICODE_EXPERIMENTAL_ICON_DISCOVERY`          | boolean | 启用图标发现                    |
+| `JOLLICODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT`  | boolean | 禁用 TUI 中的选中即复制         |
+| `JOLLICODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` | number  | bash 命令的默认超时时间（毫秒） |
+| `JOLLICODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX`        | number  | LLM 响应的最大输出 Token 数     |
+| `JOLLICODE_EXPERIMENTAL_FILEWATCHER`             | boolean | 启用整个目录的文件监听器        |
+| `JOLLICODE_EXPERIMENTAL_OXFMT`                   | boolean | 启用 oxfmt 格式化器             |
+| `JOLLICODE_EXPERIMENTAL_LSP_TOOL`                | boolean | 启用实验性 LSP 工具             |
+| `JOLLICODE_EXPERIMENTAL_DISABLE_FILEWATCHER`     | boolean | 禁用文件监听器                  |
+| `JOLLICODE_EXPERIMENTAL_EXA`                     | boolean | 启用实验性 Exa 功能             |
+| `JOLLICODE_EXPERIMENTAL_LSP_TY`                  | boolean | 为 python 文件启用 TY LSP       |
+| `JOLLICODE_EXPERIMENTAL_PLAN_MODE`               | boolean | 启用计划模式                    |
+| `JOLLICODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS`    | boolean | 启用后台子代理任务              |
+| `JOLLICODE_EXPERIMENTAL_EVENT_SYSTEM`            | boolean | 启用实验性事件系统              |
+| `JOLLICODE_EXPERIMENTAL_NATIVE_LLM`              | boolean | 启用原生 LLM 请求路径           |
+| `JOLLICODE_EXPERIMENTAL_PARALLEL`                | boolean | 启用并行 Web 搜索执行           |
+| `JOLLICODE_EXPERIMENTAL_SCOUT`                   | boolean | 启用 Scout 子代理               |
+| `JOLLICODE_EXPERIMENTAL_WORKSPACES`              | boolean | 启用工作区支持                  |
