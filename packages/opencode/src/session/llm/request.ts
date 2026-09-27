@@ -70,6 +70,7 @@ export function jolliCodingAgentHeaders(input: {
   readonly command?: string
   readonly mcpServers?: ReadonlyArray<string>
   readonly nonMcpTools?: ReadonlyArray<string>
+  readonly toolErrors?: ReadonlyArray<string>
 }): Record<string, string> {
   if (!isJolliProviderId(input.providerID)) return {}
   if (input.turnID === undefined || input.clientAttemptID === undefined || input.stepIndex === undefined) return {}
@@ -96,7 +97,38 @@ export function jolliCodingAgentHeaders(input: {
           "x-jolli-non-mcp-tools": input.nonMcpTools.map((name) => encodeURIComponent(name.toWellFormed())).join(","),
         }
       : {}),
+    // Sent whenever the request carries a tool result, as "none" when none failed, so the backend can
+    // tell "nothing failed" from a client that does not report. Ids are the provider's; encoded like
+    // the tool names since nothing promises they are plain ASCII.
+    ...(input.toolErrors
+      ? {
+          "x-jolli-tool-errors": input.toolErrors.length
+            ? input.toolErrors.map((id) => encodeURIComponent(id.toWellFormed())).join(",")
+            : "none",
+        }
+      : {}),
   }
+}
+
+/** How many failed tool results one request reports; the backend keeps no more. */
+const JOLLI_TOOL_ERRORS_MAX = 32
+
+/**
+ * The ids of the failed tool results among the messages a Jolli request sends, for the backend's MCP
+ * failure stats: the OpenAI and Google protocols carry no error flag on a tool result, so it cannot
+ * see a failure otherwise. "Failed" is what the Anthropic SDK flags `is_error` — an `error-text` or
+ * `error-json` output — so every protocol counts the same thing. Undefined when the request carries
+ * no tool result at all; the most recent ids when more failed than the backend keeps.
+ */
+export function jolliToolErrors(messages: ReadonlyArray<ModelMessage>): ReadonlyArray<string> | undefined {
+  const results = messages.flatMap((message) =>
+    message.role === "tool" ? message.content.flatMap((part) => (part.type === "tool-result" ? [part] : [])) : [],
+  )
+  if (results.length === 0) return undefined
+  return results
+    .filter((part) => part.output.type === "error-text" || part.output.type === "error-json")
+    .map((part) => part.toolCallId)
+    .slice(-JOLLI_TOOL_ERRORS_MAX)
 }
 
 /**
@@ -279,6 +311,7 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
         courseID: input.courseID,
         courseAssistantID: input.courseAssistantID,
         command: input.user.command,
+        toolErrors: jolliToolErrors(input.messages),
         ...jolliMcpReport({
           toolNames: Object.keys(tools),
           mcpToolServers: input.mcpToolServers,
