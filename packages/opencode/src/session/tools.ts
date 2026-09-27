@@ -48,6 +48,8 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   promptOps: TaskPromptOps
 }) {
   const tools: Record<string, AITool> = {}
+  // Each MCP tool's key -> the sanitized name of the server offering it, i.e. the key's `<server>_` prefix.
+  const mcpToolServers = new Map<string, string>()
   const run = yield* EffectBridge.make()
   const plugin = yield* Plugin.Service
   const permission = yield* Permission.Service
@@ -385,7 +387,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     })
   }
 
-  if (flags.experimentalCodeMode) return tools
+  if (flags.experimentalCodeMode) return { tools, mcpToolServers }
 
   for (const [key, entry] of Object.entries(yield* mcp.tools())) {
     const item = McpCatalog.convertTool(entry.def, entry.client, entry.timeout)
@@ -487,9 +489,10 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
         }),
       )
     tools[key] = item
+    mcpToolServers.set(key, McpCatalog.sanitize(entry.server))
   }
 
-  return tools
+  return { tools, mcpToolServers }
 })
 
 function toRecord(value: unknown) {

@@ -107,7 +107,7 @@ describe("jolli coding-agent request headers", () => {
     // A lone surrogate would make encodeURIComponent throw and fail the whole turn.
     expect(jolliCodingAgentHeaders({ ...base, command: "\ud800" })["x-jolli-command"]).toBe("%EF%BF%BD")
   })
-  test("lists the connected MCP servers under the names their tools are prefixed with", () => {
+  test("lists the reported MCP servers", () => {
     const base = {
       providerID: providerIdFor("openai"),
       sessionID: SessionID.descending(),
@@ -115,13 +115,14 @@ describe("jolli coding-agent request headers", () => {
       clientAttemptID: "attempt-1",
       stepIndex: 0,
     }
-    expect(
-      jolliCodingAgentHeaders({ ...base, mcpServers: ["github", "my server", "github"] })["x-jolli-mcp-servers"],
-    ).toBe("github,my_server")
+    expect(jolliCodingAgentHeaders({ ...base, mcpServers: ["github", "my_server"] })["x-jolli-mcp-servers"]).toBe(
+      "github,my_server",
+    )
     expect(jolliCodingAgentHeaders({ ...base, mcpServers: [] })["x-jolli-mcp-servers"]).toBeUndefined()
     expect(jolliCodingAgentHeaders(base)["x-jolli-mcp-servers"]).toBeUndefined()
   })
-  test("lists the tools that are not MCP but share a reported server's prefix", () => {
+
+  test("percent-encodes each non-MCP tool name so a non-ASCII or comma name cannot break the header", () => {
     const base = {
       providerID: providerIdFor("openai"),
       sessionID: SessionID.descending(),
@@ -129,11 +130,12 @@ describe("jolli coding-agent request headers", () => {
       clientAttemptID: "attempt-1",
       stepIndex: 0,
     }
-    expect(
-      jolliCodingAgentHeaders({ ...base, nonMcpTools: ["plan_exit", "github_helper", "plan_exit"] })[
-        "x-jolli-non-mcp-tools"
-      ],
-    ).toBe("github_helper,plan_exit")
+    const value = jolliCodingAgentHeaders({ ...base, nonMcpTools: ["plan_exit", "plan_导出", "plan_a,b"] })[
+      "x-jolli-non-mcp-tools"
+    ]
+    expect(value).toBe("plan_exit,plan_%E5%AF%BC%E5%87%BA,plan_a%2Cb")
+    expect(() => new Headers({ "x-jolli-non-mcp-tools": value })).not.toThrow()
+    expect(value.split(",").map(decodeURIComponent)).toEqual(["plan_exit", "plan_导出", "plan_a,b"])
     expect(jolliCodingAgentHeaders({ ...base, nonMcpTools: [] })["x-jolli-non-mcp-tools"]).toBeUndefined()
     expect(jolliCodingAgentHeaders(base)["x-jolli-non-mcp-tools"]).toBeUndefined()
   })
@@ -143,36 +145,43 @@ describe("jolliMcpReport", () => {
   test("reports a server only when one of its MCP tools is offered", () => {
     expect(
       jolliMcpReport({
-        toolNames: ["bash", "github_list", "plan_exit"],
-        mcpServers: ["github", "plan", "hidden"],
-        mcpToolNames: ["github_list", "plan_create", "hidden_lookup"],
+        toolNames: ["bash", "github_list"],
+        mcpToolServers: new Map([
+          ["github_list", "github"],
+          ["hidden_lookup", "hidden"],
+        ]),
       }).mcpServers,
     ).toEqual(["github"])
+  })
+
+  test("does not report a server whose name prefixes another offered server", () => {
+    // Every github_* tool is denied; only github_enterprise's tool is offered.
+    expect(
+      jolliMcpReport({
+        toolNames: ["github_enterprise_search"],
+        mcpToolServers: new Map([
+          ["github_list", "github"],
+          ["github_enterprise_search", "github_enterprise"],
+        ]),
+      }),
+    ).toEqual({ mcpServers: ["github_enterprise"], nonMcpTools: [] })
   })
 
   test("names the non-MCP tools that carry a reported server's prefix", () => {
     expect(
       jolliMcpReport({
         toolNames: ["bash", "plan_create", "plan_exit", "github_helper", "github_list"],
-        mcpServers: ["github", "plan"],
-        mcpToolNames: ["github_list", "plan_create"],
+        mcpToolServers: new Map([
+          ["github_list", "github"],
+          ["plan_create", "plan"],
+        ]),
       }),
-    ).toEqual({ mcpServers: ["github", "plan"], nonMcpTools: ["plan_exit", "github_helper"] })
+    ).toEqual({ mcpServers: ["github", "plan"], nonMcpTools: ["github_helper", "plan_exit"] })
   })
 
-  test("matches servers by their sanitized name, as MCP tool names are built", () => {
-    expect(
-      jolliMcpReport({
-        toolNames: ["my_server_lookup", "my_server_notes"],
-        mcpServers: ["my server"],
-        mcpToolNames: ["my_server_lookup"],
-      }),
-    ).toEqual({ mcpServers: ["my server"], nonMcpTools: ["my_server_notes"] })
-  })
-
-  test("reports nothing without MCP servers or tools", () => {
+  test("reports nothing without MCP tools in the request", () => {
     expect(jolliMcpReport({ toolNames: ["bash", "plan_exit"] })).toEqual({ mcpServers: [], nonMcpTools: [] })
-    expect(jolliMcpReport({ toolNames: ["github_list"], mcpServers: ["github"] })).toEqual({
+    expect(jolliMcpReport({ toolNames: ["bash"], mcpToolServers: new Map([["github_list", "github"]]) })).toEqual({
       mcpServers: [],
       nonMcpTools: [],
     })

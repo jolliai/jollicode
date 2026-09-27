@@ -267,12 +267,10 @@ const layer = Layer.effect(
         .find((line) => line.length > 0)
       if (!cleaned) return
       const t = cleaned.length > 100 ? cleaned.substring(0, 97) + "..." : cleaned
-      yield* sessions
-        .setTitle({ sessionID: input.session.id, title: t })
-        .pipe(
-          Effect.andThen(sync(t)),
-          Effect.catchCause((cause) => Effect.logError("failed to generate title", { error: Cause.squash(cause) })),
-        )
+      yield* sessions.setTitle({ sessionID: input.session.id, title: t }).pipe(
+        Effect.andThen(sync(t)),
+        Effect.catchCause((cause) => Effect.logError("failed to generate title", { error: Cause.squash(cause) })),
+      )
     })
 
     const handleSubtask = Effect.fn("SessionPrompt.handleSubtask")(function* (input: {
@@ -457,6 +455,19 @@ const layer = Layer.effect(
 
       if (!task.command) return
 
+      // TaskTool can fail before the child admits its prompt (creating the session, a missing
+      // assistant message or promptOps), so the child counts as carrying the command only once a
+      // user message of its own holds it; otherwise the parent's follow-up carries it instead.
+      const childSessionID = part.state.status === "running" ? part.state.metadata?.sessionId : undefined
+      const childCarried =
+        childCommand !== undefined &&
+        typeof childSessionID === "string" &&
+        (yield* sessions
+          .messages({ sessionID: SessionID.make(childSessionID) })
+          .pipe(Effect.orElseSucceed(() => []))).some(
+          (msg) => msg.info.role === "user" && msg.info.command === childCommand,
+        )
+
       const summaryUserMsg: SessionV1.User = {
         id: MessageID.ascending(),
         sessionID,
@@ -464,7 +475,7 @@ const layer = Layer.effect(
         time: { created: Date.now() },
         agent: lastUser.agent,
         model: lastUser.model,
-        command: childCommand ? undefined : task.command,
+        command: childCarried ? undefined : task.command,
       }
       yield* sessions.updateMessage(summaryUserMsg)
       yield* sessions.updatePart({
@@ -1256,7 +1267,7 @@ const layer = Layer.effect(
             const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
             const promptOps = yield* ops()
 
-            const tools = yield* SessionTools.resolve({
+            const resolved = yield* SessionTools.resolve({
               agent,
               session,
               model,
@@ -1274,7 +1285,7 @@ const layer = Layer.effect(
             )
 
             if (lastUser.format?.type === "json_schema") {
-              tools["StructuredOutput"] = createStructuredOutputTool({
+              resolved.tools["StructuredOutput"] = createStructuredOutputTool({
                 schema: lastUser.format.schema,
                 onSuccess(output) {
                   structured = output
@@ -1313,15 +1324,13 @@ const layer = Layer.effect(
               stepIndex: providerStepIndex,
               courseID: courseBinding?.courseId,
               courseAssistantID: courseBinding?.assistantId,
-              // Only the Jolli gateway reads these; prepare narrows them to servers with a tool in the request.
-              mcpServers: isJolliProviderId(model.providerID) ? Object.keys(yield* mcp.clients()) : undefined,
-              mcpToolNames: isJolliProviderId(model.providerID) ? Object.keys(yield* mcp.tools()) : undefined,
+              mcpToolServers: resolved.mcpToolServers,
               system,
               messages: [
                 ...modelMsgs,
                 ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS_PROMPT }] : []),
               ],
-              tools,
+              tools: resolved.tools,
               model,
               toolChoice: format.type === "json_schema" ? "required" : undefined,
             })

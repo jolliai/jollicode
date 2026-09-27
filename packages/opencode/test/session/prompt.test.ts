@@ -123,7 +123,7 @@ function makeMcp(instructions: MCP.ServerInstructions[] = [], servers: string[] 
   const tools = Object.fromEntries(
     Object.entries(clients).map(([name, client]) => [
       McpCatalog.toolName(name, "lookup"),
-      { def: { name: "lookup", inputSchema: { type: "object" as const, properties: {} } }, client },
+      { def: { name: "lookup", inputSchema: { type: "object" as const, properties: {} } }, client, server: name },
     ]),
   )
   return Layer.succeed(
@@ -1100,10 +1100,10 @@ it.instance("subtask uses independent zero-based Jolli identities and inherits t
   }),
 )
 
-const commandSubtask = Effect.fn("test.commandSubtask")(function* (model: typeof ref) {
+const commandSubtask = Effect.fn("test.commandSubtask")(function* (model: typeof ref, parentID?: SessionID) {
   const prompt = yield* SessionPrompt.Service
   const sessions = yield* Session.Service
-  const chat = yield* sessions.create({ title: "Pinned" })
+  const chat = yield* sessions.create({ title: "Pinned", parentID })
   const msg = yield* prompt.prompt({
     sessionID: chat.id,
     agent: "build",
@@ -1160,6 +1160,24 @@ it.instance("a slash-command subtask off Jolli attributes its command to the par
     const parent = hits.find((hit) => hit.headers["x-jolli-conversation-id"] === chat.id)
     expect(parent?.headers["x-jolli-command"]).toBe("review")
     expect(hits.filter((hit) => hit.headers["x-jolli-command"] !== undefined)).toHaveLength(1)
+  }),
+)
+
+it.instance("a slash-command subtask whose child never runs still attributes its command, on the parent", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(jolliProviderCfg)
+    const sessions = yield* Session.Service
+    // Already a subagent session, so TaskTool hits the depth limit before the child admits a prompt.
+    const root = yield* sessions.create({ title: "Root" })
+    const { prompt, chat } = yield* commandSubtask(jolliRef, root.id)
+    yield* llm.text("parent response")
+
+    yield* prompt.loop({ sessionID: chat.id })
+
+    const hits = yield* llm.hits
+    expect(hits).toHaveLength(1)
+    expect(hits[0]?.headers["x-jolli-conversation-id"]).toBe(chat.id)
+    expect(hits[0]?.headers["x-jolli-command"]).toBe("review")
   }),
 )
 
