@@ -394,7 +394,7 @@ export const McpLogoutCommand = effectCmd({
 })
 
 async function resolveConfigPath(baseDir: string, global = false) {
-  // Check for existing config files (prefer .jsonc over .json, check .jollicode/ subdirectory too)
+  // Use the first existing config file, .json before .jsonc, then the same pair under .jollicode/
   const candidates = ConfigPaths.fileInDirectory(baseDir, Brand.bin)
 
   if (!global) {
