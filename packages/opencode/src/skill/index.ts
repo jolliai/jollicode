@@ -29,9 +29,8 @@ const SKILL_PATTERN = "**/SKILL.md"
 // invalid config, so users hit cryptic startup errors. Loading this skill
 // when the model is asked to touch Jolli Code's own config files gives it the
 // actual schemas instead of guesses.
-const CUSTOMIZE_JOLLICODE_SKILL_NAME = "customize-jollicode"
-const CUSTOMIZE_JOLLICODE_SKILL_DESCRIPTION =
-  "Use ONLY when the user is editing or creating Jolli Code's own configuration: jollicode.json, jollicode.jsonc, files under .jollicode/, or files under ~/.config/jollicode/. Also use when creating or fixing Jolli Code agents, subagents, skills, plugins, MCP servers, or permission rules. Do not use for the user's own application code, or for any project that is not configuring Jolli Code itself."
+const CUSTOMIZE_JOLLICODE_SKILL_NAME = SkillPlugin.CustomizeJollicodeName
+const CUSTOMIZE_JOLLICODE_SKILL_DESCRIPTION = SkillPlugin.CustomizeJollicodeDescription
 const CUSTOMIZE_JOLLICODE_SKILL_BODY = SkillPlugin.CustomizeJollicodeContent
 
 export const Info = Schema.Struct({

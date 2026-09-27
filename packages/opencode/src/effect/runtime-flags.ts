@@ -17,6 +17,7 @@ const enabledByExperimental = (suffix: string) =>
 
 export class Service extends ConfigService.Service<Service>()("@opencode/RuntimeFlags", {
   autoShare: bool("AUTO_SHARE"),
+  lockdown: bool("LOCKDOWN"),
   pure: bool("PURE"),
   disableDefaultPlugins: bool("DISABLE_DEFAULT_PLUGINS"),
   disableEmbeddedWebUi: bool("DISABLE_EMBEDDED_WEB_UI"),

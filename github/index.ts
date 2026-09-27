@@ -119,7 +119,7 @@ let octoRest: Octokit
 let octoGraph: typeof graphql
 let commentId: number
 let gitConfig: string
-let session: { id: string; title: string; version: string }
+let session: { id: string }
 let exitCode = 0
 type PromptFiles = Awaited<ReturnType<typeof getUserPrompt>>["promptFiles"]
 
@@ -531,11 +531,6 @@ async function subscribeSessionEvents() {
                   text = ""
                 }
               }
-            }
-
-            if (evt.type === "session.updated") {
-              if (evt.properties.info.id !== session.id) continue
-              session = evt.properties.info
             }
           } catch {
             // Ignore parse errors

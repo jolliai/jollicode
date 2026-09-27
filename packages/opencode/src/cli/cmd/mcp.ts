@@ -12,6 +12,7 @@ import { MCP } from "../../mcp"
 import { McpAuth } from "../../mcp/auth"
 import { McpOAuthProvider } from "../../mcp/oauth-provider"
 import { Config } from "@/config/config"
+import { ConfigPaths } from "@/config/paths"
 import { ConfigMCPV1 } from "@opencode-ai/core/v1/config/mcp"
 import { InstanceRef } from "@/effect/instance-ref"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
@@ -394,10 +395,10 @@ export const McpLogoutCommand = effectCmd({
 
 async function resolveConfigPath(baseDir: string, global = false) {
   // Check for existing config files (prefer .jsonc over .json, check .jollicode/ subdirectory too)
-  const candidates = [path.join(baseDir, "jollicode.json"), path.join(baseDir, "jollicode.jsonc")]
+  const candidates = ConfigPaths.fileInDirectory(baseDir, Brand.bin)
 
   if (!global) {
-    candidates.push(path.join(baseDir, ".jollicode", "jollicode.json"), path.join(baseDir, ".jollicode", "jollicode.jsonc"))
+    candidates.push(...ConfigPaths.fileInDirectory(path.join(baseDir, ".jollicode"), Brand.bin))
   }
 
   for (const candidate of candidates) {

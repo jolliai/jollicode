@@ -1,10 +1,10 @@
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import path from "path"
-import { Effect, Layer, Record, Result, Schema, Context } from "effect"
+import { Effect, Layer, Option, Record, Result, Schema, Context } from "effect"
 import { NonNegativeInt } from "@opencode-ai/core/schema"
 import { Global } from "@opencode-ai/core/global"
 import { FSUtil } from "@opencode-ai/core/fs-util"
-import { env } from "@opencode-ai/core/flag/flag"
+import { env, envKey } from "@opencode-ai/core/flag/flag"
 
 export const OAUTH_DUMMY_KEY = "opencode-oauth-dummy-key"
 
@@ -55,16 +55,20 @@ const layer = Layer.effect(
   Effect.gen(function* () {
     const fsys = yield* FSUtil.Service
     const decode = Schema.decodeUnknownOption(Info)
+    const decodeContent = Schema.decodeUnknownOption(
+      Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)),
+    )
 
     const all = Effect.fn("Auth.all")(function* () {
       const content = env("AUTH_CONTENT")
-      if (content) {
-        try {
-          return JSON.parse(content)
-        } catch (err) {}
+      const parsed = content ? decodeContent(content) : Option.none()
+      if (content && Option.isNone(parsed)) {
+        yield* Effect.logWarning(`${envKey("AUTH_CONTENT")} is not a JSON object, falling back to ${file}`)
       }
 
-      const data = (yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => ({})))) as Record<string, unknown>
+      const data = Option.isSome(parsed)
+        ? parsed.value
+        : ((yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => ({})))) as Record<string, unknown>)
       return Record.filterMap(data, (value) => Result.fromOption(decode(value), () => undefined))
     })
 

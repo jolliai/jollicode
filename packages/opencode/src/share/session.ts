@@ -23,9 +23,16 @@ const layer = Layer.effect(
     const scope = yield* Scope.Scope
     const flags = yield* RuntimeFlags.Service
 
+    // Upstream share uploads the whole transcript to opencode's cloud. The Jolli floor's
+    // share: "disabled" can be stepped over by a project config, so the shipped product
+    // (JOLLICODE_LOCKDOWN) refuses it here regardless of config.
+    const disabled = Effect.fnUntraced(function* () {
+      if (flags.lockdown) return true
+      return (yield* cfg.get()).share === "disabled"
+    })
+
     const share = Effect.fn("SessionShare.share")(function* (sessionID: SessionID) {
-      const conf = yield* cfg.get()
-      if (conf.share === "disabled") throw new Error("Sharing is disabled in configuration")
+      if (yield* disabled()) throw new Error("Sharing is disabled in configuration")
       const result = yield* shareNext.create(sessionID)
       yield* session.setShare({ sessionID, share: { url: result.url } })
       return result
@@ -39,8 +46,8 @@ const layer = Layer.effect(
     const create = Effect.fn("SessionShare.create")(function* (input?: Session.CreateInput) {
       const result = yield* session.create(input)
       if (result.parentID) return result
-      const conf = yield* cfg.get()
-      if (!(flags.autoShare || conf.share === "auto")) return result
+      if (yield* disabled()) return result
+      if (!(flags.autoShare || (yield* cfg.get()).share === "auto")) return result
       yield* share(result.id).pipe(Effect.ignore, Effect.forkIn(scope))
       return result
     })

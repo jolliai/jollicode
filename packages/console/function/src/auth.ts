@@ -47,7 +47,7 @@ export default {
       const redirectURI = requestURL.searchParams.get("redirect_uri")
       if (
         redirectURI !== null &&
-        !isAllowedAuthorizationRedirect(requestURL.searchParams.get("client_id") ?? "", redirectURI)
+        !isAllowedAuthorizationRedirect(requestURL.searchParams.get("client_id") ?? "", redirectURI, Resource.App.stage)
       ) {
         return new Response("Unauthorized client", { status: 400 })
       }
@@ -114,7 +114,8 @@ export default {
         namespace: env.AuthStorage,
       }),
       subjects,
-      allow: ({ clientID, redirectURI }) => Promise.resolve(isAllowedAuthorizationRedirect(clientID, redirectURI)),
+      allow: ({ clientID, redirectURI }) =>
+        Promise.resolve(isAllowedAuthorizationRedirect(clientID, redirectURI, Resource.App.stage)),
       async success(ctx, response) {
         console.log(response)
 

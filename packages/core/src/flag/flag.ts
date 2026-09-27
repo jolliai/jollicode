@@ -1,4 +1,4 @@
-import { Config } from "effect"
+import { Config, Effect, Option } from "effect"
 
 export function truthy(key: string) {
   const value = process.env[key]?.toLowerCase()
@@ -39,9 +39,21 @@ export function truthyEnv(suffix: string): boolean {
 /**
  * The Effect `Config` counterpart of `env()`, for values read through a ConfigProvider:
  * envConfig(Config.boolean, "PURE") reads JOLLICODE_PURE, falling back to OPENCODE_PURE.
+ * Only a missing canonical key falls back; an invalid canonical value fails instead of being
+ * silently replaced by the legacy alias (Config.orElse would catch every ConfigError).
  */
 export function envConfig<A>(make: (name: string) => Config.Config<A>, suffix: string) {
-  return make(CANONICAL_PREFIX + suffix).pipe(Config.orElse(() => make(LEGACY_PREFIX + suffix)))
+  const canonical = Config.option(make(CANONICAL_PREFIX + suffix))
+  return Config.make((provider) =>
+    canonical.parse(provider).pipe(
+      Effect.flatMap(
+        Option.match({
+          onSome: Effect.succeed,
+          onNone: () => make(LEGACY_PREFIX + suffix).parse(provider),
+        }),
+      ),
+    ),
+  )
 }
 
 const copy = env("EXPERIMENTAL_DISABLE_COPY_ON_SELECT")

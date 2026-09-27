@@ -10,6 +10,7 @@ import { Global } from "./global"
 import { Location } from "./location"
 import { Policy } from "./policy"
 import { AbsolutePath } from "./schema"
+import { Brand } from "./brand"
 import { ConfigAgent } from "./config/agent"
 import { ConfigAttachments } from "./config/attachments"
 import { ConfigCompaction } from "./config/compaction"
@@ -139,7 +140,7 @@ const layer = Layer.effect(
     const global = yield* Global.Service
     const location = yield* Location.Service
     const policy = yield* Policy.Service
-    const names = ["jollicode.json", "jollicode.jsonc"]
+    const names = [`${Brand.bin}.json`, `${Brand.bin}.jsonc`]
     const decodeOptions = { errors: "all", onExcessProperty: "ignore", propertyOrder: "original" } as const
     const decodeInfo = Schema.decodeUnknownOption(Info, decodeOptions)
     const decodeV1Info = Schema.decodeUnknownOption(ConfigV1.Info, decodeOptions)

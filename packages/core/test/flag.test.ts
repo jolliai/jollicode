@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { env, envKey, Flag, truthyEnv } from "@opencode-ai/core/flag/flag"
+import { Config, ConfigProvider, Effect, Exit } from "effect"
+import { env, envConfig, envKey, Flag, truthyEnv } from "@opencode-ai/core/flag/flag"
 
 const KEYS = ["JOLLICODE_UNIT_TEST_KEY", "OPENCODE_UNIT_TEST_KEY"]
 afterEach(() => {
@@ -27,6 +28,23 @@ describe("env fallback", () => {
     expect(truthyEnv("UNIT_TEST_KEY")).toBe(true)
     process.env.JOLLICODE_UNIT_TEST_KEY = "false"
     expect(truthyEnv("UNIT_TEST_KEY")).toBe(false)
+  })
+})
+
+describe("envConfig falls back only on a missing canonical key", () => {
+  const read = (vars: Record<string, string>) =>
+    Effect.runSyncExit(envConfig(Config.boolean, "UNIT_TEST_KEY").parse(ConfigProvider.fromUnknown(vars)))
+
+  test("prefers JOLLICODE_ over OPENCODE_", () => {
+    expect(read({ JOLLICODE_UNIT_TEST_KEY: "true", OPENCODE_UNIT_TEST_KEY: "false" })).toEqual(Exit.succeed(true))
+  })
+
+  test("falls back to OPENCODE_ when JOLLICODE_ is unset", () => {
+    expect(read({ OPENCODE_UNIT_TEST_KEY: "true" })).toEqual(Exit.succeed(true))
+  })
+
+  test("fails on an invalid JOLLICODE_ value instead of using the alias", () => {
+    expect(Exit.isFailure(read({ JOLLICODE_UNIT_TEST_KEY: "maybe", OPENCODE_UNIT_TEST_KEY: "true" }))).toBe(true)
   })
 })
 

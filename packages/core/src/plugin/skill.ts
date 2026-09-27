@@ -9,6 +9,10 @@ import { SkillV2 } from "../skill"
 import customizeJollicodeContent from "./skill/customize-jollicode.md" with { type: "text" }
 
 export const CustomizeJollicodeContent = customizeJollicodeContent
+export const CustomizeJollicodeName = "customize-jollicode"
+// Shared with the v1 skill registry so both runtimes advertise the same trigger.
+export const CustomizeJollicodeDescription =
+  "Use ONLY when the user is editing or creating Jolli Code's own configuration: jollicode.json, jollicode.jsonc, files under .jollicode/, or files under ~/.config/jollicode/. Also use when creating or fixing Jolli Code agents, subagents, commands, skills, plugins, MCP servers, or permission rules. Do not use for the user's own application code, or for any project that is not configuring Jolli Code itself."
 
 export const Plugin = define({
   id: "skill",
@@ -18,9 +22,8 @@ export const Plugin = define({
         SkillV2.EmbeddedSource.make({
           type: "embedded",
           skill: SkillV2.Info.make({
-            name: "customize-jollicode",
-            description:
-              "Use ONLY when the user is editing or creating Jolli Code's own configuration: jollicode.json, jollicode.jsonc, files under .jollicode/, or files under ~/.config/jollicode/. Also use when creating or fixing Jolli Code agents, subagents, commands, skills, plugins, MCP servers, or permission rules. Do not use for the user's own application code, or for any project that is not configuring Jolli Code itself.",
+            name: CustomizeJollicodeName,
+            description: CustomizeJollicodeDescription,
             location: AbsolutePath.make("/builtin/customize-jollicode.md"),
             content: CustomizeJollicodeContent,
           }),
