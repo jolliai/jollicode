@@ -42,6 +42,7 @@ export type StreamInput = {
   courseID?: string
   courseAssistantID?: string
   mcpToolServers?: ReadonlyMap<string, string>
+  toolErrors?: ReadonlyArray<string>
   model: Provider.Model
   agent: Agent.Info
   permission?: PermissionV1.Ruleset

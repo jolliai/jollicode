@@ -2,7 +2,10 @@ import { describe, expect, test } from "bun:test"
 import { Brand } from "@opencode-ai/core/brand"
 import { providerIdFor, SUPPORTED_PROTOCOLS } from "@opencode-ai/core/jolli/gateway-config"
 import { jolliCodingAgentHeaders, jolliMcpReport, jolliToolErrors } from "@/session/llm/request"
-import { MessageID, SessionID } from "@/session/schema"
+import { MessageID, PartID, SessionID } from "@/session/schema"
+import { ProviderV2 } from "@opencode-ai/core/provider"
+import { ModelV2 } from "@opencode-ai/core/model"
+import { SessionV1 } from "@opencode-ai/core/v1/session"
 
 describe("jolli coding-agent request headers", () => {
   test("binds every supported Jolli provider request to the Jollicode session", () => {
@@ -122,7 +125,7 @@ describe("jolli coding-agent request headers", () => {
     expect(jolliCodingAgentHeaders(base)["x-jolli-mcp-servers"]).toBeUndefined()
   })
 
-  test("percent-encodes each non-MCP tool name so a non-ASCII or comma name cannot break the header", () => {
+  test("percent-encodes each override's tool name so a non-ASCII, comma or = name cannot break the header", () => {
     const base = {
       providerID: providerIdFor("openai"),
       sessionID: SessionID.descending(),
@@ -130,17 +133,26 @@ describe("jolli coding-agent request headers", () => {
       clientAttemptID: "attempt-1",
       stepIndex: 0,
     }
-    const value = jolliCodingAgentHeaders({ ...base, nonMcpTools: ["plan_exit", "plan_导出", "plan_a,b"] })[
-      "x-jolli-non-mcp-tools"
-    ]
-    expect(value).toBe("plan_exit,plan_%E5%AF%BC%E5%87%BA,plan_a%2Cb")
-    expect(() => new Headers({ "x-jolli-non-mcp-tools": value })).not.toThrow()
-    expect(value.split(",").map(decodeURIComponent)).toEqual(["plan_exit", "plan_导出", "plan_a,b"])
-    expect(jolliCodingAgentHeaders({ ...base, nonMcpTools: [] })["x-jolli-non-mcp-tools"]).toBeUndefined()
-    expect(jolliCodingAgentHeaders(base)["x-jolli-non-mcp-tools"]).toBeUndefined()
+    const value = jolliCodingAgentHeaders({
+      ...base,
+      mcpToolOverrides: [
+        ["github_enterprise_list", "github"],
+        ["plan_导出", ""],
+        ["plan_a,b=c", ""],
+      ],
+    })["x-jolli-mcp-tool-overrides"]
+    expect(value).toBe("github_enterprise_list=github,plan_%E5%AF%BC%E5%87%BA=,plan_a%2Cb%3Dc=")
+    expect(() => new Headers({ "x-jolli-mcp-tool-overrides": value })).not.toThrow()
+    expect(value.split(",").map((entry) => entry.split("=").map(decodeURIComponent))).toEqual([
+      ["github_enterprise_list", "github"],
+      ["plan_导出", ""],
+      ["plan_a,b=c", ""],
+    ])
+    expect(jolliCodingAgentHeaders({ ...base, mcpToolOverrides: [] })["x-jolli-mcp-tool-overrides"]).toBeUndefined()
+    expect(jolliCodingAgentHeaders(base)["x-jolli-mcp-tool-overrides"]).toBeUndefined()
   })
 
-  test("reports the failed tool results, or none, only when the request carries a tool result", () => {
+  test("reports the failed tool names, or none, only when the request carries a new tool result", () => {
     const base = {
       providerID: providerIdFor("openai"),
       sessionID: SessionID.descending(),
@@ -148,44 +160,103 @@ describe("jolli coding-agent request headers", () => {
       clientAttemptID: "attempt-1",
       stepIndex: 1,
     }
-    expect(jolliCodingAgentHeaders({ ...base, toolErrors: ["call_1", "fc:2"] })["x-jolli-tool-errors"]).toBe(
-      "call_1,fc%3A2",
-    )
+    expect(
+      jolliCodingAgentHeaders({ ...base, toolErrors: ["github_list", "github_list", "a,b"] })["x-jolli-tool-errors"],
+    ).toBe("github_list,github_list,a%2Cb")
     expect(jolliCodingAgentHeaders({ ...base, toolErrors: [] })["x-jolli-tool-errors"]).toBe("none")
     expect(jolliCodingAgentHeaders(base)["x-jolli-tool-errors"]).toBeUndefined()
   })
 })
 
 describe("jolliToolErrors", () => {
-  function result(toolCallId: string, type: "text" | "json" | "error-text" | "error-json") {
+  const sessionID = SessionID.descending()
+  const model = { providerID: ProviderV2.ID.make(providerIdFor("openai")), modelID: ModelV2.ID.make("gpt") }
+
+  function user(): SessionV1.WithParts {
     return {
-      type: "tool-result" as const,
-      toolCallId,
-      toolName: "github_list",
-      output: type === "text" || type === "error-text" ? { type, value: "out" } : { type, value: { ok: false } },
+      info: { id: MessageID.ascending(), sessionID, role: "user", time: { created: 0 }, agent: "build", model },
+      parts: [],
     }
   }
 
-  test("names the tool results the Anthropic SDK would flag as errors", () => {
+  function assistant(...tools: Array<[tool: string, state: SessionV1.ToolPart["state"]]>): SessionV1.WithParts {
+    const id = MessageID.ascending()
+    return {
+      info: {
+        id,
+        sessionID,
+        parentID: MessageID.ascending(),
+        role: "assistant",
+        mode: "build",
+        agent: "build",
+        path: { cwd: "/", root: "/" },
+        cost: 0,
+        tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        modelID: model.modelID,
+        providerID: model.providerID,
+        time: { created: 0 },
+      },
+      parts: tools.map(([tool, state]) => ({
+        id: PartID.ascending(),
+        sessionID,
+        messageID: id,
+        type: "tool",
+        callID: PartID.ascending(),
+        tool,
+        state,
+      })),
+    }
+  }
+
+  const time = { start: 0, end: 1 }
+  const ok = { status: "completed", input: {}, output: "out", title: "", metadata: {}, time } as const
+  const failed = (metadata?: Record<string, unknown>) =>
+    ({ status: "error", input: {}, error: "boom", time, ...(metadata ? { metadata } : {}) }) as const
+
+  test("names the failed tools of the latest assistant message", () => {
     expect(
       jolliToolErrors([
-        { role: "user", content: "go" },
-        { role: "tool", content: [result("a", "text"), result("b", "error-text")] },
-        { role: "tool", content: [result("c", "json"), result("d", "error-json")] },
+        user(),
+        assistant(["github_list", ok], ["github_list", failed()], ["bash", failed()], ["github_search", ok]),
       ]),
-    ).toEqual(["b", "d"])
+    ).toEqual(["github_list", "bash"])
+  })
+
+  test("does not report a failure again once a later step has carried it", () => {
+    const history = [user(), assistant(["github_list", failed()]), assistant()]
+    expect(jolliToolErrors(history)).toBeUndefined()
+    expect(jolliToolErrors([...history, user()])).toBeUndefined()
+    expect(jolliToolErrors([...history, user(), assistant(["github_list", ok])])).toEqual([])
+  })
+
+  test("reports a failure the turn ended on with the next turn's first request", () => {
+    expect(jolliToolErrors([user(), assistant(["github_list", failed()]), user()])).toEqual(["github_list"])
+  })
+
+  test("does not count a refused, aborted or unfinished call as a failure", () => {
+    expect(
+      jolliToolErrors([
+        user(),
+        assistant(
+          ["github_list", failed({ rejected: true })],
+          ["github_search", failed({ interrupted: true })],
+          ["github_get", { status: "running", input: {}, time: { start: 0 } }],
+        ),
+      ]),
+    ).toEqual([])
   })
 
   test("says none failed apart from carrying no tool result at all", () => {
-    expect(jolliToolErrors([{ role: "tool", content: [result("a", "text")] }])).toEqual([])
-    expect(jolliToolErrors([{ role: "user", content: "go" }])).toBeUndefined()
+    expect(jolliToolErrors([user(), assistant(["bash", ok])])).toEqual([])
+    expect(jolliToolErrors([user(), assistant()])).toBeUndefined()
+    expect(jolliToolErrors([user()])).toBeUndefined()
   })
 
   test("keeps the most recent failures when more failed than the backend keeps", () => {
-    const ids = Array.from({ length: 40 }, (_, i) => `call_${i}`)
-    expect(jolliToolErrors([{ role: "tool", content: ids.map((id) => result(id, "error-text")) }])).toEqual(
-      ids.slice(-32),
-    )
+    const names = Array.from({ length: 40 }, (_, i) => `tool_${i}`)
+    expect(
+      jolliToolErrors([assistant(...names.map((name): [string, SessionV1.ToolPart["state"]] => [name, failed()]))]),
+    ).toEqual(names.slice(-32))
   })
 })
 
@@ -212,10 +283,24 @@ describe("jolliMcpReport", () => {
           ["github_enterprise_search", "github_enterprise"],
         ]),
       }),
-    ).toEqual({ mcpServers: ["github_enterprise"], nonMcpTools: [] })
+    ).toEqual({ mcpServers: ["github_enterprise"], mcpToolOverrides: [] })
   })
 
-  test("names the non-MCP tools that carry a reported server's prefix", () => {
+  test("overrides a tool the longest server prefix would give to the wrong server", () => {
+    // github's own tool enterprise_list reads as github_enterprise's tool "list".
+    expect(
+      jolliMcpReport({
+        toolNames: ["github_enterprise_list", "github_enterprise_search", "github_list"],
+        mcpToolServers: new Map([
+          ["github_enterprise_list", "github"],
+          ["github_enterprise_search", "github_enterprise"],
+          ["github_list", "github"],
+        ]),
+      }),
+    ).toEqual({ mcpServers: ["github", "github_enterprise"], mcpToolOverrides: [["github_enterprise_list", "github"]] })
+  })
+
+  test("marks the non-MCP tools that carry a reported server's prefix", () => {
     expect(
       jolliMcpReport({
         toolNames: ["bash", "plan_create", "plan_exit", "github_helper", "github_list"],
@@ -224,14 +309,20 @@ describe("jolliMcpReport", () => {
           ["plan_create", "plan"],
         ]),
       }),
-    ).toEqual({ mcpServers: ["github", "plan"], nonMcpTools: ["github_helper", "plan_exit"] })
+    ).toEqual({
+      mcpServers: ["github", "plan"],
+      mcpToolOverrides: [
+        ["github_helper", ""],
+        ["plan_exit", ""],
+      ],
+    })
   })
 
   test("reports nothing without MCP tools in the request", () => {
-    expect(jolliMcpReport({ toolNames: ["bash", "plan_exit"] })).toEqual({ mcpServers: [], nonMcpTools: [] })
+    expect(jolliMcpReport({ toolNames: ["bash", "plan_exit"] })).toEqual({ mcpServers: [], mcpToolOverrides: [] })
     expect(jolliMcpReport({ toolNames: ["bash"], mcpToolServers: new Map([["github_list", "github"]]) })).toEqual({
       mcpServers: [],
-      nonMcpTools: [],
+      mcpToolOverrides: [],
     })
   })
 })
