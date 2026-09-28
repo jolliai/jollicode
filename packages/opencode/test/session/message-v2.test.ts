@@ -322,6 +322,10 @@ describe("session.message-v2.toModelMessage", () => {
   test("converts assistant tool completion into tool-call + tool-result messages with attachments", async () => {
     const userID = "m-user"
     const assistantID = "m-assistant"
+    const visionModel = {
+      ...model,
+      capabilities: { ...model.capabilities, input: { ...model.capabilities.input, image: true } },
+    }
 
     const input: SessionV1.WithParts[] = [
       {
@@ -371,7 +375,7 @@ describe("session.message-v2.toModelMessage", () => {
       },
     ]
 
-    expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([
+    expect(await MessageV2.toModelMessages(input, visionModel)).toStrictEqual([
       {
         role: "user",
         content: [{ type: "text", text: "run tool" }],
@@ -409,6 +413,49 @@ describe("session.message-v2.toModelMessage", () => {
         ],
       },
     ])
+  })
+
+  test("reports a tool image as unsupported before sending it to a text-only model", async () => {
+    const userID = "m-user"
+    const assistantID = "m-assistant"
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo(userID),
+        parts: [{ ...basePart(userID, "u1"), type: "text", text: "inspect image" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo(assistantID, userID),
+        parts: [
+          {
+            ...basePart(assistantID, "a1"),
+            type: "tool",
+            callID: "call-1",
+            tool: "read_attachment",
+            state: {
+              status: "completed",
+              input: { id: 1 },
+              output: "An image follows.",
+              title: "Read attachment",
+              metadata: {},
+              time: { start: 0, end: 1 },
+              attachments: [
+                {
+                  ...basePart(assistantID, "file-1"),
+                  type: "file",
+                  mime: "image/png",
+                  url: "data:image/png;base64,Zm9v",
+                },
+              ],
+            },
+          },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const messages = ProviderTransform.message(await MessageV2.toModelMessages(input, model), model, {})
+
+    expect(JSON.stringify(messages)).toContain("this model does not support image input")
+    expect(JSON.stringify(messages)).not.toContain("Zm9v")
   })
 
   test("preserves jpeg tool-result media for anthropic models", async () => {

@@ -16,6 +16,7 @@ import { Truncate } from "@/tool/truncate"
 import { Plugin } from "@/plugin"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Effect, Layer, Schema } from "effect"
+import { asSchema } from "ai"
 import { testEffect } from "../lib/effect"
 
 const callID = "call-test"
@@ -61,38 +62,40 @@ const fakeTruncate = Truncate.Service.of({
   limits: () => Effect.succeed({ maxLines: 2000, maxBytes: 50 * 1024 }),
 } satisfies Truncate.Interface)
 
-const layer = Layer.mergeAll(
-  Layer.succeed(Plugin.Service, fakePlugin),
-  Layer.succeed(Permission.Service, fakePermission),
-  Layer.succeed(MCP.Service, fakeMcp()),
-  Layer.succeed(Truncate.Service, fakeTruncate),
-  RuntimeFlags.layer(),
-  Layer.succeed(
-    ToolRegistry.Service,
-    ToolRegistry.Service.of({
-      ids: () => Effect.succeed(["timing"]),
-      all: () => Effect.succeed([]),
-      named: () => Effect.die("unused"),
-      tools: () =>
-        Effect.succeed([
-          {
-            id: "timing",
-            description: "updates metadata more than once",
-            parameters: Schema.Struct({}),
-            jsonSchema: { type: "object", properties: {} },
-            execute: (_args, ctx) =>
-              Effect.gen(function* () {
-                yield* ctx.metadata({ metadata: { output: "first" } })
-                yield* ctx.metadata({ metadata: { output: "second" } })
-                return { title: "timing", metadata: {}, output: "done" }
-              }),
-          } satisfies Tool.Def,
-        ]),
-    }),
-  ),
-)
+function createLayer(plugin: Plugin.Interface = fakePlugin, mcp: MCP.Interface = fakeMcp()) {
+  return Layer.mergeAll(
+    Layer.succeed(Plugin.Service, plugin),
+    Layer.succeed(Permission.Service, fakePermission),
+    Layer.succeed(MCP.Service, mcp),
+    Layer.succeed(Truncate.Service, fakeTruncate),
+    RuntimeFlags.layer(),
+    Layer.succeed(
+      ToolRegistry.Service,
+      ToolRegistry.Service.of({
+        ids: () => Effect.succeed(["timing"]),
+        all: () => Effect.succeed([]),
+        named: () => Effect.die("unused"),
+        tools: () =>
+          Effect.succeed([
+            {
+              id: "timing",
+              description: "updates metadata more than once",
+              parameters: Schema.Struct({}),
+              jsonSchema: { type: "object", properties: {} },
+              execute: (_args, ctx) =>
+                Effect.gen(function* () {
+                  yield* ctx.metadata({ metadata: { output: "first" } })
+                  yield* ctx.metadata({ metadata: { output: "second" } })
+                  return { title: "timing", metadata: {}, output: "done" }
+                }),
+            } satisfies Tool.Def,
+          ]),
+      }),
+    ),
+  )
+}
 
-const it = testEffect(layer)
+const it = testEffect(createLayer())
 
 it.effect("preserves running tool start time across metadata updates", () =>
   Effect.gen(function* () {
@@ -163,5 +166,103 @@ it.effect("preserves running tool start time across metadata updates", () =>
     if (state.state.status === "running") {
       expect(state.state.time.start).toBe(100)
     }
+  }),
+)
+
+it.effect("applies tool definition hooks to MCP tools before exposing their schemas", () =>
+  Effect.gen(function* () {
+    let calledArguments: Record<string, unknown> | undefined
+    const client = {
+      callTool: async (request: { arguments?: Record<string, unknown> }) => {
+        calledArguments = request.arguments
+        return { content: [{ type: "text" as const, text: "ok" }] }
+      },
+    }
+    const mcp = MCP.Service.of({
+      tools: () =>
+        Effect.succeed({
+          jolliedu_get_conversation_context: {
+            def: {
+              name: "get_conversation_context",
+              description: "course context",
+              inputSchema: {
+                type: "object" as const,
+                properties: {
+                  courseId: { type: "number" },
+                  assistantId: { type: "number" },
+                },
+                required: ["courseId", "assistantId"],
+              },
+            },
+            client,
+            server: "jolliedu",
+          },
+        }),
+      clients: () => Effect.succeed({}),
+    } as unknown as Partial<MCP.Interface> as MCP.Interface)
+    const plugin = Plugin.Service.of({
+      init: () => Effect.void,
+      list: () => Effect.succeed([]),
+      trigger: (name, _input, output) =>
+        Effect.sync(() => {
+          if (name === "tool.definition") {
+            const definition = output as {
+              parameters: { properties: Record<string, unknown>; required: string[] }
+            }
+            definition.parameters = { properties: {}, required: [] }
+          }
+          if (name === "tool.execute.before") {
+            const execution = output as { args: Record<string, unknown> }
+            Object.assign(execution.args, { courseId: 7, assistantId: 12 })
+          }
+          return output
+        }),
+    } satisfies Plugin.Interface)
+
+    const serviceLayer = createLayer(plugin, mcp)
+    const result = yield* SessionTools.resolve({
+      agent,
+      model,
+      session: { id: sessionID, permission: [] } as unknown as Session.Info,
+      processor: {
+        message: {
+          id: messageID,
+          sessionID,
+          role: "assistant",
+          parentID: MessageID.ascending(),
+          agent: "build",
+          mode: "build",
+          path: { cwd: "/tmp", root: "/tmp" },
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          modelID: ModelV2.ID.make("test-model"),
+          providerID: ProviderV2.ID.make("test"),
+          time: { created: 1 },
+        },
+        updateToolCall: () => Effect.die("unused"),
+        completeToolCall: () => Effect.void,
+      } as Pick<SessionProcessor.Handle, "message" | "updateToolCall" | "completeToolCall">,
+      bypassAgentCheck: false,
+      messages: [],
+      promptOps: {} as never,
+    }).pipe(Effect.provide(serviceLayer))
+
+    const courseTool = result.tools.jolliedu_get_conversation_context
+    expect(courseTool).toBeDefined()
+    const schema = yield* Effect.promise(() => Promise.resolve(asSchema(courseTool!.inputSchema).jsonSchema))
+    expect(schema.properties).toEqual({})
+    expect(schema.required).toEqual([])
+
+    yield* Effect.promise(() =>
+      courseTool!.execute!(
+        {},
+        {
+          toolCallId: callID,
+          abortSignal: new AbortController().signal,
+          messages: [],
+        },
+      ),
+    )
+    expect(calledArguments).toEqual({ courseId: 7, assistantId: 12 })
   }),
 )

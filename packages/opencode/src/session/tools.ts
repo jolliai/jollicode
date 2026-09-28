@@ -395,7 +395,13 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     if (!execute) continue
 
     const schema = yield* Effect.promise(() => Promise.resolve(asSchema(item.inputSchema).jsonSchema))
-    const transformed = ProviderTransform.schema(input.model, { ...schema, properties: schema.properties ?? {} })
+    const definition = {
+      description: item.description ?? "",
+      parameters: { ...schema, properties: schema.properties ?? {} },
+    }
+    yield* plugin.trigger("tool.definition", { toolID: key }, definition)
+    item.description = definition.description
+    const transformed = ProviderTransform.schema(input.model, definition.parameters)
     item.inputSchema = jsonSchema(transformed)
     item.execute = (args, opts) =>
       run.promise(

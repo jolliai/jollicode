@@ -12,6 +12,11 @@
       "description": "Contains jollicode logs and data",
     },
   },
+  // The Jolliedu course-chat MCP server (`mcp.jolliedu`) is fetched from the tenant's
+  // backend at startup — see `fetchJolliMcpConfig` in `packages/opencode/src/config/config.ts`.
+  // Do NOT declare `mcp.jolliedu` here: whenever discovery succeeds its answer replaces a
+  // local entry of that name as a whole, so nothing set here takes effect, and when discovery
+  // fails a stale entry here would be connected instead of the server being absent.
   "mcp": {},
   "tools": {},
 }

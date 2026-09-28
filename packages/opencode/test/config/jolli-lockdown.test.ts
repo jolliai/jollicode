@@ -7,7 +7,7 @@ import { Npm } from "@opencode-ai/core/npm"
 import { providerIdFor, SUPPORTED_PROTOCOLS } from "@opencode-ai/core/jolli/gateway-config"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { Effect, Layer } from "effect"
-import { HttpClient } from "effect/unstable/http"
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 import { gatewayRequest } from "@opencode-ai/core/jolli/api"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import type { JolliStore } from "@opencode-ai/core/jolli/store"
@@ -36,6 +36,7 @@ import path from "path"
  * split. Asserting the opposite here would pin a guarantee the CLI does not make.
  */
 const enabledJolliProviders = SUPPORTED_PROTOCOLS.map(providerIdFor)
+const TENANT = "https://acme.jolli.ai"
 
 /**
  * ⚠ THE CREDENTIAL COMES FROM THE SHARED DATABASE NOW, NOT `auth.json`, so what these mock is the
@@ -68,7 +69,7 @@ function sessionLayer(credential?: { baseUrl?: string }) {
 
 const signedOut = sessionLayer()
 
-const signedIn = sessionLayer({ baseUrl: "https://acme.jolli.ai" })
+const signedIn = sessionLayer({ baseUrl: TENANT })
 
 /** An older sign-in, from before the backend reported which tenant the token belongs to. */
 const signedInWithoutTenant = sessionLayer({})
@@ -83,19 +84,17 @@ const otherProviderAuth = Layer.mock(Auth.Service)({
 
 const emptyAuth = Layer.mock(Auth.Service)({ all: () => Effect.succeed({}) })
 
-function layerWith(session: Layer.Layer<JolliSession.Service>, auth: Layer.Layer<Auth.Service>) {
+function layerWith(
+  session: Layer.Layer<JolliSession.Service>,
+  auth: Layer.Layer<Auth.Service>,
+  client = HttpClient.make(() => Effect.die(new Error("unexpected http request"))),
+) {
   return LayerNode.compile(LayerNode.group([Config.node, FSUtil.node, Env.node, CrossSpawnSpawner.node]), [
     [JolliSession.node, session],
     [Auth.node, auth],
     [Account.node, AccountTest.empty],
     [Npm.node, NpmTest.noop],
-    [
-      httpClient,
-      Layer.succeed(
-        HttpClient.HttpClient,
-        HttpClient.make(() => Effect.die(new Error("unexpected http request"))),
-      ),
-    ],
+    [httpClient, Layer.succeed(HttpClient.HttpClient, client)],
   ])
 }
 
@@ -103,8 +102,9 @@ async function loadConfig(
   session: Layer.Layer<JolliSession.Service>,
   projectConfig?: Record<string, unknown>,
   auth: Layer.Layer<Auth.Service> = emptyAuth,
+  client?: HttpClient.HttpClient,
 ) {
-  const layer = layerWith(session, auth)
+  const layer = layerWith(session, auth, client)
   const directory = path.join(os.tmpdir(), "jolli-lockdown-test-" + Math.random().toString(36).slice(2))
   await fs.mkdir(directory, { recursive: true })
   if (projectConfig) await fs.writeFile(path.join(directory, "jollicode.json"), JSON.stringify(projectConfig))
@@ -119,6 +119,129 @@ async function loadConfig(
       ),
   })
 }
+
+describe("Jolli MCP discovery", () => {
+  test("discovers the course-chat server without writing the CLI JWT into config", async () => {
+    process.env["JOLLICODE_LOCKDOWN"] = "1"
+    const requests: HttpClientRequest.HttpClientRequest[] = []
+    const client = HttpClient.make((request) => {
+      requests.push(request)
+      return Effect.succeed(
+        HttpClientResponse.fromWeb(
+          request,
+          Response.json({
+            mcp: {
+              jolliedu: {
+                type: "remote",
+                url: "https://app.jolli.ai/mcp",
+                oauth: false,
+                headers: { "x-server-header": "preserved", authorization: "Bearer from-the-answer" },
+              },
+            },
+          }),
+        ),
+      )
+    })
+
+    const config = await loadConfig(
+      signedIn,
+      {
+        mcp: {
+          jolliedu: {
+            type: "remote",
+            url: "https://coursework.example/mcp",
+            headers: { Authorization: "Bearer coursework-token" },
+          },
+        },
+      },
+      emptyAuth,
+      client,
+    )
+
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.url).toBe("https://acme.jolli.ai/api/jollicode/mcp-config")
+    expect(requests[0]?.headers.authorization).toBe("Bearer jwt")
+    // The whole entry is the backend's, and it carries no credential: the MCP layer attaches the
+    // session's current token per request, and `GET /config` prints this object verbatim.
+    expect(config.mcp?.jolliedu).toEqual({
+      type: "remote",
+      url: "https://app.jolli.ai/mcp",
+      oauth: false,
+      headers: { "x-server-header": "preserved" },
+    })
+    expect(JSON.stringify(config.mcp)).not.toContain("Bearer")
+  })
+
+  test("does not ask for discovery when this is not the Jolli Code product", async () => {
+    delete process.env["JOLLICODE_LOCKDOWN"]
+    const requests: HttpClientRequest.HttpClientRequest[] = []
+    const client = HttpClient.make((request) => {
+      requests.push(request)
+      return Effect.succeed(HttpClientResponse.fromWeb(request, Response.json({ mcp: {} })))
+    })
+
+    const config = await loadConfig(signedIn, undefined, emptyAuth, client)
+
+    expect(requests).toHaveLength(0)
+    expect(config.mcp).toBeUndefined()
+  })
+
+  test("ignores a failed discovery response without blocking config load", async () => {
+    process.env["JOLLICODE_LOCKDOWN"] = "1"
+    const client = HttpClient.make((request) =>
+      Effect.succeed(HttpClientResponse.fromWeb(request, Response.json({ error: "Unavailable" }, { status: 503 }))),
+    )
+
+    const config = await loadConfig(signedIn, undefined, emptyAuth, client)
+
+    expect(config.mcp).toBeUndefined()
+  })
+
+  test("renews a refused CLI JWT once for discovery and still keeps it out of config", async () => {
+    process.env["JOLLICODE_LOCKDOWN"] = "1"
+    let token = "stale-jwt"
+    const session = Layer.mock(JolliSession.Service)({
+      current: () => Effect.succeed(undefined),
+      request: () => Effect.succeed(gatewayRequest(TENANT, { token, identity: "cache-key" })),
+      refused: (refused) =>
+        Effect.sync(() => {
+          expect(refused).toBe("stale-jwt")
+          token = "renewed-jwt"
+          return token
+        }),
+    })
+    const authorizations: Array<string | undefined> = []
+    const client = HttpClient.make((request) => {
+      authorizations.push(request.headers.authorization)
+      return Effect.succeed(
+        HttpClientResponse.fromWeb(
+          request,
+          authorizations.length === 1
+            ? Response.json({ error: "Not authorized" }, { status: 401 })
+            : Response.json({
+                mcp: {
+                  jolliedu: {
+                    type: "remote",
+                    url: "https://app.jolli.ai/mcp",
+                    oauth: false,
+                  },
+                },
+              }),
+        ),
+      )
+    })
+
+    const config = await loadConfig(session, undefined, emptyAuth, client)
+
+    expect(authorizations).toEqual(["Bearer stale-jwt", "Bearer renewed-jwt"])
+    expect(config.mcp?.jolliedu).toEqual({
+      type: "remote",
+      url: "https://app.jolli.ai/mcp",
+      oauth: false,
+      headers: {},
+    })
+  })
+})
 
 afterEach(() => {
   delete process.env["JOLLICODE_LOCKDOWN"]
