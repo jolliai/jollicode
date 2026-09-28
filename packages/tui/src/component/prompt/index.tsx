@@ -41,6 +41,7 @@ import { useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
 import type { AssistantMessage, FilePart, UserMessage } from "@opencode-ai/sdk/v2"
 import { Locale } from "../../util/locale"
 import { errorMessage } from "../../util/error"
+import { syncAcceptedModel } from "../../util/model"
 import { formatDuration } from "../../util/format"
 import { createColors, createFrames } from "../../ui/spinner"
 import { useDialog } from "../../ui/dialog"
@@ -348,6 +349,41 @@ export function Prompt(props: PromptProps) {
       }
     }
   })
+
+  createEffect(
+    on(
+      () => {
+        const message = lastUserMessage()
+        const model = message?.model
+        return {
+          sessionID: props.sessionID,
+          messageID: message?.id,
+          model: model && { providerID: model.providerID, modelID: model.modelID, variant: model.variant },
+        }
+      },
+      (next, previous) => {
+        if (!previous || previous.sessionID !== next.sessionID || previous.messageID !== next.messageID) return
+        syncAcceptedModel(local, previous.model, next.model)
+      },
+    ),
+  )
+
+  createEffect(
+    on(
+      () => {
+        const session = props.sessionID ? sync.session.get(props.sessionID) : undefined
+        const model = session?.model
+        return {
+          sessionID: props.sessionID,
+          model: model && { providerID: model.providerID, modelID: model.id, variant: model.variant },
+        }
+      },
+      (next, previous) => {
+        if (!previous || previous.sessionID !== next.sessionID) return
+        syncAcceptedModel(local, previous.model, next.model)
+      },
+    ),
+  )
 
   const promptCommands = createMemo(() =>
     [

@@ -6,7 +6,7 @@ import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { serviceUse } from "@opencode-ai/core/effect/service-use"
 import { Context, Effect, Layer } from "effect"
 import * as Stream from "effect/Stream"
-import { streamText, wrapLanguageModel, type ModelMessage, type Tool } from "ai"
+import { APICallError, streamText, wrapLanguageModel, type ModelMessage, type Tool } from "ai"
 import type { LLMEvent } from "@opencode-ai/llm"
 import { LLMClient } from "@opencode-ai/llm/route"
 import type { LLMClientService } from "@opencode-ai/llm/route"
@@ -25,15 +25,72 @@ import { Auth } from "@/auth"
 import { EffectBridge } from "@/effect/bridge"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import * as Option from "effect/Option"
+import * as Schema from "effect/Schema"
 import * as OtelTracer from "@effect/opentelemetry/Tracer"
 import { LLMAISDK } from "./llm/ai-sdk"
 import { LLMNativeRuntime } from "./llm/native-runtime"
 import { LLMRequestPrep } from "./llm/request"
+import {
+  isJolliProviderId,
+  providerIdFor,
+  SUPPORTED_PROTOCOLS,
+  type SupportedProtocol,
+} from "@opencode-ai/core/jolli/gateway-config"
+import { ProviderV2 } from "@opencode-ai/core/provider"
+import { ModelV2 } from "@opencode-ai/core/model"
+
+const ModelSwitchReasonSchema = Schema.Literals(["provider_busy", "provider_unavailable", "model_unavailable"])
+const ModelSwitchProtocolSchema = Schema.Literals(SUPPORTED_PROTOCOLS)
+// The gateway's `requiresConfirmation` and `upstreamModelName` used to be parsed
+// here too, but the client always confirms a change of model id or provider id
+// on its own (a switch by definition changes at least one), so the gateway hint
+// never flipped the decision. Dropped from the schema so a reader does not
+// mistake the field for something the client honours. If the gateway later needs
+// to opt OUT of confirmation for a same-model failover, that is a real change
+// to the client-side gate, not just a body field.
+const ModelSwitchBodySchema = Schema.fromJsonString(
+  Schema.Struct({
+    code: Schema.Literal("jolli_model_switch"),
+    provider: ModelSwitchProtocolSchema,
+    model: Schema.String,
+    reason: Schema.optional(ModelSwitchReasonSchema),
+  }),
+)
+const decodeModelSwitchBody = Schema.decodeUnknownOption(ModelSwitchBodySchema)
+
+function isSupportedProtocol(value: string): value is SupportedProtocol {
+  return SUPPORTED_PROTOCOLS.some((protocol) => protocol === value)
+}
+
+function modelSwitch(error: unknown):
+  | {
+      provider: SupportedProtocol
+      model: string
+      reason?: "provider_busy" | "provider_unavailable" | "model_unavailable"
+    }
+  | undefined {
+  if (!APICallError.isInstance(error) || error.statusCode !== 409 || !error.responseBody) return undefined
+  const parsed = decodeModelSwitchBody(error.responseBody)
+  if (Option.isNone(parsed)) return undefined
+  const body = parsed.value
+  return {
+    provider: body.provider,
+    model: body.model,
+    ...(body.reason !== undefined ? { reason: body.reason } : {}),
+  }
+}
 
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 
-export type StreamInput = {
+export type PreparedModelInput = {
   user: SessionV1.User
+  system: string[]
+  messages: ModelMessage[]
+  tools: Record<string, Tool>
+  mcpToolServers?: ReadonlyMap<string, string>
+}
+
+export type StreamInput = PreparedModelInput & {
   sessionID: string
   parentSessionID?: string
   turnID?: string
@@ -41,21 +98,24 @@ export type StreamInput = {
   stepIndex?: number
   courseID?: string
   courseAssistantID?: string
-  mcpToolServers?: ReadonlyMap<string, string>
   toolErrors?: ReadonlyArray<string>
   model: Provider.Model
   agent: Agent.Info
   permission?: PermissionV1.Ruleset
-  system: string[]
-  messages: ModelMessage[]
   small?: boolean
-  tools: Record<string, Tool>
   retries?: number
   toolChoice?: "auto" | "required" | "none"
+  onModelSwitch?: (model: Provider.Model) => Effect.Effect<void, unknown>
+  onModelSwitchPrepare?: (model: Provider.Model) => Effect.Effect<PreparedModelInput, unknown>
+  onModelSwitchProposal?: (
+    model: Provider.Model,
+    reason: "provider_busy" | "provider_unavailable" | "model_unavailable",
+  ) => Effect.Effect<boolean, unknown>
 }
 
 export type StreamRequest = StreamInput & {
   abort: AbortSignal
+  onResponseHeaders?: (headers: Readonly<Record<string, string>> | undefined) => Effect.Effect<void, unknown>
 }
 
 export interface Interface {
@@ -230,7 +290,23 @@ const live: Layer.Layer<
 
       // Runtime seam: native is an opt-in adapter over @opencode-ai/llm. It
       // either returns a ready LLMEvent stream or a concrete fallback reason.
-      if (flags.experimentalNativeLlm) {
+      //
+      // ⚠ Jolli providers are excluded from the native runtime here, not because
+      // native cannot serve them, but because the gateway's model-switch mechanism
+      // (`modelSwitch()` on a 409 body, and the `x-jolli-served-*` response
+      // headers below) is currently only wired through the AI SDK code path
+      // (`APICallError.isInstance` for the 409 and `result.result.response` for
+      // the headers). The native path returns a raw LLMEvent stream that has no
+      // equivalent hooks, so a Jolli provider on the native runtime would never
+      // see a switch and would silently keep talking to the original model.
+      //
+      // This is a design trade-off, NOT a bug: the coupling is intentional until
+      // the switch protocol is lifted out of the AI SDK adapter. A future refactor
+      // could either (a) expose the two switch signals through the LLMEvent
+      // stream so both runtimes handle them uniformly, or (b) put the switch
+      // detection in the transport layer beneath both runtimes. Either lets Jolli
+      // providers take the native path without silently losing failover.
+      if (flags.experimentalNativeLlm && !isJolliProviderId(input.model.providerID)) {
         const native = LLMNativeRuntime.stream({
           model: input.model,
           provider: item,
@@ -345,6 +421,13 @@ const live: Layer.Layer<
                   }
                   return args.params
                 },
+                async wrapStream({ doStream }) {
+                  const result = await doStream()
+                  if (input.onResponseHeaders) {
+                    await bridge.promise(input.onResponseHeaders(result.response?.headers))
+                  }
+                  return result
+                },
               },
             ],
           }),
@@ -361,8 +444,11 @@ const live: Layer.Layer<
       }
     })
 
-    const stream: Interface["stream"] = (input) =>
-      Stream.scoped(
+    const streamAttempt = (input: StreamInput, seen: ReadonlySet<string>): Stream.Stream<LLMEvent, unknown> => {
+      let emitted = false
+      let pendingStart: LLMEvent | undefined
+      let servedModelKey = `${input.model.providerID}/${input.model.id}`
+      return Stream.scoped(
         Stream.unwrap(
           Effect.gen(function* () {
             const ctrl = yield* Effect.acquireRelease(
@@ -370,22 +456,90 @@ const live: Layer.Layer<
               (ctrl) => Effect.sync(() => ctrl.abort()),
             )
 
-            const result = yield* run({ ...input, abort: ctrl.signal })
+            const result = yield* run({
+              ...input,
+              abort: ctrl.signal,
+              onResponseHeaders:
+                isJolliProviderId(input.model.providerID) && input.onModelSwitch
+                  ? (headers) =>
+                      Effect.gen(function* () {
+                        const protocol = headers?.["x-jolli-served-provider"]
+                        const modelID = headers?.["x-jolli-served-model"]
+                        if (!protocol || !isSupportedProtocol(protocol) || !modelID) return
+                        const providerID = ProviderV2.ID.make(providerIdFor(protocol))
+                        const key = `${providerID}/${modelID}`
+                        if (key === servedModelKey) return
+                        const model = yield* provider.getModel(providerID, ModelV2.ID.make(modelID)).pipe(Effect.option)
+                        if (Option.isNone(model)) return
+                        yield* input.onModelSwitch!(model.value)
+                        servedModelKey = key
+                      })
+                  : undefined,
+            })
 
             if (result.type === "native") return result.stream
 
             // Adapter seam: both runtimes expose the same LLMEvent stream. Native
             // already returns one; AI SDK streams are converted here.
             const state = LLMAISDK.adapterState()
-            return Stream.fromAsyncIterable(result.result.fullStream, (e) =>
+            const events = Stream.fromAsyncIterable(result.result.fullStream, (e) =>
               e instanceof Error ? e : new Error(String(e)),
             ).pipe(
               Stream.mapEffect((event) => LLMAISDK.toLLMEvents(state, event)),
               Stream.flatMap((events) => Stream.fromIterable(events)),
+              Stream.flatMap((event) => {
+                if (event.type === "step-start" && !emitted) {
+                  pendingStart = event
+                  return Stream.empty
+                }
+                emitted = true
+                const output = pendingStart ? [pendingStart, event] : [event]
+                pendingStart = undefined
+                return Stream.fromIterable(output)
+              }),
             )
+            return events
           }),
         ),
+      ).pipe(
+        Stream.catch((error) => {
+          const target = modelSwitch(error)
+          if (!target || emitted || !isJolliProviderId(input.model.providerID)) return Stream.fail(error)
+          const providerID = ProviderV2.ID.make(providerIdFor(target.provider))
+          const modelID = ModelV2.ID.make(target.model)
+          const key = `${providerID}/${modelID}`
+          if (seen.has(key)) return Stream.fail(error)
+          return Stream.unwrap(
+            Effect.gen(function* () {
+              const nextModel = yield* provider
+                .getModel(providerID, modelID)
+                .pipe(Effect.catch(() => Effect.fail(error)))
+              // A switch always changes either the model id or the provider id (that is
+              // why the gateway asked), so the client always confirms. This used to be
+              // an OR against `target.requiresConfirmation === true`, but since the two
+              // client-side comparisons already dominate, the gateway flag never
+              // changed the outcome. Removed the flag from the response schema so the
+              // read here is not a misleading indirection over dead data.
+              const requiresConfirmation =
+                nextModel.id !== input.model.id || nextModel.providerID !== input.model.providerID
+              if (requiresConfirmation) {
+                if (!input.onModelSwitchProposal) return yield* Effect.fail(error)
+                const approved = yield* input.onModelSwitchProposal(nextModel, target.reason ?? "model_unavailable")
+                if (!approved)
+                  return yield* Effect.fail(new Error("Model switch cancelled. Your message was not resent."))
+              }
+              if (!input.onModelSwitchPrepare) return yield* Effect.fail(error)
+              const prepared = yield* input.onModelSwitchPrepare(nextModel)
+              yield* Effect.logInfo("gateway model switch", { from: input.model.id, to: nextModel.id, providerID })
+              return streamAttempt({ ...input, ...prepared, model: nextModel }, new Set([...seen, key]))
+            }),
+          )
+        }),
       )
+    }
+
+    const stream: Interface["stream"] = (input) =>
+      streamAttempt(input, new Set([`${input.model.providerID}/${input.model.id}`]))
 
     return Service.of({ stream })
   }),

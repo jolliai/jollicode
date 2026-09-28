@@ -37,6 +37,7 @@ type Sse = {
   type: "sse"
   head: unknown[]
   tail: unknown[]
+  headers?: Readonly<Record<string, string>>
   wait?: PromiseLike<unknown>
   hang?: boolean
   error?: unknown
@@ -428,7 +429,10 @@ function send(item: Sse) {
   if (item.error) end = Stream.concat(empty, Stream.fail(item.error))
   else if (item.hang) end = Stream.concat(empty, Stream.never)
 
-  return HttpServerResponse.stream(Stream.concat(body, end), { contentType: "text/event-stream" })
+  return HttpServerResponse.stream(Stream.concat(body, end), {
+    contentType: "text/event-stream",
+    headers: item.headers,
+  })
 }
 
 const reset = Effect.fn("TestLLMServer.reset")(function* (item: Sse) {
@@ -453,6 +457,7 @@ function fail(item: HttpError) {
 export class Reply {
   #head: unknown[] = [role()]
   #tail: unknown[] = []
+  #headers: Readonly<Record<string, string>> | undefined
   #usage: Usage | undefined
   #finish: string | undefined
   #wait: PromiseLike<unknown> | undefined
@@ -468,6 +473,11 @@ export class Reply {
 
   text(value: string) {
     this.#tail = [...this.#tail, textLine(value)]
+    return this
+  }
+
+  headers(value: Readonly<Record<string, string>>) {
+    this.#headers = value
     return this
   }
 
@@ -554,6 +564,7 @@ export class Reply {
       type: "sse",
       head: this.#head,
       tail: this.#finish ? [...this.#tail, finishLine(this.#finish, this.#usage)] : this.#tail,
+      headers: this.#headers,
       wait: this.#wait,
       hang: this.#hang,
       error: this.#error,

@@ -76,6 +76,11 @@ type StreamInput = {
   limits: () => Record<string, number>
   providers?: () => RunProvider[]
   footer: FooterApi
+  onModelChange?: (
+    model: NonNullable<RunInput["model"]>,
+    previous: RunInput["model"],
+    variant: string | undefined,
+  ) => boolean
   trace?: Trace
   signal?: AbortSignal
 }
@@ -86,6 +91,8 @@ type Wait = {
   live: boolean
   onVisibleOutput?: (anchor: LocalReplayAnchor) => void
   done: Deferred.Deferred<void, unknown>
+  model: RunInput["model"]
+  promptID: string | undefined
 }
 
 export type SessionTurnInput = {
@@ -133,6 +140,10 @@ type TransportService = {
 class Service extends Context.Service<Service, TransportService>()("@opencode/RunStreamTransport") {}
 
 function sid(event: Event): string | undefined {
+  if (event.type === "session.updated") {
+    return event.properties.sessionID
+  }
+
   if (event.type === "message.updated") {
     return event.properties.sessionID
   }
@@ -208,6 +219,15 @@ function isMatchingDisposeEvent(value: unknown, directory: string | undefined): 
 
 function active(event: Event, sessionID: string): boolean {
   if (sid(event) !== sessionID) {
+    return false
+  }
+
+  // `session.updated` covers ANY session patch — a title change, a permission
+  // bump, `setAgentModel` after a gateway switch, and the bootstrap patch fired
+  // before the turn's own work starts. It must NOT count as turn activity, or
+  // `wait.live` can flip to true off a bookkeeping patch and the next `idle`
+  // status will complete the turn before its first message has been produced.
+  if (event.type === "session.updated") {
     return false
   }
 
@@ -881,6 +901,36 @@ function createLayer(input: StreamInput) {
         }
 
         const applyEvent = Effect.fn("RunStreamTransport.applyEvent")(function* (event: Event) {
+          const wait = state.wait
+          const sessionModel = event.type === "session.updated" ? event.properties.info.model : undefined
+          const assistant = event.type === "message.updated" ? event.properties.info : undefined
+          // A `message.updated` records whatever model that particular message
+          // used, which is NOT the same as "the session's model changed": a
+          // /cmd-pinned model, an agent-pinned model, a subagent's message, or
+          // a replayed message all carry a modelID here without meaning the
+          // reader's global model should follow. Only trust it when the message
+          // is a direct child of the prompt this CLI is actively waiting on
+          // (`assistant.parentID === wait.promptID`), which we cannot verify
+          // when `wait.promptID` is undefined (headless send with no assigned
+          // message id). A session snapshot is only a fallback when there is no
+          // prompt id to correlate; otherwise an unrelated stale update could
+          // overwrite the model accepted for the active turn.
+          const messageModel =
+            assistant?.role === "assistant" && wait?.promptID !== undefined && assistant.parentID === wait.promptID
+              ? { id: assistant.modelID, providerID: assistant.providerID, variant: assistant.variant }
+              : undefined
+          const model = messageModel ?? (wait?.promptID === undefined ? sessionModel : undefined)
+          if (
+            wait &&
+            model &&
+            sid(event) === input.sessionID &&
+            (wait.model?.providerID !== model.providerID || wait.model.modelID !== model.id)
+          ) {
+            const next = { providerID: model.providerID, modelID: model.id }
+            const variant = model.variant === "default" ? undefined : model.variant
+            if (input.onModelChange?.(next, wait.model, variant)) wait.model = next
+          }
+
           if (event.type === "message.part.delta" && event.properties.sessionID === input.sessionID) {
             if (replayedParts.has(event.properties.partID)) {
               const seen = state.data.text.get(event.properties.partID) ?? ""
@@ -1205,6 +1255,8 @@ function createLayer(input: StreamInput) {
             live: false,
             onVisibleOutput: next.onVisibleOutput,
             done: yield* Deferred.make<void, unknown>(),
+            model: next.model,
+            promptID: next.prompt.messageID,
           }
           state.wait = item
           state.data.announced = false

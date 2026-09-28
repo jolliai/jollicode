@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test"
+import { afterAll, afterEach, describe, expect, test } from "bun:test"
 import type { PluginInput } from "@opencode-ai/plugin"
 import { Brand } from "@opencode-ai/core/brand"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
@@ -41,10 +41,23 @@ function harness(session: Partial<JolliSession.Interface> = {}) {
 }
 
 const originalFetch = globalThis.fetch
+
+// A developer's shell may export JOLLI_URL to point every Jolli client at a dev tenant. The
+// sign-in test below asserts against the default auth hub, so isolate the file from that env for
+// the duration of the run and restore it once done.
+const originalJolliUrl = process.env["JOLLI_URL"]
+delete process.env["JOLLI_URL"]
+
 afterEach(() => {
   globalThis.fetch = originalFetch
   delete process.env["JOLLICODE_LOCKDOWN_STRICT"]
   delete process.env["JOLLICODE_GATEWAY_URL"]
+  delete process.env["JOLLI_URL"]
+})
+
+afterAll(() => {
+  if (originalJolliUrl === undefined) delete process.env["JOLLI_URL"]
+  else process.env["JOLLI_URL"] = originalJolliUrl
 })
 
 /**

@@ -483,6 +483,22 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
         providers: () => state.providers,
         footer,
         trace: log,
+        onModelChange: (model, previous, variant) => {
+          if (state.model?.providerID !== previous?.providerID || state.model?.modelID !== previous?.modelID) {
+            return false
+          }
+
+          state.model = model
+          state.activeVariant = variant
+          state.variants = variantsFor(state.providers, model)
+          footer.event({ type: "variants", variants: state.variants, current: variant })
+          footer.event({
+            type: "model",
+            model: formatModelLabel(model, variant, state.providers),
+            selection: model,
+          })
+          return true
+        },
       })
       if (footer.isClosed) {
         await handle.close()

@@ -122,8 +122,16 @@ const layer = Layer.effect(
       const target = messages.find((m) => m.info.id === input.messageID)
       if (!target || target.info.role !== "user") return
       const msgDiffs = yield* computeDiff({ messages })
-      target.info.summary = { ...target.info.summary, diffs: msgDiffs }
-      yield* sessions.updateMessage(target.info)
+      yield* sessions
+        .mutateMessage({
+          sessionID: input.sessionID,
+          messageID: input.messageID,
+          update(current) {
+            if (current.role !== "user") return target.info
+            return { ...current, summary: { ...current.summary, diffs: msgDiffs } }
+          },
+        })
+        .pipe(Effect.orDie)
     })
 
     const diff = Effect.fn("SessionSummary.diff")(function* (input: { sessionID: SessionID; messageID?: MessageID }) {
