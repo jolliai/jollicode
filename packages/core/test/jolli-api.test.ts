@@ -139,9 +139,9 @@ describe("fetchModelIndex", () => {
   })
 
   /**
-   * ⚠ THE VENDOR GROUPING IS DROPPED HERE, BUT ITS WIRE PROTOCOL STAYS ON EACH MODEL. Jolli Code
-   * has one provider and a student never picks a vendor, while the provider config still needs the
-   * protocol to select the correct upstream SDK. A disabled provider takes its whole group with it.
+   * ⚠ THE VENDOR GROUPING IS FLATTENED HERE, BUT ITS PROTOCOL AND NAME STAY ON EACH MODEL. The
+   * provider config needs the protocol to select the correct upstream SDK, and the name to label
+   * the picker group. A disabled provider takes its whole group with it.
    */
   test("flattens the providers by UUID and drops what is switched off", async () => {
     const http = stub(() =>
@@ -176,6 +176,8 @@ describe("fetchModelIndex", () => {
     expect(index.get("uuid-opus")?.name).toBe("claude-opus-4-8")
     expect(index.get("uuid-opus")?.protocol).toBe("anthropic")
     expect(index.get("uuid-gpt")?.protocol).toBe("openai")
+    expect(index.get("uuid-opus")?.vendor).toBe("anthropic")
+    expect(index.get("uuid-gpt")?.vendor).toBe("openai")
     expect(http.seen[0]?.url).toBe("https://acme.jolli.ai/api/agent/models")
   })
 

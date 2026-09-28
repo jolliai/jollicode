@@ -289,22 +289,69 @@ export function toAssistant(input: {
  * vendors, and each provider block's `models` object is keyed by id — two same-named models
  * would silently overwrite each other. The UUID is also what `allowedModelIds` already names,
  * so a grant matches with no translation step at all.
+ *
+ * ⚠ A SUFFIX IS SHOWN ONLY TO TELL SAME-NAMED MODELS APART. The web chat shows the raw name, and
+ * so does this, unless one protocol offers the same name more than once. Then the suffix names
+ * whatever differs between those rows — the vendor, the tier, or both — since a suffix both rows
+ * share tells them apart no better than none.
+ *
+ * ⚠ A MISSING VENDOR IS STOOD IN FOR BY THE PROTOCOL, NEVER LEFT BLANK. A cache written before the
+ * field existed, a provider the gateway names with an empty string, and a hand-seeded fixture all
+ * carry none, and a nameless group would be labelled with its provider id (`jolli-openai`).
+ *
+ * ⚠ ONLY WHAT THE STUDENT'S COURSES GRANT COUNTS, BECAUSE THE PICKER SHOWS NOTHING ELSE. A tenant
+ * offering `gpt-5.5` as Premium and Basic to a course that grants only Basic renders one row, which
+ * needs no suffix; nor should a vendor none of those courses grants name a group. `granted` absent
+ * means unrestricted, as an empty `allowedModelIds` does. A student in two courses that grant
+ * different halves of such a pair still sees both suffixes — the grant in force is chosen in the
+ * app, after this config is built.
  */
 export function toProviderModels(
   models: ReadonlyMap<string, CatalogModel>,
+  granted?: ReadonlySet<string>,
 ): Readonly<Record<string, ReadonlyArray<JolliModel>>> {
-  const byProtocol: Record<string, JolliModel[]> = {}
-  for (const model of models.values()) {
-    const protocol = supportedProtocolOf(model.protocol)
-    const bucket = (byProtocol[protocol] ??= [])
-    bucket.push({
-      id: model.id,
-      name: model.category ? `${model.name} (${model.category})` : model.name,
-      /** What actually goes upstream. */
-      upstreamId: model.name,
-    })
-  }
-  return byProtocol
+  const isGranted = (model: CatalogModel) => !granted || granted.has(model.id)
+  const resolved = Array.from(models.values(), (model) => ({ ...model, vendor: model.vendor || model.protocol }))
+  const sameNamed = Map.groupBy(resolved.filter(isGranted), nameKey)
+  const byProtocol = Map.groupBy(resolved, (model) => supportedProtocolOf(model.protocol))
+  return Object.fromEntries(
+    Array.from(byProtocol, ([protocol, bucket]) => [
+      protocol,
+      bucket.map((model) => ({
+        id: model.id,
+        name: isGranted(model) ? displayName(model, sameNamed.get(nameKey(model)) ?? []) : model.name,
+        /** What actually goes upstream. */
+        upstreamId: model.name,
+        ...(isGranted(model) ? { vendor: model.vendor } : {}),
+      })),
+    ]),
+  )
+}
+
+function nameKey(model: CatalogModel) {
+  return `${supportedProtocolOf(model.protocol)}/${model.name}`
+}
+
+function displayName(model: CatalogModel, sameNamed: readonly CatalogModel[]) {
+  const differs = (field: (model: CatalogModel) => string | null | undefined) =>
+    new Set(sameNamed.map(field)).size > 1 ? field(model) : undefined
+  const suffix = [differs((m) => m.vendor), differs((m) => m.category)].filter(Boolean).join(", ")
+  return suffix ? `${model.name} (${suffix})` : model.name
+}
+
+/**
+ * Every model UUID some course of the student's grants, or `undefined` when that is all of them.
+ *
+ * ⚠ ONE UNRESTRICTED ASSISTANT MAKES THE WHOLE CATALOGUE REACHABLE, because an empty
+ * `allowedModelIds` means unrestricted. No assistant at all reads the same way: nothing is in force
+ * to narrow the picker, so nothing narrows its labels either.
+ */
+export function grantedModelIds(
+  assistants: Readonly<Record<string, readonly CourseAssistantChoice[]>>,
+): ReadonlySet<string> | undefined {
+  const choices = Object.values(assistants).flat()
+  if (choices.length === 0 || choices.some((choice) => choice.allowedModelIds.length === 0)) return undefined
+  return new Set(choices.flatMap((choice) => choice.allowedModelIds))
 }
 
 /**

@@ -38,7 +38,7 @@ import { Npm } from "@opencode-ai/core/npm"
 import { Brand } from "@opencode-ai/core/brand"
 import { JOLLI_PROVIDER_IDS, jolliBaseConfig } from "@opencode-ai/core/jolli/gateway-config"
 import { loadCatalog, STARTUP_DEADLINE } from "@opencode-ai/core/jolli/cache"
-import { toProviderModels } from "@opencode-ai/core/jolli/catalog"
+import { grantedModelIds, toProviderModels } from "@opencode-ai/core/jolli/catalog"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { withTransientReadRetry } from "@/util/effect-http-client"
 
@@ -111,7 +111,13 @@ const jolliLockdownConfig = Effect.fnUntraced(function* (session: JolliSession.I
     : undefined
   return jolliBaseConfig({
     signedIn: true,
-    models: loaded?.kind === "ok" ? toProviderModels(new Map(loaded.snapshot.models.map((m) => [m.id, m]))) : {},
+    models:
+      loaded?.kind === "ok"
+        ? toProviderModels(
+            new Map(loaded.snapshot.models.map((m) => [m.id, m])),
+            grantedModelIds(loaded.snapshot.assistants),
+          )
+        : {},
     /**
      * ⚠ THE PIN OUTRANKS THE TENANT, AND `gatewayOptions` IS WHERE THAT IS DECIDED. Both are passed
      * so neither has to be resolved twice; a build that pinned no gateway reaches the same place it
@@ -411,7 +417,8 @@ const layer = Layer.effect(
          * The provider block only appears once a Jolli credential exists — `jolliBaseConfig`
          * explains why declaring it while signed out breaks first-run sign-in.
          */
-        let result: Info = Flag.JOLLICODE_LOCKDOWN ? yield* jolliLockdownConfig(jolliSvc) : {}
+        const floor: Info = Flag.JOLLICODE_LOCKDOWN ? yield* jolliLockdownConfig(jolliSvc) : {}
+        let result = floor
         const authEnv: Record<string, string> = {}
         const consoleManagedProviders = new Set<string>()
         let activeOrgName: string | undefined
@@ -747,6 +754,14 @@ const layer = Layer.effect(
               block.options = { ...block.options, ...pinned[id]?.options }
               delete block.options["apiKey"]
               if (pinned[id]?.npm) block.npm = pinned[id].npm
+              /**
+               * ⚠ THE NAME IS PINNED TO THE FLOOR'S, NOT TO THE CEILING'S, BECAUSE THE CEILING HAS
+               * NONE. The picker groups under it, so it tells the student whose model they are on,
+               * and a repo that renamed `jolli-openai` to `Anthropic` would say otherwise. Only the
+               * floor holds the catalogue the name is derived from; the ceiling omits it for exactly
+               * that reason, which is also why the rebuilt `pinned` cannot supply it.
+               */
+              block.name = floor.provider?.[id]?.name
             }
           }
         }

@@ -91,6 +91,11 @@ export interface JolliModel {
   readonly name: string
   /** The id actually sent upstream, when the gateway routes this one elsewhere. */
   readonly upstreamId?: string
+  /**
+   * The gateway provider's display name, which labels this model's picker group. Absent on a model
+   * no course of the student's grants, so a vendor they cannot reach never names a group.
+   */
+  readonly vendor?: string
 }
 
 export interface JolliConfigInput {
@@ -197,12 +202,17 @@ function providerBlocks(input: JolliConfigInput) {
 function providerBlock(input: JolliConfigInput, protocol: SupportedProtocol, models?: ReadonlyArray<JolliModel>) {
   return {
     /**
-     * ⚠ EVERY PROVIDER READS AS "JOLLI" ON THE SURFACE, EVEN THOUGH THERE ARE UP TO THREE OF THEM.
-     * The vendor stays legible as the first word of every model's name; a student picks a MODEL,
-     * not a vendor, so the provider label is intentionally uniform. The pass-through underneath
-     * dispatches to the right upstream by protocol.
+     * ⚠ EACH PROVIDER READS AS THE GATEWAY'S OWN VENDOR NAME, NOT AS "JOLLI". There are up to three
+     * blocks and the pickers group by provider, so a uniform label rendered three identical "Jolli"
+     * headers. The name comes from the gateway, as it does in the web chat, so a vendor added there
+     * shows up correctly without a client release. It is display-only: routing is decided by `npm`
+     * and `baseURL`.
+     *
+     * ⚠ OMITTED WHEN THERE IS NO CATALOGUE, AND THAT IS LOAD-BEARING. The desktop's ceiling is built
+     * without models and is the TOP config layer, so any name it wrote would overwrite the one the
+     * server's floor derived from the catalogue.
      */
-    name: "Jolli",
+    ...(models ? { name: providerName(protocol, models) } : {}),
     /**
      * ⚠ THE `npm` IS PROTOCOL-DEPENDENT AND NAMING IT IS NOT OPTIONAL. A config-declared provider
      * with no `npm` resolves to `@ai-sdk/openai-compatible`, which talks `/v1/chat/completions`.
@@ -255,6 +265,28 @@ function providerBlock(input: JolliConfigInput, protocol: SupportedProtocol, mod
         }
       : {}),
   }
+}
+
+/**
+ * The label of one protocol's picker group: the vendors the gateway names for it.
+ *
+ * ⚠ IT FALLS BACK TO THE PROTOCOL RATHER THAN TO NOTHING, BECAUSE NOTHING IS NOT BLANK. With no
+ * name, `provider.ts` labels the group with its provider id, so a student would read
+ * `jolli-openai`. `toProviderModels` already stands the gateway's own protocol string in for a
+ * missing vendor on every granted model; this covers a group none of whose models is granted. No
+ * client-side vendor table is consulted: only the gateway knows every vendor it serves.
+ *
+ * ⚠ MORE THAN TWO VENDORS COLLAPSE TO `First +N`, BECAUSE THE TITLE MUST NOT SIZE THE DIALOG. One
+ * provider is one npm SDK, so every OpenAI-compatible vendor lands in this one group and the list is
+ * unbounded. They sort by name so the title does not reshuffle with the gateway's response order.
+ */
+function providerName(protocol: SupportedProtocol, models: ReadonlyArray<JolliModel>) {
+  const vendors = Array.from(new Set(models.flatMap((model) => (model.vendor ? [model.vendor] : [])))).toSorted(
+    (a, b) => a.localeCompare(b),
+  )
+  if (vendors.length === 0) return protocol
+  if (vendors.length <= 2) return vendors.join(" / ")
+  return `${vendors[0]} +${vendors.length - 1}`
 }
 
 /** SDK-expected URL segment appended to the gateway base URL, per protocol. */

@@ -4,6 +4,7 @@ import {
   accentOf,
   assistantIconOf,
   courseEntryState,
+  grantedModelIds,
   isOwnCourse,
   isVisibleCourse,
   toAssistant,
@@ -251,6 +252,67 @@ describe("toProviderModels", () => {
     expect(new Set(openai.map((m) => m.id)).size).toBe(2)
   })
 
+  test("shows the raw name, keeping the tier only to tell same-named models apart", () => {
+    const models = new Map([
+      ["uuid-a", model("uuid-a", "gpt-5.5", "Premium", "openai")],
+      ["uuid-b", model("uuid-b", "gpt-5.5", "Basic", "openai")],
+      ["uuid-c", model("uuid-c", "claude-haiku-4-5", "Basic", "anthropic")],
+      ["uuid-d", model("uuid-d", "gpt-5.5", "Basic", "google")],
+    ])
+    const mapped = toProviderModels(models)
+    expect(mapped["openai"]?.map((m) => m.name)).toEqual(["gpt-5.5 (Premium)", "gpt-5.5 (Basic)"])
+    expect(mapped["anthropic"]?.map((m) => m.name)).toEqual(["claude-haiku-4-5"])
+    expect(mapped["google"]?.map((m) => m.name)).toEqual(["gpt-5.5"])
+  })
+
+  test("names whatever tells same-named rows apart, the vendor, the tier, or both", () => {
+    const vendored = (id: string, name: string, category: string, vendor: string) => ({
+      ...model(id, name, category, "openai"),
+      vendor,
+    })
+    const models = new Map([
+      ["uuid-a", vendored("uuid-a", "gpt-5.5", "Basic", "OpenAI")],
+      ["uuid-b", vendored("uuid-b", "gpt-5.5", "Basic", "Azure")],
+      ["uuid-c", vendored("uuid-c", "o4", "Premium", "OpenAI")],
+      ["uuid-d", vendored("uuid-d", "o4", "Basic", "Azure")],
+    ])
+    expect(toProviderModels(models)["openai"]?.map((m) => m.name)).toEqual([
+      "gpt-5.5 (OpenAI)",
+      "gpt-5.5 (Azure)",
+      "o4 (OpenAI, Premium)",
+      "o4 (Azure, Basic)",
+    ])
+  })
+
+  test("labels only what the student's courses grant", () => {
+    const models = new Map([
+      ["uuid-a", model("uuid-a", "gpt-5.5", "Premium", "openai")],
+      ["uuid-b", { ...model("uuid-b", "gpt-5.5", "Basic", "openai"), vendor: "OpenAI" }],
+      ["uuid-c", { ...model("uuid-c", "deepseek-v4", "Basic", "openai"), vendor: "DeepSeek" }],
+    ])
+    const openai = toProviderModels(models, new Set(["uuid-b"]))["openai"]
+    // One granted row needs no suffix, and an ungranted vendor names no group.
+    expect(openai?.map((m) => m.name)).toEqual(["gpt-5.5", "gpt-5.5", "deepseek-v4"])
+    expect(openai?.map((m) => m.vendor)).toEqual([undefined, "OpenAI", undefined])
+    // Still declared: the grant in force is the app's to apply.
+    expect(openai?.map((m) => m.id)).toEqual(["uuid-a", "uuid-b", "uuid-c"])
+  })
+
+  test("carries the gateway vendor name through to each model, or the protocol without one", () => {
+    const models = new Map([
+      ["uuid-a", { ...model("uuid-a", "gpt-5.5", "Premium", "openai"), vendor: "OpenAI" }],
+      ["uuid-b", model("uuid-b", "claude-haiku-4-5", "Basic", "anthropic")],
+    ])
+    const mapped = toProviderModels(models)
+    expect(mapped["openai"]?.[0]?.vendor).toBe("OpenAI")
+    // A schema-2 cache entry predates the field; its protocol stands in rather than a blank.
+    expect(mapped["anthropic"]?.[0]?.vendor).toBe("anthropic")
+    // A protocol this client has no SDK for still reads as what the gateway called it, not as the
+    // protocol it is routed through.
+    const unknown = toProviderModels(new Map([["uuid-c", model("uuid-c", "mistral-large", "Basic", "mistral")]]))
+    expect(unknown["anthropic"]?.[0]?.vendor).toBe("mistral")
+  })
+
   test("splits models across protocol buckets", () => {
     const models = new Map([
       ["uuid-a", model("uuid-a", "claude-opus-4-8", "Premium", "anthropic")],
@@ -423,5 +485,21 @@ describe("values this build has never seen", () => {
     )
     expect(projected.courses).toHaveLength(1)
     expect(projected.courses[0]?.entryState).toBe("archived")
+  })
+})
+
+describe("grantedModelIds", () => {
+  test("unions every course's grants", () => {
+    const granted = grantedModelIds({
+      "7": [choice({ allowedModelIds: ["uuid-opus"] })],
+      "8": [choice({ allowedModelIds: ["uuid-haiku", "uuid-opus"] })],
+    })
+    expect(granted).toEqual(new Set(["uuid-opus", "uuid-haiku"]))
+  })
+
+  // An empty grant is unrestricted, and no assistant leaves nothing to narrow by.
+  test("reaches everything when any assistant is unrestricted, or when there is none", () => {
+    expect(grantedModelIds({ "7": [choice(), choice({ allowedModelIds: [] })] })).toBeUndefined()
+    expect(grantedModelIds({ "7": [] })).toBeUndefined()
   })
 })
