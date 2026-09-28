@@ -8,6 +8,17 @@ import { t } from "./i18n"
 import type { CourseGateResult } from "../preload/types"
 
 /**
+ * ⚠ THE SHARED PRIMARY BUTTON IS TOO QUIET FOR THE ONLY ACTION ON THIS SCREEN. Its hover moves
+ * `#171717` to `#151313`, which nobody can see, and it keeps a `default` cursor, so the sign-in
+ * button read as a label. Utilities sit in a later cascade layer than `button.css`, so these win
+ * without touching the shared component. Opacity lightens in light mode and darkens in dark mode,
+ * so one rule reads as feedback in both. `scale-*` sets the standalone `scale` property in Tailwind 4,
+ * not `transform`, so that is the property the transition names.
+ */
+const cta =
+  "h-11 min-w-64 px-8 text-[15px] rounded-lg cursor-pointer shadow-sm transition-[opacity,scale] duration-150 hover:opacity-85 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+
+/**
  * RAISE THE SIGN-IN GATE AGAIN, FROM OUTSIDE THE COMPONENT THAT OWNS IT.
  *
  * ⚠ SIGNING OUT FROM INSIDE THE APP NEEDS THIS, AND NOTHING ELSE WOULD DO. The gate runs `onMount`
@@ -308,12 +319,13 @@ export function DesktopFirstLaunchOnboarding(props: { initialUrl: string; onLoad
           when={!courses()}
           fallback={
             <div class="flex flex-col items-center gap-3">
-              <Button variant="primary" disabled={checking()} onClick={() => void recheck()}>
+              <Button variant="primary" size="large" class={cta} disabled={checking()} onClick={() => void recheck()}>
                 {t("desktop.jolli.courseGate.retry")}
               </Button>
               <Button
                 variant="ghost"
                 size="small"
+                class="cursor-pointer disabled:cursor-not-allowed"
                 disabled={checking() || signingIn()}
                 onClick={() => void useAnotherAccount()}
               >
@@ -327,13 +339,13 @@ export function DesktopFirstLaunchOnboarding(props: { initialUrl: string; onLoad
             fallback={
               <>
                 <p class="max-w-sm text-center text-sm text-error">{t("desktop.jolli.signIn.serverUnavailable")}</p>
-                <Button variant="primary" onClick={() => window.api.relaunch()}>
+                <Button variant="primary" size="large" class={cta} onClick={() => window.api.relaunch()}>
                   {t("desktop.menu.restart")}
                 </Button>
               </>
             }
           >
-            <Button variant="primary" disabled={signingIn()} onClick={() => void signIn()}>
+            <Button variant="primary" size="large" class={cta} disabled={signingIn()} onClick={() => void signIn()}>
               {signingIn() ? t("desktop.jolli.signIn.waiting") : t("desktop.jolli.signIn.action")}
             </Button>
             <Show when={signingIn()}>
@@ -350,7 +362,7 @@ export function DesktopFirstLaunchOnboarding(props: { initialUrl: string; onLoad
                * complete in the background and store a credential; closing it from here needs a
                * cancel endpoint on the sidecar that does not exist yet.
                */}
-              <Button variant="ghost" size="small" onClick={() => void cancelSignIn()}>
+              <Button variant="ghost" size="small" class="cursor-pointer" onClick={() => void cancelSignIn()}>
                 {t("desktop.jolli.signIn.cancel")}
               </Button>
             </Show>

@@ -276,6 +276,13 @@ describe("Jolli lockdown — strict, as the desktop runs it", () => {
     expect(config.provider?.[anthropic]?.options?.["baseURL"]).toBe("https://fixture.internal/gw/v1")
   })
 
+  test("does not let a repo rename a provider", async () => {
+    strict()
+    const config = await loadConfig(signedIn, { provider: { [providerIdFor("openai")]: { name: "Anthropic" } } })
+    // The picker groups under this name. The floor derives it from the catalogue, here unreachable.
+    expect(config.provider?.[providerIdFor("openai")]?.name).toBeUndefined()
+  })
+
   test("removes the bare auth id, which is a provider nothing runs against", async () => {
     strict()
     const config = await loadConfig(signedIn, {

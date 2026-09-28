@@ -91,7 +91,7 @@ export function HomeProjectsListBody(props: HomeProjectsViewProps) {
     <Show
       when={props.servers().length > 1}
       fallback={
-        <div class="pr-3">
+        <div class="pr-1">
           <Show
             when={props.projects().length > 0}
             fallback={<HomeProjectEmpty {...props} server={props.servers()[0]} items={props.recentlyClosed()} />}
@@ -101,7 +101,7 @@ export function HomeProjectsListBody(props: HomeProjectsViewProps) {
         </div>
       }
     >
-      <div class="flex min-w-0 flex-col gap-4 pr-3">
+      <div class="flex min-w-0 flex-col gap-4 pr-1">
         <For each={props.servers()}>
           {(item) => {
             const projects = () => props.projectsForServer(item)
@@ -231,7 +231,7 @@ function HomeServerRow(props: {
       </HomeProjectNavButton>
       <div
         class={`
-          hover-reveal absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1
+          hover-reveal absolute right-0.5 top-1/2 flex -translate-y-1/2 items-center gap-1
           group-hover/server:opacity-100 focus-within:opacity-100 data-[menu=true]:opacity-100
         `}
         data-menu={props.contextMenuOpen(contextMenuID())}
@@ -487,7 +487,7 @@ function HomeProjectRow(
       </HomeProjectNavButton>
       <div
         class={`
-          hover-reveal absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1
+          hover-reveal absolute right-0.5 top-1/2 flex -translate-y-1/2 items-center gap-1
           group-hover/project:opacity-100 focus-within:opacity-100 data-[menu=true]:opacity-100
         `}
         data-menu={props.contextMenuOpen(contextMenuID())}

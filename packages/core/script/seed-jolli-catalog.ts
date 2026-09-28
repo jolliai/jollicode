@@ -42,7 +42,7 @@ if (!request) throw new Error(`Not an allowed Jolli origin: ${BASE_URL}`)
  * ⚠ `protocol` DECIDES WHICH PROVIDER BLOCK THE MODEL LANDS IN, so it is not decoration. The config
  * generator groups the catalogue by it and emits one `@ai-sdk/*` provider per group; a model
  * carrying an unsupported value is dropped rather than routed through the wrong SDK. These are all
- * Claude models, so they all say `anthropic`.
+ * Claude models, so they all say `anthropic`, and all name the vendor that labels their picker group.
  */
 const model = (id: string, name: string, category: string | null) => ({
   id,
@@ -51,6 +51,7 @@ const model = (id: string, name: string, category: string | null) => ({
   description: null,
   isActive: true,
   protocol: "anthropic",
+  vendor: "Anthropic",
 })
 
 /**

@@ -347,16 +347,24 @@ export const fetchAssistantChoices = (request: GatewayRequest, courseId: number)
  */
 export interface CatalogModel extends AgentModel {
   readonly protocol: string
+  /**
+   * The owning provider's display name (e.g. `Anthropic`), which pickers group by.
+   *
+   * ⚠ OPTIONAL BECAUSE SCHEMA-2 CACHE FILES PREDATE IT. Such a snapshot still routes correctly, and
+   * `toProviderModels` labels its groups with the protocol (`openai`) until the next refresh, so it
+   * is not worth a schema bump that would throw an offline student's whole catalogue away. Without
+   * that fallback the group would be labelled with its provider id.
+   */
+  readonly vendor?: string
 }
 
 /**
  * The whole chat-model catalogue, flattened to `UUID -> model + its protocol`.
  *
- * ⚠ EACH MODEL CARRIES ITS PROVIDER'S PROTOCOL. Downstream code (the provider
- * config generator, the assistant mapper) uses it to decide which `@ai-sdk/*`
- * package to route the call through and which HTTP path to hit. Dropping the
- * grouping is still fine — Jolli Code still shows one provider to the student —
- * but the routing key that used to be implicit is now explicit on every model.
+ * ⚠ EACH MODEL CARRIES ITS PROVIDER'S PROTOCOL AND NAME. Downstream code (the provider
+ * config generator, the assistant mapper) uses the protocol to decide which `@ai-sdk/*`
+ * package to route the call through and which HTTP path to hit, and the name to label the
+ * picker group, so a vendor the gateway adds is shown by its own name without a client release.
  *
  * ⚠ A DISABLED PROVIDER TAKES ITS WHOLE GROUP WITH IT, which is the field's documented meaning.
  */
@@ -367,7 +375,7 @@ export const fetchModelIndex = (request: GatewayRequest) =>
       for (const provider of providers) {
         if (!provider.isActive) continue
         for (const model of provider.models) {
-          if (model.isActive) index.set(model.id, { ...model, protocol: provider.protocol })
+          if (model.isActive) index.set(model.id, { ...model, protocol: provider.protocol, vendor: provider.name })
         }
       }
       return index

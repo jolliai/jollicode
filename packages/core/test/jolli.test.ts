@@ -212,6 +212,37 @@ describe("jolliBaseConfig", () => {
     expect(config.provider?.[JOLLI_ANTHROPIC]?.options.baseURL).toBe("https://gw.jolli-local.me/edge/v1")
   })
 
+  test("labels each block with the gateway's vendor names, and none without a catalogue", () => {
+    const config = jolliBaseConfig({
+      signedIn: true,
+      models: {
+        anthropic: [{ id: "anthropic-id", name: "Claude", vendor: "Anthropic" }],
+        openai: [
+          { id: "openai-id", name: "GPT", vendor: "OpenAI" },
+          { id: "deepseek-id", name: "DeepSeek", vendor: "DeepSeek" },
+          { id: "openai-id-2", name: "GPT mini", vendor: "OpenAI" },
+        ],
+        google: [{ id: "google-id", name: "Gemini" }],
+      },
+    })
+    expect(config.provider?.[JOLLI_ANTHROPIC]?.name).toBe("Anthropic")
+    expect(config.provider?.[JOLLI_OPENAI]?.name).toBe("DeepSeek / OpenAI")
+    // A group with no vendor at all reads as its protocol, never as the provider id.
+    expect(config.provider?.[JOLLI_GOOGLE]?.name).toBe("google")
+    // The desktop's ceiling is the top layer; a name here would overwrite the server's.
+    expect(jolliBaseConfig({ signedIn: true }).provider?.[JOLLI_ANTHROPIC]).not.toHaveProperty("name")
+  })
+
+  test("keeps a crowded group's label short and independent of gateway order", () => {
+    const openai = (...vendors: string[]) =>
+      jolliBaseConfig({
+        signedIn: true,
+        models: { openai: vendors.map((vendor, i) => ({ id: `id-${i}`, name: `m-${i}`, vendor })) },
+      }).provider?.[JOLLI_OPENAI]?.name
+    expect(openai("OpenAI", "DeepSeek")).toBe(openai("DeepSeek", "OpenAI"))
+    expect(openai("Qwen", "DeepSeek", "OpenAI", "Moonshot")).toBe("DeepSeek +3")
+  })
+
   test("does not emit provider blocks outside the supported protocol allowlist", () => {
     const config = jolliBaseConfig({
       signedIn: true,
