@@ -55,14 +55,41 @@ function groupByServer(mcpTools: Record<string, MCP.McpTool>, servers: readonly 
   return groups
 }
 
-export function describeCatalog(mcpTools: Record<string, MCP.McpTool>, servers: readonly string[]): string {
+export function describeCatalog(
+  mcpTools: Record<string, MCP.McpTool>,
+  servers: readonly string[],
+  definitions?: ReadonlyMap<string, ToolDefinition>,
+): string {
   return CodeMode.make({
     tools: toolTree(
       [...groupByServer(mcpTools, servers).values()].flat(),
       () => () => Effect.fail(toolError("Tool preview is not executable.")),
+      definitions,
     ),
   }).instructions()
 }
+
+type ToolDefinition = { description: string; parameters: unknown }
+
+/**
+ * Each MCP tool's definition after the `tool.definition` hook — the projection the ordinary MCP
+ * catalog applies — so a plugin that reshapes a tool reshapes it in code mode too.
+ */
+export const defineTools = Effect.fn("CodeMode.defineTools")(function* (
+  plugin: Plugin.Interface,
+  mcpTools: Record<string, MCP.McpTool>,
+) {
+  const defined = yield* Effect.forEach(Object.entries(mcpTools), ([key, tool]) =>
+    plugin
+      .trigger(
+        "tool.definition",
+        { toolID: key },
+        { description: tool.def.description ?? "", parameters: tool.def.inputSchema as unknown },
+      )
+      .pipe(Effect.map((definition): [string, ToolDefinition] => [key, definition])),
+  )
+  return new Map(defined)
+})
 
 const lastSegment = (uri: string) => {
   const trimmed = uri.split(/[?#]/, 1)[0]!.replace(/\/+$/, "")
@@ -117,13 +144,18 @@ function projectMcpResult(result: CallToolResult, collect: (attachment: Attachme
 
 type Run = (input: unknown) => Effect.Effect<unknown, unknown>
 
-function toolTree(catalog: readonly CatalogEntry[], run: (entry: CatalogEntry) => Run) {
+function toolTree(
+  catalog: readonly CatalogEntry[],
+  run: (entry: CatalogEntry) => Run,
+  definitions?: ReadonlyMap<string, ToolDefinition>,
+) {
   const tree: Record<string, Record<string, SandboxTool.Definition>> = {}
   for (const entry of catalog) {
     const namespace = (tree[entry.server] ??= {})
+    const definition = definitions?.get(entry.key)
     namespace[entry.local] = SandboxTool.make({
-      description: entry.tool.def.description ?? "",
-      input: entry.tool.def.inputSchema as SandboxTool.JsonSchema,
+      description: definition?.description ?? entry.tool.def.description ?? "",
+      input: (definition?.parameters ?? entry.tool.def.inputSchema) as SandboxTool.JsonSchema,
       output: entry.tool.def.outputSchema as SandboxTool.JsonSchema | undefined,
       run: run(entry),
     })
@@ -237,7 +269,7 @@ export const CodeModeTool = Tool.define(
           )
 
         const runtime = CodeMode.make({
-          tools: toolTree(catalog, callTool),
+          tools: toolTree(catalog, callTool, yield* defineTools(plugin, mcpTools)),
           onToolCallStart: ({ index, name, input }) =>
             Effect.suspend(() => {
               const shown = (() => {

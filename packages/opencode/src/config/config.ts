@@ -40,6 +40,8 @@ import { JOLLI_PROVIDER_IDS, jolliBaseConfig } from "@opencode-ai/core/jolli/gat
 import { loadCatalog, STARTUP_DEADLINE } from "@opencode-ai/core/jolli/cache"
 import { grantedModelIds, toProviderModels } from "@opencode-ai/core/jolli/catalog"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
+import type { GatewayRequest } from "@opencode-ai/core/jolli/api"
+import { JOLLI_MCP_SERVER } from "@opencode-ai/core/jolli/mcp"
 import { withTransientReadRetry } from "@/util/effect-http-client"
 
 // Custom merge function that concatenates array fields instead of replacing them
@@ -138,6 +140,152 @@ function normalizeLoadedConfig(data: unknown) {
   delete copy.tui
   return copy
 }
+
+const requestJolliMcpConfig = Effect.fnUntraced(function* (http: HttpClient.HttpClient, request: GatewayRequest) {
+  const url = new URL("/api/jollicode/mcp-config", request.origin).toString()
+  return yield* http
+    .execute(
+      HttpClientRequest.get(url).pipe(
+        HttpClientRequest.acceptJson,
+        HttpClientRequest.bearerToken(request.token),
+        HttpClientRequest.setHeaders(request.tenantSlug ? { "x-tenant-slug": request.tenantSlug } : {}),
+      ),
+    )
+    .pipe(
+      Effect.map((response) => ({ request, response, url })),
+      Effect.catchCause((cause) =>
+        Effect.gen(function* () {
+          yield* Effect.logWarning("jolli-mcp-config: fetch failed", { url, cause: String(cause) })
+          return undefined
+        }),
+      ),
+    )
+})
+
+/**
+ * Ask the tenant's Jolliedu backend which MCP servers this session should know
+ * about, and hand back a config slice ready to merge.
+ *
+ * ⚠ SIGNED OUT MEANS NO ROUND-TRIP AT ALL. Nothing to authenticate with, and a
+ * signed-out student has no discovery answer to receive either; return an empty
+ * slice and let the rest of config load carry on. `jolliLockdownConfig` documents
+ * the same posture for its own credential-less branch.
+ *
+ * ⚠ EVERY FAILURE — signed out, unreachable, timed out, non-2xx, malformed body —
+ * COLLAPSES TO AN EMPTY SLICE. Config load cannot fail on a discovery call: the
+ * bare CLI without network access is the normal worst case, and the launch
+ * carrying a merged `result` below depends on this returning something loadable.
+ *
+ * ⚠ ONE DEADLINE FOR THE WHOLE EXCHANGE, NOT ONE PER STEP. Renewal, the request and a
+ * retry after a refusal each had their own `STARTUP_DEADLINE`, so an unreachable
+ * gateway could hold config load for a minute or more on top of the lockdown fetch it
+ * ran after. The layer now runs it beside that fetch, and this bounds all of it.
+ *
+ * ⚠ THE SLICE CARRIES NO CREDENTIAL. The endpoint deliberately omits the caller's
+ * own Authorization value, and this does not add it back: the resolved config is
+ * printed by `GET /config` and `debug config`, and a token copied into it would be
+ * stale within one token lifetime anyway. The MCP layer attaches the session's
+ * current token to each request instead — see `jolliMcpFetch`.
+ */
+const fetchJolliMcpConfig = (session: JolliSession.Interface, http: HttpClient.HttpClient) =>
+  discoverJolliMcpConfig(session, http).pipe(
+    Effect.timeout(STARTUP_DEADLINE),
+    Effect.catchCause((cause) =>
+      Effect.gen(function* () {
+        yield* Effect.logWarning("jolli-mcp-config: discovery did not finish", { cause: String(cause) })
+        const empty: Info = {}
+        return empty
+      }),
+    ),
+  )
+
+const discoverJolliMcpConfig = Effect.fnUntraced(function* (
+  session: JolliSession.Interface,
+  http: HttpClient.HttpClient,
+) {
+  const empty: Info = {}
+  // `session.request()` is the same helper `jolliLockdownConfig` uses to reach the
+  // gateway. It splits `credential.base_url` into an origin the REST surface is
+  // actually mounted at and a `tenantSlug` that a path-based deployment carries in
+  // an `x-tenant-slug` header — see `jolli/api.ts`'s comment on `GatewayRequest`,
+  // and `parseJolliUrl`. Concatenating `/api/...` onto the raw `base_url` reaches
+  // the app-router SPA, not the API.
+  const request = yield* session.request().pipe(
+    Effect.catchCause((cause) =>
+      Effect.gen(function* () {
+        yield* Effect.logWarning("jolli-mcp-config: session.request() failed", { cause: String(cause) })
+        return undefined
+      }),
+    ),
+  )
+  if (!request) return empty
+  const first = yield* requestJolliMcpConfig(http, request)
+  const retry =
+    first?.response.status === 401
+      ? yield* session.refused(request.token).pipe(
+          Effect.flatMap(() => session.request()),
+          Effect.flatMap((renewed) => (renewed ? requestJolliMcpConfig(http, renewed) : Effect.succeed(undefined))),
+          Effect.catchCause((cause) =>
+            Effect.gen(function* () {
+              yield* Effect.logWarning("jolli-mcp-config: credential renewal failed", { cause: String(cause) })
+              return undefined
+            }),
+          ),
+        )
+      : undefined
+  const resolved = retry ?? first
+  if (!resolved) return empty
+  const response = resolved.response
+  if (response.status < 200 || response.status >= 300) {
+    const bodyText = yield* response.text.pipe(Effect.catchCause(() => Effect.succeed("")))
+    yield* Effect.logWarning("jolli-mcp-config: non-2xx response", {
+      url: resolved.url,
+      status: response.status,
+      body: bodyText.slice(0, 500),
+    })
+    return empty
+  }
+  const body = yield* response.json.pipe(
+    Effect.catchCause((cause) =>
+      Effect.gen(function* () {
+        yield* Effect.logWarning("jolli-mcp-config: body parse failed", { cause: String(cause) })
+        return undefined
+      }),
+    ),
+  )
+  if (!isRecord(body) || !isRecord(body.mcp)) {
+    yield* Effect.logWarning("jolli-mcp-config: body shape unexpected", {
+      body: JSON.stringify(body)?.slice(0, 500) ?? String(body),
+    })
+    return empty
+  }
+  // The native MCP endpoint resolves tenancy from the verified JWT; `x-tenant-slug` remains
+  // harmless compatibility data for a path-based deployment and is never an authentication input.
+  const entry = body.mcp[JOLLI_MCP_SERVER]
+  if (!isRecord(entry) || entry.type !== "remote" || typeof entry.url !== "string" || !URL.canParse(entry.url)) {
+    yield* Effect.logWarning("jolli-mcp-config: first-party entry missing")
+    return empty
+  }
+  // Only the MCP layer authenticates this server, so an authorization header in the answer, in any case, is dropped.
+  const responseHeaders = isRecord(entry.headers)
+    ? Object.fromEntries(
+        Object.entries(entry.headers).filter(
+          (pair): pair is [string, string] => typeof pair[1] === "string" && pair[0].toLowerCase() !== "authorization",
+        ),
+      )
+    : {}
+  const tenantSlug = resolved.request.tenantSlug
+  const mcp: NonNullable<Info["mcp"]> = {
+    [JOLLI_MCP_SERVER]: {
+      type: "remote",
+      url: entry.url,
+      oauth: false,
+      headers: { ...responseHeaders, ...(tenantSlug ? { "x-tenant-slug": tenantSlug } : {}) },
+    },
+  }
+  yield* Effect.logInfo("jolli-mcp-config: merged", { servers: Object.keys(mcp), tenantSlug: tenantSlug ?? null })
+  return { mcp }
+})
 
 async function substituteWellKnownRemoteConfig(input: {
   value: unknown
@@ -416,9 +564,17 @@ const layer = Layer.effect(
          *
          * The provider block only appears once a Jolli credential exists — `jolliBaseConfig`
          * explains why declaring it while signed out breaks first-run sign-in.
+         *
+         * The course-chat MCP discovery is the product's too, so it is gated the same way, and it
+         * runs beside the floor rather than after it: the two bounded waits overlap instead of adding up.
          */
-        const floor: Info = Flag.JOLLICODE_LOCKDOWN ? yield* jolliLockdownConfig(jolliSvc) : {}
-        let result = floor
+        const unlocked: Info = {}
+        const [floor, jolliMcpConfig] = Flag.JOLLICODE_LOCKDOWN
+          ? yield* Effect.all([jolliLockdownConfig(jolliSvc), fetchJolliMcpConfig(jolliSvc, http)], {
+              concurrency: "unbounded",
+            })
+          : [unlocked, unlocked]
+        let result: Info = floor
         const authEnv: Record<string, string> = {}
         const consoleManagedProviders = new Set<string>()
         let activeOrgName: string | undefined
@@ -764,6 +920,19 @@ const layer = Layer.effect(
               block.name = floor.provider?.[id]?.name
             }
           }
+        }
+
+        /**
+         * THE DISCOVERED MCP ENTRY WINS AS A WHOLE ENTRY.
+         *
+         * Applying it before local config would let a coursework repository replace only the
+         * URL, or disable the server, while keeping the rest of the backend's answer. A shallow
+         * entry-level replacement here preserves unrelated local MCP servers while keeping each
+         * backend-managed entry exactly as the backend answered it. The student's credential is
+         * not in the entry at all; the MCP layer attaches it per request, and only on a Jolli origin.
+         */
+        if (jolliMcpConfig.mcp) {
+          result.mcp = { ...result.mcp, ...jolliMcpConfig.mcp }
         }
 
         return {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { CODE_MODE_TOOL, CodeModeTool, Parameters, describeCatalog } from "@/tool/code-mode"
+import { CODE_MODE_TOOL, CodeModeTool, Parameters, defineTools, describeCatalog } from "@/tool/code-mode"
 import type { Tool as MCPToolDef } from "@modelcontextprotocol/sdk/types.js"
 import type { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { Agent } from "@/agent/agent"
@@ -136,6 +136,31 @@ describe("code mode execute", () => {
     expect(description).toContain(
       "tools.weather.current(input: {\n  city: string,\n}): Promise<{\n  tempC: number,\n}>",
     )
+  })
+
+  test("describeCatalog renders the definitions plugin tool.definition hooks projected", async () => {
+    const tools = {
+      weather_current: mcpTool("current", () => "", {
+        type: "object",
+        properties: { city: { type: "string" }, courseId: { type: "number" } },
+        required: ["city", "courseId"],
+      }),
+    }
+    const trigger = ((name: unknown, input: any, output: any) =>
+      Effect.sync(() => {
+        if (name === "tool.definition" && input.toolID === "weather_current") {
+          output.description = "Current weather for a city."
+          output.parameters = { type: "object", properties: { city: { type: "string" } }, required: ["city"] }
+        }
+        return output
+      })) as Plugin.Interface["trigger"]
+
+    const definitions = await Effect.runPromise(defineTools({ trigger } as Plugin.Interface, tools))
+    const description = describeCatalog(tools, ["weather"], definitions)
+
+    expect(description).toContain("Current weather for a city.")
+    expect(description).toContain("tools.weather.current(input: {\n  city: string,\n})")
+    expect(description).not.toContain("courseId")
   })
 
   test("the static base description carries no catalog; the registry appends it", async () => {
@@ -416,13 +441,16 @@ describe("code mode execute", () => {
     )
 
     expect(out.output).toBe("done")
-    expect(events.map((e) => [e.name, e.input.tool, e.input.callID])).toEqual([
+    // The catalog is projected through `tool.definition` first, once per tool.
+    expect(events.filter((e) => e.name === "tool.definition").map((e) => e.input.toolID)).toEqual(["a_tool", "b_tool"])
+    const executions = events.filter((e) => e.name.startsWith("tool.execute"))
+    expect(executions.map((e) => [e.name, e.input.tool, e.input.callID])).toEqual([
       ["tool.execute.before", "a_tool", "call_code_mode/1"],
       ["tool.execute.after", "a_tool", "call_code_mode/1"],
       ["tool.execute.before", "b_tool", "call_code_mode/2"],
       ["tool.execute.after", "b_tool", "call_code_mode/2"],
     ])
-    const [before, after] = events
+    const [before, after] = executions
     expect(before!.input.sessionID).toBe(ctx.sessionID)
     expect(before!.output).toEqual({ args: { x: 1 } })
     expect(after!.input.args).toEqual({ x: 1 })

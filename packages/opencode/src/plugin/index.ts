@@ -22,6 +22,7 @@ import { DigitalOceanAuthPlugin } from "./digitalocean"
 import { XaiAuthPlugin } from "./xai"
 import { CerebrasPlugin } from "./cerebras"
 import { JolliAuthPlugin } from "./jolli"
+import { JolliCourseChatPlugin } from "./jolli-course-chat"
 import { SnowflakeCortexAuthPlugin } from "./snowflake-cortex"
 import { Effect, Layer, Context } from "effect"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
@@ -76,6 +77,9 @@ function internalPlugins(flags: RuntimeFlags.Info, bridge: EffectBridge.Shape): 
     // Effects — and the plugin API is Promise-shaped. `CodexAuthPlugin` below is wrapped the same
     // way for its own reasons.
     (input) => JolliAuthPlugin(input, { bridge }),
+    // Hides the session-owned ids from model-facing course tool schemas, then injects them from
+    // `session.metadata.jolli` immediately before the corresponding Jolliedu MCP call.
+    (input) => JolliCourseChatPlugin(input, { bridge }),
     // Temporary rollout: pre-release builds use WebSockets by default; releases require explicit opt-in.
     (input) =>
       CodexAuthPlugin(input, {

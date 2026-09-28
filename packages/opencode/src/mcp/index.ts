@@ -35,6 +35,8 @@ import { McpCatalog } from "./catalog"
 import { McpEvent } from "@opencode-ai/schema/mcp-event"
 import { McpBrowser } from "./browser"
 import { Brand } from "@opencode-ai/core/brand"
+import { JOLLI_MCP_SERVER, jolliMcpFetch } from "@opencode-ai/core/jolli/mcp"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
 
 const DEFAULT_TIMEOUT = 30_000
 const CLIENT_OPTIONS = {
@@ -211,6 +213,7 @@ const layer = Layer.effect(
     const auth = yield* McpAuth.Service
     const events = yield* EventV2Bridge.Service
     const browser = yield* McpBrowser.Service
+    const jolli = yield* JolliSession.Service
 
     type Transport = StdioClientTransport | StreamableHTTPClientTransport | SSEClientTransport
 
@@ -269,12 +272,25 @@ const layer = Layer.effect(
         )
       }
 
+      // The Jolliedu server authenticates with the student's rotating CLI credential, read per request.
+      const bridge = yield* EffectBridge.make()
+      const credentialed =
+        key === JOLLI_MCP_SERVER
+          ? {
+              fetch: jolliMcpFetch({
+                token: () => bridge.promise(jolli.token()),
+                refused: (token) => bridge.promise(jolli.refused(token)),
+              }),
+            }
+          : {}
+
       const transports: Array<{ name: string; transport: TransportWithAuth }> = [
         {
           name: "StreamableHTTP",
           transport: new StreamableHTTPClientTransport(url, {
             authProvider,
             requestInit: mcp.headers ? { headers: mcp.headers } : undefined,
+            ...credentialed,
           }),
         },
         {
@@ -282,6 +298,7 @@ const layer = Layer.effect(
           transport: new SSEClientTransport(url, {
             authProvider,
             requestInit: mcp.headers ? { headers: mcp.headers } : undefined,
+            ...credentialed,
           }),
         },
       ]
@@ -1001,7 +1018,7 @@ export type AuthStatus = "authenticated" | "expired" | "not_authenticated"
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [CrossSpawnSpawner.node, McpAuth.node, EventV2Bridge.node, Config.node, McpBrowser.node],
+  deps: [CrossSpawnSpawner.node, McpAuth.node, EventV2Bridge.node, Config.node, McpBrowser.node, JolliSession.node],
 })
 
 export * as MCP from "."
