@@ -25,6 +25,7 @@ import { isRecord } from "@/util/record"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Database } from "@opencode-ai/core/database/database"
 import { Usage, type LLMEvent } from "@opencode-ai/llm"
+import { RuntimeFlags } from "@/effect/runtime-flags"
 
 const DOOM_LOOP_THRESHOLD = 3
 export type Result = "compact" | "stop" | "continue"
@@ -94,6 +95,8 @@ const layer = Layer.effect(
     const image = yield* Image.Service
     const events = yield* EventV2Bridge.Service
     const database = yield* Database.Service
+    const question = yield* Question.Service
+    const flags = yield* RuntimeFlags.Service
 
     const create = Effect.fn("SessionProcessor.create")(function* (input: Input) {
       // Pre-capture snapshot before the LLM stream starts. The AI SDK
@@ -652,12 +655,115 @@ const layer = Layer.effect(
         ctx.needsCompaction = false
         ctx.shouldBreak = (yield* config.get()).experimental?.continue_loop_on_deny !== true
 
+        // Per-attempt snapshot of the request. `applyModelSwitch` rewrites this so
+        // that a retry after a mid-stream switch replays through the NEW model, not
+        // the one that just failed. Without it, `streamInput.model` stays A while
+        // `ctx.model` and the assistant-message row already claim B, so Effect.retry
+        // hits A while cost accounting and context-window checks go by B.
+        let attemptInput: LLM.StreamInput = streamInput
         return yield* Effect.gen(function* () {
           yield* Effect.gen(function* () {
             ctx.currentText = undefined
             ctx.reasoningMap = {}
             yield* status.set(ctx.sessionID, { type: "busy" })
-            const stream = llm.stream(streamInput)
+            const prepareModelSwitch = attemptInput.onModelSwitchPrepare
+            const applyModelSwitch = (model: Provider.Model, prepared?: LLM.PreparedModelInput) =>
+              Effect.gen(function* () {
+                ctx.model = model
+                const preparedUser = prepared?.user ?? attemptInput.user
+                const nextModel =
+                  model.providerID === preparedUser.model.providerID && model.id === preparedUser.model.modelID
+                    ? preparedUser.model
+                    : { providerID: model.providerID, modelID: model.id }
+                const user = yield* session.mutateMessage({
+                  sessionID: preparedUser.sessionID,
+                  messageID: preparedUser.id,
+                  update(current) {
+                    if (current.role !== "user") return preparedUser
+                    return { ...current, model: nextModel }
+                  },
+                })
+                ctx.assistantMessage.modelID = model.id
+                ctx.assistantMessage.providerID = model.providerID
+                ctx.assistantMessage.variant = user.model.variant
+                yield* session.updateMessage(ctx.assistantMessage)
+                if (!ctx.assistantMessage.summary) {
+                  yield* session.setAgentModel({
+                    sessionID: input.sessionID,
+                    agent: ctx.assistantMessage.agent,
+                    model: {
+                      id: model.id,
+                      providerID: model.providerID,
+                      variant: ctx.assistantMessage.variant ?? "default",
+                    },
+                    time: Date.now(),
+                  })
+                }
+                // Pin the switch into the per-attempt snapshot AFTER the message
+                // rewrites succeed, so `attemptInput` and the persisted row agree
+                // on which model any subsequent retry should target.
+                attemptInput = { ...attemptInput, ...prepared, model, user }
+              })
+            const stream = llm.stream({
+              ...attemptInput,
+              onModelSwitchPrepare: prepareModelSwitch
+                ? (model) =>
+                    Effect.gen(function* () {
+                      const prepared = yield* prepareModelSwitch(model)
+                      yield* applyModelSwitch(model, prepared)
+                      return prepared
+                    })
+                : undefined,
+              onModelSwitchProposal: (model, reason) =>
+                Effect.gen(function* () {
+                  // Decline the proposal when this session has no channel to answer it.
+                  // The runtime capability mirrors question-tool registration. Clients
+                  // outside the interactive surfaces must opt in before this path can
+                  // wait for a `question.reply`; permission rules provide a second gate.
+                  // Without this guard the deferred inside `question.ask` blocks the
+                  // turn forever waiting for a reply that cannot come.
+                  const canAnswerQuestions =
+                    flags.enableQuestionTool || ["app", "cli", "desktop"].includes(flags.client)
+                  if (!canAnswerQuestions) return false
+                  const rule = Permission.evaluate(
+                    "question",
+                    "*",
+                    streamInput.agent.permission ?? [],
+                    streamInput.permission ?? [],
+                  )
+                  if (rule.action === "deny") return false
+                  const cause =
+                    reason === "provider_busy"
+                      ? "The provider is busy right now."
+                      : reason === "provider_unavailable"
+                        ? "The provider is unavailable right now."
+                        : "The current model is unavailable right now."
+                  const answers = yield* question
+                    .ask({
+                      sessionID: input.sessionID,
+                      questions: [
+                        {
+                          header: "Model unavailable",
+                          question: `${cause} Switch to ${model.name} and continue?`,
+                          options: [
+                            { label: "Switch model", description: `Continue with ${model.name}` },
+                            { label: "Cancel", description: "Keep the current model" },
+                          ],
+                          custom: false,
+                        },
+                      ],
+                    })
+                    .pipe(Effect.catchTag("QuestionRejectedError", () => Effect.succeed([])))
+                  return answers[0]?.includes("Switch model") ?? false
+                }),
+              onModelSwitch: prepareModelSwitch
+                ? (model) =>
+                    Effect.gen(function* () {
+                      const prepared = yield* prepareModelSwitch(model)
+                      yield* applyModelSwitch(model, prepared)
+                    })
+                : (model) => applyModelSwitch(model),
+            })
 
             yield* stream.pipe(
               Stream.tap((event) => handleEvent(event)),
@@ -679,7 +785,7 @@ const layer = Layer.effect(
             ),
             Effect.retry(
               SessionRetry.policy({
-                provider: input.model.providerID,
+                provider: () => attemptInput.model.providerID,
                 parse,
                 set: (info) => {
                   return status.set(ctx.sessionID, {
@@ -732,6 +838,8 @@ export const node = LayerNode.make({
     Image.node,
     EventV2Bridge.node,
     Database.node,
+    Question.node,
+    RuntimeFlags.node,
   ],
 })
 

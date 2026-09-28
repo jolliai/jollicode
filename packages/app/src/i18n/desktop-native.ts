@@ -155,7 +155,7 @@ export const DESKTOP_NATIVE_LOCALE_TAGS: Record<DesktopNativeLocale, string> = {
   vi: "vi-VN",
   it: "it-IT",
   ur: "ur-PK",
-  pa: "pa-Arab-PK",
+  pa: "pa-PK",
   az: "az-Latn-AZ",
   fi: "fi-FI",
   sv: "sv-SE",

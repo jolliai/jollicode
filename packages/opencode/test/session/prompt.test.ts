@@ -1242,6 +1242,127 @@ it.instance("a Jolli request reports each failed tool once, and not a call a per
   }),
 )
 
+it.instance(
+  "rebuilds the current turn for a confirmed Jolli model switch",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig((url) => {
+        const base = jolliProviderCfg(url)
+        return {
+          ...base,
+          provider: {
+            ...base.provider,
+            [jolliRef.providerID]: {
+              ...base.provider[jolliRef.providerID],
+              models: {
+                ...base.provider[jolliRef.providerID].models,
+                "alternate-model": { ...cfg.provider.test.models["test-model"], id: "alternate-model" },
+              },
+            },
+          },
+        }
+      })
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const question = yield* Question.Service
+      const chat = yield* sessions.create({ title: "Pinned" })
+      const previous = yield* prompt.prompt({
+        sessionID: chat.id,
+        agent: "build",
+        model: jolliRef,
+        noReply: true,
+        parts: [{ type: "text", text: "Earlier question" }],
+      })
+      const assistant: SessionV1.Assistant = {
+        id: MessageID.ascending(),
+        role: "assistant",
+        parentID: previous.info.id,
+        sessionID: chat.id,
+        mode: "build",
+        agent: "build",
+        cost: 0,
+        path: { cwd: "/tmp", root: "/tmp" },
+        tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        modelID: jolliRef.modelID,
+        providerID: jolliRef.providerID,
+        time: { created: Date.now(), completed: Date.now() },
+        finish: "stop",
+      }
+      yield* sessions.updateMessage(assistant)
+      yield* sessions.updatePart({
+        id: PartID.ascending(),
+        messageID: assistant.id,
+        sessionID: chat.id,
+        type: "reasoning",
+        text: "prior reasoning",
+        time: { start: Date.now(), end: Date.now() },
+      })
+      yield* sessions.updatePart({
+        id: PartID.ascending(),
+        messageID: assistant.id,
+        sessionID: chat.id,
+        type: "text",
+        text: "Earlier answer",
+      })
+      const current = yield* prompt.prompt({
+        sessionID: chat.id,
+        agent: "build",
+        model: jolliRef,
+        noReply: true,
+        parts: [{ type: "text", text: "Continue" }],
+      })
+      yield* llm.error(409, {
+        code: "jolli_model_switch",
+        provider: "openai",
+        model: "alternate-model",
+        requiresConfirmation: true,
+      })
+      let releaseResponse: () => void = () => {}
+      const responseGate = new Promise<void>((resolve) => {
+        releaseResponse = resolve
+      })
+      yield* llm.push(
+        reply()
+          .wait(responseGate)
+          .text("Completed")
+          .stop()
+          .headers({ "x-jolli-served-provider": "openai", "x-jolli-served-model": "alternate-model" }),
+      )
+
+      const run = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
+      const pending = yield* pollWithTimeout(
+        question.list().pipe(Effect.map((items) => items.find((item) => item.sessionID === chat.id))),
+        "timed out waiting for model switch confirmation",
+      )
+      expect(yield* llm.hits).toHaveLength(1)
+      yield* question.reply({ requestID: pending.id, answers: [["Switch model"]] })
+      yield* llm.wait(2)
+      const accepted = yield* sessions.get(chat.id)
+      expect(accepted.model?.id).toBe(ModelV2.ID.make("alternate-model"))
+      expect(accepted.model?.providerID).toBe(jolliRef.providerID)
+      releaseResponse()
+      yield* Fiber.join(run)
+
+      const hits = yield* llm.hits
+      expect(hits).toHaveLength(2)
+      expect(hits[1]?.body.model).toBe("alternate-model")
+      const sent = hits[1]?.body.messages as Array<Record<string, unknown>> | undefined
+      const previousAssistant = sent?.find((item) => item.role === "assistant")
+      expect(previousAssistant?.content).toContain("prior reasoning")
+      expect(previousAssistant?.reasoning_content).toBeUndefined()
+      const messages = yield* sessions.messages({ sessionID: chat.id })
+      const switched = messages.find((item) => item.info.id === current.info.id)
+      expect(switched?.info.role).toBe("user")
+      if (switched?.info.role === "user") expect(switched.info.model.modelID).toBe(ModelV2.ID.make("alternate-model"))
+      const completed = messages.find(
+        (item) => item.info.role === "assistant" && item.info.parentID === current.info.id,
+      )
+      if (completed?.info.role === "assistant") expect(completed.info.modelID).toBe(ModelV2.ID.make("alternate-model"))
+      expect(messages.filter((item) => item.info.role === "user")).toHaveLength(2)
+    }),
+  10_000,
+)
+
 noLLMServer.instance("prompt tools replace previous prompt tool rules", () =>
   Effect.gen(function* () {
     const prompt = yield* SessionPrompt.Service
@@ -2068,6 +2189,96 @@ unix(
       }),
     ),
   30_000,
+)
+
+unix(
+  "command-pinned model does not replace the session selection",
+  () =>
+    Effect.gen(function* () {
+      const commandModelID = ModelV2.ID.make("command-model")
+      const { llm } = yield* useServerConfig((url) => {
+        const base = providerCfg(url)
+        const sourceModel = Object.values(base.provider.test.models)[0]
+        if (!sourceModel) throw new Error("Missing test model")
+        return {
+          ...base,
+          provider: {
+            test: {
+              ...base.provider.test,
+              models: {
+                ...base.provider.test.models,
+                [commandModelID]: {
+                  ...sourceModel,
+                  id: commandModelID,
+                  name: "Command Model",
+                },
+              },
+            },
+          },
+          command: {
+            probe: {
+              template: "Probe the repo",
+              model: `test/${commandModelID}`,
+            },
+          },
+        }
+      })
+      const { prompt, sessions } = yield* boot()
+      const chat = yield* sessions.create({
+        title: "Pinned",
+        agent: "build",
+        model: { id: ref.modelID, providerID: ref.providerID, variant: "default" },
+      })
+      yield* llm.text("done")
+
+      yield* prompt.command({ sessionID: chat.id, command: "probe", arguments: "" })
+
+      const current = yield* sessions.get(chat.id)
+      expect(current.model?.id).toBe(ref.modelID)
+      expect(current.model?.providerID).toBe(ref.providerID)
+      const messages = yield* sessions.messages({ sessionID: chat.id })
+      const user = messages.findLast((message) => message.info.role === "user")
+      expect(user?.info.role === "user" ? user.info.model.modelID : undefined).toBe(commandModelID)
+    }),
+  30_000,
+)
+
+noLLMServer.instance(
+  "serializes message field mutations without dropping either update",
+  () =>
+    Effect.gen(function* () {
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({ title: "Pinned" })
+      const message = yield* user(chat.id, "hello")
+      const switchedModelID = ModelV2.ID.make("switched-model")
+
+      yield* Effect.all(
+        [
+          sessions.mutateMessage({
+            sessionID: chat.id,
+            messageID: message.id,
+            update(current) {
+              if (current.role !== "user") return message
+              return { ...current, summary: { ...current.summary, diffs: [] } }
+            },
+          }),
+          sessions.mutateMessage({
+            sessionID: chat.id,
+            messageID: message.id,
+            update(current) {
+              if (current.role !== "user") return message
+              return { ...current, model: { ...current.model, modelID: switchedModelID } }
+            },
+          }),
+        ],
+        { concurrency: "unbounded" },
+      )
+
+      const stored = (yield* sessions.messages({ sessionID: chat.id })).find((item) => item.info.id === message.id)
+      expect(stored?.info.role === "user" ? stored.info.model.modelID : undefined).toBe(switchedModelID)
+      expect(stored?.info.role === "user" ? stored.info.summary?.diffs : undefined).toEqual([])
+    }),
+  { config: cfg },
 )
 
 unix(

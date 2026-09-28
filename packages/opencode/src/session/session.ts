@@ -44,6 +44,7 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { SessionMessage } from "@opencode-ai/schema/session-message"
+import { KeyedMutex } from "@opencode-ai/core/effect/keyed-mutex"
 
 const parentTitlePrefix = "New session - "
 const childTitlePrefix = "Child session - "
@@ -451,6 +452,11 @@ export interface Interface {
   readonly children: (parentID: SessionID) => Effect.Effect<Info[]>
   readonly remove: (sessionID: SessionID) => Effect.Effect<void, NotFound>
   readonly updateMessage: <T extends SessionV1.Info>(msg: T) => Effect.Effect<T>
+  readonly mutateMessage: <T extends SessionV1.Info>(input: {
+    sessionID: SessionID
+    messageID: MessageID
+    update: (current: SessionV1.Info) => T
+  }) => Effect.Effect<T, NotFound>
   readonly removeMessage: (input: { sessionID: SessionID; messageID: MessageID }) => Effect.Effect<MessageID>
   readonly removePart: (input: { sessionID: SessionID; messageID: MessageID; partID: PartID }) => Effect.Effect<PartID>
   readonly getPart: (input: {
@@ -497,6 +503,7 @@ const layer: Layer.Layer<
     const background = yield* BackgroundJob.Service
     const events = yield* EventV2Bridge.Service
     const flags = yield* RuntimeFlags.Service
+    const messageMutex = KeyedMutex.makeUnsafe<MessageID>()
 
     const createNext = Effect.fn("Session.createNext")(function* (input: {
       id?: SessionID
@@ -633,6 +640,16 @@ const layer: Layer.Layer<
         yield* events.publish(SessionV1.Event.MessageUpdated, { sessionID: msg.sessionID, info: msg })
         return msg
       }).pipe(Effect.withSpan("Session.updateMessage"))
+
+    const mutateMessage: Interface["mutateMessage"] = (input) =>
+      messageMutex.withLock(input.messageID)(
+        Effect.gen(function* () {
+          const current = yield* MessageV2.get({ sessionID: input.sessionID, messageID: input.messageID }).pipe(
+            Effect.provideService(Database.Service, database),
+          )
+          return yield* updateMessage(input.update(current.info))
+        }),
+      )
 
     const updatePart = <T extends SessionV1.Part>(part: T): Effect.Effect<T> =>
       Effect.gen(function* () {
@@ -934,6 +951,7 @@ const layer: Layer.Layer<
       children,
       remove,
       updateMessage,
+      mutateMessage,
       removeMessage,
       removePart,
       updatePart,

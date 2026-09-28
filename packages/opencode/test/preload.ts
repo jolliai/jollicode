@@ -36,6 +36,11 @@ process.env["XDG_CACHE_HOME"] = path.join(dir, "cache")
 process.env["XDG_CONFIG_HOME"] = path.join(dir, "config")
 process.env["XDG_STATE_HOME"] = path.join(dir, "state")
 process.env["OPENCODE_MODELS_PATH"] = path.join(import.meta.dir, "tool", "fixtures", "models-api.json")
+// Suppress the ModelsDev background refresh loop. Every Provider.node dependency chain would
+// otherwise fork a `GET https://models.opencode.ai/api.json` that races with integration tests
+// that record every HTTP request made through the mocked client. loadFromDisk still resolves
+// the fixture at OPENCODE_MODELS_PATH.
+process.env["OPENCODE_DISABLE_MODELS_FETCH"] = "true"
 process.env["OPENCODE_EXPERIMENTAL_EVENT_SYSTEM"] = "true"
 process.env["OPENCODE_EXPERIMENTAL_WORKSPACES"] = "true"
 

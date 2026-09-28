@@ -99,6 +99,17 @@ function assistant(id: string) {
   } satisfies SdkEvent
 }
 
+function sessionModel(sessionID: string, providerID: string, modelID: string) {
+  return {
+    id: `evt-${sessionID}-${modelID}`,
+    type: "session.updated",
+    properties: {
+      sessionID,
+      info: { ...child(sessionID), model: { id: modelID, providerID, variant: "default" } },
+    },
+  } satisfies SdkEvent
+}
+
 const StreamClosed = undefined as never
 
 function feed<T, R = never>(returnValue: R = StreamClosed) {
@@ -452,6 +463,121 @@ function sdk(
 }
 
 describe("run stream transport", () => {
+  test("reports an accepted model switch for the active turn", async () => {
+    const src = eventFeed()
+    const ui = footer()
+    const changes: unknown[] = []
+    const transport = await createSessionTransport({
+      sdk: sdk({ stream: src.stream }),
+      sessionID: "session-1",
+      thinking: true,
+      limits: () => ({}),
+      footer: ui.api,
+      onModelChange: (model, previous, variant) => {
+        changes.push({ model, previous, variant })
+        return true
+      },
+    })
+    const ctrl = new AbortController()
+    const turn = transport.runPromptTurn({
+      agent: "build",
+      model: { providerID: "openai", modelID: "gpt-5" },
+      variant: undefined,
+      prompt: { text: "hello", parts: [] },
+      files: [],
+      includeFiles: false,
+      signal: ctrl.signal,
+    })
+
+    try {
+      await waitFor(() => ui.events.find((event) => event.type === "turn.wait"))
+      src.push(sessionModel("other-session", "anthropic", "claude-opus-5"))
+      src.push(sessionModel("session-1", "openai", "gpt-5"))
+      src.push(sessionModel("session-1", "anthropic", "claude-opus-5"))
+      await waitFor(() => (changes.length === 1 ? true : undefined))
+      expect(changes).toEqual([
+        {
+          model: { providerID: "anthropic", modelID: "claude-opus-5" },
+          previous: { providerID: "openai", modelID: "gpt-5" },
+          variant: undefined,
+        },
+      ])
+    } finally {
+      ctrl.abort()
+      src.close()
+      await turn
+      await transport.close()
+    }
+  })
+
+  test("updates the model from the active assistant message without a session update", async () => {
+    const src = eventFeed()
+    const ui = footer()
+    const changes: unknown[] = []
+    const transport = await createSessionTransport({
+      sdk: sdk({ stream: src.stream }),
+      sessionID: "session-1",
+      thinking: true,
+      limits: () => ({}),
+      footer: ui.api,
+      onModelChange: (model, previous, variant) => {
+        changes.push({ model, previous, variant })
+        return true
+      },
+    })
+    const ctrl = new AbortController()
+    const turn = transport.runPromptTurn({
+      agent: "build",
+      model: { providerID: "openai", modelID: "gpt-5" },
+      variant: undefined,
+      prompt: { messageID: "msg-user-1", text: "hello", parts: [] },
+      files: [],
+      includeFiles: false,
+      signal: ctrl.signal,
+    })
+
+    try {
+      await waitFor(() => ui.events.find((event) => event.type === "turn.wait"))
+      const current = assistant("msg-assistant-1")
+      const info = current.properties.info
+      if (info.role !== "assistant") throw new Error("Expected assistant message")
+      src.push({
+        ...current,
+        properties: {
+          ...current.properties,
+          info: {
+            ...info,
+            parentID: "other-user",
+            modelID: "claude-opus-5",
+            providerID: "anthropic",
+          },
+        },
+      })
+      src.push({
+        ...current,
+        properties: {
+          ...current.properties,
+          info: { ...info, modelID: "claude-opus-5", providerID: "anthropic" },
+        },
+      })
+      await waitFor(() => (changes.length === 1 ? true : undefined))
+      src.push(sessionModel("session-1", "openai", "gpt-5"))
+      await Bun.sleep(20)
+      expect(changes).toEqual([
+        {
+          model: { providerID: "anthropic", modelID: "claude-opus-5" },
+          previous: { providerID: "openai", modelID: "gpt-5" },
+          variant: undefined,
+        },
+      ])
+    } finally {
+      ctrl.abort()
+      src.close()
+      await turn
+      await transport.close()
+    }
+  })
+
   test("does not replay persisted main-session history during bootstrap by default", async () => {
     const src = eventFeed()
     const ui = footer()

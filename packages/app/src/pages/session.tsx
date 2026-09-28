@@ -77,7 +77,15 @@ import { MessageTimeline } from "@/pages/session/timeline/message-timeline"
 import { createTimelineModel } from "@/pages/session/timeline/model"
 import { type DiffStyle, SessionReviewTab, type SessionReviewTabProps } from "@/pages/session/review-tab"
 import { useSessionLayout } from "@/pages/session/session-layout"
-import { restorePromptModel, syncPromptModel, syncSessionModel } from "@/pages/session/session-model-helpers"
+import {
+  applyPendingModelVariant,
+  type PendingModelVariant,
+  restorePromptModel,
+  syncAcceptedMessageModel,
+  syncAcceptedSessionModel,
+  syncPromptModel,
+  syncSessionModel,
+} from "@/pages/session/session-model-helpers"
 import {
   clampSessionPanelWidth,
   SESSION_PANEL_WIDTH_MIN,
@@ -450,6 +458,11 @@ export default function Page() {
   const workspaceTabs = createMemo(() => layout.tabs(workspaceKey))
   const sessionPanelKey = createMemo(() => (params.id ? `${serverSDK().scope}\0${params.id}` : undefined))
 
+  let pendingModelVariant: PendingModelVariant | undefined
+  const acceptPendingModelVariant = (next: PendingModelVariant | null | undefined) => {
+    if (next !== undefined) pendingModelVariant = next ?? undefined
+  }
+
   createEffect(
     on(
       () => params.id,
@@ -615,6 +628,50 @@ export default function Page() {
       },
     ),
   )
+
+  createEffect(
+    on(
+      () => {
+        const message = lastUserMessage()
+        const model = message?.model
+        return {
+          sessionID: params.id,
+          messageID: message?.id,
+          model: model && { providerID: model.providerID, modelID: model.modelID, variant: model.variant },
+        }
+      },
+      (next, previous) => {
+        // Match the TUI's messageID gate. Without it, any change to
+        // `lastUserMessage()?.model` — a command-pinned model on a subsequent
+        // turn, an assistant message from another client, a revert — silently
+        // reassigns the model selector even though no NEW user turn has landed.
+        // Only a new user message id means "the user picked this model for this
+        // turn" and should be honored as the accepted model.
+        if (!previous || previous.sessionID !== next.sessionID || previous.messageID !== next.messageID) return
+        acceptPendingModelVariant(syncAcceptedMessageModel(local, previous.model, next.model))
+      },
+    ),
+  )
+
+  createEffect(
+    on(
+      () => {
+        const model = info()?.model
+        return {
+          sessionID: params.id,
+          model: model && { id: model.id, providerID: model.providerID, variant: model.variant },
+        }
+      },
+      (next, previous) => {
+        if (!previous || previous.sessionID !== next.sessionID) return
+        acceptPendingModelVariant(syncAcceptedSessionModel(local, previous.model, next.model))
+      },
+    ),
+  )
+
+  createEffect(() => {
+    if (applyPendingModelVariant(local, pendingModelVariant)) pendingModelVariant = undefined
+  })
 
   let restoredModelSession: string | undefined
   createEffect(() => {

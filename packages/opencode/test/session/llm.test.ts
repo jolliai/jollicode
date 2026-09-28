@@ -17,7 +17,7 @@ import { ModelsDev } from "@opencode-ai/core/models-dev"
 import { testEffect } from "../lib/effect"
 import type { Agent } from "../../src/agent/agent"
 import { MessageV2 } from "../../src/session/message-v2"
-import { SessionID, MessageID } from "../../src/session/schema"
+import { SessionID, MessageID, PartID } from "../../src/session/schema"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Permission } from "@/permission"
 import { LLMAISDK } from "@/session/llm/ai-sdk"
@@ -591,7 +591,7 @@ function timeout(ms: number) {
   })
 }
 
-function waitStreamingRequest(pathname: string) {
+function waitStreamingRequest(pathname: string, headers: Record<string, string> = {}) {
   const request = deferred<Capture>()
   const requestAborted = deferred<void>()
   const responseCanceled = deferred<void>()
@@ -624,7 +624,7 @@ function waitStreamingRequest(pathname: string) {
         }),
         {
           status: 200,
-          headers: { "Content-Type": "text/event-stream" },
+          headers: { "Content-Type": "text/event-stream", ...headers },
         },
       )
     },
@@ -724,7 +724,10 @@ function configModel(model: ModelsDev.Model) {
     interleaved: model.interleaved,
     cost: model.cost ? { ...model.cost, tiers: undefined } : undefined,
     limit: model.limit,
-    modalities: model.modalities,
+    modalities: model.modalities && {
+      input: [...model.modalities.input],
+      output: [...model.modalities.output],
+    },
     status: model.status,
     provider: model.provider,
   }
@@ -753,6 +756,218 @@ function createEventResponse(chunks: unknown[], includeDone = false) {
 }
 
 describe("session.llm.stream", () => {
+  for (const requiresConfirmation of [true, false]) {
+    it.instance(
+      requiresConfirmation
+        ? "confirms a different upstream model before retrying the gateway request"
+        : "confirms a different model even when the gateway marks confirmation optional",
+      () =>
+        Effect.gen(function* () {
+          const source = loadFixture("anthropic", "claude-sonnet-4-5").model
+          const target = loadFixture("openai", "gpt-4o").model
+          const targetCatalogID = "catalog-target-model"
+          const first = waitRequest(
+            "/messages",
+            new Response(
+              JSON.stringify({
+                code: "jolli_model_switch",
+                provider: "openai",
+                model: targetCatalogID,
+                upstreamModelName: "gpt-4o",
+                requiresConfirmation,
+              }),
+              {
+                status: 409,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+          )
+          const second = waitRequest(
+            "/responses",
+            new Response(
+              createEventStream(
+                [
+                  {
+                    type: "response.created",
+                    response: {
+                      id: "resp-switch",
+                      created_at: Math.floor(Date.now() / 1000),
+                      model: target.id,
+                      service_tier: null,
+                    },
+                  },
+                  {
+                    type: "response.completed",
+                    response: {
+                      incomplete_details: null,
+                      usage: {
+                        input_tokens: 1,
+                        input_tokens_details: null,
+                        output_tokens: 1,
+                        output_tokens_details: null,
+                      },
+                      service_tier: null,
+                    },
+                  },
+                ],
+                true,
+              ),
+              {
+                status: 200,
+                headers: {
+                  "Content-Type": "text/event-stream",
+                  "x-jolli-served-provider": "openai",
+                  "x-jolli-served-model": targetCatalogID,
+                },
+              },
+            ),
+          )
+          const model = yield* Provider.use.getModel(ProviderV2.ID.make("jolli-anthropic"), ModelV2.ID.make(source.id))
+          const sessionID = SessionID.make("session-switch")
+          const agent = {
+            name: "test",
+            mode: "primary",
+            options: {},
+            permission: [{ permission: "*", pattern: "*", action: "allow" }],
+          } satisfies Agent.Info
+          const user = {
+            id: MessageID.make("msg_user-switch"),
+            sessionID,
+            role: "user",
+            time: { created: Date.now() },
+            agent: agent.name,
+            model: { providerID: model.providerID, modelID: model.id },
+          } satisfies SessionV1.User
+          const previousUser: SessionV1.User = { ...user, id: MessageID.make("msg_user-previous") }
+          const assistant: SessionV1.Assistant = {
+            id: MessageID.make("msg_assistant-previous"),
+            sessionID,
+            parentID: previousUser.id,
+            role: "assistant",
+            mode: agent.name,
+            agent: agent.name,
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+            modelID: model.id,
+            providerID: model.providerID,
+            time: { created: Date.now() },
+          }
+          const history: SessionV1.WithParts[] = [
+            {
+              info: previousUser,
+              parts: [
+                {
+                  id: PartID.make("prt_user-previous"),
+                  messageID: previousUser.id,
+                  sessionID,
+                  type: "text",
+                  text: "Earlier question",
+                },
+              ],
+            },
+            {
+              info: assistant,
+              parts: [
+                {
+                  id: PartID.make("prt_reasoning-previous"),
+                  messageID: assistant.id,
+                  sessionID,
+                  type: "reasoning",
+                  text: "prior reasoning",
+                  time: { start: Date.now() },
+                  metadata: { anthropic: { signature: "signed-reasoning" } },
+                },
+                {
+                  id: PartID.make("prt_text-previous"),
+                  messageID: assistant.id,
+                  sessionID,
+                  type: "text",
+                  text: "Earlier answer",
+                },
+              ],
+            },
+            {
+              info: user,
+              parts: [
+                {
+                  id: PartID.make("prt_user-switch"),
+                  messageID: user.id,
+                  sessionID,
+                  type: "text",
+                  text: "Hello",
+                },
+              ],
+            },
+          ]
+          const served: string[] = []
+          const proposed: string[] = []
+          const prepared: string[] = []
+
+          yield* drain({
+            user,
+            sessionID,
+            model,
+            agent,
+            system: ["You are a helpful assistant."],
+            messages: yield* MessageV2.toModelMessagesEffect(history, model),
+            tools: {},
+            onModelSwitchPrepare: (next) =>
+              Effect.gen(function* () {
+                prepared.push(`${next.providerID}/${next.id}`)
+                return {
+                  user: { ...user, model: { providerID: next.providerID, modelID: next.id } },
+                  system: ["You are a helpful assistant."],
+                  messages: yield* MessageV2.toModelMessagesEffect(history, next),
+                  tools: {},
+                }
+              }),
+            onModelSwitchProposal: (next) =>
+              Effect.sync(() => {
+                proposed.push(next.id)
+                return true
+              }),
+            onModelSwitch: (next) =>
+              Effect.sync(() => {
+                served.push(`${next.providerID}/${next.id}`)
+              }),
+          })
+
+          expect((yield* Effect.promise(() => first)).url.pathname).toContain("/messages")
+          const switched = yield* Effect.promise(() => second)
+          expect(switched.url.pathname).toContain("/responses")
+          expect(JSON.stringify(switched.body.input)).toContain('"text":"prior reasoning"')
+          expect(served).toEqual([])
+          expect(proposed).toEqual([targetCatalogID])
+          expect(prepared).toEqual([`jolli-openai/${targetCatalogID}`])
+        }),
+      {
+        config: () => {
+          const source = loadFixture("anthropic", "claude-sonnet-4-5").model
+          const target = loadFixture("openai", "gpt-4o").model
+          const targetCatalogID = "catalog-target-model"
+          return {
+            enabled_providers: ["jolli-anthropic", "jolli-openai"],
+            provider: {
+              "jolli-anthropic": {
+                name: "Jolli",
+                npm: "@ai-sdk/anthropic",
+                models: { [source.id]: configModel(source) as ConfigModel },
+                options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` },
+              },
+              "jolli-openai": {
+                name: "Jolli",
+                npm: "@ai-sdk/openai",
+                models: { [targetCatalogID]: { ...configModel(target), id: targetCatalogID } as ConfigModel },
+                options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` },
+              },
+            },
+          }
+        },
+      },
+    )
+  }
+
   const vivgridFixture = { providerID: "vivgrid", modelID: "gemini-3.1-pro-preview" }
   const opencodeFixture = { providerID: "opencode-test", modelID: vivgridFixture.modelID }
 
@@ -1152,6 +1367,76 @@ describe("session.llm.stream", () => {
   )
 
   const alibabaQwenFixture = { providerID: "alibaba", modelID: "qwen-plus" }
+  it.instance(
+    "applies served-model headers before the response body completes",
+    () =>
+      Effect.gen(function* () {
+        const source = loadFixture("openai", "gpt-4o").model
+        const targetCatalogID = "served-target-model"
+        const pending = waitStreamingRequest("/responses", {
+          "x-jolli-served-provider": "openai",
+          "x-jolli-served-model": targetCatalogID,
+        })
+        const switched = deferred<string>()
+
+        const resolved = yield* Provider.use.getModel(ProviderV2.ID.make("jolli-openai"), ModelV2.ID.make(source.id))
+        const sessionID = SessionID.make("session-served-header")
+        const agent = {
+          name: "test",
+          mode: "primary",
+          options: {},
+          permission: [{ permission: "*", pattern: "*", action: "allow" }],
+        } satisfies Agent.Info
+        const user = {
+          id: MessageID.make("msg_user-served-header"),
+          sessionID,
+          role: "user",
+          time: { created: Date.now() },
+          agent: agent.name,
+          model: { providerID: resolved.providerID, modelID: resolved.id },
+        } satisfies SessionV1.User
+
+        const fiber = yield* drain({
+          user,
+          sessionID,
+          model: resolved,
+          agent,
+          system: ["You are a helpful assistant."],
+          messages: [{ role: "user", content: "Hello" }],
+          tools: {},
+          onModelSwitch: (next) => Effect.sync(() => switched.resolve(`${next.providerID}/${next.id}`)),
+        }).pipe(Effect.exit, Effect.forkScoped)
+
+        yield* Effect.promise(() => pending.request)
+        expect(yield* Effect.promise(() => Promise.race([switched.promise, timeout(500)]))).toBe(
+          `jolli-openai/${targetCatalogID}`,
+        )
+
+        yield* Fiber.interrupt(fiber)
+        yield* Effect.promise(() => Promise.race([pending.responseCanceled, timeout(500)]))
+      }),
+    {
+      config: () => {
+        const source = loadFixture("openai", "gpt-4o").model
+        const targetCatalogID = "served-target-model"
+        return {
+          enabled_providers: ["jolli-openai"],
+          provider: {
+            "jolli-openai": {
+              name: "Jolli",
+              npm: "@ai-sdk/openai",
+              models: {
+                [source.id]: configModel(source) satisfies ConfigModel,
+                [targetCatalogID]: { ...configModel(source), id: targetCatalogID } satisfies ConfigModel,
+              },
+              options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` },
+            },
+          },
+        }
+      },
+    },
+  )
+
   it.instance(
     "service stream cancellation cancels provider response body promptly",
     () =>

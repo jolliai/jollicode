@@ -26,3 +26,26 @@ export function name(
 ) {
   return get(list, providerID, modelID)?.name ?? modelID
 }
+
+type Selection = { providerID: string; modelID: string; variant?: string }
+
+export function syncAcceptedModel(
+  local: {
+    model: {
+      current(): { providerID: string; modelID: string } | undefined
+      set(model: { providerID: string; modelID: string }): void
+      variant: { set(variant: string | undefined): void }
+    }
+  },
+  previous: Selection | undefined,
+  next: Selection | undefined,
+) {
+  if (!previous || !next) return
+  if (previous.providerID === next.providerID && previous.modelID === next.modelID) return
+  const current = local.model.current()
+  if (current?.providerID !== previous.providerID || current.modelID !== previous.modelID) return
+  local.model.set({ providerID: next.providerID, modelID: next.modelID })
+  const selected = local.model.current()
+  if (selected?.providerID !== next.providerID || selected.modelID !== next.modelID) return
+  local.model.variant.set(next.variant === "default" ? undefined : next.variant)
+}

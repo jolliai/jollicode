@@ -3,7 +3,7 @@ import { Database } from "@opencode-ai/core/database/database"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { expect } from "bun:test"
-import { tool } from "ai"
+import { APICallError, tool } from "ai"
 import { Cause, Effect, Exit, Fiber, Layer, Stream } from "effect"
 import path from "path"
 import z from "zod"
@@ -226,12 +226,98 @@ const fragmentFailureLLM = Layer.succeed(
 const fragmentFailureEnv = LayerNode.compile(root, [...replacements, [LLM.node, fragmentFailureLLM]])
 const itFragmentFailure = testEffect(fragmentFailureEnv)
 
+const switchRetryInputs: LLM.StreamInput[] = []
+let switchRetryTarget: Provider.Model | undefined
+const switchRetryLLM = Layer.succeed(
+  LLM.Service,
+  LLM.Service.of({
+    stream: (input) => {
+      switchRetryInputs.push(input)
+      if (switchRetryInputs.length === 1) {
+        if (!switchRetryTarget || !input.onModelSwitch) return Stream.fail(new Error("Missing switch target"))
+        return Stream.unwrap(
+          input.onModelSwitch(switchRetryTarget).pipe(
+            Effect.as(
+              Stream.fail(
+                new APICallError({
+                  message: "Temporary upstream failure",
+                  url: "https://target.invalid/v1/messages",
+                  requestBodyValues: {},
+                  statusCode: 500,
+                  isRetryable: true,
+                }),
+              ),
+            ),
+          ),
+        )
+      }
+      return Stream.make(
+        LLMEvent.stepStart({ index: 0 }),
+        LLMEvent.stepFinish({ index: 0, reason: "stop" }),
+        LLMEvent.finish({ reason: "stop" }),
+      )
+    },
+  }),
+)
+const switchRetryEnv = LayerNode.compile(root, [...replacements, [LLM.node, switchRetryLLM]])
+const itSwitchRetry = testEffect(switchRetryEnv)
+
 const boot = Effect.fn("test.boot")(function* () {
   const processors = yield* SessionProcessor.Service
   const session = yield* Session.Service
   const provider = yield* Provider.Service
   return { processors, session, provider }
 })
+
+itSwitchRetry.instance(
+  "retries with the complete request prepared for the switched model",
+  () =>
+    Effect.gen(function* () {
+      switchRetryInputs.length = 0
+      const { processors, session, provider } = yield* boot()
+      const chat = yield* session.create({})
+      const parent = yield* user(chat.id, "switch and retry")
+      const msg = yield* assistant(chat.id, parent.id, "/tmp")
+      const source = yield* provider.getModel(ref.providerID, ref.modelID)
+      const target = {
+        ...source,
+        id: ModelV2.ID.make("target-model"),
+        providerID: ProviderV2.ID.make("target-provider"),
+      }
+      switchRetryTarget = target
+      const handle = yield* processors.create({ assistantMessage: msg, sessionID: chat.id, model: source })
+
+      const result = yield* handle.process({
+        user: parent,
+        sessionID: chat.id,
+        model: source,
+        agent: agent(),
+        system: ["source-system"],
+        messages: [{ role: "user", content: "source-message" }],
+        tools: {},
+        onModelSwitchPrepare: (next) =>
+          Effect.succeed({
+            user: { ...parent, model: { providerID: next.providerID, modelID: next.id } },
+            system: ["target-system"],
+            messages: [{ role: "user", content: "target-message" }],
+            tools: {
+              switched: tool({ inputSchema: z.object({}), execute: async () => "done" }),
+            },
+            mcpToolServers: new Map([["switched", "target-server"]]),
+          }),
+      })
+
+      expect(result).toBe("continue")
+      expect(switchRetryInputs).toHaveLength(2)
+      expect(switchRetryInputs[1]?.model).toBe(target)
+      expect(switchRetryInputs[1]?.system).toEqual(["target-system"])
+      expect(switchRetryInputs[1]?.messages).toEqual([{ role: "user", content: "target-message" }])
+      expect(Object.keys(switchRetryInputs[1]?.tools ?? {})).toEqual(["switched"])
+      expect(switchRetryInputs[1]?.mcpToolServers).toEqual(new Map([["switched", "target-server"]]))
+    }),
+  { config: cfg },
+  10_000,
+)
 
 // ---------------------------------------------------------------------------
 // Tests

@@ -268,12 +268,10 @@ const layer = Layer.effect(
         .find((line) => line.length > 0)
       if (!cleaned) return
       const t = cleaned.length > 100 ? cleaned.substring(0, 97) + "..." : cleaned
-      yield* sessions
-        .setTitle({ sessionID: input.session.id, title: t })
-        .pipe(
-          Effect.andThen(sync(t)),
-          Effect.catchCause((cause) => Effect.logError("failed to generate title", { error: Cause.squash(cause) })),
-        )
+      yield* sessions.setTitle({ sessionID: input.session.id, title: t }).pipe(
+        Effect.andThen(sync(t)),
+        Effect.catchCause((cause) => Effect.logError("failed to generate title", { error: Cause.squash(cause) })),
+      )
     })
 
     const handleSubtask = Effect.fn("SessionPrompt.handleSubtask")(function* (input: {
@@ -715,19 +713,27 @@ const layer = Layer.effect(
       }
 
       const current = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
+      const selectionModel =
+        (input.persistModelSelection === false || (!input.model && ag.model)) && current.model
+          ? {
+              providerID: current.model.providerID,
+              modelID: current.model.id,
+              variant: current.model.variant === "default" ? undefined : current.model.variant,
+            }
+          : info.model
       if (
         current.agent !== info.agent ||
-        current.model?.providerID !== info.model.providerID ||
-        current.model?.id !== info.model.modelID ||
-        (current.model?.variant === "default" ? undefined : current.model?.variant) !== info.model.variant
+        current.model?.providerID !== selectionModel.providerID ||
+        current.model?.id !== selectionModel.modelID ||
+        (current.model?.variant === "default" ? undefined : current.model?.variant) !== selectionModel.variant
       ) {
         yield* sessions.setAgentModel({
           sessionID: input.sessionID,
           agent: info.agent,
           model: {
-            id: info.model.modelID,
-            providerID: info.model.providerID,
-            variant: info.model.variant ?? "default",
+            id: selectionModel.modelID,
+            providerID: selectionModel.providerID,
+            variant: selectionModel.variant ?? "default",
           },
           time: info.time.created,
         })
@@ -1271,54 +1277,72 @@ const layer = Layer.effect(
             const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
             const promptOps = yield* ops()
 
-            const resolved = yield* SessionTools.resolve({
-              agent,
-              session,
-              model,
-              processor: handle,
-              bypassAgentCheck,
-              messages: msgs,
-              promptOps,
-            }).pipe(
-              Effect.provideService(Plugin.Service, plugin),
-              Effect.provideService(Permission.Service, permission),
-              Effect.provideService(ToolRegistry.Service, registry),
-              Effect.provideService(MCP.Service, mcp),
-              Effect.provideService(Truncate.Service, truncate),
-              Effect.provideService(RuntimeFlags.Service, flags),
-            )
-
-            if (lastUser.format?.type === "json_schema") {
-              resolved.tools["StructuredOutput"] = createStructuredOutputTool({
-                schema: lastUser.format.schema,
-                onSuccess(output) {
-                  structured = output
-                },
-              })
-            }
-
             if (step === 1)
               yield* summary.summarize({ sessionID, messageID: lastUser.id }).pipe(Effect.ignore, Effect.forkIn(scope))
 
             yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
 
-            const [skills, env, instructions, mcpInstructions, modelMsgs] = yield* Effect.all([
+            const [skills, instructions, mcpInstructions] = yield* Effect.all([
               sys.skills(agent),
-              sys.environment(model),
               instruction.system().pipe(Effect.orDie),
               sys.mcp(agent, session.permission),
-              MessageV2.toModelMessagesEffect(msgs, model),
             ])
-            const system = [
-              ...env,
-              ...instructions,
-              ...(mcpInstructions ? [mcpInstructions] : []),
-              ...(skills ? [skills] : []),
-            ]
             const format = lastUser.format ?? { type: "text" as const }
-            if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
+            const prepareForModel = (target: Provider.Model) =>
+              Effect.gen(function* () {
+                const [resolved, env, modelMsgs] = yield* Effect.all([
+                  SessionTools.resolve({
+                    agent,
+                    session,
+                    model: target,
+                    processor: handle,
+                    bypassAgentCheck,
+                    messages: msgs,
+                    promptOps,
+                  }).pipe(
+                    Effect.provideService(Plugin.Service, plugin),
+                    Effect.provideService(Permission.Service, permission),
+                    Effect.provideService(ToolRegistry.Service, registry),
+                    Effect.provideService(MCP.Service, mcp),
+                    Effect.provideService(Truncate.Service, truncate),
+                    Effect.provideService(RuntimeFlags.Service, flags),
+                  ),
+                  sys.environment(target),
+                  MessageV2.toModelMessagesEffect(msgs, target),
+                ])
+                if (format.type === "json_schema") {
+                  resolved.tools["StructuredOutput"] = createStructuredOutputTool({
+                    schema: format.schema,
+                    onSuccess(output) {
+                      structured = output
+                    },
+                  })
+                }
+                const system = [
+                  ...env,
+                  ...instructions,
+                  ...(mcpInstructions ? [mcpInstructions] : []),
+                  ...(skills ? [skills] : []),
+                ]
+                if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
+                const user: SessionV1.User =
+                  target.providerID === lastUser.model.providerID && target.id === lastUser.model.modelID
+                    ? lastUser
+                    : { ...lastUser, model: { providerID: target.providerID, modelID: target.id } }
+                return {
+                  user,
+                  system,
+                  messages: [
+                    ...modelMsgs,
+                    ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS_PROMPT }] : []),
+                  ],
+                  tools: resolved.tools,
+                  mcpToolServers: resolved.mcpToolServers,
+                }
+              })
+            const prepared = yield* prepareForModel(model)
             const result = yield* handle.process({
-              user: lastUser,
+              ...prepared,
               agent,
               permission: session.permission,
               sessionID,
@@ -1328,16 +1352,10 @@ const layer = Layer.effect(
               stepIndex: providerStepIndex,
               courseID: courseBinding?.courseId,
               courseAssistantID: courseBinding?.assistantId,
-              mcpToolServers: resolved.mcpToolServers,
               toolErrors: LLMRequestPrep.jolliToolErrors(msgs),
-              system,
-              messages: [
-                ...modelMsgs,
-                ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS_PROMPT }] : []),
-              ],
-              tools: resolved.tools,
               model,
               toolChoice: format.type === "json_schema" ? "required" : undefined,
+              onModelSwitchPrepare: prepareForModel,
             })
             providerStepIndex++
 
@@ -1377,7 +1395,10 @@ const layer = Layer.effect(
               yield* compaction.create({
                 sessionID,
                 agent: lastUser.agent,
-                model: lastUser.model,
+                model: {
+                  providerID: handle.message.providerID,
+                  modelID: handle.message.modelID,
+                },
                 auto: true,
                 overflow: !handle.message.finish,
               })
@@ -1527,6 +1548,7 @@ const layer = Layer.effect(
         parts,
         variant: input.variant,
         command: input.command,
+        persistModelSelection: !cmd.model && !(cmd.agent && agent.model),
       })
       yield* events.publish(Command.Event.Executed, {
         name: input.command,
@@ -1580,7 +1602,10 @@ export type PromptInput = Schema.Schema.Type<typeof PromptInput>
  * A prompt plus the slash command that produced it. `command` attributes Jolli gateway usage, so it
  * stays off the public PromptInput: only `command` and command subtasks set it.
  */
-export type PromptRequest = PromptInput & { readonly command?: string }
+export type PromptRequest = PromptInput & {
+  readonly command?: string
+  readonly persistModelSelection?: boolean
+}
 
 export class LoopInput extends Schema.Class<LoopInput>("SessionPrompt.LoopInput")({
   sessionID: SessionID,

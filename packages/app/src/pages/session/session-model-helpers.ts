@@ -33,6 +33,49 @@ export const syncSessionModel = (local: Local, msg: UserMessage) => {
   local.session.restore(msg)
 }
 
+type SessionModel = { id: string; providerID: string; variant?: string }
+export type PendingModelVariant = { id: string; providerID: string; variant: string | undefined }
+
+export const syncAcceptedSessionModel = (
+  local: ModelSelection,
+  previous: SessionModel | undefined,
+  next: SessionModel | undefined,
+): PendingModelVariant | null | undefined => {
+  if (!previous || !next) return undefined
+  if (previous.id === next.id && previous.providerID === next.providerID) return undefined
+  const current = local.model.current()
+  if (current?.id !== previous.id || current.provider.id !== previous.providerID) return null
+  local.model.set({ providerID: next.providerID, modelID: next.id })
+  const variant = next.variant === "default" ? undefined : next.variant
+  const selected = local.model.current()
+  if (selected?.id !== next.id || selected.provider.id !== next.providerID) {
+    return { id: next.id, providerID: next.providerID, variant }
+  }
+  local.model.variant.set(variant)
+  return null
+}
+
+export const applyPendingModelVariant = (local: ModelSelection, pending: PendingModelVariant | null | undefined) => {
+  const selected = local.model.current()
+  if (!pending) return false
+  if (selected?.id !== pending.id || selected.provider.id !== pending.providerID) return false
+  local.model.variant.set(pending.variant)
+  return true
+}
+
+export const syncAcceptedMessageModel = (
+  local: ModelSelection,
+  previous: UserMessage["model"] | undefined,
+  next: UserMessage["model"] | undefined,
+): PendingModelVariant | null | undefined => {
+  if (!previous || !next) return undefined
+  return syncAcceptedSessionModel(
+    local,
+    { id: previous.modelID, providerID: previous.providerID, variant: previous.variant },
+    { id: next.modelID, providerID: next.providerID, variant: next.variant },
+  )
+}
+
 export const syncPromptModel = (local: ModelSelection, prompt: PromptState) => {
   const model = local.model.current()
   if (!model) return
