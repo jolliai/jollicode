@@ -19,11 +19,12 @@
  * And the session-share surface, verified against the same tree:
  *   GET    /api/agent/convos/:id                    AgentConvoRouter.ts   owner only, 404 otherwise
  *   PATCH  /api/agent/convos/:id                    AgentConvoRouter.ts   owner only, 404 otherwise
+ *   GET    /api/agent/convos/:id/shares             ConversationShareRouter.ts   owner only, 404 otherwise
  *   POST   /api/agent/convos/:id/shares             ConversationShareRouter.ts   owner only
  *   DELETE /api/agent/convos/:id/shares/:subject    ConversationShareRouter.ts   owner only
  *   GET    /api/spaces/:id/members                  SpaceMemberRouter.ts  spaces.view
- * The share writes answer with the conversation's composed visibility, the convo read carries the
- * same object under `visibility`, and the roster is a bare array.
+ * The shares read and the share writes answer with the conversation's composed visibility, the convo
+ * read carries the same object under `visibility`, and the roster is a bare array.
  */
 import { Effect, Schedule, Schema } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
@@ -226,10 +227,9 @@ export interface ConversationVisibility extends Schema.Schema.Type<typeof Conver
 /**
  * The one field of jolliedu's `AgentSessionDetail` this client reads.
  *
- * ⚠ THE WHOLE DETAIL COMES DOWN THE WIRE — timeline included — BECAUSE NO NARROWER OWNER READ
- * EXISTS. Only `visibility` is decoded, and the renderer asks only when the share panel opens or the
- * coaching gate's cached answer is stale — never per session on screen
- * (`packages/app/src/jolli/use-session-share.ts`).
+ * ⚠ THE WHOLE DETAIL COMES DOWN THE WIRE — timeline included, unpaged. Only `visibility` is decoded,
+ * and the renderer asks for it only when the share panel opens or the coaching gate's cached answer
+ * is stale. What is asked per session on screen goes to {@link fetchConversationShares} instead.
  */
 const ConversationDetail = Schema.Struct({ visibility: ConversationVisibility })
 
@@ -409,6 +409,17 @@ export const fetchConversationVisibility = (request: GatewayRequest, sessionID: 
   get(request, `/api/agent/convos/${encodeURIComponent(sessionID)}`, ConversationDetail).pipe(
     Effect.map((detail) => detail.visibility),
   )
+
+/**
+ * The same visibility, from the owner's read that carries nothing else — cheap enough to ask for
+ * every session a header shows.
+ *
+ * ⚠ ITS 404 IS THE DETAIL'S: "not yours or not there", which for a session this client owns means
+ * unsynced. Never retried against the detail — that would put the unpaged timeline back behind
+ * every header this read was made cheap for.
+ */
+export const fetchConversationShares = (request: GatewayRequest, sessionID: string) =>
+  get(request, `/api/agent/convos/${encodeURIComponent(sessionID)}/shares`, ConversationVisibility)
 
 /**
  * Name one of the caller's conversations, so the web lists it by the title this client shows.

@@ -7616,6 +7616,33 @@ export type JolliShareAddResponses = {
 
 export type JolliShareAddResponse = JolliShareAddResponses[keyof JolliShareAddResponses]
 
+export type JolliShareReadersData = {
+  body?: never
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/jolli/session/{sessionID}/share/readers"
+}
+
+export type JolliShareReadersErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliShareReadersError = JolliShareReadersErrors[keyof JolliShareReadersErrors]
+
+export type JolliShareReadersResponses = {
+  /**
+   * Who can read the session, without the course's roster
+   */
+  200: JolliSessionShare
+}
+
+export type JolliShareReadersResponse = JolliShareReadersResponses[keyof JolliShareReadersResponses]
+
 export type JolliShareRemoveData = {
   body?: never
   path: {

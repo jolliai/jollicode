@@ -59,7 +59,7 @@ import { normalize } from "@opencode-ai/session-ui/session-diff"
 import { useFileComponent } from "@opencode-ai/ui/context/file"
 import { shouldMarkBoundaryGesture, normalizeWheelDelta } from "@/pages/session/message-gesture"
 import { SessionContextUsage } from "@/components/session-context-usage"
-import { ParticipantStack, SessionSharePanel } from "@/components/session/session-share-panel"
+import { SessionSharePanel, SessionShareTrigger } from "@/components/session/session-share-panel"
 import { useStaffCanRead } from "@/jolli/use-session-share"
 import { useCourseSession } from "@/jolli/session-binding"
 import { coachTurn, type CoachTrigger } from "@/jolli/coaching"
@@ -632,6 +632,7 @@ export function MessageTimeline(props: {
   })
   let more: HTMLButtonElement | undefined
   let stack: HTMLButtonElement | undefined
+  let sharePanel: HTMLDivElement | undefined
   /** A press on the header's own trigger is the trigger's to answer, not an outside dismissal. */
   const fromStack = (event: Event) => event.target instanceof Node && !!stack?.contains(event.target)
 
@@ -1498,28 +1499,24 @@ export function MessageTimeline(props: {
                     }}
                   >
                     {/*
-                     * ⚠ WHO THE SESSION IS WITH, AND THE WAY INTO WHO CAN READ IT — the web header's
-                     * share trigger, drawn the same way: the student and the assistant as overlapping
-                     * circles, then the assistant's name. Only on a bound top-level session; a child
-                     * task session is not something a student shares on its own.
+                     * ⚠ THE WAY INTO WHO CAN READ THE SESSION — the web header's share button: the
+                     * owner's circle, then whoever they let in, then `Share` or `Sharing`. Only on a
+                     * course-bound top-level session; a child task session is not something a
+                     * student shares on its own.
                      */}
-                    <Show when={!parentID() && courseSession.assistant()}>
-                      {(assistant) => (
-                        <button
-                          type="button"
-                          ref={(element) => {
-                            stack = element
-                          }}
-                          aria-label={language.t("session.share.participants")}
-                          aria-expanded={share.open}
-                          onClick={() => setShare({ open: !share.open, dismiss: null })}
-                          class="flex min-w-0 max-w-[240px] items-center rounded-[6px] px-2 py-1 hover:bg-v2-overlay-simple-overlay-hover"
-                          classList={{ "bg-v2-overlay-simple-overlay-hover": share.open }}
-                          data-action="session-share-trigger"
-                        >
-                          <ParticipantStack assistant={assistant()} />
-                        </button>
-                      )}
+                    <Show when={!parentID() && courseSession.current()}>
+                      <SessionShareTrigger
+                        sessionID={id}
+                        open={share.open}
+                        ref={(element) => {
+                          stack = element
+                          // Gone with the button: a child session has none, and "Share…" must anchor to `more` there, not to a detached node.
+                          onCleanup(() => {
+                            if (stack === element) stack = undefined
+                          })
+                        }}
+                        onClick={() => setShare({ open: !share.open, dismiss: null })}
+                      />
                     </Show>
                     <SessionContextUsage
                       placement="bottom"
@@ -1586,7 +1583,9 @@ export function MessageTimeline(props: {
                                       setTitle({ pendingShare: true, menuOpen: false })
                                     }}
                                   >
-                                    <DropdownMenu.ItemLabel>{language.t("session.share.action.share")}</DropdownMenu.ItemLabel>
+                                    <DropdownMenu.ItemLabel>
+                                      {language.t("session.share.action.share")}
+                                    </DropdownMenu.ItemLabel>
                                   </DropdownMenu.Item>
                                 </Show>
                                 <DropdownMenu.Item onSelect={() => exportSession(id)}>
@@ -1697,12 +1696,29 @@ export function MessageTimeline(props: {
                            */}
                           <KobaltePopover.Content
                             data-component="popover-content"
-                            class="flex w-80 max-w-none flex-col rounded-[10px] border border-v2-border-border-base bg-v2-background-bg-layer-01 p-0 shadow-[var(--v2-elevation-floating)]"
+                            /*
+                             * ⚠ OUT OF THE SESSION'S TYPE-TO-FOCUS. With focus parked on the panel,
+                             * which is not editable, a printable key would otherwise move focus to the
+                             * composer — and the popover reads focus leaving as a dismissal.
+                             */
+                            data-prevent-autofocus
+                            class="flex w-[26rem] max-w-none flex-col rounded-[10px] border border-v2-border-border-base bg-v2-background-bg-layer-01 p-0 shadow-[var(--v2-elevation-floating)]"
+                            /*
+                             * ⚠ OPENING FOCUSES THE PANEL, NOT THE FIRST CONTROL IN IT. That control is
+                             * the search field, which opens its results on focus, so the default would
+                             * throw the candidates over the people with access every time the panel
+                             * merely opened. Parked rather than dropped, so Tab still lands inside.
+                             */
+                            onOpenAutoFocus={(event) => {
+                              event.preventDefault()
+                              sharePanel?.focus({ preventScroll: true })
+                            }}
                             onEscapeKeyDown={(event) => {
+                              // An open list, access menu or help card claims Escape first (`useInnerLayerEscape`); a second Escape closes the panel.
+                              const claimed = event.defaultPrevented
                               event.preventDefault()
                               event.stopPropagation()
-                              // An open picker or help card puts itself away first; a second Escape closes the panel.
-                              if (event.target instanceof Element && event.target.closest("[data-share-dismissable]")) return
+                              if (claimed) return
                               setShare({ dismiss: "escape", open: false })
                             }}
                             onPointerDownOutside={(event) => {
@@ -1718,7 +1734,12 @@ export function MessageTimeline(props: {
                               setShare("dismiss", null)
                             }}
                           >
-                            <SessionSharePanel sessionID={id} />
+                            <SessionSharePanel
+                              sessionID={id}
+                              ref={(element) => {
+                                sharePanel = element
+                              }}
+                            />
                           </KobaltePopover.Content>
                         </KobaltePopover.Portal>
                       </KobaltePopover>

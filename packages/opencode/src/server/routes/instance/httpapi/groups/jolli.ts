@@ -18,6 +18,7 @@ import { described } from "./metadata"
 export const JolliPaths = {
   course: "/jolli/course",
   share: "/jolli/session/:sessionID/share",
+  shareReaders: "/jolli/session/:sessionID/share/readers",
   unshare: "/jolli/session/:sessionID/share/:subject",
 } as const
 
@@ -61,6 +62,22 @@ export const JolliApi = HttpApi.make("jolli").add(
             "session's course it could still be shared with. Answers `unsynced` while the gateway has " +
             "no conversation for the session yet and `unreachable` when there is no credential or the " +
             "gateway did not answer, rather than an error.",
+        }),
+      ),
+    )
+    .add(
+      HttpApiEndpoint.get("shareReaders", JolliPaths.shareReaders, {
+        params: ShareParams,
+        success: described(Jolli.SessionShare, "Who can read the session, without the course's roster"),
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "jolli.shareReaders",
+          summary: "Read a session's readers without its course",
+          description:
+            "The Jolli readers of one of the signed-in student's sessions, answered the way a write is: " +
+            "`members` empty and `roster` `unavailable`. Cheap enough to ask for every session shown, " +
+            "where the full read also fetches the conversation's timeline and its course roster. " +
+            "Answers `unsynced` and `unreachable` as the full read does.",
         }),
       ),
     )
