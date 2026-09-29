@@ -288,6 +288,10 @@ const layer = Layer.effect(
       return codeMode.describeCatalog(
         tools,
         Object.keys(yield* mcp.clients()).map(McpCatalog.sanitize),
+        // ⚠ THE EXECUTE TOOL RUNS THE SAME HOOKS AGAIN when a script calls it, so a code-mode turn
+        // projects each definition twice. Left that way: the in-tree hook is a pure projection of a
+        // schema, cheap to repeat, while sharing the result would mean caching a per-turn value across
+        // the two calls and invalidating it when the MCP catalog changes between them.
         yield* codeMode.defineTools(plugin, tools),
       )
     })

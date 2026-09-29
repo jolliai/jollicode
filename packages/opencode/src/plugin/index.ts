@@ -327,11 +327,19 @@ export const node = LayerNode.make({
   service: Service,
   layer: layer,
   /**
-   * ⚠ `JolliSession` IS HERE BECAUSE THE BRIDGE CAPTURES THIS LAYER'S RUNTIME. The Jolli plugin
-   * resolves its credential through `bridge.promise(...)`, and a bridge can only run effects whose
-   * services this layer already has — without it every model request dies on a missing service.
+   * ⚠ `JolliSession` AND `Session` ARE HERE BECAUSE THE BRIDGE CAPTURES THIS LAYER'S RUNTIME. The
+   * Jolli plugin resolves its credential through `bridge.promise(...)`, and the course chat plugin
+   * reads the session's course binding the same way. A bridge can only rely on the services this
+   * layer declares — without them every model request, or every course tool call, dies on a
+   * missing service.
+   *
+   * The bridge is made while the plugin state initializes, and that initialization also sees the
+   * context of whichever fiber first asked for it. Today that fiber carries the whole app, which
+   * is why a missing entry here can go unnoticed; a narrower caller, a test harness or a new
+   * runtime would fail. The plugin layer test in `jolli-course-chat.test.ts` initializes from a
+   * caller without `Session` to hold this line.
    */
-  deps: [EventV2Bridge.node, Config.node, RuntimeFlags.node, JolliSession.node],
+  deps: [EventV2Bridge.node, Config.node, RuntimeFlags.node, JolliSession.node, Session.node],
 })
 
 export * as Plugin from "."

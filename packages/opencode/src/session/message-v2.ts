@@ -144,9 +144,11 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
   //
   // Only apply this workaround if the model actually supports that media input -
   // otherwise unsupportedParts() will turn it into a user-visible error.
+  //
+  // ⚠ WHETHER MEDIA STAYS IN THE TOOL RESULT IS THE SDK'S QUESTION, NOT THE MODEL'S. A capability
+  // check here strips every tool-result image from a model whose catalog entry understates it,
+  // which is every Jolli gateway model whose catalogue does not say what it accepts.
   const supportsMediaInToolResult = (attachment: { mime: string }) => {
-    if (attachment.mime.startsWith("image/") && !model.capabilities.input.image) return false
-    if (attachment.mime === "application/pdf" && !model.capabilities.input.pdf) return false
     if (model.api.npm === "@ai-sdk/anthropic") return true
     if (model.api.npm === "@ai-sdk/openai") return true
     if (model.api.npm === "@ai-sdk/amazon-bedrock/mantle") return true

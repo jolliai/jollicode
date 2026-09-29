@@ -74,6 +74,10 @@ type ToolDefinition = { description: string; parameters: unknown }
 /**
  * Each MCP tool's definition after the `tool.definition` hook — the projection the ordinary MCP
  * catalog applies — so a plugin that reshapes a tool reshapes it in code mode too.
+ *
+ * ⚠ THE HOOK GETS A COPY OF THE SCHEMA. `def` is the MCP layer's shared cached definition, so a
+ * plugin editing the parameters in place would otherwise rewrite the cache, and every later turn
+ * would project an already-projected schema.
  */
 export const defineTools = Effect.fn("CodeMode.defineTools")(function* (
   plugin: Plugin.Interface,
@@ -84,7 +88,7 @@ export const defineTools = Effect.fn("CodeMode.defineTools")(function* (
       .trigger(
         "tool.definition",
         { toolID: key },
-        { description: tool.def.description ?? "", parameters: tool.def.inputSchema as unknown },
+        { description: tool.def.description ?? "", parameters: structuredClone(tool.def.inputSchema) as unknown },
       )
       .pipe(Effect.map((definition): [string, ToolDefinition] => [key, definition])),
   )

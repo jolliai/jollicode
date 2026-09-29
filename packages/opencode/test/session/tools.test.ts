@@ -223,7 +223,12 @@ it.effect("applies tool definition hooks to MCP tools before exposing their sche
     const result = yield* SessionTools.resolve({
       agent,
       model,
-      session: { id: sessionID, permission: [] } as unknown as Session.Info,
+      // Bound to a course, which is what makes the course tool worth offering at all.
+      session: {
+        id: sessionID,
+        permission: [],
+        metadata: { jolli: { courseId: "7", assistantId: "12" } },
+      } as unknown as Session.Info,
       processor: {
         message: {
           id: messageID,
@@ -264,5 +269,62 @@ it.effect("applies tool definition hooks to MCP tools before exposing their sche
       ),
     )
     expect(calledArguments).toEqual({ courseId: 7, assistantId: 12 })
+  }),
+)
+
+it.effect("does not offer the course tools to a session with no course binding, keeping the others", () =>
+  Effect.gen(function* () {
+    const client = { callTool: async () => ({ content: [{ type: "text" as const, text: "ok" }] }) }
+    const definition = (name: string) => ({
+      def: { name, description: name, inputSchema: { type: "object" as const, properties: {} } },
+      client,
+      server: "jolliedu",
+    })
+    const mcp = MCP.Service.of({
+      tools: () =>
+        Effect.succeed({
+          jolliedu_get_conversation_context: definition("get_conversation_context"),
+          jolliedu_list_all_materials_in_remote_course: definition("list_all_materials_in_remote_course"),
+          jolliedu_list_user_attachments: definition("list_user_attachments"),
+        }),
+      clients: () => Effect.succeed({}),
+    } as unknown as Partial<MCP.Interface> as MCP.Interface)
+    const plugin = Plugin.Service.of({
+      init: () => Effect.void,
+      list: () => Effect.succeed([]),
+      trigger: (_name, _input, output) => Effect.succeed(output),
+    } satisfies Plugin.Interface)
+
+    const result = yield* SessionTools.resolve({
+      agent,
+      model,
+      // Every call to a course tool here would be refused for the missing binding, a wasted turn each.
+      session: { id: sessionID, permission: [] } as unknown as Session.Info,
+      processor: {
+        message: {
+          id: messageID,
+          sessionID,
+          role: "assistant",
+          parentID: MessageID.ascending(),
+          agent: "build",
+          mode: "build",
+          path: { cwd: "/tmp", root: "/tmp" },
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          modelID: ModelV2.ID.make("test-model"),
+          providerID: ProviderV2.ID.make("test"),
+          time: { created: 1 },
+        },
+        updateToolCall: () => Effect.die("unused"),
+        completeToolCall: () => Effect.void,
+      } as Pick<SessionProcessor.Handle, "message" | "updateToolCall" | "completeToolCall">,
+      bypassAgentCheck: false,
+      messages: [],
+      promptOps: {} as never,
+    }).pipe(Effect.provide(createLayer(plugin, mcp)))
+
+    expect(result.tools.jolliedu_get_conversation_context).toBeUndefined()
+    expect(result.tools.jolliedu_list_all_materials_in_remote_course).toBeUndefined()
+    expect(result.tools.jolliedu_list_user_attachments).toBeDefined()
   }),
 )

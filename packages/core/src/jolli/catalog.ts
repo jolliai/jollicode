@@ -323,6 +323,7 @@ export function toProviderModels(
         /** What actually goes upstream. */
         upstreamId: model.name,
         ...(isGranted(model) ? { vendor: model.vendor } : {}),
+        ...(model.inputModalities === undefined ? {} : { inputModalities: model.inputModalities }),
       })),
     ]),
   )

@@ -36,6 +36,7 @@ import { McpEvent } from "@opencode-ai/schema/mcp-event"
 import { McpBrowser } from "./browser"
 import { Brand } from "@opencode-ai/core/brand"
 import { JOLLI_MCP_SERVER, jolliMcpFetch } from "@opencode-ai/core/jolli/mcp"
+import { isJolliOriginAllowed } from "@opencode-ai/core/jolli/origin"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 
 const DEFAULT_TIMEOUT = 30_000
@@ -272,16 +273,36 @@ const layer = Layer.effect(
         )
       }
 
-      // The Jolliedu server authenticates with the student's rotating CLI credential, read per request.
-      const bridge = yield* EffectBridge.make()
+      /**
+       * The Jolliedu server authenticates with the student's rotating CLI credential, read per request.
+       *
+       * ⚠ THE CREDENTIAL FOLLOWS THE DESTINATION, NOT THE NAME. `jolliMcpFetch` attaches it only on an
+       * https Jolli origin — the allowlist sign-in and every gateway request are already held to — so
+       * a coursework repository's own `mcp.jolliedu` can at most point it at another Jolli host. Such
+       * a host is ours and takes no tenancy from itself: the backend resolves the workspace from the
+       * JWT's verified claims, and refuses a non-canonical host before reading any credential. An
+       * entry outside the allowlist, an http:// one included, connects without it, which is said
+       * once here because the only other symptom is a 401 on every call.
+       */
       const credentialed =
         key === JOLLI_MCP_SERVER
-          ? {
-              fetch: jolliMcpFetch({
-                token: () => bridge.promise(jolli.token()),
-                refused: (token) => bridge.promise(jolli.refused(token)),
-              }),
-            }
+          ? yield* Effect.gen(function* () {
+              if (!isJolliOriginAllowed(mcp.url)) {
+                yield* Effect.logWarning(
+                  "jolliedu MCP URL is not an https Jolli origin; connecting without the credential",
+                  {
+                    url: mcp.url,
+                  },
+                )
+              }
+              const bridge = yield* EffectBridge.make()
+              return {
+                fetch: jolliMcpFetch({
+                  token: () => bridge.promise(jolli.token()),
+                  refused: (token) => bridge.promise(jolli.refused(token)),
+                }),
+              }
+            })
           : {}
 
       const transports: Array<{ name: string; transport: TransportWithAuth }> = [

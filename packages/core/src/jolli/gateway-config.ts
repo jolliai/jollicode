@@ -96,6 +96,8 @@ export interface JolliModel {
    * no course of the student's grants, so a vendor they cannot reach never names a group.
    */
   readonly vendor?: string
+  /** What the model accepts as input, as the gateway's catalogue states it. Absent means unknown. */
+  readonly inputModalities?: ReadonlyArray<string>
 }
 
 export interface JolliConfigInput {
@@ -259,7 +261,11 @@ function providerBlock(input: JolliConfigInput, protocol: SupportedProtocol, mod
           models: Object.fromEntries(
             models.map((model) => [
               model.id,
-              { name: model.name, ...(model.upstreamId ? { id: model.upstreamId } : {}) },
+              {
+                name: model.name,
+                ...(model.upstreamId ? { id: model.upstreamId } : {}),
+                ...modalityFields(model.inputModalities),
+              },
             ]),
           ),
         }
@@ -287,6 +293,34 @@ function providerName(protocol: SupportedProtocol, models: ReadonlyArray<JolliMo
   if (vendors.length === 0) return protocol
   if (vendors.length <= 2) return vendors.join(" / ")
   return `${vendors[0]} +${vendors.length - 1}`
+}
+
+/** The input kinds the provider config can declare. Anything else the gateway lists is dropped. */
+const DECLARABLE_INPUTS = ["text", "audio", "image", "video", "pdf"] as const
+type DeclarableInput = (typeof DECLARABLE_INPUTS)[number]
+
+/**
+ * What a model row declares about its input, from the gateway catalogue's answer.
+ *
+ * ⚠ WITHOUT THIS EVERY JOLLI MODEL READ AS TEXT-ONLY. The gateway ids are not in models.dev, so a
+ * row that declares no modalities gets no image or PDF input, and a picture the student pastes is
+ * replaced with "this model does not support image input" before it is sent.
+ *
+ * ⚠ ONLY VALUES THE CONFIG SCHEMA ACCEPTS. It lists the five kinds as literals, so one unknown
+ * string written here would fail the whole config rather than the one model. An absent or empty
+ * answer declares nothing, leaving the model exactly as it was before the catalogue knew.
+ */
+function modalityFields(inputModalities: ReadonlyArray<string> | undefined): {
+  modalities?: { input: DeclarableInput[] }
+  attachment?: true
+} {
+  const input = DECLARABLE_INPUTS.filter((kind): kind is DeclarableInput => inputModalities?.includes(kind) ?? false)
+  if (input.length === 0) return {}
+  return {
+    modalities: { input },
+    // models.dev sets this beside image or PDF input, so the row reads like any catalogued model's.
+    ...(input.includes("image") || input.includes("pdf") ? { attachment: true } : {}),
+  }
 }
 
 /** SDK-expected URL segment appended to the gateway base URL, per protocol. */

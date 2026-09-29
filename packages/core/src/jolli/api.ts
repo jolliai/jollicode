@@ -161,6 +161,15 @@ export const AgentModel = Schema.Struct({
   category: Schema.NullOr(Schema.String),
   description: Schema.NullOr(Schema.String),
   isActive: Schema.Boolean,
+  /**
+   * What the model accepts as input (`text`, `image`, `pdf`, ...), as the catalogue answers for it.
+   *
+   * ⚠ OPTIONAL, AND ABSENT MEANS UNKNOWN. A backend that predates the field, and a model its
+   * catalogue has no answer for, both omit it; the provider config then declares nothing and the
+   * model keeps the defaults it had before. Open strings for the reason `category` is open: a
+   * modality this client has not heard of must not fail the whole array.
+   */
+  inputModalities: Schema.optional(Schema.Array(Schema.String)),
 }).annotate({ identifier: "JolliApi.AgentModel" })
 export interface AgentModel extends Schema.Schema.Type<typeof AgentModel> {}
 
@@ -331,6 +340,13 @@ const send = Effect.fn("Jolli.send")(function* <A, I>(
 
 /** Every course the signed-in user can see. NOT only theirs — see `CourseListItem.viewerRole`. */
 export const fetchCourses = (request: GatewayRequest) => get(request, "/api/courses", Schema.Array(CourseListItem))
+
+/**
+ * The MCP servers the tenant wants a Jolli Code session to connect to, keyed by server name. Each
+ * entry stays unknown here: the config loader decides what a usable entry looks like.
+ */
+export const fetchMcpConfig = (request: GatewayRequest) =>
+  get(request, "/api/jollicode/mcp-config", Schema.Struct({ mcp: Schema.Record(Schema.String, Schema.Unknown) }))
 
 /** The `live` assistants of one course, default first. 404 means "no permission" OR "no course". */
 export const fetchAssistantChoices = (request: GatewayRequest, courseId: number) =>

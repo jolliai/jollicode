@@ -322,10 +322,6 @@ describe("session.message-v2.toModelMessage", () => {
   test("converts assistant tool completion into tool-call + tool-result messages with attachments", async () => {
     const userID = "m-user"
     const assistantID = "m-assistant"
-    const visionModel = {
-      ...model,
-      capabilities: { ...model.capabilities, input: { ...model.capabilities.input, image: true } },
-    }
 
     const input: SessionV1.WithParts[] = [
       {
@@ -375,7 +371,7 @@ describe("session.message-v2.toModelMessage", () => {
       },
     ]
 
-    expect(await MessageV2.toModelMessages(input, visionModel)).toStrictEqual([
+    expect(await MessageV2.toModelMessages(input, model)).toStrictEqual([
       {
         role: "user",
         content: [{ type: "text", text: "run tool" }],
@@ -415,7 +411,10 @@ describe("session.message-v2.toModelMessage", () => {
     ])
   })
 
-  test("reports a tool image as unsupported before sending it to a text-only model", async () => {
+  test("keeps a tool image in the tool result for an SDK that carries it, whatever the catalog says the model reads", async () => {
+    // ⚠ REGRESSION GUARD. Every Jolli gateway model is declared without input modalities unless
+    // its catalogue states them, so its image capability reads false. A capability check on this
+    // path turned every image `read` or an MCP tool returned into "Cannot read image" there.
     const userID = "m-user"
     const assistantID = "m-assistant"
     const input: SessionV1.WithParts[] = [
@@ -454,8 +453,8 @@ describe("session.message-v2.toModelMessage", () => {
 
     const messages = ProviderTransform.message(await MessageV2.toModelMessages(input, model), model, {})
 
-    expect(JSON.stringify(messages)).toContain("this model does not support image input")
-    expect(JSON.stringify(messages)).not.toContain("Zm9v")
+    expect(JSON.stringify(messages)).toContain("Zm9v")
+    expect(JSON.stringify(messages)).not.toContain("does not support image input")
   })
 
   test("preserves jpeg tool-result media for anthropic models", async () => {

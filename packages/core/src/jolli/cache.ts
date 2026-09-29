@@ -224,7 +224,6 @@ export const refreshCatalog = Effect.fn("Jolli.refreshCatalog")(function* (reque
   }
 
   const file = catalogCachePath(request)
-  const temp = `${file}.${process.pid}.${Date.now()}.tmp`
   /**
    * Written to a sibling and renamed, so a reader never meets a half-written snapshot.
    *
@@ -234,10 +233,19 @@ export const refreshCatalog = Effect.fn("Jolli.refreshCatalog")(function* (reque
    * fetching independently forever, with nothing anywhere saying why. A read-only or full cache
    * directory is the realistic cause and it is not self-evident from any other symptom.
    */
-  const written = yield* Effect.promise(async () => {
+  const written = yield* writeAtomically(file, JSON.stringify(snapshot))
+  if (written) yield* Effect.logWarning("Jolli: could not write the catalogue snapshot", { file, cause: written })
+  yield* sweepOrphans(file)
+  return snapshot
+})
+
+/** Write through a sibling and a rename, so no reader meets half a file. Answers the failure, if any. */
+const writeAtomically = (file: string, contents: string) =>
+  Effect.promise(async () => {
+    const temp = `${file}.${process.pid}.${Date.now()}.tmp`
     try {
       await mkdir(path.dirname(file), { recursive: true })
-      await writeFile(temp, JSON.stringify(snapshot))
+      await writeFile(temp, contents)
       await rename(temp, file)
       return undefined
     } catch (cause) {
@@ -245,9 +253,56 @@ export const refreshCatalog = Effect.fn("Jolli.refreshCatalog")(function* (reque
       return cause
     }
   })
-  if (written) yield* Effect.logWarning("Jolli: could not write the catalogue snapshot", { file, cause: written })
-  yield* sweepOrphans(file)
-  return snapshot
+
+/**
+ * THE COURSE-CHAT MCP DISCOVERY ANSWER, KEPT BESIDE THE CATALOGUE AND ON ITS TERMS.
+ *
+ * ⚠ WITHOUT IT, ONE BAD STARTUP COST THE WHOLE INSTANCE ITS COURSE TOOLS. Config is loaded once per
+ * instance, so a discovery that timed out or found the gateway down left the instance without the
+ * `jolliedu` server for as long as it lived, and a slow gateway made every instance wait for it.
+ * The answer is close to static — the deployment's canonical MCP URL — so a recent one is used
+ * without asking, and an older one stands in when asking fails.
+ *
+ * ⚠ SAME PREFIX AS THE CATALOGUE, DELIBERATELY. Sign-out's {@link clearCatalogCache} and the orphan
+ * sweep both match on it, so a student's discovery answer leaves the machine with their catalogue
+ * instead of needing a second clean-up path that could be forgotten. Keyed the same way too, by
+ * the credential's identity, so one student is never served another's answer.
+ */
+const MCP_CONFIG_SCHEMA = 1
+
+export const mcpConfigCachePath = (request: GatewayRequest) =>
+  path.join(
+    Global.Path.cache,
+    `${PREFIX}mcp-${Hash.fast(`${request.origin}|${request.tenantSlug ?? ""}|${request.identity}`)}.json`,
+  )
+
+/** The last discovery answer this identity received, and whether it is recent enough to use unasked. */
+export const readMcpConfigCache = Effect.fn("Jolli.readMcpConfigCache")(function* (request: GatewayRequest) {
+  const file = mcpConfigCachePath(request)
+  const raw = yield* Effect.promise(() =>
+    readFile(file, "utf8")
+      .then((text) => JSON.parse(text) as unknown)
+      .catch(() => undefined),
+  )
+  if (!raw || typeof raw !== "object") return undefined
+  const value = raw as { schema?: unknown; mcp?: unknown }
+  if (value.schema !== MCP_CONFIG_SCHEMA || !value.mcp || typeof value.mcp !== "object") return undefined
+  return { mcp: value.mcp as Readonly<Record<string, unknown>>, fresh: yield* isFresh(file) }
+})
+
+/** Record a discovery answer. A failed write is only logged: the answer in hand is still used. */
+export const writeMcpConfigCache = Effect.fn("Jolli.writeMcpConfigCache")(function* (
+  request: GatewayRequest,
+  mcp: Readonly<Record<string, unknown>>,
+) {
+  const file = mcpConfigCachePath(request)
+  const written = yield* writeAtomically(file, JSON.stringify({ schema: MCP_CONFIG_SCHEMA, mcp }))
+  if (written) yield* Effect.logWarning("Jolli: could not write the MCP discovery answer", { file, cause: written })
+})
+
+/** Forget this identity's answer, for when the backend says there is no MCP server to discover. */
+export const dropMcpConfigCache = Effect.fn("Jolli.dropMcpConfigCache")(function* (request: GatewayRequest) {
+  yield* Effect.promise(() => rm(mcpConfigCachePath(request), { force: true }).catch(() => {}))
 })
 
 /**
