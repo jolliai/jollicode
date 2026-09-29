@@ -9,6 +9,7 @@
  * failed request on a screen whose own empty state already says the right thing.
  */
 import {
+  fetchConversationShares,
   fetchConversationVisibility,
   fetchCourseMembers,
   shareConversation,
@@ -22,7 +23,7 @@ import { viewerFromToken } from "@opencode-ai/core/jolli/identity"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { classSizeOf, projectMembers, projectReaders, refusalOf, WRITABLE_ACCESS } from "@opencode-ai/core/jolli/share"
 import { Jolli } from "@opencode-ai/schema/jolli"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
 import { FetchHttpClient } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { RootHttpApi } from "../api"
@@ -197,7 +198,22 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
         }),
         Effect.catch((error) => failed(error, request.token)),
       )
-    }, Effect.provide(FetchHttpClient.layer))
+    })
+
+    /**
+     * THE READERS ALONE — the header's share button, asked for every session it shows.
+     *
+     * ⚠ NO ROSTER AND NO TIMELINE. The button only says whether anybody else can read the session,
+     * so this answers the way a write does and leaves `members` to the panel's full read.
+     */
+    const shareReaders = Effect.fn("JolliHttpApi.shareReaders")(function* (ctx: { params: { sessionID: string } }) {
+      const request = yield* gateway()
+      if (!request) return shareAnswer("unreachable")
+      return yield* fetchConversationShares(request, ctx.params.sessionID).pipe(
+        Effect.map((visibility) => answered(visibility)),
+        Effect.catch((error) => failed(error, request.token)),
+      )
+    })
 
     const shareAdd = Effect.fn("JolliHttpApi.shareAdd")(function* (ctx: {
       params: { sessionID: string }
@@ -212,7 +228,7 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
         Effect.map((visibility) => answered(visibility)),
         Effect.catch((error) => failed(error, request.token)),
       )
-    }, Effect.provide(FetchHttpClient.layer))
+    })
 
     const shareRemove = Effect.fn("JolliHttpApi.shareRemove")(function* (ctx: {
       params: { sessionID: string; subject: string }
@@ -225,14 +241,21 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
         Effect.map((visibility) => answered(visibility)),
         Effect.catch((error) => failed(error, request.token)),
       )
-    }, Effect.provide(FetchHttpClient.layer))
+    })
 
     return handlers
       .handle("course", course)
       .handle("share", share)
+      .handle("shareReaders", shareReaders)
       .handle("shareAdd", shareAdd)
       .handle("shareRemove", shareRemove)
   }),
+).pipe(
+  /**
+   * ⚠ THE GATEWAY CALLS' HTTP CLIENT, PROVIDED ONCE FOR THE GROUP rather than rebuilt per request.
+   * The group captures its context when the layer is built and hands it to every handler.
+   */
+  Layer.provide(FetchHttpClient.layer),
 )
 
 /**

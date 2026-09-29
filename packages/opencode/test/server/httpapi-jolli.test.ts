@@ -468,7 +468,11 @@ function gatewayStub(answer: (call: GatewayCall) => Response) {
     const request = new Request(input, init)
     if (new URL(request.url).hostname !== "acme.jolli.ai") return globalThis.fetch(request)
     const text = await request.text()
-    const call = { method: request.method, path: new URL(request.url).pathname, ...(text ? { body: JSON.parse(text) } : {}) }
+    const call = {
+      method: request.method,
+      path: new URL(request.url).pathname,
+      ...(text ? { body: JSON.parse(text) } : {}),
+    }
     calls.push(call)
     return answer(call)
   }) as typeof globalThis.fetch
@@ -560,6 +564,35 @@ describe("jolli HttpApi — session share", () => {
       expect(body.readers).toHaveLength(1)
       expect(body.members).toEqual([])
       expect(body.roster).toBe("unavailable")
+    }),
+  )
+
+  const readersPath = (sessionID: string) => JolliPaths.shareReaders.replace(":sessionID", sessionID)
+
+  /** ⚠ THE HEADER'S READ: THE READERS ALONE, ANSWERED AS A WRITE IS — NO TIMELINE AND NO ROSTER. */
+  const readers = gatewayStub(() => reply(VISIBILITY))
+  signedInAs(readers.fetch).live("reads the readers alone from the shares route", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(readersPath("ses_1")).pipe(HttpClient.execute)
+      expect(yield* response.json).toEqual({
+        status: "ok",
+        courseId: 7,
+        courseCode: "CS 310",
+        readers: [{ kind: "person", userId: 2, name: "Grace Hopper", detail: "grace@jolli.ai", access: "view" }],
+        members: [],
+        classSize: 0,
+        roster: "unavailable",
+      })
+      expect(readers.calls).toEqual([{ method: "GET", path: "/api/agent/convos/ses_1/shares" }])
+    }),
+  )
+
+  const readersUnsynced = gatewayStub(() => reply({ error: "Conversation not found" }, 404))
+  signedInAs(readersUnsynced.fetch).live("answers unsynced on the shares route's own 404", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(readersPath("ses_new")).pipe(HttpClient.execute)
+      expect(((yield* response.json) as { status: string }).status).toBe("unsynced")
+      expect(readersUnsynced.calls.map((call) => call.path)).toEqual(["/api/agent/convos/ses_new/shares"])
     }),
   )
 

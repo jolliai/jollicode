@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
 import { HttpClient, HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 import {
+  fetchConversationShares,
   fetchConversationVisibility,
   fetchCourses,
   fetchModelIndex,
@@ -48,7 +49,11 @@ const course = {
 
 describe("gatewayRequest", () => {
   test("keeps a subdomain tenant in the origin and names no slug", () => {
-    expect(gatewayRequest("https://acme.jolli.ai", CREDENTIAL)).toEqual({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" })
+    expect(gatewayRequest("https://acme.jolli.ai", CREDENTIAL)).toEqual({
+      origin: "https://acme.jolli.ai",
+      token: "jwt",
+      identity: "student-a",
+    })
   })
 
   /**
@@ -57,7 +62,12 @@ describe("gatewayRequest", () => {
    * leave the URL here and travel as a header instead.
    */
   test("splits a path-addressed tenant into an origin and a slug", () => {
-    expect(gatewayRequest("https://jolli-local.me/dev", CREDENTIAL)).toEqual({ origin: "https://jolli-local.me", tenantSlug: "dev", token: "jwt", identity: "student-a" })
+    expect(gatewayRequest("https://jolli-local.me/dev", CREDENTIAL)).toEqual({
+      origin: "https://jolli-local.me",
+      tenantSlug: "dev",
+      token: "jwt",
+      identity: "student-a",
+    })
   })
 
   // It re-checks rather than trusting whoever stored the URL: this request carries a credential.
@@ -86,7 +96,9 @@ describe("fetchCourses", () => {
   test("a subdomain tenant sends no slug header, because the host already says who it is", async () => {
     const http = stub(() => json([]))
     await Effect.runPromise(
-      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(Effect.provide(http.layer)),
+      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(
+        Effect.provide(http.layer),
+      ),
     )
     expect(http.seen[0]?.headers["x-tenant-slug"]).toBeUndefined()
   })
@@ -99,7 +111,10 @@ describe("fetchCourses", () => {
   test("carries the status onto the error rather than losing it", async () => {
     const http = stub(() => json({ message: "nope" }, 404))
     const error = await Effect.runPromise(
-      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(Effect.provide(http.layer), Effect.flip),
+      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(
+        Effect.provide(http.layer),
+        Effect.flip,
+      ),
     )
     expect(error).toBeInstanceOf(JolliApiError)
     expect(error.status).toBe(404)
@@ -112,7 +127,10 @@ describe("fetchCourses", () => {
   test("refuses a response it cannot decode", async () => {
     const http = stub(() => json([{ id: "seven" }]))
     const error = await Effect.runPromise(
-      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(Effect.provide(http.layer), Effect.flip),
+      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(
+        Effect.provide(http.layer),
+        Effect.flip,
+      ),
     )
     expect(error).toBeInstanceOf(JolliApiError)
   })
@@ -122,7 +140,9 @@ describe("fetchCourses", () => {
     let attempt = 0
     const http = stub(() => (++attempt < 3 ? json({ message: "restarting" }, 503) : json([course])))
     const courses = await Effect.runPromise(
-      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(Effect.provide(http.layer)),
+      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(
+        Effect.provide(http.layer),
+      ),
     )
     expect(courses.length).toBe(1)
     expect(http.seen.length).toBe(3)
@@ -170,7 +190,9 @@ describe("fetchModelIndex", () => {
       ]),
     )
     const index = await Effect.runPromise(
-      fetchModelIndex({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(Effect.provide(http.layer)),
+      fetchModelIndex({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(
+        Effect.provide(http.layer),
+      ),
     )
     expect([...index.keys()].sort()).toEqual(["uuid-gpt", "uuid-opus"])
     expect(index.get("uuid-opus")?.name).toBe("claude-opus-4-8")
@@ -198,7 +220,10 @@ describe("fetchModelIndex", () => {
       ),
     )
     const error = await Effect.runPromise(
-      fetchModelIndex({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(Effect.provide(layer), Effect.flip),
+      fetchModelIndex({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(
+        Effect.provide(layer),
+        Effect.flip,
+      ),
     )
     expect(error).toBeInstanceOf(JolliApiError)
     expect(error.status).toBeUndefined()
@@ -211,10 +236,30 @@ describe("the session-share calls", () => {
 
   test("reads only the visibility off the conversation detail", async () => {
     const http = stub(() => json({ publicSessionId: "ses_1", timeline: [{ huge: true }], visibility }))
-    const result = await Effect.runPromise(fetchConversationVisibility(request, "ses_1").pipe(Effect.provide(http.layer)))
+    const result = await Effect.runPromise(
+      fetchConversationVisibility(request, "ses_1").pipe(Effect.provide(http.layer)),
+    )
     expect(result).toEqual(visibility)
     expect(http.seen[0]?.url).toBe("https://acme.jolli.ai/api/agent/convos/ses_1")
     expect(http.seen[0]?.headers["x-tenant-slug"]).toBe("acme")
+  })
+
+  test("reads the visibility from the owner's shares read, without the conversation", async () => {
+    const http = stub(() => json(visibility))
+    const result = await Effect.runPromise(fetchConversationShares(request, "ses_1").pipe(Effect.provide(http.layer)))
+    expect(result).toEqual(visibility)
+    expect(http.seen.map((sent) => sent.url)).toEqual(["https://acme.jolli.ai/api/agent/convos/ses_1/shares"])
+  })
+
+  /** ⚠ A 404 FAILS AS IT IS — ONE REQUEST, AND NEVER THE DETAIL WITH ITS TIMELINE BEHIND IT. */
+  test("fails 404 for a conversation the gateway does not have, without asking the detail", async () => {
+    const http = stub(() => json({ error: "Conversation not found" }, 404))
+    const error = await Effect.runPromise(
+      fetchConversationShares(request, "ses_new").pipe(Effect.provide(http.layer), Effect.flip),
+    )
+    expect(error).toBeInstanceOf(JolliApiError)
+    expect(error.status).toBe(404)
+    expect(http.seen.map((sent) => sent.url)).toEqual(["https://acme.jolli.ai/api/agent/convos/ses_new/shares"])
   })
 
   /**

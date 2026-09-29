@@ -95,6 +95,8 @@ import type {
   JolliShareAddErrors,
   JolliShareAddResponses,
   JolliShareErrors,
+  JolliShareReadersErrors,
+  JolliShareReadersResponses,
   JolliShareRemoveErrors,
   JolliShareRemoveResponses,
   JolliShareResponses,
@@ -1455,6 +1457,25 @@ export class Jolli extends HeyApiClient {
         ...options?.headers,
         ...params.headers,
       },
+    })
+  }
+
+  /**
+   * Read a session's readers without its course
+   *
+   * The Jolli readers of one of the signed-in student's sessions, answered the way a write is: `members` empty and `roster` `unavailable`. Cheap enough to ask for every session shown, where the full read also fetches the conversation's timeline and its course roster. Answers `unsynced` and `unreachable` as the full read does.
+   */
+  public shareReaders<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
+    return (options?.client ?? this.client).get<JolliShareReadersResponses, JolliShareReadersErrors, ThrowOnError>({
+      url: "/jolli/session/{sessionID}/share/readers",
+      ...options,
+      ...params,
     })
   }
 
