@@ -163,6 +163,27 @@ describe("code mode execute", () => {
     expect(description).not.toContain("courseId")
   })
 
+  test("defineTools hands the hook a copy, so an in-place edit cannot rewrite the shared MCP cache", async () => {
+    const inputSchema = {
+      type: "object",
+      properties: { city: { type: "string" }, courseId: { type: "number" } },
+    }
+    const tools = { weather_current: mcpTool("current", () => "", inputSchema) }
+    const trigger = ((name: unknown, _input: unknown, output: any) =>
+      Effect.sync(() => {
+        if (name === "tool.definition") delete output.parameters.properties.courseId
+        return output
+      })) as Plugin.Interface["trigger"]
+
+    const definitions = await Effect.runPromise(defineTools({ trigger } as Plugin.Interface, tools))
+
+    expect(definitions.get("weather_current")?.parameters).toEqual({
+      type: "object",
+      properties: { city: { type: "string" } },
+    })
+    expect(inputSchema.properties).toHaveProperty("courseId")
+  })
+
   test("the static base description carries no catalog; the registry appends it", async () => {
     const tool = await build({ github_list_issues: mcpTool("list_issues", () => "") })
     expect(tool.id).toBe(CODE_MODE_TOOL)

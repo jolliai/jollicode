@@ -102,6 +102,47 @@ describe("jolliBaseConfig", () => {
     expect(Object.keys(provider?.models ?? {}).length).toBeGreaterThan(0)
   })
 
+  test("declares each model's input modalities from the catalogue, so a pasted image is not refused", () => {
+    const config = jolliBaseConfig({
+      signedIn: true,
+      models: {
+        anthropic: [{ id: "uuid-vision", name: "claude-sonnet-5", inputModalities: ["text", "image", "pdf"] }],
+        openai: [{ id: "uuid-text", name: "gpt-text", inputModalities: ["text"] }],
+      },
+    })
+
+    expect(config.provider?.[JOLLI_ANTHROPIC]?.models?.["uuid-vision"]).toEqual({
+      name: "claude-sonnet-5",
+      modalities: { input: ["text", "image", "pdf"] },
+      attachment: true,
+    })
+    // A text-only answer is declared as such, and a model that takes no files is not flagged for them.
+    expect(config.provider?.[JOLLI_OPENAI]?.models?.["uuid-text"]).toEqual({
+      name: "gpt-text",
+      modalities: { input: ["text"] },
+    })
+  })
+
+  test("drops modalities the config cannot declare, and declares nothing for a model with no answer", () => {
+    const config = jolliBaseConfig({
+      signedIn: true,
+      models: {
+        anthropic: [
+          { id: "uuid-new", name: "claude-next", inputModalities: ["text", "hologram", "image"] },
+          { id: "uuid-unknown", name: "claude-old" },
+          { id: "uuid-empty", name: "claude-empty", inputModalities: [] },
+        ],
+      },
+    })
+    const models = config.provider?.[JOLLI_ANTHROPIC]?.models
+
+    // One unknown literal would fail the whole config, so it is dropped rather than written.
+    expect(models?.["uuid-new"]).toMatchObject({ modalities: { input: ["text", "image"] } })
+    // No answer keeps the model exactly as it was declared before the catalogue knew anything.
+    expect(models?.["uuid-unknown"]).toEqual({ name: "claude-old" })
+    expect(models?.["uuid-empty"]).toEqual({ name: "claude-empty" })
+  })
+
   test("keeps a path-based tenant out of the gateway URL and in a header", () => {
     // The gateway is mounted on the origin; `https://host/<slug>/api` is the app router and 404s.
     // Verified against a live path-based deployment, which is how this was found.

@@ -89,6 +89,65 @@ describe("jolliMcpFetch", () => {
     expect(transport.seen).toHaveLength(1)
   })
 
+  test("stops waiting for a renewing token as soon as the request is cancelled", async () => {
+    const transport = recorder([200])
+    // A token that never arrives: renewal is stuck behind a lock or a slow backend.
+    const fetch = jolliMcpFetch(
+      { token: () => new Promise(() => {}), refused: () => new Promise(() => {}) },
+      transport.send,
+    )
+    const controller = new AbortController()
+
+    const pending = fetch(SERVER, { method: "POST", body: "{}", signal: controller.signal })
+    controller.abort()
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" })
+    expect(transport.seen).toHaveLength(0)
+  })
+
+  test("rejects a request cancelled before it began, without sending anything", async () => {
+    const transport = recorder([200])
+    let asked = 0
+    const fetch = jolliMcpFetch(
+      {
+        token: () => {
+          asked += 1
+          return Promise.resolve("live-jwt")
+        },
+        refused: () => Promise.resolve("live-jwt"),
+      },
+      transport.send,
+    )
+    const controller = new AbortController()
+    controller.abort()
+
+    await expect(fetch(SERVER, { method: "POST", signal: controller.signal })).rejects.toMatchObject({
+      name: "AbortError",
+    })
+    expect(transport.seen).toHaveLength(0)
+    expect(asked).toBe(1)
+  })
+
+  test("answers a cancellation during renewal with the cancellation, not the refusal", async () => {
+    const transport = recorder([401, 200])
+    const controller = new AbortController()
+    const fetch = jolliMcpFetch(
+      {
+        token: () => Promise.resolve("live-jwt"),
+        refused: () => {
+          controller.abort()
+          return new Promise(() => {})
+        },
+      },
+      transport.send,
+    )
+
+    await expect(fetch(SERVER, { method: "POST", body: "{}", signal: controller.signal })).rejects.toMatchObject({
+      name: "AbortError",
+    })
+    expect(transport.seen).toHaveLength(1)
+  })
+
   test("never sends the credential outside a Jolli origin", async () => {
     const transport = recorder([200, 200])
     const session = credential()

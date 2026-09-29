@@ -23,6 +23,7 @@ import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { isRecord } from "@/util/record"
 import { RuntimeFlags } from "@/effect/runtime-flags"
+import { unboundCourseToolRules } from "@/plugin/jolli-mcp-tools"
 
 const MCP_RESOURCE_TOOLS = {
   list: "list_mcp_resources",
@@ -91,11 +92,17 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
         .pipe(Effect.orDie),
   })
 
+  // A session with no course binding is not offered the course tools at all: every call would be
+  // refused for the missing binding. The rules reach the code-mode catalog through the ruleset it
+  // already filters by; the ordinary MCP tools below skip the same names.
+  const withheldCourseTools = unboundCourseToolRules(input.session)
+  const withheld = new Set(withheldCourseTools.map((rule) => rule.permission))
+
   for (const item of yield* registry.tools({
     modelID: ModelV2.ID.make(input.model.api.id),
     providerID: input.model.providerID,
     agent: input.agent,
-    permission: input.session.permission,
+    permission: [...(input.session.permission ?? []), ...withheldCourseTools],
   })) {
     const schema = ProviderTransform.schema(input.model, ToolJsonSchema.fromTool(item))
     tools[item.id] = tool({
@@ -390,6 +397,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   if (flags.experimentalCodeMode) return { tools, mcpToolServers }
 
   for (const [key, entry] of Object.entries(yield* mcp.tools())) {
+    if (withheld.has(key)) continue
     const item = McpCatalog.convertTool(entry.def, entry.client, entry.timeout)
     const execute = item.execute
     if (!execute) continue

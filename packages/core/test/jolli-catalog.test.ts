@@ -239,6 +239,18 @@ describe("toAssistant", () => {
 })
 
 describe("toProviderModels", () => {
+  test("carries the catalogue's input modalities onto each model, and leaves them off where it has none", () => {
+    const models = new Map([
+      ["uuid-a", { ...model("uuid-a", "claude-sonnet-5"), inputModalities: ["text", "image", "pdf"] }],
+      ["uuid-b", model("uuid-b", "claude-haiku-4-5")],
+    ])
+
+    const anthropic = toProviderModels(models)["anthropic"] ?? []
+
+    expect(anthropic[0]?.inputModalities).toEqual(["text", "image", "pdf"])
+    expect(anthropic[1]).not.toHaveProperty("inputModalities")
+  })
+
   // Model names are not unique across vendors; the object is keyed by id, so ids must be.
   test("keys on the UUID and sends the name upstream, grouped by protocol", () => {
     const models = new Map([

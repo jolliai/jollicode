@@ -37,10 +37,16 @@ import { ConfigV2Compat } from "./v2-compat"
 import { Npm } from "@opencode-ai/core/npm"
 import { Brand } from "@opencode-ai/core/brand"
 import { JOLLI_PROVIDER_IDS, jolliBaseConfig } from "@opencode-ai/core/jolli/gateway-config"
-import { loadCatalog, STARTUP_DEADLINE } from "@opencode-ai/core/jolli/cache"
+import {
+  dropMcpConfigCache,
+  loadCatalog,
+  readMcpConfigCache,
+  STARTUP_DEADLINE,
+  writeMcpConfigCache,
+} from "@opencode-ai/core/jolli/cache"
 import { grantedModelIds, toProviderModels } from "@opencode-ai/core/jolli/catalog"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
-import type { GatewayRequest } from "@opencode-ai/core/jolli/api"
+import { fetchMcpConfig } from "@opencode-ai/core/jolli/api"
 import { JOLLI_MCP_SERVER } from "@opencode-ai/core/jolli/mcp"
 import { withTransientReadRetry } from "@/util/effect-http-client"
 
@@ -141,27 +147,6 @@ function normalizeLoadedConfig(data: unknown) {
   return copy
 }
 
-const requestJolliMcpConfig = Effect.fnUntraced(function* (http: HttpClient.HttpClient, request: GatewayRequest) {
-  const url = new URL("/api/jollicode/mcp-config", request.origin).toString()
-  return yield* http
-    .execute(
-      HttpClientRequest.get(url).pipe(
-        HttpClientRequest.acceptJson,
-        HttpClientRequest.bearerToken(request.token),
-        HttpClientRequest.setHeaders(request.tenantSlug ? { "x-tenant-slug": request.tenantSlug } : {}),
-      ),
-    )
-    .pipe(
-      Effect.map((response) => ({ request, response, url })),
-      Effect.catchCause((cause) =>
-        Effect.gen(function* () {
-          yield* Effect.logWarning("jolli-mcp-config: fetch failed", { url, cause: String(cause) })
-          return undefined
-        }),
-      ),
-    )
-})
-
 /**
  * Ask the tenant's Jolliedu backend which MCP servers this session should know
  * about, and hand back a config slice ready to merge.
@@ -172,14 +157,23 @@ const requestJolliMcpConfig = Effect.fnUntraced(function* (http: HttpClient.Http
  * the same posture for its own credential-less branch.
  *
  * ⚠ EVERY FAILURE — signed out, unreachable, timed out, non-2xx, malformed body —
- * COLLAPSES TO AN EMPTY SLICE. Config load cannot fail on a discovery call: the
- * bare CLI without network access is the normal worst case, and the launch
- * carrying a merged `result` below depends on this returning something loadable.
+ * COLLAPSES TO A LOADABLE SLICE: the last answer this sign-in received where one may
+ * stand in (see below), and an empty slice otherwise. Config load cannot fail on a
+ * discovery call: the bare CLI without network access is the normal worst case, and
+ * the launch carrying a merged `result` below depends on this returning something loadable.
  *
  * ⚠ ONE DEADLINE FOR THE WHOLE EXCHANGE, NOT ONE PER STEP. Renewal, the request and a
  * retry after a refusal each had their own `STARTUP_DEADLINE`, so an unreachable
  * gateway could hold config load for a minute or more on top of the lockdown fetch it
- * ran after. The layer now runs it beside that fetch, and this bounds all of it.
+ * ran after. The layer now runs it beside that fetch, and the network part of it — renewal,
+ * request and retry together — shares one `STARTUP_DEADLINE`.
+ *
+ * ⚠ A RECENT ANSWER IS USED WITHOUT ASKING, AND AN OLDER ONE STANDS IN WHEN ASKING FAILS. Config
+ * loads once per instance, so a single failed discovery used to leave the instance without its
+ * course tools for as long as it lived, and a slow gateway made every instance wait. The backend's
+ * own refusals are not failures to paper over, though: a 4xx or a finished sign-in is its answer,
+ * and a 404 — MCP switched off for the tenant — also forgets the old one, so turning the feature
+ * off is not undone by the cache.
  *
  * ⚠ THE SLICE CARRIES NO CREDENTIAL. The endpoint deliberately omits the caller's
  * own Authorization value, and this does not add it back: the resolved config is
@@ -189,7 +183,6 @@ const requestJolliMcpConfig = Effect.fnUntraced(function* (http: HttpClient.Http
  */
 const fetchJolliMcpConfig = (session: JolliSession.Interface, http: HttpClient.HttpClient) =>
   discoverJolliMcpConfig(session, http).pipe(
-    Effect.timeout(STARTUP_DEADLINE),
     Effect.catchCause((cause) =>
       Effect.gen(function* () {
         yield* Effect.logWarning("jolli-mcp-config: discovery did not finish", { cause: String(cause) })
@@ -204,6 +197,7 @@ const discoverJolliMcpConfig = Effect.fnUntraced(function* (
   http: HttpClient.HttpClient,
 ) {
   const empty: Info = {}
+  const started = yield* Clock.currentTimeMillis
   // `session.request()` is the same helper `jolliLockdownConfig` uses to reach the
   // gateway. It splits `credential.base_url` into an origin the REST surface is
   // actually mounted at and a `tenantSlug` that a path-based deployment carries in
@@ -211,6 +205,7 @@ const discoverJolliMcpConfig = Effect.fnUntraced(function* (
   // and `parseJolliUrl`. Concatenating `/api/...` onto the raw `base_url` reaches
   // the app-router SPA, not the API.
   const request = yield* session.request().pipe(
+    Effect.timeout(STARTUP_DEADLINE),
     Effect.catchCause((cause) =>
       Effect.gen(function* () {
         yield* Effect.logWarning("jolli-mcp-config: session.request() failed", { cause: String(cause) })
@@ -219,49 +214,73 @@ const discoverJolliMcpConfig = Effect.fnUntraced(function* (
     ),
   )
   if (!request) return empty
-  const first = yield* requestJolliMcpConfig(http, request)
-  const retry =
-    first?.response.status === 401
-      ? yield* session.refused(request.token).pipe(
-          Effect.flatMap(() => session.request()),
-          Effect.flatMap((renewed) => (renewed ? requestJolliMcpConfig(http, renewed) : Effect.succeed(undefined))),
-          Effect.catchCause((cause) =>
-            Effect.gen(function* () {
-              yield* Effect.logWarning("jolli-mcp-config: credential renewal failed", { cause: String(cause) })
-              return undefined
-            }),
-          ),
-        )
-      : undefined
-  const resolved = retry ?? first
-  if (!resolved) return empty
-  const response = resolved.response
-  if (response.status < 200 || response.status >= 300) {
-    const bodyText = yield* response.text.pipe(Effect.catchCause(() => Effect.succeed("")))
-    yield* Effect.logWarning("jolli-mcp-config: non-2xx response", {
-      url: resolved.url,
-      status: response.status,
-      body: bodyText.slice(0, 500),
-    })
-    return empty
-  }
-  const body = yield* response.json.pipe(
-    Effect.catchCause((cause) =>
-      Effect.gen(function* () {
-        yield* Effect.logWarning("jolli-mcp-config: body parse failed", { cause: String(cause) })
-        return undefined
-      }),
-    ),
+  const cached = yield* readMcpConfigCache(request)
+  if (cached?.fresh) return yield* jolliMcpSlice(cached.mcp, request.tenantSlug)
+  const remaining = Duration.millis(
+    Math.max(0, Duration.toMillis(STARTUP_DEADLINE) - ((yield* Clock.currentTimeMillis) - started)),
   )
-  if (!isRecord(body) || !isRecord(body.mcp)) {
-    yield* Effect.logWarning("jolli-mcp-config: body shape unexpected", {
-      body: JSON.stringify(body)?.slice(0, 500) ?? String(body),
-    })
+  // The shared gateway GET, so discovery carries the client's User-Agent and retries a transient
+  // failure the way every other gateway read does.
+  const outcome = yield* fetchMcpConfig(request).pipe(
+    /**
+     * ⚠ ONE RENEWAL, AND A RETRY ONLY WITH A DIFFERENT TOKEN. `refused` hands back the token it was
+     * given when the renewal endpoint cannot be reached, and resending that is a second 401 paid
+     * for out of the startup deadline. The refusal itself is what gets reported then.
+     */
+    Effect.catchIf(
+      (error) => error.status === 401,
+      (error) =>
+        session
+          .refused(request.token)
+          .pipe(
+            Effect.flatMap((token) =>
+              token === request.token ? Effect.fail(error) : fetchMcpConfig({ ...request, token }),
+            ),
+          ),
+    ),
+    Effect.provideService(HttpClient.HttpClient, http),
+    Effect.map((answer) => ({ ok: true as const, mcp: answer.mcp })),
+    Effect.catch((error) => Effect.succeed({ ok: false as const, cause: String(error), answered: answeredBy(error) })),
+    Effect.timeout(remaining),
+    Effect.catchCause((cause) => Effect.succeed({ ok: false as const, cause: String(cause), answered: undefined })),
+  )
+  if (outcome.ok) {
+    yield* writeMcpConfigCache(request, outcome.mcp)
+    return yield* jolliMcpSlice(outcome.mcp, request.tenantSlug)
+  }
+  // A refusal is the backend's answer, not an outage, so no older answer is put in its place.
+  if (outcome.answered !== undefined) {
+    if (outcome.answered === 404) yield* dropMcpConfigCache(request)
+    yield* Effect.logWarning("jolli-mcp-config: discovery was refused", { cause: outcome.cause })
     return empty
   }
+  if (!cached) {
+    yield* Effect.logWarning("jolli-mcp-config: discovery request failed", { cause: outcome.cause })
+    return empty
+  }
+  yield* Effect.logWarning("jolli-mcp-config: discovery failed; using the last answer received", {
+    cause: outcome.cause,
+  })
+  return yield* jolliMcpSlice(cached.mcp, request.tenantSlug)
+})
+
+/**
+ * The status of a refusal the backend actually gave, or undefined for a failure that is no answer at
+ * all — the gateway unreachable, a 5xx, or renewal unable to reach it — which an older answer may
+ * stand in for. A finished sign-in counts as an answer: its credential would be refused anyway.
+ */
+function answeredBy(error: { readonly _tag: string; readonly status?: number | undefined }) {
+  if (error._tag === "Jolli.SignedOut") return 401
+  if (error._tag !== "Jolli.ApiError" || error.status === undefined || error.status >= 500) return undefined
+  return error.status
+}
+
+/** The config slice for a discovery answer, whether it just arrived or was kept from an earlier one. */
+const jolliMcpSlice = Effect.fnUntraced(function* (mcpServers: Readonly<Record<string, unknown>>, tenantSlug?: string) {
+  const empty: Info = {}
   // The native MCP endpoint resolves tenancy from the verified JWT; `x-tenant-slug` remains
   // harmless compatibility data for a path-based deployment and is never an authentication input.
-  const entry = body.mcp[JOLLI_MCP_SERVER]
+  const entry = mcpServers[JOLLI_MCP_SERVER]
   if (!isRecord(entry) || entry.type !== "remote" || typeof entry.url !== "string" || !URL.canParse(entry.url)) {
     yield* Effect.logWarning("jolli-mcp-config: first-party entry missing")
     return empty
@@ -274,7 +293,6 @@ const discoverJolliMcpConfig = Effect.fnUntraced(function* (
         ),
       )
     : {}
-  const tenantSlug = resolved.request.tenantSlug
   const mcp: NonNullable<Info["mcp"]> = {
     [JOLLI_MCP_SERVER]: {
       type: "remote",

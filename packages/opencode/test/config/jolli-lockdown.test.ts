@@ -9,6 +9,7 @@ import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { Effect, Layer } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 import { gatewayRequest } from "@opencode-ai/core/jolli/api"
+import { clearCatalogCache, mcpConfigCachePath } from "@opencode-ai/core/jolli/cache"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import type { JolliStore } from "@opencode-ai/core/jolli/store"
 import { Account } from "@/account/account"
@@ -161,6 +162,8 @@ describe("Jolli MCP discovery", () => {
     expect(requests).toHaveLength(1)
     expect(requests[0]?.url).toBe("https://acme.jolli.ai/api/jollicode/mcp-config")
     expect(requests[0]?.headers.authorization).toBe("Bearer jwt")
+    // The shared gateway GET, so discovery identifies the client like every other gateway read.
+    expect(requests[0]?.headers["user-agent"]).toBe(Brand.userAgent())
     // The whole entry is the backend's, and it carries no credential: the MCP layer attaches the
     // session's current token per request, and `GET /config` prints this object verbatim.
     expect(config.mcp?.jolliedu).toEqual({
@@ -195,6 +198,92 @@ describe("Jolli MCP discovery", () => {
     const config = await loadConfig(signedIn, undefined, emptyAuth, client)
 
     expect(config.mcp).toBeUndefined()
+  })
+
+  test("does not resend a refused CLI JWT when renewal hands the same token back", async () => {
+    process.env["JOLLICODE_LOCKDOWN"] = "1"
+    const session = Layer.mock(JolliSession.Service)({
+      current: () => Effect.succeed(undefined),
+      request: () => Effect.succeed(gatewayRequest(TENANT, { token: "stale-jwt", identity: "cache-key" })),
+      // What `refused` answers when the renewal endpoint cannot be reached.
+      refused: (refused) => Effect.succeed(refused),
+    })
+    const authorizations: Array<string | undefined> = []
+    const client = HttpClient.make((request) => {
+      authorizations.push(request.headers.authorization)
+      return Effect.succeed(
+        HttpClientResponse.fromWeb(request, Response.json({ error: "Not authorized" }, { status: 401 })),
+      )
+    })
+
+    const config = await loadConfig(session, undefined, emptyAuth, client)
+
+    expect(authorizations).toEqual(["Bearer stale-jwt"])
+    expect(config.mcp).toBeUndefined()
+  })
+
+  describe("with a discovery answer kept from before", () => {
+    const ENTRY = { type: "remote", url: "https://app.jolli.ai/mcp", oauth: false } as const
+    const signedInRequest = gatewayRequest(TENANT, { token: "jwt", identity: "cache-key" })
+    if (!signedInRequest) throw new Error("the test tenant must parse as a gateway request")
+    const cacheFile = mcpConfigCachePath(signedInRequest)
+
+    /** Leave an answer on disk as an earlier launch would have, older than the reuse window. */
+    async function keepStaleAnswer() {
+      await fs.mkdir(path.dirname(cacheFile), { recursive: true })
+      await fs.writeFile(cacheFile, JSON.stringify({ schema: 1, mcp: { jolliedu: ENTRY } }))
+      const anHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+      await fs.utimes(cacheFile, anHourAgo, anHourAgo)
+    }
+
+    function answering(status: number, body: unknown) {
+      return HttpClient.make((request) =>
+        Effect.succeed(HttpClientResponse.fromWeb(request, Response.json(body, { status }))),
+      )
+    }
+
+    test("uses a recent answer without asking the gateway again", async () => {
+      process.env["JOLLICODE_LOCKDOWN"] = "1"
+      await loadConfig(signedIn, undefined, emptyAuth, answering(200, { mcp: { jolliedu: ENTRY } }))
+
+      // Any request now fails the test: the answer from moments ago must be enough.
+      const config = await loadConfig(signedIn, undefined, emptyAuth)
+
+      expect(config.mcp?.jolliedu).toEqual({ ...ENTRY, headers: {} })
+    })
+
+    test("stands in the last answer when the gateway cannot give one", async () => {
+      process.env["JOLLICODE_LOCKDOWN"] = "1"
+      await keepStaleAnswer()
+
+      const config = await loadConfig(signedIn, undefined, emptyAuth, answering(503, { error: "Unavailable" }))
+
+      expect(config.mcp?.jolliedu).toEqual({ ...ENTRY, headers: {} })
+    })
+
+    test("forgets the last answer when the backend says MCP is switched off", async () => {
+      process.env["JOLLICODE_LOCKDOWN"] = "1"
+      await keepStaleAnswer()
+
+      const config = await loadConfig(signedIn, undefined, emptyAuth, answering(404, { error: "Not found" }))
+
+      expect(config.mcp).toBeUndefined()
+      expect(await fs.stat(cacheFile).catch(() => undefined)).toBeUndefined()
+    })
+
+    test("does not put an old answer in place of a refused credential", async () => {
+      process.env["JOLLICODE_LOCKDOWN"] = "1"
+      await keepStaleAnswer()
+      const session = Layer.mock(JolliSession.Service)({
+        current: () => Effect.succeed(undefined),
+        request: () => Effect.succeed(gatewayRequest(TENANT, { token: "jwt", identity: "cache-key" })),
+        refused: (refused) => Effect.succeed(refused),
+      })
+
+      const config = await loadConfig(session, undefined, emptyAuth, answering(401, { error: "Not authorized" }))
+
+      expect(config.mcp).toBeUndefined()
+    })
   })
 
   test("renews a refused CLI JWT once for discovery and still keeps it out of config", async () => {
@@ -243,10 +332,12 @@ describe("Jolli MCP discovery", () => {
   })
 })
 
-afterEach(() => {
+afterEach(async () => {
   delete process.env["JOLLICODE_LOCKDOWN"]
   delete process.env["JOLLICODE_LOCKDOWN_STRICT"]
   delete process.env["JOLLICODE_GATEWAY_URL"]
+  // Discovery answers are kept on disk under the same identity every test signs in with.
+  await Effect.runPromise(clearCatalogCache())
 })
 
 describe("Jolli lockdown", () => {
