@@ -35,10 +35,17 @@ async function finalize(input: { macArm64Version?: string; skip?: string } = {})
     )
   }
   await mkdir(path.join(dir, "bin"))
+  // The stand-in also prints each uploaded file, so the test can check what was merged into it.
   if (process.platform === "win32") {
-    await Bun.write(path.join(dir, "bin", "gh.cmd"), "@echo off\r\necho gh %*\r\n")
+    await Bun.write(
+      path.join(dir, "bin", "gh.cmd"),
+      '@echo off\r\necho gh %*\r\nif "%1 %2"=="release upload" type "%4"\r\n',
+    )
   } else {
-    await Bun.write(path.join(dir, "bin", "gh"), '#!/bin/sh\necho "gh $*"\n')
+    await Bun.write(
+      path.join(dir, "bin", "gh"),
+      '#!/bin/sh\necho "gh $*"\nif [ "$1 $2" = "release upload" ]; then cat "$4"; fi\n',
+    )
     await chmod(path.join(dir, "bin", "gh"), 0o755)
   }
   const result = Bun.spawnSync([process.execPath, path.join(import.meta.dir, "finalize-latest-yml.ts")], {
@@ -75,4 +82,15 @@ test("uploads merged manifests with the release version", async () => {
   expect(result.stdout).toContain("gh release upload desktop-v0.0.2")
   for (const filename of ["latest.yml", "latest-linux.yml", "latest-linux-arm64.yml", "latest-mac.yml"])
     expect(result.stdout).toContain(`uploaded ${filename}`)
+})
+
+test("merges both architectures into the Windows and macOS manifests", async () => {
+  const result = await finalize()
+  const uploaded = (filename: string) =>
+    result.stdout.split("gh release upload").find((chunk) => chunk.includes(`uploaded ${filename}`)) ?? ""
+  expect(uploaded("latest.yml")).toContain("url: latest-yml-aarch64-pc-windows-msvc.bin")
+  expect(uploaded("latest.yml")).toContain("url: latest-yml-x86_64-pc-windows-msvc.bin")
+  expect(uploaded("latest-mac.yml")).toContain("url: latest-yml-aarch64-apple-darwin.bin")
+  expect(uploaded("latest-mac.yml")).toContain("url: latest-yml-x86_64-apple-darwin.bin")
+  expect(uploaded("latest-mac.yml")).toContain("version: 0.0.2")
 })

@@ -86,11 +86,12 @@ async function read(subdir: string, filename: string): Promise<LatestYml> {
 
 const output: Record<string, string> = {}
 
+// read() has checked every manifest against the release version, so the merged files state it directly.
 // Windows: merge arm64 + x64 into single file
 const winX64 = await read("latest-yml-x86_64-pc-windows-msvc", "latest.yml")
 const winArm64 = await read("latest-yml-aarch64-pc-windows-msvc", "latest.yml")
 output["latest.yml"] = serialize({
-  version: winArm64.version,
+  version: expected,
   files: [...winArm64.files, ...winX64.files],
   releaseDate: winArm64.releaseDate,
 })
@@ -107,7 +108,7 @@ output["latest-linux-arm64.yml"] = serialize(
 const macX64 = await read("latest-yml-x86_64-apple-darwin", "latest-mac.yml")
 const macArm64 = await read("latest-yml-aarch64-apple-darwin", "latest-mac.yml")
 output["latest-mac.yml"] = serialize({
-  version: macArm64.version,
+  version: expected,
   files: [...macArm64.files, ...macX64.files],
   releaseDate: macArm64.releaseDate,
 })
