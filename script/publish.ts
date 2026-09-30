@@ -10,7 +10,8 @@ const dir = fileURLToPath(new URL("..", import.meta.url))
 process.chdir(dir)
 const tag = Script.tag
 
-// The desktop app has its own version line (desktop-v*), so CLI releases must not stamp it.
+// The desktop app (desktop-v*) and the VS Code extension (vscode-v*, falling back to its package.json
+// version before the first tag) have their own version lines, so CLI releases must not stamp them.
 const pkgjsons = await Array.fromAsync(
   new Bun.Glob("**/package.json").scan({
     absolute: true,
@@ -18,7 +19,13 @@ const pkgjsons = await Array.fromAsync(
 ).then((arr) =>
   arr
     .map((x) => x.replaceAll("\\", "/"))
-    .filter((x) => !x.includes("node_modules") && !x.includes("dist") && !x.includes("/packages/desktop/")),
+    .filter(
+      (x) =>
+        !x.includes("node_modules") &&
+        !x.includes("dist") &&
+        !x.includes("/packages/desktop/") &&
+        !x.includes("/sdks/vscode/"),
+    ),
 )
 
 async function prepareReleaseFiles() {
