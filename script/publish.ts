@@ -16,7 +16,9 @@ const pkgjsons = await Array.fromAsync(
     absolute: true,
   }),
 ).then((arr) =>
-  arr.filter((x) => !x.includes("node_modules") && !x.includes("dist") && !x.includes("/packages/desktop/")),
+  arr
+    .map((x) => x.replaceAll("\\", "/"))
+    .filter((x) => !x.includes("node_modules") && !x.includes("dist") && !x.includes("/packages/desktop/")),
 )
 
 async function prepareReleaseFiles() {
