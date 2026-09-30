@@ -1,12 +1,12 @@
 name: publish-vscode
+run-name: release vscode
 
+# The release version is the top "## MAJOR.MINOR.PATCH" section of sdks/vscode/CHANGELOG.md. Add it on
+# dev before dispatching; the marketplaces show that file as the extension's changelog.
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - "vscode-v*.*.*"
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+concurrency: ${{ github.workflow }}
 
 permissions:
   contents: write
@@ -14,7 +14,16 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    if: github.repository == 'jolliai/jollicode'
     steps:
+      # Releases are cut from dev only, the same rule as the CLI and desktop: the vscode-v* tag should
+      # always point at a commit dev contains.
+      - name: Require dev branch
+        if: github.ref != 'refs/heads/dev'
+        run: |
+          echo "::error::VS Code extension releases must be dispatched from dev (got $GITHUB_REF)"
+          exit 1
+
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
           fetch-depth: 0
@@ -28,10 +37,21 @@ jobs:
         run: bun install
         working-directory: ./sdks/vscode
 
+      - id: changelog
+        run: bun ./packages/script/src/changelog.ts sdks/vscode/CHANGELOG.md "$RUNNER_TEMP/vscode-release-notes.md"
+
       - name: Publish
         run: |
           ./script/publish
         working-directory: ./sdks/vscode
         env:
+          VERSION: ${{ steps.changelog.outputs.version }}
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
           OPENVSX_TOKEN: ${{ secrets.OPENVSX_TOKEN }}
+
+      # The tag marks the source of each published version and is what the next run compares against.
+      - name: Tag source commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: vscode-v${{ steps.changelog.outputs.version }}
+        run: gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA"

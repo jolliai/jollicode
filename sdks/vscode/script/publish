@@ -1,22 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Get the latest Git tag; before the first vscode-v* tag exists, fall back to package.json
-latest_tag=$(git tag --sort=committerdate | grep -E '^vscode-v[0-9]+\.[0-9]+\.[0-9]+$' | tail -1 || true)
+# VERSION is the top "## MAJOR.MINOR.PATCH" section of CHANGELOG.md, which vsce also packages as the
+# extension's changelog on both marketplaces.
+: "${VERSION:?VERSION is required}"
+echo "Version: $VERSION"
+
+# A section that was never bumped still names the last release, so refuse it before publishing.
+latest_tag=$(git tag --list 'vscode-v*' | grep -E '^vscode-v[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^vscode-v//' | sort -V | tail -1 || true)
 if [ -n "$latest_tag" ]; then
-    echo "Latest tag: $latest_tag"
-    version=$(echo "$latest_tag" | sed 's/^vscode-v//')
-else
-    echo "No tags found, using package.json version"
-    version=$(node -p "require('./package.json').version")
+    echo "Latest release: $latest_tag"
+    if [ "$(printf '%s\n%s\n' "$latest_tag" "$VERSION" | sort -V | tail -1)" != "$VERSION" ] || [ "$latest_tag" = "$VERSION" ]; then
+        echo "sdks/vscode/CHANGELOG.md names $VERSION, which is not newer than the published $latest_tag; add a section for the new release" >&2
+        exit 1
+    fi
 fi
-echo "Version: $version"
 
 # package-marketplace
-vsce package --no-git-tag-version --no-update-package-json --no-dependencies --skip-license -o dist/jollicode.vsix "$version"
+vsce package --no-git-tag-version --no-update-package-json --no-dependencies --skip-license -o dist/jollicode.vsix "$VERSION"
 
+# A rerun after one marketplace succeeded skips it instead of failing on the duplicate version.
 # publish-marketplace
-vsce publish --packagePath dist/jollicode.vsix
+vsce publish --skip-duplicate --packagePath dist/jollicode.vsix
 
 # publish-openvsx
-npx ovsx publish dist/jollicode.vsix -p "$OPENVSX_TOKEN"
+npx ovsx publish dist/jollicode.vsix --skip-duplicate -p "$OPENVSX_TOKEN"
