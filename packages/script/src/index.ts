@@ -21,7 +21,7 @@ if (!semver.satisfies(process.versions.bun, expectedBunVersionRange)) {
 const env = {
   OPENCODE_CHANNEL: process.env["OPENCODE_CHANNEL"],
   OPENCODE_BUMP: process.env["OPENCODE_BUMP"],
-  OPENCODE_VERSION: process.env["OPENCODE_VERSION"],
+  OPENCODE_VERSION: normalizeVersion(process.env["OPENCODE_VERSION"]),
   OPENCODE_RELEASE: process.env["OPENCODE_RELEASE"],
 }
 const CHANNEL = await (async () => {
@@ -73,3 +73,12 @@ export const Script = {
   },
 }
 console.log(`${Brand.bin} script`, JSON.stringify(Script, null, 2))
+
+// Accept a version copied from a release tag (cli-v1.2.3, v1.2.3) and reject anything that would
+// produce a malformed tag or npm version.
+function normalizeVersion(value: string | undefined) {
+  if (!value) return value
+  const version = value.replace(/^(cli-)?v/, "")
+  if (!semver.valid(version)) throw new Error(`OPENCODE_VERSION "${value}" is not a valid semver version`)
+  return version
+}
