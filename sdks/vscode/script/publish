@@ -2,16 +2,17 @@
 set -euo pipefail
 
 # VERSION is the top "## MAJOR.MINOR.PATCH" section of CHANGELOG.md, which vsce also packages as the
-# extension's changelog on both marketplaces.
+# extension's changelog on both marketplaces. package.json keeps a 0.0.0 placeholder that releases never
+# read or update: the version is passed to vsce package below.
 : "${VERSION:?VERSION is required}"
 echo "Version: $VERSION"
 
 # A section that was never bumped still names the last release, so refuse it before publishing.
-latest_tag=$(git tag --list 'vscode-v*' | grep -E '^vscode-v[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^vscode-v//' | sort -V | tail -1 || true)
-if [ -n "$latest_tag" ]; then
-    echo "Latest release: $latest_tag"
-    if [ "$(printf '%s\n%s\n' "$latest_tag" "$VERSION" | sort -V | tail -1)" != "$VERSION" ] || [ "$latest_tag" = "$VERSION" ]; then
-        echo "sdks/vscode/CHANGELOG.md names $VERSION, which is not newer than the published $latest_tag; add a section for the new release" >&2
+latest_version=$(git tag --list 'vscode-v*' | grep -E '^vscode-v[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^vscode-v//' | sort -V | tail -1 || true)
+if [ -n "$latest_version" ]; then
+    echo "Latest release: $latest_version"
+    if [ "$(printf '%s\n%s\n' "$latest_version" "$VERSION" | sort -V | tail -1)" != "$VERSION" ] || [ "$latest_version" = "$VERSION" ]; then
+        echo "sdks/vscode/CHANGELOG.md names $VERSION, which is not newer than the published $latest_version; add a section for the new release" >&2
         exit 1
     fi
 fi
