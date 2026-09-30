@@ -66,7 +66,7 @@ export function wslServerIdForDistro(distro: string) {
 }
 
 export function createWslServersController(
-  cliVersion: string,
+  cliVersion: string | undefined,
   spawnSidecar: SpawnSidecar,
   options?: WslServersControllerOptions,
 ) {
@@ -474,14 +474,14 @@ function opencodeCheck(
   distro: string,
   resolvedPath: string | null,
   version: string | null,
-  expectedVersion: string,
+  expectedVersion: string | undefined,
 ): WslOpencodeCheck {
   if (!resolvedPath) {
     return {
       distro,
       resolvedPath: null,
       version: null,
-      expectedVersion,
+      expectedVersion: expectedVersion ?? null,
       upToDate: null,
       error: nativeT("desktop.wsl.error.opencodeMissing"),
     }
@@ -491,7 +491,7 @@ function opencodeCheck(
       distro,
       resolvedPath,
       version: null,
-      expectedVersion,
+      expectedVersion: expectedVersion ?? null,
       upToDate: null,
       error: nativeT("desktop.wsl.error.opencodeCannotRun"),
     }
@@ -500,7 +500,7 @@ function opencodeCheck(
     distro,
     resolvedPath,
     version,
-    expectedVersion,
+    expectedVersion: expectedVersion ?? null,
     upToDate: cliSatisfiesPin(version, expectedVersion),
     error: null,
   }

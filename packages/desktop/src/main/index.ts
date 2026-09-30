@@ -212,8 +212,9 @@ const main = Effect.gen(function* () {
   initCrashReporter()
 
   const wslServers = createWslServersController(
-    // Local builds pin no CLI release and keep the old "same version as the app" behavior.
-    import.meta.env.JOLLICODE_CLI_VERSION || app.getVersion(),
+    // Release builds pin the CLI published when they were built. Local builds pin nothing: they accept
+    // any installed CLI and install the latest release.
+    import.meta.env.JOLLICODE_CLI_VERSION || undefined,
     async (distro) => {
       logger.log("spawning wsl sidecar", { distro })
       return spawnWslSidecar(distro, {
