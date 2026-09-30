@@ -45,7 +45,7 @@ test("build config appIds match Brand-derived ids", () => {
   })
 })
 
-test("publishes to the jolliai GitHub org", async () => {
+test("publishes desktop releases to the jolliai releases repos", async () => {
   const previousChannel = process.env.OPENCODE_CHANNEL
 
   process.env.OPENCODE_CHANNEL = "beta"
@@ -59,8 +59,13 @@ test("publishes to the jolliai GitHub org", async () => {
   if (previousChannel === undefined) delete process.env.OPENCODE_CHANNEL
   else process.env.OPENCODE_CHANNEL = previousChannel
 
-  expect(betaConfig.publish).toEqual({ provider: "github", owner: "jolliai", repo: "jollicode-beta", channel: "latest" })
-  expect(prodConfig.publish).toEqual({ provider: "github", owner: "jolliai", repo: "jollicode", channel: "latest" })
+  expect(betaConfig.publish).toEqual({
+    provider: "github",
+    owner: "jolliai",
+    repo: "jollicode-releases-beta",
+    channel: "latest",
+  })
+  expect(prodConfig.publish).toEqual({ provider: "github", owner: "jolliai", repo: "jollicode-releases", channel: "latest" })
 })
 
 test("rpm packageName matches the Jolli brand per channel", async () => {

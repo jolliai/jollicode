@@ -133,7 +133,7 @@ function getConfig() {
         appId,
         productName: "Jolli Code Beta",
         protocols: { name: "Jolli Code Beta", schemes: ["jollicode"] },
-        publish: { provider: "github", owner: "jolliai", repo: "jollicode-beta", channel: "latest" },
+        publish: { provider: "github", owner: "jolliai", repo: "jollicode-releases-beta", channel: "latest" },
         deb: { fpm: [metainfoFpm(appId)] },
         rpm: { packageName: "jollicode-beta", fpm: [metainfoFpm(appId)] },
       }
@@ -144,7 +144,7 @@ function getConfig() {
         appId,
         productName: "Jolli Code",
         protocols: { name: "Jolli Code", schemes: ["jollicode"] },
-        publish: { provider: "github", owner: "jolliai", repo: "jollicode", channel: "latest" },
+        publish: { provider: "github", owner: "jolliai", repo: "jollicode-releases", channel: "latest" },
         deb: { fpm: [metainfoFpm(appId)] },
         rpm: { packageName: "jollicode", fpm: [metainfoFpm(appId)] },
       }
