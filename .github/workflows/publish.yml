@@ -133,7 +133,31 @@ jobs:
           jollicode-app-id: ${{ vars.JOLLICODE_APP_ID }}
           jollicode-app-secret: ${{ secrets.JOLLICODE_APP_SECRET }}
 
+      # Signing stays optional until Azure Trusted Signing is provisioned: with no secrets at all the
+      # binaries ship unsigned (with a warning), and signing resumes by itself once the secrets exist.
+      # A partial configuration is a mistake, so it fails instead of silently skipping.
+      - name: Check Windows signing secrets
+        id: signing
+        shell: bash
+        run: |
+          names=(AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_TRUSTED_SIGNING_ACCOUNT_NAME AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE AZURE_TRUSTED_SIGNING_ENDPOINT)
+          missing=()
+          for name in "${names[@]}"; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -eq ${#names[@]} ]; then
+            echo "::warning::Azure Trusted Signing secrets are not configured; publishing UNSIGNED Windows CLI binaries"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Azure Trusted Signing is partially configured; missing: ${missing[*]}"
+            exit 1
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
       - name: Azure login
+        if: steps.signing.outputs.enabled == 'true'
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
         with:
           client-id: ${{ env.AZURE_CLIENT_ID }}
@@ -141,6 +165,7 @@ jobs:
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
       - uses: azure/artifact-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
+        if: steps.signing.outputs.enabled == 'true'
         with:
           endpoint: ${{ env.AZURE_TRUSTED_SIGNING_ENDPOINT }}
           signing-account-name: ${{ env.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
@@ -161,6 +186,7 @@ jobs:
           exclude-interactive-browser-credential: true
 
       - name: Verify Windows CLI signatures
+        if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
         run: |
           $files = @(
@@ -184,7 +210,7 @@ jobs:
           Compress-Archive -Path "jollicode-windows-x64\bin\*" -DestinationPath "jollicode-windows-x64.zip" -Force
           Compress-Archive -Path "jollicode-windows-x64-baseline\bin\*" -DestinationPath "jollicode-windows-x64-baseline.zip" -Force
 
-      - name: Upload signed Windows CLI release assets
+      - name: Upload Windows CLI release assets
         if: needs.version.outputs.release != ''
         shell: pwsh
         env:
