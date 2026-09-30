@@ -59,7 +59,7 @@ paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 
 ### Masaüstü Uygulaması (BETA)
 
-Jolli Code ayrıca masaüstü uygulaması olarak da mevcuttur. Doğrudan [sürüm sayfasından](https://github.com/jolliai/jollicode/releases) veya [jolli.ai/download](https://jolli.ai/download) adresinden indirebilirsiniz.
+Jolli Code ayrıca masaüstü uygulaması olarak da mevcuttur. Doğrudan [sürüm sayfasından](https://github.com/jolliai/jollicode-releases/releases) veya [jolli.ai/download](https://jolli.ai/download) adresinden indirebilirsiniz.
 
 | Platform              | İndirme                            |
 | --------------------- | ---------------------------------- |

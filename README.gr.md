@@ -59,7 +59,7 @@ paru -S jollicode-bin              # Arch Linux (Τελευταία έκδοση
 
 ### Εφαρμογή Desktop (BETA)
 
-Το Jolli Code είναι επίσης διαθέσιμο ως εφαρμογή. Κατέβασε το απευθείας από τη [σελίδα εκδόσεων](https://github.com/jolliai/jollicode/releases) ή το [jolli.ai/download](https://jolli.ai/download).
+Το Jolli Code είναι επίσης διαθέσιμο ως εφαρμογή. Κατέβασε το απευθείας από τη [σελίδα εκδόσεων](https://github.com/jolliai/jollicode-releases/releases) ή το [jolli.ai/download](https://jolli.ai/download).
 
 | Πλατφόρμα             | Λήψη                               |
 | --------------------- | ---------------------------------- |

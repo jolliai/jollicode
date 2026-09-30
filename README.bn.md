@@ -59,7 +59,7 @@ paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 
 ### ডেস্কটপ অ্যাপ (BETA)
 
-Jolli Code ডেস্কটপ অ্যাপ্লিকেশন হিসেবেও উপলব্ধ। সরাসরি [রিলিজ পেজ](https://github.com/jolliai/jollicode/releases) অথবা [jolli.ai/download](https://jolli.ai/download) থেকে ডাউনলোড করুন।
+Jolli Code ডেস্কটপ অ্যাপ্লিকেশন হিসেবেও উপলব্ধ। সরাসরি [রিলিজ পেজ](https://github.com/jolliai/jollicode-releases/releases) অথবা [jolli.ai/download](https://jolli.ai/download) থেকে ডাউনলোড করুন।
 
 | প্ল্যাটফর্ম           | ডাউনলোড                            |
 | --------------------- | ---------------------------------- |

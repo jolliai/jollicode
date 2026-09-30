@@ -59,7 +59,7 @@ paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 
 ### Десктопний застосунок (BETA)
 
-Jolli Code також доступний як десктопний застосунок. Завантажуйте напряму зі [сторінки релізів](https://github.com/jolliai/jollicode/releases) або [jolli.ai/download](https://jolli.ai/download).
+Jolli Code також доступний як десктопний застосунок. Завантажуйте напряму зі [сторінки релізів](https://github.com/jolliai/jollicode-releases/releases) або [jolli.ai/download](https://jolli.ai/download).
 
 | Платформа             | Завантаження                       |
 | --------------------- | ---------------------------------- |

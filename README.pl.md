@@ -59,7 +59,7 @@ paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 
 ### Aplikacja desktopowa (BETA)
 
-Jolli Code jest także dostępny jako aplikacja desktopowa. Pobierz ją bezpośrednio ze strony [releases](https://github.com/jolliai/jollicode/releases) lub z [jolli.ai/download](https://jolli.ai/download).
+Jolli Code jest także dostępny jako aplikacja desktopowa. Pobierz ją bezpośrednio ze strony [releases](https://github.com/jolliai/jollicode-releases/releases) lub z [jolli.ai/download](https://jolli.ai/download).
 
 | Platforma             | Pobieranie                         |
 | --------------------- | ---------------------------------- |

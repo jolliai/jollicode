@@ -59,7 +59,7 @@ paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 
 ### تطبيق سطح المكتب (BETA)
 
-يتوفر Jolli Code ايضا كتطبيق سطح مكتب. قم بالتنزيل مباشرة من [صفحة الاصدارات](https://github.com/jolliai/jollicode/releases) او من [jolli.ai/download](https://jolli.ai/download).
+يتوفر Jolli Code ايضا كتطبيق سطح مكتب. قم بالتنزيل مباشرة من [صفحة الاصدارات](https://github.com/jolliai/jollicode-releases/releases) او من [jolli.ai/download](https://jolli.ai/download).
 
 | المنصة                | التنزيل                            |
 | --------------------- | ---------------------------------- |

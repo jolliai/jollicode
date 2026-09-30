@@ -59,7 +59,7 @@ paru -S jollicode-bin              # Arch Linux (Bản mới nhất từ AUR)
 
 ### Ứng dụng Desktop (BETA)
 
-Jolli Code cũng có sẵn dưới dạng ứng dụng desktop. Tải trực tiếp từ [trang releases](https://github.com/jolliai/jollicode/releases) hoặc [jolli.ai/download](https://jolli.ai/download).
+Jolli Code cũng có sẵn dưới dạng ứng dụng desktop. Tải trực tiếp từ [trang releases](https://github.com/jolliai/jollicode-releases/releases) hoặc [jolli.ai/download](https://jolli.ai/download).
 
 | Nền tảng              | Tải xuống                          |
 | --------------------- | ---------------------------------- |
