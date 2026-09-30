@@ -30,6 +30,13 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
+      - name: Setup git committer
+        id: committer
+        uses: ./.github/actions/setup-git-committer
+        with:
+          jollicode-app-id: ${{ vars.JOLLICODE_APP_ID }}
+          jollicode-app-secret: ${{ secrets.JOLLICODE_APP_SECRET }}
+
       - run: git fetch --force --tags
       - run: bun install -g @vscode/vsce
 
@@ -38,7 +45,7 @@ jobs:
         working-directory: ./sdks/vscode
 
       - id: changelog
-        run: bun ./packages/script/src/changelog.ts sdks/vscode/CHANGELOG.md "$RUNNER_TEMP/vscode-release-notes.md"
+        run: bun ./packages/script/src/changelog.ts sdks/vscode/CHANGELOG.md
 
       - name: Publish
         run: |
@@ -52,6 +59,18 @@ jobs:
       # The tag marks the source of each published version and is what the next run compares against.
       - name: Tag source commit
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.committer.outputs.token }}
           TAG: vscode-v${{ steps.changelog.outputs.version }}
-        run: gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA"
+        run: |
+          # Branch on gh's exit status, not its output: on a 404, gh skips --jq and prints the error
+          # body to stdout. Any other lookup failure falls through to the create call, which fails loudly.
+          # The publish script refuses a version that already has a tag, so one found here was pushed while
+          # this run was publishing. The extension was built from this commit, so the tag is moved to it.
+          if existing=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null); then
+            if [ "$existing" != "$GITHUB_SHA" ]; then
+              echo "::notice::Moving $TAG from $existing to $GITHUB_SHA"
+              gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" -f sha="$GITHUB_SHA" -F force=true
+            fi
+          else
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA"
+          fi
