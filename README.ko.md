@@ -59,7 +59,7 @@ paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 
 ### 데스크톱 앱 (BETA)
 
-Jolli Code 는 데스크톱 앱으로도 제공됩니다. [releases page](https://github.com/jolliai/jollicode/releases) 에서 직접 다운로드하거나 [jolli.ai/download](https://jolli.ai/download) 를 이용하세요.
+Jolli Code 는 데스크톱 앱으로도 제공됩니다. [releases page](https://github.com/jolliai/jollicode-releases/releases) 에서 직접 다운로드하거나 [jolli.ai/download](https://jolli.ai/download) 를 이용하세요.
 
 | 플랫폼                   | 다운로드                               |
 | --------------------- | ---------------------------------- |

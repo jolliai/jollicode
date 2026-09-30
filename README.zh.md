@@ -59,7 +59,7 @@ paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 
 ### 桌面应用程序 (BETA)
 
-Jolli Code 也提供桌面版应用。可直接从 [发布页 (releases page)](https://github.com/jolliai/jollicode/releases) 或 [jolli.ai/download](https://jolli.ai/download) 下载。
+Jolli Code 也提供桌面版应用。可直接从 [发布页 (releases page)](https://github.com/jolliai/jollicode-releases/releases) 或 [jolli.ai/download](https://jolli.ai/download) 下载。
 
 | 平台                    | 下载文件                               |
 | --------------------- | ---------------------------------- |
