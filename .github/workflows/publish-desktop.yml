@@ -54,6 +54,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
       repo: ${{ steps.version.outputs.repo }}
+      cli_version: ${{ steps.version.outputs.cli_version }}
 
   build-electron:
     needs:
@@ -160,6 +161,7 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=4096
           OPENCODE_VERSION: ${{ needs.version.outputs.version }}
+          JOLLICODE_CLI_VERSION: ${{ needs.version.outputs.cli_version }}
           OPENCODE_CHANNEL: prod
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}

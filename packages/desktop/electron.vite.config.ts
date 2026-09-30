@@ -41,6 +41,9 @@ export default defineConfig({
       // own credential — from ~/.zshrc, the same bypass the sidecar env scrub closes. Baked in here
       // instead. Empty means "let the signed-in tenant decide"; set it to pin a build at one gateway.
       "import.meta.env.JOLLICODE_GATEWAY_URL": JSON.stringify(process.env.JOLLICODE_GATEWAY_URL ?? ""),
+      // The published CLI release the Windows WSL installer installs and expects. Desktop and CLI have
+      // independent versions, so publish-desktop.yml pins the npm release current at build time.
+      "import.meta.env.JOLLICODE_CLI_VERSION": JSON.stringify(process.env.JOLLICODE_CLI_VERSION ?? ""),
     },
     build: {
       rollupOptions: {
