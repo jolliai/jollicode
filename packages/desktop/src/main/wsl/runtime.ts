@@ -264,13 +264,12 @@ export async function installWslDistro(name: string, opts?: RunWslOptions) {
   )
 }
 
-export async function installWslJollicode(version: string, distro: string, opts?: RunWslOptions) {
+// Without a version the installer takes the latest CLI release, which is what local builds want.
+export async function installWslJollicode(version: string | undefined, distro: string, opts?: RunWslOptions) {
+  const args = version ? ` -s -- --version ${shellEscape(version)}` : ""
   return runInteractiveCommand(
     resolveSystem32Command("wsl.exe"),
-    wslArgs(
-      ["bash", "-lc", `curl -fsSL https://jolli.ai/install | bash -s -- --version ${shellEscape(version)}`],
-      distro,
-    ),
+    wslArgs(["bash", "-lc", `curl -fsSL https://jolli.ai/install | bash${args}`], distro),
     withTimeout(opts, DEFAULT_WSL_INSTALL_TIMEOUT_MS),
     DEFAULT_WSL_INSTALL_TIMEOUT_MS,
   )

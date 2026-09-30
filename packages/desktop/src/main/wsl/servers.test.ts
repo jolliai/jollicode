@@ -27,14 +27,28 @@ test("starts every configured WSL server on initialization", () => {
   ).toEqual(["wsl:Debian", "wsl:Ubuntu-24.04"])
 })
 
-test("accepts a CLI at or above the pinned version", () => {
+test("accepts a CLI at or above the pinned version within the same major", () => {
   expect(cliSatisfiesPin("1.16.2", "1.16.2")).toBe(true)
   expect(cliSatisfiesPin("1.17.0", "1.16.2")).toBe(true)
-  expect(cliSatisfiesPin("2.0.0", "1.16.2")).toBe(true)
   expect(cliSatisfiesPin("1.16.1", "1.16.2")).toBe(false)
   expect(cliSatisfiesPin("1.9.9", "1.16.2")).toBe(false)
   expect(cliSatisfiesPin("0.0.0-dev-202609300000", "1.16.2")).toBe(false)
   expect(cliSatisfiesPin("local", "1.16.2")).toBe(false)
+})
+
+test("rejects a different major, which may change the sidecar API", () => {
+  expect(cliSatisfiesPin("2.0.0", "1.16.2")).toBe(false)
+  expect(cliSatisfiesPin("0.9.0", "1.16.2")).toBe(false)
+})
+
+test("sorts a pre-release below its release", () => {
+  expect(cliSatisfiesPin("1.16.2-beta.1", "1.16.2")).toBe(false)
+  expect(cliSatisfiesPin("1.16.3-rc.1", "1.16.2")).toBe(true)
+})
+
+test("accepts any installed CLI when the build pins none", () => {
+  expect(cliSatisfiesPin("1.16.2", undefined)).toBe(true)
+  expect(cliSatisfiesPin("local", undefined)).toBe(true)
 })
 
 test("rejects an update that did not install the pinned CLI version", () => {
@@ -42,6 +56,11 @@ test("rejects an update that did not install the pinned CLI version", () => {
   expect(() => expectOpencodeVersion("1.14.35", "1.16.2")).toThrow(
     "Jolli Code update finished but Debian still reports 1.14.35; expected 1.16.2",
   )
+})
+
+test("accepts any installed CLI after an unpinned install, but not a missing one", () => {
+  expect(() => expectOpencodeVersion("1.16.2", undefined)).not.toThrow()
+  expect(() => expectOpencodeVersion(null, undefined)).toThrow("expected latest")
 })
 
 test("restarts an existing distro server after updating OpenCode", () => {
