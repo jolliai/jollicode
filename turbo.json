@@ -16,6 +16,9 @@
     "@jolli.ai/desktop#test": {
       "outputs": []
     },
+    "@opencode-ai/script#test": {
+      "outputs": []
+    },
     "@opencode-ai/core#test": {
       "dependsOn": ["^build"],
       "outputs": []
