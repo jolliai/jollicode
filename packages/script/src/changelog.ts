@@ -5,31 +5,39 @@
 // so the changelog is the only place a release version is chosen.
 
 const HEADING = /^## (.*)$/
+const FENCE = /^\s*(```|~~~)/
 const VERSION = /^\d+\.\d+\.\d+$/
 
 export function releaseEntry(text: string, file = "CHANGELOG.md") {
   const lines = text.split(/\r?\n/)
-  const start = lines.findIndex((line) => HEADING.test(line))
-  if (start === -1) throw new Error(`${file} has no "## MAJOR.MINOR.PATCH" section; add one for this release`)
+  // A "## " line inside a fenced code block is example text, not a release heading.
+  let fence: string | undefined
+  const headings = lines.flatMap((line, i) => {
+    const marker = line.match(FENCE)?.[1]
+    if (marker && (!fence || marker === fence)) fence = fence ? undefined : marker
+    else if (!fence && HEADING.test(line)) return [i]
+    return []
+  })
+  const [start, end] = headings
+  if (start === undefined) throw new Error(`${file} has no "## MAJOR.MINOR.PATCH" section; add one for this release`)
   const version = lines[start].match(HEADING)![1].trim()
   if (!VERSION.test(version)) throw new Error(`${file}: the top heading "## ${version}" is not "## MAJOR.MINOR.PATCH"`)
-  const end = lines.findIndex((line, i) => i > start && HEADING.test(line))
   const notes = lines
-    .slice(start + 1, end === -1 ? undefined : end)
+    .slice(start + 1, end)
     .join("\n")
     .trim()
   if (!notes) throw new Error(`${file}: the ${version} section is empty`)
   return { version, notes }
 }
 
-// Prints the release version and writes its notes to a file, for workflows to pass on:
-//   bun packages/script/src/changelog.ts <CHANGELOG.md> <notes-out>
+// Prints the release version for workflows, and writes its notes to a file when one is given:
+//   bun packages/script/src/changelog.ts <CHANGELOG.md> [notes-out]
 if (import.meta.main) {
   const [file, out] = process.argv.slice(2)
-  if (!file || !out) throw new Error("usage: bun packages/script/src/changelog.ts <CHANGELOG.md> <notes-out>")
+  if (!file) throw new Error("usage: bun packages/script/src/changelog.ts <CHANGELOG.md> [notes-out]")
   const entry = releaseEntry(await Bun.file(file).text(), file)
-  await Bun.write(out, entry.notes + "\n")
-  const output = [`version=${entry.version}`, `notes=${out}`].join("\n")
+  if (out) await Bun.write(out, entry.notes + "\n")
+  const output = [`version=${entry.version}`, ...(out ? [`notes=${out}`] : [])].join("\n")
   console.log(output)
   if (process.env.GITHUB_OUTPUT) await Bun.write(process.env.GITHUB_OUTPUT, output + "\n")
 }

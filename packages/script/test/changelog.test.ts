@@ -45,3 +45,35 @@ describe("releaseEntry", () => {
     expect(() => releaseEntry("## 1.1.0\n\n## 1.0.0\n\n- x\n")).toThrow("the 1.1.0 section is empty")
   })
 })
+
+describe("releaseEntry with fenced code", () => {
+  test("keeps a fenced ## line inside the section", () => {
+    const text = [
+      "## 1.1.0",
+      "",
+      "- Example:",
+      "",
+      "```md",
+      "## Not a release",
+      "```",
+      "",
+      "- After",
+      "",
+      "## 1.0.0",
+      "- Old",
+    ].join("\n")
+    expect(releaseEntry(text)).toEqual({
+      version: "1.1.0",
+      notes: "- Example:\n\n```md\n## Not a release\n```\n\n- After",
+    })
+  })
+
+  test("ignores a fenced ## line above the first release", () => {
+    expect(releaseEntry("~~~\n## example\n~~~\n\n## 2.0.0\n\n- x\n").version).toBe("2.0.0")
+  })
+
+  test("does not close a ``` fence with ~~~", () => {
+    const text = ["## 1.0.0", "```", "~~~", "## still code", "```", "- tail"].join("\n")
+    expect(releaseEntry(text).notes).toBe("```\n~~~\n## still code\n```\n- tail")
+  })
+})
