@@ -13,7 +13,10 @@ function resolve(version: string) {
     ],
     { env: { ...process.env, OPENCODE_VERSION: version, OPENCODE_BUMP: "" } },
   )
-  const line = result.stdout.toString().split("\n").find((item) => item.startsWith("RESULT "))
+  const line = result.stdout
+    .toString()
+    .split("\n")
+    .find((item) => item.startsWith("RESULT "))
   return { exitCode: result.exitCode, stderr: result.stderr.toString(), value: line && JSON.parse(line.slice(7)) }
 }
 

@@ -87,9 +87,9 @@ await publish(`./dist/${pkg.name}`, Brand.npm, version)
 //   const x64Sha = await $`sha256sum ./dist/jollicode-linux-x64.tar.gz | cut -d' ' -f1`.text().then((x) => x.trim())
 //   const macX64Sha = await $`sha256sum ./dist/jollicode-darwin-x64.zip | cut -d' ' -f1`.text().then((x) => x.trim())
 //   const macArm64Sha = await $`sha256sum ./dist/jollicode-darwin-arm64.zip | cut -d' ' -f1`.text().then((x) => x.trim())
-// 
+//
 //   const [pkgver, _subver = ""] = Script.version.split(/(-.*)/, 2)
-// 
+//
 //   // arch
 //   const binaryPkgbuild = [
 //     "# Maintainer: Jolli AI <https://jolli.ai>",
@@ -109,7 +109,7 @@ await publish(`./dist/${pkg.name}`, Brand.npm, version)
 //     "",
 //     `source_aarch64=("\${pkgname}_\${pkgver}_aarch64.tar.gz::https://github.com/jolliai/jollicode/releases/download/cli-v\${pkgver}\${_subver}/jollicode-linux-arm64.tar.gz")`,
 //     `sha256sums_aarch64=('${arm64Sha}')`,
-// 
+//
 //     `source_x86_64=("\${pkgname}_\${pkgver}_x86_64.tar.gz::https://github.com/jolliai/jollicode/releases/download/cli-v\${pkgver}\${_subver}/jollicode-linux-x64.tar.gz")`,
 //     `sha256sums_x86_64=('${x64Sha}')`,
 //     "",
@@ -118,7 +118,7 @@ await publish(`./dist/${pkg.name}`, Brand.npm, version)
 //     "}",
 //     "",
 //   ].join("\n")
-// 
+//
 //   for (const [pkg, pkgbuild] of [["jollicode-bin", binaryPkgbuild]]) {
 //     for (let i = 0; i < 30; i++) {
 //       try {
@@ -137,7 +137,7 @@ await publish(`./dist/${pkg.name}`, Brand.npm, version)
 //       }
 //     }
 //   }
-// 
+//
 //   // Homebrew formula
 //   const homebrewFormula = [
 //     "# typed: false",
@@ -190,7 +190,7 @@ await publish(`./dist/${pkg.name}`, Brand.npm, version)
 //     "",
 //     "",
 //   ].join("\n")
-// 
+//
 //   const token = process.env.GITHUB_TOKEN
 //   if (!token) {
 //     console.error("GITHUB_TOKEN is required to update homebrew tap")
