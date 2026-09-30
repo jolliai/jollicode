@@ -11,6 +11,7 @@ if (!repo) throw new Error("GH_REPO is required")
 
 const tag = process.env.RELEASE_TAG
 if (!tag) throw new Error("RELEASE_TAG is required")
+const expected = tag.replace(/^desktop-v/, "")
 
 type FileEntry = {
   url: string
@@ -73,7 +74,12 @@ function serialize(data: LatestYml) {
 async function read(subdir: string, filename: string): Promise<LatestYml | undefined> {
   const file = Bun.file(path.join(dir, subdir, filename))
   if (!(await file.exists())) return undefined
-  return parse(await file.text())
+  const data = parse(await file.text())
+  // electron-builder takes the version from package.json, which prepare.ts stamps per build leg. A leg
+  // that missed the stamp would point every client at the wrong version, and clients allow downgrades.
+  if (data.version !== expected)
+    throw new Error(`${subdir}/${filename} has version ${data.version}, expected ${expected}`)
+  return data
 }
 
 const output: Record<string, string> = {}
