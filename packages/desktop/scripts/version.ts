@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { $ } from "bun"
+import { appendFileSync } from "node:fs"
 import { Brand } from "@opencode-ai/core/brand"
 
 // Desktop versions are independent of the CLI. The version is the top "## MAJOR.MINOR.PATCH" section of
@@ -98,5 +99,6 @@ if (import.meta.main) {
 
   const output = [`version=${version}`, `tag=${tag}`, `repo=${repo}`, `cli_version=${cliVersion}`].join("\n")
   console.log(output)
-  if (process.env.GITHUB_OUTPUT) await Bun.write(process.env.GITHUB_OUTPUT, output)
+  // Append, as GitHub documents for step outputs, so earlier writes in the same step survive.
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, output + "\n")
 }
