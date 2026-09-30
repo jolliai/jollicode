@@ -77,3 +77,15 @@ describe("releaseEntry with fenced code", () => {
     expect(releaseEntry(text).notes).toBe("```\n~~~\n## still code\n```\n- tail")
   })
 })
+
+describe("releaseEntry fence rules", () => {
+  test("a longer fence is not closed by a shorter one", () => {
+    const text = ["## 1.0.0", "````md", "```", "## inner", "```", "````", "- tail", "## 0.9.0", "- old"].join("\n")
+    expect(releaseEntry(text).notes).toBe("````md\n```\n## inner\n```\n````\n- tail")
+  })
+
+  test("a fence line with an info string does not close the block", () => {
+    const text = ["## 1.0.0", "```", "```js", "## inner", "```", "- tail"].join("\n")
+    expect(releaseEntry(text).notes).toBe("```\n```js\n## inner\n```\n- tail")
+  })
+})

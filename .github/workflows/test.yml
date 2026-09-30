@@ -71,3 +71,12 @@ jobs:
         if: runner.os == 'Linux'
         working-directory: packages/client
         run: bun run check:generated
+
+      # Each release publishes the top section of its product's changelog, so catch a malformed
+      # heading or an empty section in review instead of when a release is dispatched.
+      - name: Validate changelogs
+        if: runner.os == 'Linux'
+        run: |
+          for f in packages/opencode/CHANGELOG.md packages/desktop/CHANGELOG.md sdks/vscode/CHANGELOG.md; do
+            bun ./packages/script/src/changelog.ts "$f"
+          done
