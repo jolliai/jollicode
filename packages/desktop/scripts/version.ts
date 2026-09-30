@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { $ } from "bun"
+import { Brand } from "@opencode-ai/core/brand"
 
 // Desktop versions are independent of the CLI and continue from the highest published
 // desktop-v* tag in the desktop releases repo.
@@ -38,6 +39,15 @@ export function staleDesktopDrafts(releases: Release[], tag: string) {
     .map((item) => item.tagName)
 }
 
+// The Windows WSL installer runs a published CLI release, so each desktop build pins the CLI that is
+// current on npm when it is built. The npm placeholder 0.0.0 means no CLI has been released yet.
+export function requireCliVersion(value: string) {
+  const version = value.trim()
+  if (!/^\d+\.\d+\.\d+$/.test(version) || version === "0.0.0")
+    throw new Error(`npm has no real ${Brand.npm} release ("${version}"); publish the CLI first`)
+  return version
+}
+
 function stripPrefix(value: string) {
   return value.replace(/^(desktop-)?v/, "")
 }
@@ -70,23 +80,20 @@ if (import.meta.main) {
   })
   const tag = `${TAG_PREFIX}${version}`
 
+  const cliVersion = requireCliVersion(await $`npm view ${Brand.npm} version`.text())
+
   const sha = process.env.GITHUB_SHA ?? (await $`git rev-parse HEAD`.text()).trim()
-  const notes = `Built from jolliai/jollicode@${sha}`
+  const notes = `Built from jolliai/jollicode@${sha}\nWSL installs CLI cli-v${cliVersion}`
   // A reused draft may come from an older commit, so its notes are refreshed to the commit being built.
-  if (
-    shouldReuseRelease(
-      tag,
-      releases.find((item) => item.tagName === tag),
-    )
-  )
-    await $`gh release edit ${tag} --notes ${notes} --repo ${repo}`
-  if (!releases.some((item) => item.tagName === tag))
-    await $`gh release create ${tag} -d --title ${`Jolli Code Desktop ${version}`} --notes ${notes} --repo ${repo}`
+  const existing = releases.find((item) => item.tagName === tag)
+  await (shouldReuseRelease(tag, existing)
+    ? $`gh release edit ${tag} --notes ${notes} --repo ${repo}`
+    : $`gh release create ${tag} -d --title ${`Jolli Code Desktop ${version}`} --notes ${notes} --repo ${repo}`)
   await Promise.all(
     staleDesktopDrafts(releases, tag).map((stale) => $`gh release delete ${stale} --yes --repo ${repo}`),
   )
 
-  const output = [`version=${version}`, `tag=${tag}`, `repo=${repo}`].join("\n")
+  const output = [`version=${version}`, `tag=${tag}`, `repo=${repo}`, `cli_version=${cliVersion}`].join("\n")
   console.log(output)
   if (process.env.GITHUB_OUTPUT) await Bun.write(process.env.GITHUB_OUTPUT, output)
 }

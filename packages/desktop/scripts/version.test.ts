@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test"
-import { latestDesktopTag, nextDesktopVersion, shouldReuseRelease, staleDesktopDrafts } from "./version"
+import {
+  latestDesktopTag,
+  nextDesktopVersion,
+  requireCliVersion,
+  shouldReuseRelease,
+  staleDesktopDrafts,
+} from "./version"
 
 const published = (tagName: string) => ({ tagName, isDraft: false, isPrerelease: false })
 
@@ -103,5 +109,16 @@ describe("staleDesktopDrafts", () => {
     expect(
       staleDesktopDrafts([{ tagName: "notes-draft", isDraft: true, isPrerelease: false }], "desktop-v1.0.0"),
     ).toEqual([])
+  })
+})
+
+describe("requireCliVersion", () => {
+  test("pins the published CLI version", () => {
+    expect(requireCliVersion("1.4.2\n")).toBe("1.4.2")
+  })
+
+  test("refuses to release before a real CLI is published", () => {
+    expect(() => requireCliVersion("0.0.0")).toThrow("publish the CLI first")
+    expect(() => requireCliVersion("")).toThrow("publish the CLI first")
   })
 })
