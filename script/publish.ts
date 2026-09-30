@@ -8,13 +8,16 @@ console.log("=== publishing ===\n")
 
 const dir = fileURLToPath(new URL("..", import.meta.url))
 process.chdir(dir)
-const tag = `v${Script.version}`
+const tag = Script.tag
 
+// The desktop app has its own version line (desktop-v*), so CLI releases must not stamp it.
 const pkgjsons = await Array.fromAsync(
   new Bun.Glob("**/package.json").scan({
     absolute: true,
   }),
-).then((arr) => arr.filter((x) => !x.includes("node_modules") && !x.includes("dist")))
+).then((arr) =>
+  arr.filter((x) => !x.includes("node_modules") && !x.includes("dist") && !x.includes("/packages/desktop/")),
+)
 
 async function prepareReleaseFiles() {
   for (const file of pkgjsons) {
@@ -41,11 +44,6 @@ await $`bun ./packages/opencode/script/publish.ts`
 // sdk, plugin, and ui are internal-only packages and are intentionally not
 // published to the public npm registry. They keep their @opencode-ai/*
 // workspace names as an internal contract; only the CLI is distributed.
-
-if (Script.release) {
-  await $`bun ./packages/desktop/scripts/finalize-latest-json.ts`
-  await $`bun ./packages/desktop/scripts/finalize-latest-yml.ts`
-}
 
 if (Script.release && !Script.preview) {
   await $`git commit -am "release: ${tag}"`
