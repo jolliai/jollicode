@@ -54,7 +54,7 @@ export const wslRuntimeRetryable = (runtime: WslServerRuntime) =>
 export function wslOpencodeAction(check?: WslOpencodeCheck) {
   if (!check) return
   if (!check.resolvedPath) return "wsl.onboarding.installOpencode"
-  if (check.matchesDesktop === false) return "wsl.onboarding.updateOpencode"
+  if (check.upToDate === false) return "wsl.onboarding.updateOpencode"
 }
 
 export function wslDistroReady(state: WslServersState | undefined, name: string) {
@@ -172,7 +172,7 @@ function addServerDistroStatus(input: {
     }
     return
   }
-  if (check.matchesDesktop === false) return { label: { key: "wsl.onboarding.updateOpencode" }, tone: "warning" }
+  if (check.upToDate === false) return { label: { key: "wsl.onboarding.updateOpencode" }, tone: "warning" }
   if (!check.resolvedPath) return { label: { key: "wsl.onboarding.distroStatus.opencodeMissing" }, tone: "warning" }
   if (check.error) return { label: { key: "wsl.onboarding.installOpencode" }, tone: "warning" }
   return { label: { key: "wsl.onboarding.distroStatus.ready" }, tone: "success" }
@@ -211,7 +211,7 @@ function addServerPrimaryButton(input: {
     }
   }
   if (!addServerOpencodeReady(input.opencodeCheck)) {
-    const update = !!input.opencodeCheck?.resolvedPath && input.opencodeCheck.matchesDesktop === false
+    const update = !!input.opencodeCheck?.resolvedPath && input.opencodeCheck.upToDate === false
     return {
       variant: "neutral",
       label: installingOpencode
@@ -236,7 +236,7 @@ function addServerPrimaryButton(input: {
 }
 
 function addServerOpencodeReady(check: WslOpencodeCheck | null) {
-  return !!check?.resolvedPath && check.matchesDesktop !== false && !check.error
+  return !!check?.resolvedPath && check.upToDate !== false && !check.error
 }
 
 function addServerSelectedDistroSettled(state: WslServersState | undefined, selectedDistro: string | null) {

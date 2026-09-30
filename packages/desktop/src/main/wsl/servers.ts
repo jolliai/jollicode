@@ -13,7 +13,12 @@ import type {
 } from "../../preload/types"
 import { WSL_SERVERS_KEY } from "../store-keys"
 import { getStore } from "../store"
-import { expectOpencodeVersion, pendingRestartAfterWslInstall, wslServerIdsToStartOnInitialize } from "./startup"
+import {
+  cliSatisfiesPin,
+  expectOpencodeVersion,
+  pendingRestartAfterWslInstall,
+  wslServerIdsToStartOnInitialize,
+} from "./startup"
 import { clearWslDistroState, wslServerIdToRestart } from "./policy"
 import { nativeT } from "../native-translations"
 import { Brand } from "@opencode-ai/app/brand"
@@ -477,7 +482,7 @@ function opencodeCheck(
       resolvedPath: null,
       version: null,
       expectedVersion,
-      matchesDesktop: null,
+      upToDate: null,
       error: nativeT("desktop.wsl.error.opencodeMissing"),
     }
   }
@@ -487,7 +492,7 @@ function opencodeCheck(
       resolvedPath,
       version: null,
       expectedVersion,
-      matchesDesktop: null,
+      upToDate: null,
       error: nativeT("desktop.wsl.error.opencodeCannotRun"),
     }
   }
@@ -496,7 +501,7 @@ function opencodeCheck(
     resolvedPath,
     version,
     expectedVersion,
-    matchesDesktop: version === expectedVersion,
+    upToDate: cliSatisfiesPin(version, expectedVersion),
     error: null,
   }
 }
