@@ -40,6 +40,24 @@ async function prepareReleaseFiles() {
   await $`./packages/sdk/js/script/build.ts`
 }
 
+// Stamps the released versions onto the tip of dev and pushes that commit. A PR merged into dev after
+// the fetch rejects the push as non-fast-forward. Stamping is deterministic, so each attempt restamps
+// the new tip instead of rebasing the old commit onto it, which could conflict on a version line.
+// Other rejections, such as a ruleset, fail at once.
+async function syncVersionsToDev() {
+  for (let attempt = 1; ; attempt++) {
+    await $`git fetch origin dev`
+    await $`git checkout -f -B dev origin/dev`
+    await prepareReleaseFiles()
+    await $`git commit -am "sync release versions for ${tag}"`
+    const push = await $`git push origin HEAD:dev --no-verify`.nothrow()
+    if (push.exitCode === 0) return
+    const stderr = push.stderr.toString()
+    if (attempt === 5 || !/non-fast-forward|fetch first/.test(stderr))
+      throw new Error(`failed to push the version sync to dev:\n${stderr}`)
+  }
+}
+
 if (Script.release && !Script.preview) {
   await $`git fetch origin --tags`
   await $`git switch --detach`
@@ -60,24 +78,7 @@ if (Script.release && !Script.preview) {
   await $`git tag ${tag}`
   await $`git push origin refs/tags/${tag} --force-with-lease --no-verify`
   await new Promise((resolve) => setTimeout(resolve, 5_000))
-  await $`git fetch origin`
-  await $`git checkout -B dev origin/dev`
-  await prepareReleaseFiles()
-  await $`git commit -am "sync release versions for ${tag}"`
-  await pushToDev()
-}
-
-// A PR merged into dev after the fetch rejects the push as non-fast-forward, so rebase onto the new
-// tip and try again. Other rejections, such as a ruleset, fail at once.
-async function pushToDev() {
-  for (let attempt = 1; ; attempt++) {
-    const push = await $`git push origin HEAD:dev --no-verify`.nothrow()
-    if (push.exitCode === 0) return
-    const stderr = push.stderr.toString()
-    if (attempt === 5 || !/non-fast-forward|fetch first/.test(stderr))
-      throw new Error(`failed to push the version sync to dev:\n${stderr}`)
-    await $`git pull --rebase origin dev`
-  }
+  await syncVersionsToDev()
 }
 
 if (Script.release) {
