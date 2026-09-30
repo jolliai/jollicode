@@ -32,6 +32,14 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'jolliai/jollicode'
     steps:
+      # Releases are cut from dev only, the same rule as the CLI: the source tag should always point at
+      # a commit dev contains, and the release should never ship code dev does not have.
+      - name: Require dev branch
+        if: github.ref != 'refs/heads/dev'
+        run: |
+          echo "::error::Desktop releases must be dispatched from dev (got $GITHUB_REF)"
+          exit 1
+
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
       - uses: ./.github/actions/setup-bun
