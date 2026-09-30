@@ -1,25 +1,13 @@
 name: publish-desktop
-run-name: "${{ format('release desktop {0}', inputs.version || inputs.bump) }}"
+run-name: release desktop
 
+# The release version is the top "## MAJOR.MINOR.PATCH" section of packages/desktop/CHANGELOG.md, and
+# that section becomes the release notes. Add it on dev before dispatching.
 on:
   workflow_dispatch:
-    inputs:
-      bump:
-        description: "Bump major, minor, or patch"
-        required: true
-        default: patch
-        type: choice
-        options:
-          - major
-          - minor
-          - patch
-      version:
-        description: "Override version (optional, MAJOR.MINOR.PATCH)"
-        required: false
-        type: string
 
-# One desktop release at a time: version.ts computes the next version from what is already published
-# and deletes other desktop drafts as leftovers, both of which assume no other run is in flight.
+# One desktop release at a time: version.ts checks the changelog version against what is already
+# published and deletes other desktop drafts as leftovers, both of which assume no other run is in flight.
 concurrency:
   group: publish-desktop
   cancel-in-progress: false
@@ -51,13 +39,16 @@ jobs:
           jollicode-app-id: ${{ vars.JOLLICODE_APP_ID }}
           jollicode-app-secret: ${{ secrets.JOLLICODE_APP_SECRET }}
 
+      - id: changelog
+        run: bun ./packages/script/src/changelog.ts packages/desktop/CHANGELOG.md "$RUNNER_TEMP/desktop-release-notes.md"
+
       - id: version
         run: bun ./packages/desktop/scripts/version.ts
         env:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
           GH_REPO: jolliai/jollicode-releases
-          DESKTOP_BUMP: ${{ inputs.bump }}
-          DESKTOP_VERSION: ${{ inputs.version }}
+          DESKTOP_VERSION: ${{ steps.changelog.outputs.version }}
+          RELEASE_NOTES_FILE: ${{ steps.changelog.outputs.notes }}
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}

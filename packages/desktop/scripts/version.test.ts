@@ -1,11 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import {
-  latestDesktopTag,
-  nextDesktopVersion,
-  requireCliVersion,
-  shouldReuseRelease,
-  staleDesktopDrafts,
-} from "./version"
+import { latestDesktopTag, releaseVersion, requireCliVersion, shouldReuseRelease, staleDesktopDrafts } from "./version"
 
 const published = (tagName: string) => ({ tagName, isDraft: false, isPrerelease: false })
 
@@ -35,43 +29,29 @@ describe("latestDesktopTag", () => {
   })
 })
 
-describe("nextDesktopVersion", () => {
-  test("bumps from 0.0.0 when there is no published desktop release", () => {
-    expect(nextDesktopVersion({ bump: "patch" })).toBe("0.0.1")
-    expect(nextDesktopVersion({ bump: "minor" })).toBe("0.1.0")
-    expect(nextDesktopVersion({ bump: "major" })).toBe("1.0.0")
+describe("releaseVersion", () => {
+  test("accepts any changelog version when there is no published desktop release", () => {
+    expect(releaseVersion({ version: "0.0.1" })).toBe("0.0.1")
+    expect(releaseVersion({ version: "1.0.0" })).toBe("1.0.0")
   })
 
-  test("bumps the latest desktop-v tag", () => {
-    expect(nextDesktopVersion({ latestTag: "desktop-v1.4.9", bump: "patch" })).toBe("1.4.10")
-    expect(nextDesktopVersion({ latestTag: "desktop-v1.4.9", bump: "minor" })).toBe("1.5.0")
-    expect(nextDesktopVersion({ latestTag: "desktop-v1.4.9", bump: "major" })).toBe("2.0.0")
+  test("accepts a changelog version newer than the latest desktop-v tag", () => {
+    expect(releaseVersion({ version: "1.4.10", latestTag: "desktop-v1.4.9" })).toBe("1.4.10")
+    expect(releaseVersion({ version: "2.0.0", latestTag: "desktop-v1.4.9" })).toBe("2.0.0")
   })
 
-  test("an explicit version wins over bump and accepts a tag-style prefix", () => {
-    expect(nextDesktopVersion({ latestTag: "desktop-v1.0.0", bump: "patch", override: "3.1.4" })).toBe("3.1.4")
-    expect(nextDesktopVersion({ bump: "patch", override: "v3.1.4" })).toBe("3.1.4")
-    expect(nextDesktopVersion({ bump: "patch", override: "desktop-v3.1.4" })).toBe("3.1.4")
-  })
-
-  test("rejects an explicit version that is not newer than the latest release", () => {
-    expect(() => nextDesktopVersion({ latestTag: "desktop-v1.5.0", bump: "patch", override: "1.2.0" })).toThrow(
+  test("rejects a changelog version that is not newer than the latest release", () => {
+    expect(() => releaseVersion({ version: "1.2.0", latestTag: "desktop-v1.5.0" })).toThrow(
       "not newer than the latest desktop release 1.5.0",
     )
-    expect(() => nextDesktopVersion({ latestTag: "desktop-v1.5.0", bump: "patch", override: "1.5.0" })).toThrow(
-      "not newer than the latest desktop release 1.5.0",
+    expect(() => releaseVersion({ version: "1.5.0", latestTag: "desktop-v1.5.0" })).toThrow(
+      "add a section for the new release",
     )
   })
 
   test("rejects versions that are not MAJOR.MINOR.PATCH", () => {
-    expect(() => nextDesktopVersion({ bump: "patch", override: "1.2" })).toThrow("not a MAJOR.MINOR.PATCH version")
-    expect(() => nextDesktopVersion({ bump: "patch", override: "1.2.0-beta.1" })).toThrow(
-      "not a MAJOR.MINOR.PATCH version",
-    )
-  })
-
-  test("rejects an unknown bump", () => {
-    expect(() => nextDesktopVersion({ bump: "huge" })).toThrow('Unknown bump "huge"')
+    expect(() => releaseVersion({ version: "1.2" })).toThrow("not a MAJOR.MINOR.PATCH version")
+    expect(() => releaseVersion({ version: "1.2.0-beta.1" })).toThrow("not a MAJOR.MINOR.PATCH version")
   })
 })
 
