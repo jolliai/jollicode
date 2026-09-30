@@ -71,9 +71,11 @@ function serialize(data: LatestYml) {
   return lines.join("\n") + "\n"
 }
 
-async function read(subdir: string, filename: string): Promise<LatestYml | undefined> {
+// Every build leg must reach this job, so a missing manifest would publish a Latest release that one
+// platform's clients can never update from.
+async function read(subdir: string, filename: string): Promise<LatestYml> {
   const file = Bun.file(path.join(dir, subdir, filename))
-  if (!(await file.exists())) return undefined
+  if (!(await file.exists())) throw new Error(`${subdir}/${filename} is missing`)
   const data = parse(await file.text())
   // electron-builder takes the version from package.json, which prepare.ts stamps per build leg. A leg
   // that missed the stamp would point every client at the wrong version, and clients allow downgrades.
@@ -87,34 +89,28 @@ const output: Record<string, string> = {}
 // Windows: merge arm64 + x64 into single file
 const winX64 = await read("latest-yml-x86_64-pc-windows-msvc", "latest.yml")
 const winArm64 = await read("latest-yml-aarch64-pc-windows-msvc", "latest.yml")
-if (winX64 || winArm64) {
-  const base = winArm64 ?? winX64!
-  output["latest.yml"] = serialize({
-    version: base.version,
-    files: [...(winArm64?.files ?? []), ...(winX64?.files ?? [])],
-    releaseDate: base.releaseDate,
-  })
-}
+output["latest.yml"] = serialize({
+  version: winArm64.version,
+  files: [...winArm64.files, ...winX64.files],
+  releaseDate: winArm64.releaseDate,
+})
 
 // Linux x64: pass through
-const linuxX64 = await read("latest-yml-x86_64-unknown-linux-gnu", "latest-linux.yml")
-if (linuxX64) output["latest-linux.yml"] = serialize(linuxX64)
+output["latest-linux.yml"] = serialize(await read("latest-yml-x86_64-unknown-linux-gnu", "latest-linux.yml"))
 
 // Linux arm64: pass through
-const linuxArm64 = await read("latest-yml-aarch64-unknown-linux-gnu", "latest-linux-arm64.yml")
-if (linuxArm64) output["latest-linux-arm64.yml"] = serialize(linuxArm64)
+output["latest-linux-arm64.yml"] = serialize(
+  await read("latest-yml-aarch64-unknown-linux-gnu", "latest-linux-arm64.yml"),
+)
 
 // macOS: merge arm64 + x64 into single file
 const macX64 = await read("latest-yml-x86_64-apple-darwin", "latest-mac.yml")
 const macArm64 = await read("latest-yml-aarch64-apple-darwin", "latest-mac.yml")
-if (macX64 || macArm64) {
-  const base = macArm64 ?? macX64!
-  output["latest-mac.yml"] = serialize({
-    version: base.version,
-    files: [...(macArm64?.files ?? []), ...(macX64?.files ?? [])],
-    releaseDate: base.releaseDate,
-  })
-}
+output["latest-mac.yml"] = serialize({
+  version: macArm64.version,
+  files: [...macArm64.files, ...macX64.files],
+  releaseDate: macArm64.releaseDate,
+})
 
 // Upload to release
 const tmp = process.env.RUNNER_TEMP ?? "/tmp"
