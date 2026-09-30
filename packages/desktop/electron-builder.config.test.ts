@@ -65,7 +65,12 @@ test("publishes desktop releases to the jolliai releases repos", async () => {
     repo: "jollicode-releases-beta",
     channel: "latest",
   })
-  expect(prodConfig.publish).toEqual({ provider: "github", owner: "jolliai", repo: "jollicode-releases", channel: "latest" })
+  expect(prodConfig.publish).toEqual({
+    provider: "github",
+    owner: "jolliai",
+    repo: "jollicode-releases",
+    channel: "latest",
+  })
 })
 
 test("rpm packageName matches the Jolli brand per channel", async () => {
