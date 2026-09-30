@@ -87,6 +87,15 @@ describe("installation", () => {
         }),
     )
 
+    testEffect(testLayer(() => jsonResponse({ tag_name: "cli-v1.2.3" }))).effect(
+      "strips the cli-v prefix from GitHub release tag",
+      () =>
+        Effect.gen(function* () {
+          const result = yield* Installation.use.latest("curl")
+          expect(result).toBe("1.2.3")
+        }),
+    )
+
     const npmCalls: string[] = []
     testEffect(
       testLayer((request) => {

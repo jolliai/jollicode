@@ -182,22 +182,23 @@ else
 
     if [ -z "$requested_version" ]; then
         url="https://github.com/jolliai/jollicode/releases/latest/download/$filename"
-        specific_version=$(curl -s https://api.github.com/repos/jolliai/jollicode/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
+        specific_version=$(curl -s https://api.github.com/repos/jolliai/jollicode/releases/latest | sed -n 's/.*"tag_name": *"cli-v\([^"]*\)".*/\1/p')
 
         if [[ $? -ne 0 || -z "$specific_version" ]]; then
             echo -e "${RED}Failed to fetch version information${NC}"
             exit 1
         fi
     else
-        # Strip leading 'v' if present
+        # Accept 1.2.3, v1.2.3, or the full cli-v1.2.3 tag
+        requested_version="${requested_version#cli-}"
         requested_version="${requested_version#v}"
-        url="https://github.com/jolliai/jollicode/releases/download/v${requested_version}/$filename"
+        url="https://github.com/jolliai/jollicode/releases/download/cli-v${requested_version}/$filename"
         specific_version=$requested_version
 
         # Verify the release exists before downloading
-        http_status=$(curl -sI -o /dev/null -w "%{http_code}" "https://github.com/jolliai/jollicode/releases/tag/v${requested_version}")
+        http_status=$(curl -sI -o /dev/null -w "%{http_code}" "https://github.com/jolliai/jollicode/releases/tag/cli-v${requested_version}")
         if [ "$http_status" = "404" ]; then
-            echo -e "${RED}Error: Release v${requested_version} not found${NC}"
+            echo -e "${RED}Error: Release cli-v${requested_version} not found${NC}"
             echo -e "${MUTED}Available releases: https://github.com/jolliai/jollicode/releases${NC}"
             exit 1
         fi
