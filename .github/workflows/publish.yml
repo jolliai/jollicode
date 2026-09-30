@@ -1,24 +1,12 @@
 name: publish-cli
-run-name: "${{ format('release cli {0}', inputs.version || inputs.bump) }}"
+run-name: release cli
 
+# The release version is the top "## MAJOR.MINOR.PATCH" section of packages/opencode/CHANGELOG.md, and
+# that section becomes the release notes. Add it on dev before dispatching.
 on:
   workflow_dispatch:
-    inputs:
-      bump:
-        description: "Bump major, minor, or patch"
-        required: true
-        default: patch
-        type: choice
-        options:
-          - major
-          - minor
-          - patch
-      version:
-        description: "Override version (optional)"
-        required: false
-        type: string
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.version || inputs.bump }}
+concurrency: ${{ github.workflow }}
 
 permissions:
   id-token: write
@@ -51,13 +39,16 @@ jobs:
           jollicode-app-id: ${{ vars.JOLLICODE_APP_ID }}
           jollicode-app-secret: ${{ secrets.JOLLICODE_APP_SECRET }}
 
+      - id: changelog
+        run: bun ./packages/script/src/changelog.ts packages/opencode/CHANGELOG.md "$RUNNER_TEMP/cli-release-notes.md"
+
       - id: version
         run: |
           ./script/version.ts
         env:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
-          OPENCODE_BUMP: ${{ inputs.bump }}
-          OPENCODE_VERSION: ${{ inputs.version }}
+          OPENCODE_VERSION: ${{ steps.changelog.outputs.version }}
+          RELEASE_NOTES_FILE: ${{ steps.changelog.outputs.notes }}
           GH_REPO: ${{ github.repository }}
     outputs:
       version: ${{ steps.version.outputs.version }}
