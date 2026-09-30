@@ -16,10 +16,9 @@ export function latestDesktopTag(releases: Release[]) {
 }
 
 export function nextDesktopVersion(input: { latestTag?: string; bump: string; override?: string }) {
-  if (input.override) return requireVersion(stripPrefix(input.override))
-  const [major, minor, patch] = (input.latestTag ? requireVersion(stripPrefix(input.latestTag)) : "0.0.0")
-    .split(".")
-    .map(Number)
+  const latest = input.latestTag ? requireVersion(stripPrefix(input.latestTag)) : "0.0.0"
+  if (input.override) return requireNewer(requireVersion(stripPrefix(input.override)), latest)
+  const [major, minor, patch] = latest.split(".").map(Number)
   if (input.bump === "major") return `${major + 1}.0.0`
   if (input.bump === "minor") return `${major}.${minor + 1}.0`
   if (input.bump === "patch") return `${major}.${minor}.${patch + 1}`
@@ -34,6 +33,13 @@ export function shouldReuseRelease(tag: string, release: { isDraft: boolean } | 
 
 function stripPrefix(value: string) {
   return value.replace(/^(desktop-)?v/, "")
+}
+
+// Prod clients set allowDowngrade, so publishing a lower version as Latest would roll every install back.
+function requireNewer(version: string, latest: string) {
+  if (Bun.semver.order(version, latest) <= 0)
+    throw new Error(`${version} is not newer than the latest desktop release ${latest}`)
+  return version
 }
 
 function requireVersion(value: string) {

@@ -48,6 +48,15 @@ describe("nextDesktopVersion", () => {
     expect(nextDesktopVersion({ bump: "patch", override: "desktop-v3.1.4" })).toBe("3.1.4")
   })
 
+  test("rejects an explicit version that is not newer than the latest release", () => {
+    expect(() => nextDesktopVersion({ latestTag: "desktop-v1.5.0", bump: "patch", override: "1.2.0" })).toThrow(
+      "not newer than the latest desktop release 1.5.0",
+    )
+    expect(() => nextDesktopVersion({ latestTag: "desktop-v1.5.0", bump: "patch", override: "1.5.0" })).toThrow(
+      "not newer than the latest desktop release 1.5.0",
+    )
+  })
+
   test("rejects versions that are not MAJOR.MINOR.PATCH", () => {
     expect(() => nextDesktopVersion({ bump: "patch", override: "1.2" })).toThrow("not a MAJOR.MINOR.PATCH version")
     expect(() => nextDesktopVersion({ bump: "patch", override: "1.2.0-beta.1" })).toThrow(
