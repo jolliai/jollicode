@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-BUMP_TYPE=${1:-patch}
+TARGET=${1:-}
+BUMP_TYPE=${2:-patch}
 
-gh workflow run publish.yml -f bump="$BUMP_TYPE"
+case "$TARGET" in
+  cli) gh workflow run publish.yml -f bump="$BUMP_TYPE" ;;
+  desktop) gh workflow run publish-desktop.yml -f bump="$BUMP_TYPE" ;;
+  *)
+    echo "usage: script/release <cli|desktop> [major|minor|patch]" >&2
+    exit 1
+    ;;
+esac
