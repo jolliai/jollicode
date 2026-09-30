@@ -58,6 +58,10 @@ export const Script = {
   get version() {
     return VERSION
   },
+  // CLI releases use their own tag prefix; desktop releases are tagged desktop-v* separately.
+  get tag() {
+    return `cli-v${VERSION}`
+  },
   get preview() {
     return IS_PREVIEW
   },
