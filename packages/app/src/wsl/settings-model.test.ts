@@ -45,7 +45,7 @@ describe("WSL server settings presentation", () => {
         resolvedPath: null,
         version: null,
         expectedVersion: "1.2.3",
-        matchesDesktop: null,
+        upToDate: null,
         error: null,
       }),
     ).toBe("wsl.onboarding.installOpencode")
@@ -55,7 +55,7 @@ describe("WSL server settings presentation", () => {
         resolvedPath: "/usr/local/bin/opencode",
         version: "1.2.2",
         expectedVersion: "1.2.3",
-        matchesDesktop: false,
+        upToDate: false,
         error: null,
       }),
     ).toBe("wsl.onboarding.updateOpencode")
@@ -65,7 +65,7 @@ describe("WSL server settings presentation", () => {
         resolvedPath: "/usr/local/bin/opencode",
         version: "1.2.3",
         expectedVersion: "1.2.3",
-        matchesDesktop: true,
+        upToDate: true,
         error: null,
       }),
     ).toBeUndefined()
@@ -194,7 +194,7 @@ describe("WSL server settings presentation", () => {
             resolvedPath: "/home/me/.opencode/bin/opencode",
             version: null,
             expectedVersion: "1.2.3",
-            matchesDesktop: null,
+            upToDate: null,
             error: "opencode is installed but could not run",
           },
         },

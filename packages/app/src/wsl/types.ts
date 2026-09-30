@@ -28,7 +28,7 @@ export type WslOpencodeCheck = {
   resolvedPath: string | null
   version: string | null
   expectedVersion: string | null
-  matchesDesktop: boolean | null
+  upToDate: boolean | null
   error: string | null
 }
 

@@ -7,6 +7,7 @@ import {
   wslTerminalArgs,
 } from "./policy"
 import {
+  cliSatisfiesPin,
   expectOpencodeVersion,
   pendingRestartAfterWslInstall,
   pollWslHealth,
@@ -26,7 +27,17 @@ test("starts every configured WSL server on initialization", () => {
   ).toEqual(["wsl:Debian", "wsl:Ubuntu-24.04"])
 })
 
-test("rejects an update that did not install the desktop version", () => {
+test("accepts a CLI at or above the pinned version", () => {
+  expect(cliSatisfiesPin("1.16.2", "1.16.2")).toBe(true)
+  expect(cliSatisfiesPin("1.17.0", "1.16.2")).toBe(true)
+  expect(cliSatisfiesPin("2.0.0", "1.16.2")).toBe(true)
+  expect(cliSatisfiesPin("1.16.1", "1.16.2")).toBe(false)
+  expect(cliSatisfiesPin("1.9.9", "1.16.2")).toBe(false)
+  expect(cliSatisfiesPin("0.0.0-dev-202609300000", "1.16.2")).toBe(false)
+  expect(cliSatisfiesPin("local", "1.16.2")).toBe(false)
+})
+
+test("rejects an update that did not install the pinned CLI version", () => {
   expect(() => expectOpencodeVersion("1.16.2", "1.16.2")).not.toThrow()
   expect(() => expectOpencodeVersion("1.14.35", "1.16.2")).toThrow(
     "Jolli Code update finished but Debian still reports 1.14.35; expected 1.16.2",
@@ -58,7 +69,7 @@ test("clears cached distro probes when removing a WSL server", () => {
           resolvedPath: "/home/luke/.jollicode/bin/jollicode",
           version: "1.16.2",
           expectedVersion: "1.16.2",
-          matchesDesktop: true,
+          upToDate: true,
           error: null,
         },
       },
