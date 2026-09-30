@@ -64,7 +64,20 @@ if (Script.release && !Script.preview) {
   await $`git checkout -B dev origin/dev`
   await prepareReleaseFiles()
   await $`git commit -am "sync release versions for ${tag}"`
-  await $`git push origin HEAD:dev --no-verify`
+  await pushToDev()
+}
+
+// A PR merged into dev after the fetch rejects the push as non-fast-forward, so rebase onto the new
+// tip and try again. Other rejections, such as a ruleset, fail at once.
+async function pushToDev() {
+  for (let attempt = 1; ; attempt++) {
+    const push = await $`git push origin HEAD:dev --no-verify`.nothrow()
+    if (push.exitCode === 0) return
+    const stderr = push.stderr.toString()
+    if (attempt === 5 || !/non-fast-forward|fetch first/.test(stderr))
+      throw new Error(`failed to push the version sync to dev:\n${stderr}`)
+    await $`git pull --rebase origin dev`
+  }
 }
 
 if (Script.release) {
