@@ -2,8 +2,8 @@
 import { $ } from "bun"
 import { Brand } from "@opencode-ai/core/brand"
 
-// Desktop versions are independent of the CLI and continue from the highest published
-// desktop-v* tag in the desktop releases repo.
+// Desktop versions are independent of the CLI. The version is the top "## MAJOR.MINOR.PATCH" section of
+// packages/desktop/CHANGELOG.md, and it must be newer than the highest published desktop-v* tag.
 const TAG_PREFIX = "desktop-v"
 const DESKTOP_TAG = /^desktop-v\d+\.\d+\.\d+$/
 
@@ -16,19 +16,15 @@ export function latestDesktopTag(releases: Release[]) {
     .sort((a, b) => Bun.semver.order(stripPrefix(b), stripPrefix(a)))[0]
 }
 
-export function nextDesktopVersion(input: { latestTag?: string; bump: string; override?: string }) {
+export function releaseVersion(input: { version: string; latestTag?: string }) {
   const latest = input.latestTag ? requireVersion(stripPrefix(input.latestTag)) : "0.0.0"
-  if (input.override) return requireNewer(requireVersion(stripPrefix(input.override)), latest)
-  const [major, minor, patch] = latest.split(".").map(Number)
-  if (input.bump === "major") return `${major + 1}.0.0`
-  if (input.bump === "minor") return `${major}.${minor + 1}.0`
-  if (input.bump === "patch") return `${major}.${minor}.${patch + 1}`
-  throw new Error(`Unknown bump "${input.bump}"; expected major, minor, or patch`)
+  return requireNewer(requireVersion(input.version), latest)
 }
 
 export function shouldReuseRelease(tag: string, release: { isDraft: boolean } | undefined) {
   if (!release) return false
-  if (!release.isDraft) throw new Error(`${tag} is already published; pass a newer version`)
+  if (!release.isDraft)
+    throw new Error(`${tag} is already published; add a newer section to packages/desktop/CHANGELOG.md`)
   return true
 }
 
@@ -55,7 +51,9 @@ function stripPrefix(value: string) {
 // Prod clients set allowDowngrade, so publishing a lower version as Latest would roll every install back.
 function requireNewer(version: string, latest: string) {
   if (Bun.semver.order(version, latest) <= 0)
-    throw new Error(`${version} is not newer than the latest desktop release ${latest}`)
+    throw new Error(
+      `packages/desktop/CHANGELOG.md names ${version}, which is not newer than the latest desktop release ${latest}; add a section for the new release`,
+    )
   return version
 }
 
@@ -73,17 +71,22 @@ if (import.meta.main) {
   const releases: Release[] =
     await $`gh release list --repo ${repo} --json tagName,isDraft,isPrerelease --limit 1000`.json()
 
-  const version = nextDesktopVersion({
-    latestTag: latestDesktopTag(releases),
-    bump: process.env.DESKTOP_BUMP || "patch",
-    override: process.env.DESKTOP_VERSION || undefined,
-  })
+  const changelogVersion = process.env.DESKTOP_VERSION
+  if (!changelogVersion) throw new Error("DESKTOP_VERSION is required")
+  const notesFile = process.env.RELEASE_NOTES_FILE
+  if (!notesFile) throw new Error("RELEASE_NOTES_FILE is required")
+  const version = releaseVersion({ version: changelogVersion, latestTag: latestDesktopTag(releases) })
   const tag = `${TAG_PREFIX}${version}`
 
   const cliVersion = requireCliVersion(await $`npm view ${Brand.npm} version`.text())
 
   const sha = process.env.GITHUB_SHA ?? (await $`git rev-parse HEAD`.text()).trim()
-  const notes = `Built from jolliai/jollicode@${sha}\nWSL installs CLI cli-v${cliVersion}`
+  const notes = [
+    (await Bun.file(notesFile).text()).trim(),
+    "---",
+    `Built from jolliai/jollicode@${sha}`,
+    `WSL installs CLI cli-v${cliVersion}`,
+  ].join("\n\n")
   // A reused draft may come from an older commit, so its notes are refreshed to the commit being built.
   const existing = releases.find((item) => item.tagName === tag)
   await (shouldReuseRelease(tag, existing)
