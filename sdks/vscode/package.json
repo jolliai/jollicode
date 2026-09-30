@@ -2,7 +2,7 @@
   "name": "jollicode",
   "displayName": "Jolli Code",
   "description": "Jolli Code for VS Code",
-  "version": "1.18.31",
+  "version": "0.0.1",
   "publisher": "Jolli",
   "repository": {
     "type": "git",

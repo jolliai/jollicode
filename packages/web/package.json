@@ -2,7 +2,7 @@
   "name": "@opencode-ai/web",
   "type": "module",
   "license": "UNLICENSED",
-  "version": "1.18.31",
+  "version": "0.0.1",
   "scripts": {
     "dev": "astro dev",
     "dev:remote": "VITE_API_URL=https://api.jolli.ai astro dev",
