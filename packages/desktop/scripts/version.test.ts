@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { latestDesktopTag, nextDesktopVersion, shouldReuseRelease } from "./version"
+import { latestDesktopTag, nextDesktopVersion, shouldReuseRelease, staleDesktopDrafts } from "./version"
 
 const published = (tagName: string) => ({ tagName, isDraft: false, isPrerelease: false })
 
@@ -82,5 +82,26 @@ describe("shouldReuseRelease", () => {
     expect(() => shouldReuseRelease("desktop-v1.0.0", { isDraft: false })).toThrow(
       "desktop-v1.0.0 is already published",
     )
+  })
+})
+
+describe("staleDesktopDrafts", () => {
+  test("lists desktop drafts left by earlier failed runs, except the one being released", () => {
+    expect(
+      staleDesktopDrafts(
+        [
+          { tagName: "desktop-v1.0.2", isDraft: true, isPrerelease: false },
+          { tagName: "desktop-v1.1.0", isDraft: true, isPrerelease: false },
+          published("desktop-v1.0.1"),
+        ],
+        "desktop-v1.1.0",
+      ),
+    ).toEqual(["desktop-v1.0.2"])
+  })
+
+  test("leaves drafts that are not desktop releases alone", () => {
+    expect(
+      staleDesktopDrafts([{ tagName: "notes-draft", isDraft: true, isPrerelease: false }], "desktop-v1.0.0"),
+    ).toEqual([])
   })
 })

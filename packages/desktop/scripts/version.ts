@@ -31,6 +31,13 @@ export function shouldReuseRelease(tag: string, release: { isDraft: boolean } | 
   return true
 }
 
+// The workflow serializes desktop releases, so any other desktop draft was left by an earlier failed run.
+export function staleDesktopDrafts(releases: Release[], tag: string) {
+  return releases
+    .filter((item) => item.isDraft && item.tagName !== tag && DESKTOP_TAG.test(item.tagName))
+    .map((item) => item.tagName)
+}
+
 function stripPrefix(value: string) {
   return value.replace(/^(desktop-)?v/, "")
 }
@@ -63,10 +70,21 @@ if (import.meta.main) {
   })
   const tag = `${TAG_PREFIX}${version}`
 
-  if (!shouldReuseRelease(tag, releases.find((item) => item.tagName === tag))) {
-    const sha = process.env.GITHUB_SHA ?? (await $`git rev-parse HEAD`.text()).trim()
-    await $`gh release create ${tag} -d --title ${`Jolli Code Desktop ${version}`} --notes ${`Built from jolliai/jollicode@${sha}`} --repo ${repo}`
-  }
+  const sha = process.env.GITHUB_SHA ?? (await $`git rev-parse HEAD`.text()).trim()
+  const notes = `Built from jolliai/jollicode@${sha}`
+  // A reused draft may come from an older commit, so its notes are refreshed to the commit being built.
+  if (
+    shouldReuseRelease(
+      tag,
+      releases.find((item) => item.tagName === tag),
+    )
+  )
+    await $`gh release edit ${tag} --notes ${notes} --repo ${repo}`
+  if (!releases.some((item) => item.tagName === tag))
+    await $`gh release create ${tag} -d --title ${`Jolli Code Desktop ${version}`} --notes ${notes} --repo ${repo}`
+  await Promise.all(
+    staleDesktopDrafts(releases, tag).map((stale) => $`gh release delete ${stale} --yes --repo ${repo}`),
+  )
 
   const output = [`version=${version}`, `tag=${tag}`, `repo=${repo}`].join("\n")
   console.log(output)
