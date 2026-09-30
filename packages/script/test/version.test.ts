@@ -3,7 +3,7 @@ import path from "path"
 
 // Script resolves its version once at import time from the environment, so each case imports it
 // in a fresh process.
-function resolve(version: string) {
+function resolve(version: string, bump = "") {
   const entry = JSON.stringify(path.join(import.meta.dir, "../src/index.ts"))
   const result = Bun.spawnSync(
     [
@@ -11,7 +11,7 @@ function resolve(version: string) {
       "-e",
       `const { Script } = await import(${entry}); console.log("RESULT " + JSON.stringify({ version: Script.version, tag: Script.tag }))`,
     ],
-    { env: { ...process.env, OPENCODE_VERSION: version, OPENCODE_BUMP: "" } },
+    { env: { ...process.env, OPENCODE_VERSION: version, OPENCODE_BUMP: bump } },
   )
   const line = result.stdout
     .toString()
@@ -38,5 +38,11 @@ describe("Script version override", () => {
     const result = resolve("1.2")
     expect(result.exitCode).not.toBe(0)
     expect(result.stderr).toContain('OPENCODE_VERSION "1.2" is not a valid semver version')
+  })
+
+  test("refuses to release a preview version", () => {
+    const result = resolve("0.0.0-dev-202609300301", "patch")
+    expect(result.exitCode).not.toBe(0)
+    expect(result.stderr).toContain('"0.0.0-dev-202609300301" is a preview version and cannot be released')
   })
 })

@@ -26,6 +26,10 @@ const env = {
 }
 const CHANNEL = await (async () => {
   if (env.OPENCODE_CHANNEL) return env.OPENCODE_CHANNEL
+  // A bump means a release run, but later jobs only see OPENCODE_VERSION and would treat a 0.0.0-*
+  // override as a preview; stop here rather than create a release the rest of the run disagrees on.
+  if (env.OPENCODE_BUMP && env.OPENCODE_VERSION?.startsWith("0.0.0-"))
+    throw new Error(`OPENCODE_VERSION "${env.OPENCODE_VERSION}" is a preview version and cannot be released`)
   if (env.OPENCODE_BUMP) return "latest"
   if (env.OPENCODE_VERSION && !env.OPENCODE_VERSION.startsWith("0.0.0-")) return "latest"
   return await $`git branch --show-current`.text().then((x) => x.trim())
