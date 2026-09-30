@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TARGET=${1:-}
-BUMP_TYPE=${2:-patch}
-
-case "$TARGET" in
-  cli) gh workflow run publish.yml -f bump="$BUMP_TYPE" ;;
-  desktop) gh workflow run publish-desktop.yml -f bump="$BUMP_TYPE" ;;
+# Each release publishes the top "## MAJOR.MINOR.PATCH" section of that product's CHANGELOG.md on dev.
+case "${1:-}" in
+  cli) gh workflow run publish.yml --ref dev ;;
+  desktop) gh workflow run publish-desktop.yml --ref dev ;;
+  vscode) gh workflow run publish-vscode.yml --ref dev ;;
   *)
-    echo "usage: script/release <cli|desktop> [major|minor|patch]" >&2
+    echo "usage: script/release <cli|desktop|vscode>" >&2
+    echo "  versions come from packages/opencode, packages/desktop, or sdks/vscode CHANGELOG.md" >&2
     exit 1
     ;;
 esac
