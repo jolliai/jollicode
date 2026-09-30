@@ -20,9 +20,18 @@ fi
 # package-marketplace
 vsce package --no-git-tag-version --no-update-package-json --no-dependencies --skip-license -o dist/jollicode.vsix "$VERSION"
 
-# A rerun after one marketplace succeeded skips it instead of failing on the duplicate version.
-# publish-marketplace
-vsce publish --skip-duplicate --packagePath dist/jollicode.vsix
+# A rerun after one marketplace succeeded skips it instead of failing on the duplicate version. Both
+# tools only log the skip, so raise it as a warning: a skip on a fresh release means nothing was published.
+publish_to() {
+    local name=$1
+    shift
+    local log
+    log=$(mktemp)
+    "$@" 2>&1 | tee "$log"
+    if grep -q "is already published. Skipping publish." "$log"; then
+        echo "::warning::$name already has $VERSION, so this run did not publish it there"
+    fi
+}
 
-# publish-openvsx
-npx ovsx publish dist/jollicode.vsix --skip-duplicate -p "$OPENVSX_TOKEN"
+publish_to "VS Code Marketplace" vsce publish --skip-duplicate --packagePath dist/jollicode.vsix
+publish_to "Open VSX" npx ovsx publish dist/jollicode.vsix --skip-duplicate -p "$OPENVSX_TOKEN"
