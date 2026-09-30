@@ -282,12 +282,15 @@ jobs:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
           TAG: ${{ needs.version.outputs.tag }}
         run: |
-          existing=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null || true)
-          if [ -z "$existing" ]; then
+          # Branch on gh's exit status, not its output: on a 404, gh skips --jq and prints the error
+          # body to stdout. Any other lookup failure falls through to the create call, which fails loudly.
+          if existing=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null); then
+            if [ "$existing" != "$GITHUB_SHA" ]; then
+              echo "::error::$TAG already points at $existing, not $GITHUB_SHA; delete that tag or dispatch a newer version"
+              exit 1
+            fi
+          else
             gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA"
-          elif [ "$existing" != "$GITHUB_SHA" ]; then
-            echo "::error::$TAG already points at $existing, not $GITHUB_SHA"
-            exit 1
           fi
 
       # electron-updater resolves updates only through /releases/latest; mark it explicitly rather
