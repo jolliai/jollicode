@@ -56,9 +56,9 @@ async function finalize(input: { macArm64Version?: string; skip?: string } = {})
 }
 
 test("refuses to upload a manifest whose version does not match the release tag", async () => {
-  const result = await finalize({ macArm64Version: "1.18.31" })
+  const result = await finalize({ macArm64Version: "0.0.0" })
   expect(result.exitCode).not.toBe(0)
-  expect(result.stderr).toContain("latest-mac.yml has version 1.18.31, expected 0.0.2")
+  expect(result.stderr).toContain("latest-mac.yml has version 0.0.0, expected 0.0.2")
   expect(result.stdout).not.toContain("gh release upload")
 })
 
