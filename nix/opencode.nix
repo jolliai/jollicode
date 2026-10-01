@@ -100,9 +100,9 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   };
 
   meta = {
-    description = "The open source coding agent";
+    description = "The Jolli AI coding agent";
     homepage = "https://jolli.ai";
-    license = lib.licenses.mit;
+    license = lib.licenses.unfree;
     mainProgram = "opencode";
     inherit (node_modules.meta) platforms;
   };

@@ -1,13 +1,13 @@
 <p align="center">
   <a href="https://jolli.ai">
     <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Jolli Code logo">
+      <source srcset="packages/identity/jolli-logo-dark.svg" media="(prefers-color-scheme: dark)">
+      <source srcset="packages/identity/jolli-logo-light.svg" media="(prefers-color-scheme: light)">
+      <img src="packages/identity/jolli-logo-light.svg" alt="Jolli Code logo">
     </picture>
   </a>
 </p>
-<p align="center">El agente de programación con IA de código abierto.</p>
+<p align="center">El agente de programación con IA de Jolli.</p>
 <p align="center">
   <a href="https://www.npmjs.com/package/@jolli.ai/jollicode"><img alt="npm" src="https://img.shields.io/npm/v/@jolli.ai/jollicode?style=flat-square" /></a>
   <a href="https://github.com/jolliai/jollicode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/jolliai/jollicode/publish.yml?style=flat-square&branch=dev" /></a>
@@ -38,39 +38,22 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Jolli Code Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://jolli.ai)
-
 ---
 
 ### Instalación
 
 ```bash
-# YOLO
-curl -fsSL https://jolli.ai/install | bash
-
-# Gestores de paquetes
 npm i -g @jolli.ai/jollicode@latest # o bun/pnpm/yarn
-brew install jolliai/tap/jollicode # macOS y Linux (recomendado, siempre al día)
-paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 ```
-
-> [!TIP]
-> Elimina versiones anteriores a 0.1.x antes de instalar.
 
 ### App de escritorio (BETA)
 
-Jolli Code también está disponible como aplicación de escritorio. Descárgala directamente desde la [página de releases](https://github.com/jolliai/jollicode-releases/releases) o desde [jolli.ai/download](https://jolli.ai/download).
+Jolli Code también está disponible como aplicación de escritorio. Descárgala directamente desde la [página de releases](https://github.com/jolliai/jollicode-releases/releases).
 
 | Plataforma            | Descarga                           |
 | --------------------- | ---------------------------------- |
 | macOS (Apple Silicon) | `jollicode-desktop-mac-arm64.dmg`  |
 | macOS (Intel)         | `jollicode-desktop-mac-x64.dmg`    |
-| Windows               | `jollicode-desktop-win-x64.exe`    |
-| Linux                 | `.deb`, `.rpm`, o AppImage         |
-
-#### Directorio de instalación
-
-El script de instalación instala en `$HOME/.jollicode/bin`.
 
 ### Agentes
 
@@ -84,12 +67,6 @@ Jolli Code incluye dos agentes integrados que puedes alternar con la tecla `Tab`
 
 Además, incluye un subagente **general** para búsquedas complejas y tareas de varios pasos.
 Se usa internamente y se puede invocar con `@general` en los mensajes.
-
-Más información sobre [agentes](https://jolli.ai/docs/agents).
-
-### Documentación
-
-Para más información sobre cómo configurar Jolli Code, [**ve a nuestra documentación**](https://jolli.ai/docs).
 
 ### Proyectos basados en Jolli Code
 

@@ -488,7 +488,7 @@ describe("JolliSession", () => {
   })
 
   test("an injected credential outranks the database", async () => {
-    // The development affordance `jolli/DEV.md` documents. Nothing the product ships sets these.
+    // The development override for a hand-started server. Nothing the product ships sets these.
     process.env["JOLLICODE_JOLLI_TOKEN"] = "injected"
     process.env["JOLLICODE_JOLLI_BASE_URL"] = TENANT
     const seen = stubRefresh(async () => Response.json({}))

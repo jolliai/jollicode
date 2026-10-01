@@ -4,7 +4,7 @@ A Visual Studio Code extension that integrates [Jolli Code](https://jolli.ai) di
 
 ## Prerequisites
 
-This extension requires the [Jolli Code CLI](https://jolli.ai) to be installed on your system. Visit [jolli.ai](https://jolli.ai) for installation instructions.
+This extension requires the [Jolli Code CLI](https://github.com/jolliai/jollicode) to be installed on your system. Install it from npm with `npm i -g @jolli.ai/jollicode@latest`.
 
 ## Features
 

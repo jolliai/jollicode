@@ -53,7 +53,7 @@ describe("createSidecarEnv", () => {
     /**
      * ⚠ THIS SCRUB IS PERMANENT, NOT TRANSITIONAL. `preferAppEnv` sources the student's login shell
      * into `process.env`, and `jolli/session.ts` still honours `JOLLICODE_JOLLI_TOKEN` as the
-     * development override `jolli/DEV.md` documents — so without this, a line in `~/.zshrc` would
+     * development override for a hand-started server — so without this, a line in `~/.zshrc` would
      * decide which account this app acts as. `DB` is the same hole one layer down: the database is
      * the credential store and the lockdown's source of truth now.
      */

@@ -1,13 +1,13 @@
 <p align="center">
   <a href="https://jolli.ai">
     <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Jolli Code logo">
+      <source srcset="packages/identity/jolli-logo-dark.svg" media="(prefers-color-scheme: dark)">
+      <source srcset="packages/identity/jolli-logo-light.svg" media="(prefers-color-scheme: light)">
+      <img src="packages/identity/jolli-logo-light.svg" alt="Jolli Code logo">
     </picture>
   </a>
 </p>
-<p align="center">ওপেন সোর্স এআই কোডিং এজেন্ট।</p>
+<p align="center">Jolli এআই কোডিং এজেন্ট।</p>
 <p align="center">
   <a href="https://www.npmjs.com/package/@jolli.ai/jollicode"><img alt="npm" src="https://img.shields.io/npm/v/@jolli.ai/jollicode?style=flat-square" /></a>
   <a href="https://github.com/jolliai/jollicode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/jolliai/jollicode/publish.yml?style=flat-square&branch=dev" /></a>
@@ -38,39 +38,22 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Jolli Code Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://jolli.ai)
-
 ---
 
 ### ইনস্টলেশন (Installation)
 
 ```bash
-# YOLO
-curl -fsSL https://jolli.ai/install | bash
-
-# Package managers
 npm i -g @jolli.ai/jollicode@latest # or bun/pnpm/yarn
-brew install jolliai/tap/jollicode # macOS and Linux (recommended, always up to date)
-paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 ```
-
-> [!TIP]
-> ইনস্টল করার আগে ০.১.x এর চেয়ে পুরোনো ভার্সনগুলো মুছে ফেলুন।
 
 ### ডেস্কটপ অ্যাপ (BETA)
 
-Jolli Code ডেস্কটপ অ্যাপ্লিকেশন হিসেবেও উপলব্ধ। সরাসরি [রিলিজ পেজ](https://github.com/jolliai/jollicode-releases/releases) অথবা [jolli.ai/download](https://jolli.ai/download) থেকে ডাউনলোড করুন।
+Jolli Code ডেস্কটপ অ্যাপ্লিকেশন হিসেবেও উপলব্ধ। সরাসরি [রিলিজ পেজ](https://github.com/jolliai/jollicode-releases/releases) থেকে ডাউনলোড করুন।
 
 | প্ল্যাটফর্ম           | ডাউনলোড                            |
 | --------------------- | ---------------------------------- |
 | macOS (Apple Silicon) | `jollicode-desktop-mac-arm64.dmg`  |
 | macOS (Intel)         | `jollicode-desktop-mac-x64.dmg`    |
-| Windows               | `jollicode-desktop-win-x64.exe`    |
-| Linux                 | `.deb`, `.rpm`, or `.AppImage`     |
-
-#### ইনস্টলেশন ডিরেক্টরি (Installation Directory)
-
-ইনস্টল স্ক্রিপ্টটি `$HOME/.jollicode/bin`-এ ইনস্টল করে।
 
 ### এজেন্টস (Agents)
 
@@ -84,12 +67,6 @@ Jolli Code এ দুটি বিল্ট-ইন এজেন্ট রয়�
 
 এছাড়াও জটিল অনুসন্ধান এবং মাল্টিস্টেপ টাস্কের জন্য একটি **general** সাবএজেন্ট অন্তর্ভুক্ত রয়েছে।
 এটি অভ্যন্তরীণভাবে ব্যবহৃত হয় এবং মেসেজে `@general` লিখে ব্যবহার করা যেতে পারে।
-
-এজেন্টদের সম্পর্কে আরও জানুন: [docs](https://jolli.ai/docs/agents)।
-
-### ডকুমেন্টেশন (Documentation)
-
-কিভাবে Jolli Code কনফিগার করবেন সে সম্পর্কে আরও তথ্যের জন্য, [**আমাদের ডকস দেখুন**](https://jolli.ai/docs)।
 
 ### Jolli Code এর উপর বিল্ডিং (Building on Jolli Code)
 

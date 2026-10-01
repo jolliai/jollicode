@@ -1,13 +1,13 @@
 <p align="center">
   <a href="https://jolli.ai">
     <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Jolli Code logo">
+      <source srcset="packages/identity/jolli-logo-dark.svg" media="(prefers-color-scheme: dark)">
+      <source srcset="packages/identity/jolli-logo-light.svg" media="(prefers-color-scheme: light)">
+      <img src="packages/identity/jolli-logo-light.svg" alt="Jolli Code logo">
     </picture>
   </a>
 </p>
-<p align="center">オープンソースのAIコーディングエージェント。</p>
+<p align="center">JolliのAIコーディングエージェント。</p>
 <p align="center">
   <a href="https://www.npmjs.com/package/@jolli.ai/jollicode"><img alt="npm" src="https://img.shields.io/npm/v/@jolli.ai/jollicode?style=flat-square" /></a>
   <a href="https://github.com/jolliai/jollicode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/jolliai/jollicode/publish.yml?style=flat-square&branch=dev" /></a>
@@ -38,39 +38,22 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Jolli Code Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://jolli.ai)
-
 ---
 
 ### インストール
 
 ```bash
-# YOLO
-curl -fsSL https://jolli.ai/install | bash
-
-# パッケージマネージャー
 npm i -g @jolli.ai/jollicode@latest # bun/pnpm/yarn でもOK
-brew install jolliai/tap/jollicode # macOS と Linux（推奨。常に最新）
-paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 ```
-
-> [!TIP]
-> インストール前に 0.1.x より古いバージョンを削除してください。
 
 ### デスクトップアプリ (BETA)
 
-Jolli Code はデスクトップアプリとしても利用できます。[releases page](https://github.com/jolliai/jollicode-releases/releases) から直接ダウンロードするか、[jolli.ai/download](https://jolli.ai/download) を利用してください。
+Jolli Code はデスクトップアプリとしても利用できます。[releases page](https://github.com/jolliai/jollicode-releases/releases) から直接ダウンロードしてください。
 
 | プラットフォーム              | ダウンロード                             |
 | --------------------- | ---------------------------------- |
 | macOS (Apple Silicon) | `jollicode-desktop-mac-arm64.dmg`  |
 | macOS (Intel)         | `jollicode-desktop-mac-x64.dmg`    |
-| Windows               | `jollicode-desktop-win-x64.exe`    |
-| Linux                 | `.deb`、`.rpm`、または AppImage         |
-
-#### インストールディレクトリ
-
-インストールスクリプトは `$HOME/.jollicode/bin` にインストールします。
 
 ### Agents
 
@@ -84,12 +67,6 @@ Jolli Code には組み込みの Agent が2つあり、`Tab` キーで切り替�
 
 また、複雑な検索やマルチステップのタスク向けに **general** サブ Agent も含まれています。
 内部的に使用されており、メッセージで `@general` と入力して呼び出せます。
-
-[agents](https://jolli.ai/docs/agents) の詳細はこちら。
-
-### ドキュメント
-
-Jolli Code の設定については [**ドキュメント**](https://jolli.ai/docs) を参照してください。
 
 ### Jolli Code の上に構築する
 
