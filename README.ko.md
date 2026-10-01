@@ -1,13 +1,13 @@
 <p align="center">
   <a href="https://jolli.ai">
     <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Jolli Code logo">
+      <source srcset="packages/identity/jolli-logo-dark.svg" media="(prefers-color-scheme: dark)">
+      <source srcset="packages/identity/jolli-logo-light.svg" media="(prefers-color-scheme: light)">
+      <img src="packages/identity/jolli-logo-light.svg" alt="Jolli Code logo">
     </picture>
   </a>
 </p>
-<p align="center">오픈 소스 AI 코딩 에이전트.</p>
+<p align="center">Jolli AI 코딩 에이전트.</p>
 <p align="center">
   <a href="https://www.npmjs.com/package/@jolli.ai/jollicode"><img alt="npm" src="https://img.shields.io/npm/v/@jolli.ai/jollicode?style=flat-square" /></a>
   <a href="https://github.com/jolliai/jollicode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/jolliai/jollicode/publish.yml?style=flat-square&branch=dev" /></a>
@@ -38,39 +38,22 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Jolli Code Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://jolli.ai)
-
 ---
 
 ### 설치
 
 ```bash
-# YOLO
-curl -fsSL https://jolli.ai/install | bash
-
-# 패키지 매니저
 npm i -g @jolli.ai/jollicode@latest # bun/pnpm/yarn 도 가능
-brew install jolliai/tap/jollicode # macOS 및 Linux (권장, 항상 최신)
-paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 ```
-
-> [!TIP]
-> 설치 전에 0.1.x 보다 오래된 버전을 제거하세요.
 
 ### 데스크톱 앱 (BETA)
 
-Jolli Code 는 데스크톱 앱으로도 제공됩니다. [releases page](https://github.com/jolliai/jollicode-releases/releases) 에서 직접 다운로드하거나 [jolli.ai/download](https://jolli.ai/download) 를 이용하세요.
+Jolli Code 는 데스크톱 앱으로도 제공됩니다. [releases page](https://github.com/jolliai/jollicode-releases/releases) 에서 직접 다운로드하세요.
 
 | 플랫폼                   | 다운로드                               |
 | --------------------- | ---------------------------------- |
 | macOS (Apple Silicon) | `jollicode-desktop-mac-arm64.dmg`  |
 | macOS (Intel)         | `jollicode-desktop-mac-x64.dmg`    |
-| Windows               | `jollicode-desktop-win-x64.exe`    |
-| Linux                 | `.deb`, `.rpm`, 또는 AppImage        |
-
-#### 설치 디렉터리
-
-설치 스크립트는 `$HOME/.jollicode/bin`에 설치합니다.
 
 ### Agents
 
@@ -84,12 +67,6 @@ Jolli Code 에는 내장 에이전트 2개가 있으며 `Tab` 키로 전환할 �
 
 또한 복잡한 검색과 여러 단계 작업을 위한 **general** 서브 에이전트가 포함되어 있습니다.
 내부적으로 사용되며, 메시지에서 `@general` 로 호출할 수 있습니다.
-
-[agents](https://jolli.ai/docs/agents) 에 대해 더 알아보세요.
-
-### 문서
-
-Jolli Code 설정에 대한 자세한 내용은 [**문서**](https://jolli.ai/docs) 를 참고하세요.
 
 ### Jolli Code 기반으로 만들기
 

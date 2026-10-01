@@ -69,8 +69,9 @@ const expiryFor = (expiresIn: number | undefined, refreshToken: string | undefin
 /**
  * THE DEVELOPER'S OVERRIDE, AND THE ONLY WAY A CREDENTIAL REACHES THIS SERVICE FROM OUTSIDE.
  *
- * ⚠ IT IS A DEVELOPMENT AFFORDANCE, NOT A PRODUCT PATH. `jolli/DEV.md` documents it as how you
- * point a hand-started `serve` at a real student's account; nothing the product ships sets it. The
+ * ⚠ IT IS A DEVELOPMENT AFFORDANCE, NOT A PRODUCT PATH. It exists so a developer can point a
+ * hand-started `serve` at a real student's account by setting `JOLLICODE_JOLLI_TOKEN` and
+ * `JOLLICODE_JOLLI_BASE_URL` in that server's environment; nothing the product ships sets it. The
  * desktop used to, which is why `createSidecarEnv()` scrubs both names — and why that scrub is now
  * a permanent part of the design rather than a transitional one: with the desktop no longer
  * overwriting them, an inherited `JOLLICODE_JOLLI_TOKEN` from a login shell would otherwise decide

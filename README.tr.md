@@ -1,13 +1,13 @@
 <p align="center">
   <a href="https://jolli.ai">
     <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Jolli Code logo">
+      <source srcset="packages/identity/jolli-logo-dark.svg" media="(prefers-color-scheme: dark)">
+      <source srcset="packages/identity/jolli-logo-light.svg" media="(prefers-color-scheme: light)">
+      <img src="packages/identity/jolli-logo-light.svg" alt="Jolli Code logo">
     </picture>
   </a>
 </p>
-<p align="center">Açık kaynaklı yapay zeka kodlama asistanı.</p>
+<p align="center">Jolli yapay zeka kodlama asistanı.</p>
 <p align="center">
   <a href="https://www.npmjs.com/package/@jolli.ai/jollicode"><img alt="npm" src="https://img.shields.io/npm/v/@jolli.ai/jollicode?style=flat-square" /></a>
   <a href="https://github.com/jolliai/jollicode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/jolliai/jollicode/publish.yml?style=flat-square&branch=dev" /></a>
@@ -38,39 +38,22 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Jolli Code Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://jolli.ai)
-
 ---
 
 ### Kurulum
 
 ```bash
-# YOLO
-curl -fsSL https://jolli.ai/install | bash
-
-# Paket yöneticileri
 npm i -g @jolli.ai/jollicode@latest # veya bun/pnpm/yarn
-brew install jolliai/tap/jollicode # macOS ve Linux (önerilir, her zaman güncel)
-paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 ```
-
-> [!TIP]
-> Kurulumdan önce 0.1.x'ten eski sürümleri kaldırın.
 
 ### Masaüstü Uygulaması (BETA)
 
-Jolli Code ayrıca masaüstü uygulaması olarak da mevcuttur. Doğrudan [sürüm sayfasından](https://github.com/jolliai/jollicode-releases/releases) veya [jolli.ai/download](https://jolli.ai/download) adresinden indirebilirsiniz.
+Jolli Code ayrıca masaüstü uygulaması olarak da mevcuttur. Doğrudan [sürüm sayfasından](https://github.com/jolliai/jollicode-releases/releases) indirebilirsiniz.
 
 | Platform              | İndirme                            |
 | --------------------- | ---------------------------------- |
 | macOS (Apple Silicon) | `jollicode-desktop-mac-arm64.dmg`  |
 | macOS (Intel)         | `jollicode-desktop-mac-x64.dmg`    |
-| Windows               | `jollicode-desktop-win-x64.exe`    |
-| Linux                 | `.deb`, `.rpm` veya AppImage       |
-
-#### Kurulum Dizini (Installation Directory)
-
-Kurulum betiği `$HOME/.jollicode/bin` dizinine kurar.
 
 ### Ajanlar
 
@@ -84,12 +67,6 @@ Jolli Code, `Tab` tuşuyla aralarında geçiş yapabileceğiniz iki yerleşik (b
 
 Ayrıca, karmaşık aramalar ve çok adımlı görevler için bir **genel** alt ajan bulunmaktadır.
 Bu dahili olarak kullanılır ve mesajlarda `@general` ile çağrılabilir.
-
-[Ajanlar](https://jolli.ai/docs/agents) hakkında daha fazla bilgi edinin.
-
-### Dokümantasyon
-
-Jolli Code'u nasıl yapılandıracağınız hakkında daha fazla bilgi için [**dokümantasyonumuza göz atın**](https://jolli.ai/docs).
 
 ### Jolli Code Üzerine Geliştirme
 

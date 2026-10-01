@@ -1,13 +1,13 @@
 <p align="center">
   <a href="https://jolli.ai">
     <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Jolli Code logo">
+      <source srcset="packages/identity/jolli-logo-dark.svg" media="(prefers-color-scheme: dark)">
+      <source srcset="packages/identity/jolli-logo-light.svg" media="(prefers-color-scheme: light)">
+      <img src="packages/identity/jolli-logo-light.svg" alt="Jolli Code logo">
     </picture>
   </a>
 </p>
-<p align="center">The open source AI coding agent.</p>
+<p align="center">The Jolli AI coding agent.</p>
 <p align="center">
   <a href="https://www.npmjs.com/package/@jolli.ai/jollicode"><img alt="npm" src="https://img.shields.io/npm/v/@jolli.ai/jollicode?style=flat-square" /></a>
   <a href="https://github.com/jolliai/jollicode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/jolliai/jollicode/publish.yml?style=flat-square&branch=dev" /></a>
@@ -38,39 +38,22 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Jolli Code Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://jolli.ai)
-
 ---
 
 ### Installation
 
 ```bash
-# YOLO
-curl -fsSL https://jolli.ai/install | bash
-
-# Package managers
 npm i -g @jolli.ai/jollicode@latest # or bun/pnpm/yarn
-brew install jolliai/tap/jollicode # macOS and Linux (recommended, always up to date)
-paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 ```
-
-> [!TIP]
-> Remove versions older than 0.1.x before installing.
 
 ### Desktop App (BETA)
 
-Jolli Code is also available as a desktop application. Download directly from the [releases page](https://github.com/jolliai/jollicode-releases/releases) or [jolli.ai/download](https://jolli.ai/download).
+Jolli Code is also available as a desktop application. Download directly from the [releases page](https://github.com/jolliai/jollicode-releases/releases).
 
 | Platform              | Download                           |
 | --------------------- | ---------------------------------- |
 | macOS (Apple Silicon) | `jollicode-desktop-mac-arm64.dmg`  |
 | macOS (Intel)         | `jollicode-desktop-mac-x64.dmg`    |
-| Windows               | `jollicode-desktop-win-x64.exe`    |
-| Linux                 | `.deb`, `.rpm`, or `.AppImage`     |
-
-#### Installation Directory
-
-The install script installs to `$HOME/.jollicode/bin`.
 
 ### Agents
 
@@ -85,12 +68,10 @@ Jolli Code includes two built-in agents you can switch between with the `Tab` ke
 Also included is a **general** subagent for complex searches and multistep tasks.
 This is used internally and can be invoked using `@general` in messages.
 
-Learn more about [agents](https://jolli.ai/docs/agents).
-
-### Documentation
-
-For more info on how to configure Jolli Code, [**head over to our docs**](https://jolli.ai/docs).
-
 ### Building on Jolli Code
 
 If you are working on a project that's related to Jolli Code and is using "jollicode" as part of its name, for example "jollicode-dashboard" or "jollicode-mobile", please add a note to your README to clarify that it is not built by the Jolli Code team and is not affiliated with us in any way.
+
+### License
+
+Jolli Code is source-available, not open source. The code is published for transparency and review, and all use is governed by the terms in [LICENSE](LICENSE); it is proprietary software of Jolli, Inc. Jolli Code is derived from [opencode](https://github.com/anomalyco/opencode), which is MIT licensed, and [NOTICE](NOTICE) carries the third-party notices.

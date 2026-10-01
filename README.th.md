@@ -1,13 +1,13 @@
 <p align="center">
   <a href="https://jolli.ai">
     <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Jolli Code logo">
+      <source srcset="packages/identity/jolli-logo-dark.svg" media="(prefers-color-scheme: dark)">
+      <source srcset="packages/identity/jolli-logo-light.svg" media="(prefers-color-scheme: light)">
+      <img src="packages/identity/jolli-logo-light.svg" alt="Jolli Code logo">
     </picture>
   </a>
 </p>
-<p align="center">เอเจนต์การเขียนโค้ดด้วย AI แบบโอเพนซอร์ส</p>
+<p align="center">เอเจนต์การเขียนโค้ดด้วย AI จาก Jolli</p>
 <p align="center">
   <a href="https://www.npmjs.com/package/@jolli.ai/jollicode"><img alt="npm" src="https://img.shields.io/npm/v/@jolli.ai/jollicode?style=flat-square" /></a>
   <a href="https://github.com/jolliai/jollicode/actions/workflows/publish.yml"><img alt="สถานะการสร้าง" src="https://img.shields.io/github/actions/workflow/status/jolliai/jollicode/publish.yml?style=flat-square&branch=dev" /></a>
@@ -38,39 +38,22 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Jolli Code Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://jolli.ai)
-
 ---
 
 ### การติดตั้ง
 
 ```bash
-# YOLO
-curl -fsSL https://jolli.ai/install | bash
-
-# ตัวจัดการแพ็กเกจ
 npm i -g @jolli.ai/jollicode@latest # หรือ bun/pnpm/yarn
-brew install jolliai/tap/jollicode # macOS และ Linux (แนะนำ อัปเดตเสมอ)
-paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 ```
-
-> [!TIP]
-> ลบเวอร์ชันที่เก่ากว่า 0.1.x ก่อนติดตั้ง
 
 ### แอปพลิเคชันเดสก์ท็อป (เบต้า)
 
-Jolli Code มีให้ใช้งานเป็นแอปพลิเคชันเดสก์ท็อป ดาวน์โหลดโดยตรงจาก [หน้ารุ่น](https://github.com/jolliai/jollicode-releases/releases) หรือ [jolli.ai/download](https://jolli.ai/download)
+Jolli Code มีให้ใช้งานเป็นแอปพลิเคชันเดสก์ท็อป ดาวน์โหลดโดยตรงจาก [หน้ารุ่น](https://github.com/jolliai/jollicode-releases/releases)
 
 | แพลตฟอร์ม             | ดาวน์โหลด                          |
 | --------------------- | ---------------------------------- |
 | macOS (Apple Silicon) | `jollicode-desktop-mac-arm64.dmg`  |
 | macOS (Intel)         | `jollicode-desktop-mac-x64.dmg`    |
-| Windows               | `jollicode-desktop-win-x64.exe`    |
-| Linux                 | `.deb`, `.rpm`, หรือ AppImage      |
-
-#### ไดเรกทอรีการติดตั้ง
-
-สคริปต์การติดตั้งจะติดตั้งไปที่ `$HOME/.jollicode/bin`
 
 ### เอเจนต์
 
@@ -84,12 +67,6 @@ Jolli Code รวมเอเจนต์ในตัวสองตัวที
 
 นอกจากนี้ยังมีเอเจนต์ย่อย **general** สำหรับการค้นหาที่ซับซ้อนและงานหลายขั้นตอน
 ใช้ภายในและสามารถเรียกใช้ได้โดยใช้ `@general` ในข้อความ
-
-เรียนรู้เพิ่มเติมเกี่ยวกับ [เอเจนต์](https://jolli.ai/docs/agents)
-
-### เอกสารประกอบ
-
-สำหรับข้อมูลเพิ่มเติมเกี่ยวกับวิธีกำหนดค่า Jolli Code [**ไปที่เอกสารของเรา**](https://jolli.ai/docs)
 
 ### การสร้างบน Jolli Code
 

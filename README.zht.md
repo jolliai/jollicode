@@ -1,13 +1,13 @@
 <p align="center">
   <a href="https://jolli.ai">
     <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Jolli Code logo">
+      <source srcset="packages/identity/jolli-logo-dark.svg" media="(prefers-color-scheme: dark)">
+      <source srcset="packages/identity/jolli-logo-light.svg" media="(prefers-color-scheme: light)">
+      <img src="packages/identity/jolli-logo-light.svg" alt="Jolli Code logo">
     </picture>
   </a>
 </p>
-<p align="center">開源的 AI Coding Agent。</p>
+<p align="center">Jolli 的 AI Coding Agent。</p>
 <p align="center">
   <a href="https://www.npmjs.com/package/@jolli.ai/jollicode"><img alt="npm" src="https://img.shields.io/npm/v/@jolli.ai/jollicode?style=flat-square" /></a>
   <a href="https://github.com/jolliai/jollicode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/jolliai/jollicode/publish.yml?style=flat-square&branch=dev" /></a>
@@ -38,39 +38,22 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Jolli Code Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://jolli.ai)
-
 ---
 
 ### 安裝
 
 ```bash
-# 直接安裝 (YOLO)
-curl -fsSL https://jolli.ai/install | bash
-
-# 套件管理員
 npm i -g @jolli.ai/jollicode@latest # 也可使用 bun/pnpm/yarn
-brew install jolliai/tap/jollicode # macOS 與 Linux（推薦，始終保持最新）
-paru -S jollicode-bin              # Arch Linux (Latest from AUR)
 ```
-
-> [!TIP]
-> 安裝前請先移除 0.1.x 以前的舊版本。
 
 ### 桌面應用程式 (BETA)
 
-Jolli Code 也提供桌面版應用程式。您可以直接從 [發佈頁面 (releases page)](https://github.com/jolliai/jollicode-releases/releases) 或 [jolli.ai/download](https://jolli.ai/download) 下載。
+Jolli Code 也提供桌面版應用程式。您可以直接從 [發佈頁面 (releases page)](https://github.com/jolliai/jollicode-releases/releases) 下載。
 
 | 平台                    | 下載連結                               |
 | --------------------- | ---------------------------------- |
 | macOS (Apple Silicon) | `jollicode-desktop-mac-arm64.dmg`  |
 | macOS (Intel)         | `jollicode-desktop-mac-x64.dmg`    |
-| Windows               | `jollicode-desktop-win-x64.exe`    |
-| Linux                 | `.deb`, `.rpm`, 或 AppImage         |
-
-#### 安裝目錄
-
-安裝腳本會安裝到 `$HOME/.jollicode/bin`。
 
 ### Agents
 
@@ -83,12 +66,6 @@ Jolli Code 內建了兩種 Agent，您可以使用 `Tab` 鍵快速切換。
   - 非常適合用來探索陌生的程式碼庫或規劃變更。
 
 此外，Jolli Code 還包含一個 **general** 子 Agent，用於處理複雜搜尋與多步驟任務。此 Agent 供系統內部使用，亦可透過在訊息中輸入 `@general` 來呼叫。
-
-了解更多關於 [Agents](https://jolli.ai/docs/agents) 的資訊。
-
-### 線上文件
-
-關於如何設定 Jolli Code 的詳細資訊，請參閱我們的 [**官方文件**](https://jolli.ai/docs)。
 
 ### 基於 Jolli Code 進行開發
 

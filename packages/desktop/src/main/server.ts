@@ -283,7 +283,7 @@ export async function createSidecarEnv(): Promise<Record<string, string>> {
      * ⚠ THE CREDENTIAL KEYS ARE SCRUBBED PERMANENTLY, NOT TRANSITIONALLY, AND THE REASON INVERTED.
      * This process used to SET them, so an inherited value had to lose. It no longer sets them —
      * the sidecar reads the credential from the shared database — but `jolli/session.ts` still
-     * honours them as the development override `jolli/DEV.md` documents. So an inherited
+     * honours them as the development override for a hand-started server. So an inherited
      * `JOLLICODE_JOLLI_TOKEN` from the student's own `~/.zshrc` would decide which account this
      * server acts as. Deleting both spellings is what keeps that a developer's tool rather than a
      * student's lever; it is not leftover cleanup waiting to be removed.
@@ -311,7 +311,7 @@ export async function createSidecarEnv(): Promise<Record<string, string>> {
    * ⚠ IT GOES IN THE SIDECAR'S ENVIRONMENT RATHER THAN INTO A FILE, because a file is a thing a
    * student can find and edit, and because the desktop app is the only writer of this environment.
    * A server the app did not spawn — the one a developer runs by hand — will not have it, which is
-   * a real difference to remember when reviewing (jolli/DEV.md says how to pass it).
+   * a real difference to remember when reviewing (set it in that server's environment by hand).
    */
   /**
    * ⚠ STALE COURSE SKILLS ARE CLEARED AT EVERY LAUNCH, and nothing writes any. A build that did
