@@ -2,6 +2,10 @@
 
 <!-- Each release adds a `## MAJOR.MINOR.PATCH` section at the top. The release workflow publishes the top section's version, with that section as the release notes. -->
 
+## 0.0.2
+
+Bug fixes.
+
 ## 0.0.1
 
 The first release of the Jolli Code desktop app, an AI coding assistant for your courses.
