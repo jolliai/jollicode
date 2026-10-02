@@ -115,9 +115,8 @@ jobs:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      AZURE_TRUSTED_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
-      AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE }}
-      AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+      AZURE_KEY_VAULT_URL: ${{ secrets.AZURE_KEY_VAULT_URL }}
+      AZURE_KEY_VAULT_CERTIFICATE: ${{ secrets.AZURE_KEY_VAULT_CERTIFICATE }}
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
@@ -133,25 +132,26 @@ jobs:
           jollicode-app-id: ${{ vars.JOLLICODE_APP_ID }}
           jollicode-app-secret: ${{ secrets.JOLLICODE_APP_SECRET }}
 
-      # Signing stays optional until Azure Trusted Signing is provisioned: with no secrets at all the
-      # binaries ship unsigned (with a warning), and signing resumes by itself once the secrets exist.
-      # A partial configuration is a mistake, so it fails instead of silently skipping.
+      # Signing stays optional until the Key Vault certificate exists: the two vault secrets are the
+      # switch, and without them the binaries ship unsigned (with a warning). The Azure identity secrets
+      # may be set ahead of the certificate. Once the switch is on, anything missing is a mistake, so it
+      # fails instead of silently skipping.
       - name: Check Windows signing secrets
         id: signing
         shell: bash
         run: |
-          names=(AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_TRUSTED_SIGNING_ACCOUNT_NAME AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE AZURE_TRUSTED_SIGNING_ENDPOINT)
+          if [ -z "$AZURE_KEY_VAULT_URL" ] && [ -z "$AZURE_KEY_VAULT_CERTIFICATE" ]; then
+            echo "::warning::Azure Key Vault signing secrets are not configured; publishing UNSIGNED Windows CLI binaries"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          names=(AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_KEY_VAULT_URL AZURE_KEY_VAULT_CERTIFICATE)
           missing=()
           for name in "${names[@]}"; do
             [ -n "${!name}" ] || missing+=("$name")
           done
-          if [ ${#missing[@]} -eq ${#names[@]} ]; then
-            echo "::warning::Azure Trusted Signing secrets are not configured; publishing UNSIGNED Windows CLI binaries"
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Azure Trusted Signing is partially configured; missing: ${missing[*]}"
+            echo "::error::Azure Key Vault signing is partially configured; missing: ${missing[*]}"
             exit 1
           fi
           echo "enabled=true" >> "$GITHUB_OUTPUT"
@@ -164,26 +164,16 @@ jobs:
           tenant-id: ${{ env.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
-      - uses: azure/artifact-signing-action@b443cf8ea4124818d2ea9f043cba29fc3ec47b16 # v1.2.0
+      # The same script electron-builder uses for the desktop installer, so both release paths sign
+      # with the one Key Vault certificate.
+      - name: Sign Windows CLI binaries
         if: steps.signing.outputs.enabled == 'true'
-        with:
-          endpoint: ${{ env.AZURE_TRUSTED_SIGNING_ENDPOINT }}
-          signing-account-name: ${{ env.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
-          certificate-profile-name: ${{ env.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE }}
-          files: |
-            ${{ github.workspace }}\packages\opencode\dist\jollicode-windows-arm64\bin\jollicode.exe
-            ${{ github.workspace }}\packages\opencode\dist\jollicode-windows-x64\bin\jollicode.exe
-            ${{ github.workspace }}\packages\opencode\dist\jollicode-windows-x64-baseline\bin\jollicode.exe
-          exclude-environment-credential: true
-          exclude-workload-identity-credential: true
-          exclude-managed-identity-credential: true
-          exclude-shared-token-cache-credential: true
-          exclude-visual-studio-credential: true
-          exclude-visual-studio-code-credential: true
-          exclude-azure-cli-credential: false
-          exclude-azure-powershell-credential: true
-          exclude-azure-developer-cli-credential: true
-          exclude-interactive-browser-credential: true
+        shell: pwsh
+        run: |
+          ./script/sign-windows.ps1 `
+            "${{ github.workspace }}\packages\opencode\dist\jollicode-windows-arm64\bin\jollicode.exe" `
+            "${{ github.workspace }}\packages\opencode\dist\jollicode-windows-x64\bin\jollicode.exe" `
+            "${{ github.workspace }}\packages\opencode\dist\jollicode-windows-x64-baseline\bin\jollicode.exe"
 
       - name: Verify Windows CLI signatures
         if: steps.signing.outputs.enabled == 'true'

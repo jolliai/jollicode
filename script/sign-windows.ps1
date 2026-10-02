@@ -14,32 +14,29 @@ if ($env:GITHUB_ACTIONS -ne "true") {
   exit 0
 }
 
-$vars = @{
-  endpoint = $env:AZURE_TRUSTED_SIGNING_ENDPOINT
-  account = $env:AZURE_TRUSTED_SIGNING_ACCOUNT_NAME
-  profile = $env:AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE
-}
+# The certificate lives in Azure Key Vault Premium on a non-exportable HSM key, so each file's digest is
+# signed inside the vault and no key ever reaches the runner. The workflow's azure/login step has already
+# signed the Azure CLI in through OIDC, and its token is what AzureSignTool presents to the vault.
+$vaultUrl = $env:AZURE_KEY_VAULT_URL
+$certificate = $env:AZURE_KEY_VAULT_CERTIFICATE
 
-if ($vars.Values | Where-Object { -not $_ }) {
-  Write-Host "Skipping Windows signing because Azure Artifact Signing is not configured"
+if (-not $vaultUrl -or -not $certificate) {
+  Write-Host "Skipping Windows signing because Azure Key Vault signing is not configured"
   exit 0
 }
 
-$moduleVersion = "0.5.8"
-$module = Get-Module -ListAvailable -Name TrustedSigning | Where-Object { $_.Version -eq [version] $moduleVersion }
+# electron-builder calls this script once per executable, so the tool is installed into a fixed
+# directory and reused by later calls in the same job.
+$toolVersion = "7.0.1"
+$toolDir = Join-Path ($env:RUNNER_TEMP ?? [IO.Path]::GetTempPath()) "azuresigntool-$toolVersion"
+$tool = Join-Path $toolDir "AzureSignTool.exe"
 
-if (-not $module) {
-  try {
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser | Out-Null
+if (-not (Test-Path $tool)) {
+  dotnet tool install AzureSignTool --version $toolVersion --tool-path $toolDir
+  if ($LASTEXITCODE -ne 0) {
+    throw "Installing AzureSignTool $toolVersion failed with exit code $LASTEXITCODE"
   }
-  catch {
-    Write-Host "NuGet package provider install skipped: $($_.Exception.Message)"
-  }
-
-  Install-Module -Name TrustedSigning -RequiredVersion $moduleVersion -Force -Repository PSGallery -Scope CurrentUser
 }
-
-Import-Module TrustedSigning -RequiredVersion $moduleVersion -Force
 
 $files = @($Path | ForEach-Object { Resolve-Path $_ -ErrorAction SilentlyContinue } | Select-Object -ExpandProperty Path -Unique)
 
@@ -47,24 +44,21 @@ if (-not $files -or $files.Count -eq 0) {
   throw "No files matched the requested paths"
 }
 
-$params = @{
-  Endpoint                         = $vars.endpoint
-  CodeSigningAccountName           = $vars.account
-  CertificateProfileName           = $vars.profile
-  Files                            = ($files -join ",")
-  FileDigest                       = "SHA256"
-  TimestampDigest                  = "SHA256"
-  TimestampRfc3161                 = "http://timestamp.acs.microsoft.com"
-  ExcludeEnvironmentCredential     = $true
-  ExcludeWorkloadIdentityCredential = $true
-  ExcludeManagedIdentityCredential = $true
-  ExcludeSharedTokenCacheCredential = $true
-  ExcludeVisualStudioCredential    = $true
-  ExcludeVisualStudioCodeCredential = $true
-  ExcludeAzureCliCredential        = $false
-  ExcludeAzurePowerShellCredential = $true
-  ExcludeAzureDeveloperCliCredential = $true
-  ExcludeInteractiveBrowserCredential = $true
+$token = az account get-access-token --resource https://vault.azure.net --query accessToken --output tsv
+if ($LASTEXITCODE -ne 0 -or -not $token) {
+  throw "Could not get an Azure Key Vault access token; the azure/login step must run first"
 }
 
-Invoke-TrustedSigning @params
+& $tool sign `
+  --azure-key-vault-url $vaultUrl `
+  --azure-key-vault-certificate $certificate `
+  --azure-key-vault-accesstoken $token `
+  --timestamp-rfc3161 http://timestamp.digicert.com `
+  --timestamp-digest sha256 `
+  --file-digest sha256 `
+  --verbose `
+  @files
+
+if ($LASTEXITCODE -ne 0) {
+  throw "AzureSignTool failed with exit code $LASTEXITCODE"
+}
