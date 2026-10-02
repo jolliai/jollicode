@@ -4,11 +4,13 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 
 // Every desktop build leg uploads one manifest; the finalizer expects all of them.
+// The first releases ship macOS only, so the Windows and Linux legs are commented out here, in the
+// finalizer, and in the publish-desktop workflow matrix. Restore all three together.
 const MANIFESTS = [
-  ["latest-yml-x86_64-pc-windows-msvc", "latest.yml"],
-  ["latest-yml-aarch64-pc-windows-msvc", "latest.yml"],
-  ["latest-yml-x86_64-unknown-linux-gnu", "latest-linux.yml"],
-  ["latest-yml-aarch64-unknown-linux-gnu", "latest-linux-arm64.yml"],
+  // ["latest-yml-x86_64-pc-windows-msvc", "latest.yml"],
+  // ["latest-yml-aarch64-pc-windows-msvc", "latest.yml"],
+  // ["latest-yml-x86_64-unknown-linux-gnu", "latest-linux.yml"],
+  // ["latest-yml-aarch64-unknown-linux-gnu", "latest-linux-arm64.yml"],
   ["latest-yml-x86_64-apple-darwin", "latest-mac.yml"],
   ["latest-yml-aarch64-apple-darwin", "latest-mac.yml"],
 ] as const
@@ -70,9 +72,9 @@ test("refuses to upload a manifest whose version does not match the release tag"
 })
 
 test("refuses to finalize when a build leg's manifest is missing", async () => {
-  const result = await finalize({ skip: "latest-yml-aarch64-unknown-linux-gnu" })
+  const result = await finalize({ skip: "latest-yml-x86_64-apple-darwin" })
   expect(result.exitCode).not.toBe(0)
-  expect(result.stderr).toContain("latest-yml-aarch64-unknown-linux-gnu")
+  expect(result.stderr).toContain("latest-yml-x86_64-apple-darwin")
   expect(result.stdout).not.toContain("gh release upload")
 })
 
@@ -80,16 +82,16 @@ test("uploads merged manifests with the release version", async () => {
   const result = await finalize()
   expect(result.exitCode).toBe(0)
   expect(result.stdout).toContain("gh release upload desktop-v0.0.2")
-  for (const filename of ["latest.yml", "latest-linux.yml", "latest-linux-arm64.yml", "latest-mac.yml"])
-    expect(result.stdout).toContain(`uploaded ${filename}`)
+  // for (const filename of ["latest.yml", "latest-linux.yml", "latest-linux-arm64.yml", "latest-mac.yml"])
+  for (const filename of ["latest-mac.yml"]) expect(result.stdout).toContain(`uploaded ${filename}`)
 })
 
-test("merges both architectures into the Windows and macOS manifests", async () => {
+test("merges both architectures into the macOS manifest", async () => {
   const result = await finalize()
   const uploaded = (filename: string) =>
     result.stdout.split("gh release upload").find((chunk) => chunk.includes(`uploaded ${filename}`)) ?? ""
-  expect(uploaded("latest.yml")).toContain("url: latest-yml-aarch64-pc-windows-msvc.bin")
-  expect(uploaded("latest.yml")).toContain("url: latest-yml-x86_64-pc-windows-msvc.bin")
+  // expect(uploaded("latest.yml")).toContain("url: latest-yml-aarch64-pc-windows-msvc.bin")
+  // expect(uploaded("latest.yml")).toContain("url: latest-yml-x86_64-pc-windows-msvc.bin")
   expect(uploaded("latest-mac.yml")).toContain("url: latest-yml-aarch64-apple-darwin.bin")
   expect(uploaded("latest-mac.yml")).toContain("url: latest-yml-x86_64-apple-darwin.bin")
   expect(uploaded("latest-mac.yml")).toContain("version: 0.0.2")
