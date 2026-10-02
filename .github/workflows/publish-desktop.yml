@@ -13,6 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
+  id-token: write
   contents: write
 
 jobs:
@@ -63,9 +64,8 @@ jobs:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      AZURE_TRUSTED_SIGNING_ACCOUNT_NAME: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
-      AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE }}
-      AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+      AZURE_KEY_VAULT_URL: ${{ secrets.AZURE_KEY_VAULT_URL }}
+      AZURE_KEY_VAULT_CERTIFICATE: ${{ secrets.AZURE_KEY_VAULT_CERTIFICATE }}
     strategy:
       fail-fast: false
       matrix:
@@ -78,22 +78,19 @@ jobs:
             target: aarch64-apple-darwin
             platform_flag: --mac --arm64
             bun_install_flags: --os=darwin --cpu=arm64
-          # The first releases ship macOS only. The Windows legs need the AZURE_* Trusted Signing
-          # secrets before their signature check can pass, and that blocks the whole publish job.
-          # Restore these entries once Windows signing is configured.
-          # # ARM64 MSVC cross-compilation needs the windows-2025 image explicitly
-          # - host: "windows-2025"
-          #   target: aarch64-pc-windows-msvc
-          #   platform_flag: --win --arm64
-          # - host: "windows-latest"
-          #   target: x86_64-pc-windows-msvc
-          #   platform_flag: --win
-          # - host: "ubuntu-latest"
-          #   target: x86_64-unknown-linux-gnu
-          #   platform_flag: --linux
-          # - host: "ubuntu-24.04-arm"
-          #   target: aarch64-unknown-linux-gnu
-          #   platform_flag: --linux --arm64
+          # ARM64 MSVC cross-compilation needs the windows-2025 image explicitly
+          - host: "windows-2025"
+            target: aarch64-pc-windows-msvc
+            platform_flag: --win --arm64
+          - host: "windows-latest"
+            target: x86_64-pc-windows-msvc
+            platform_flag: --win
+          - host: "ubuntu-latest"
+            target: x86_64-unknown-linux-gnu
+            platform_flag: --linux
+          - host: "ubuntu-24.04-arm"
+            target: aarch64-unknown-linux-gnu
+            platform_flag: --linux --arm64
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
@@ -112,6 +109,22 @@ jobs:
       - uses: ./.github/actions/setup-bun
         with:
           install-flags: ${{ matrix.settings.bun_install_flags }}
+
+      # The desktop installer never ships unsigned: the signature check after packaging would fail the
+      # leg anyway, so missing secrets fail here by name instead of as an opaque Azure login error.
+      - name: Check Windows signing secrets
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          names=(AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_KEY_VAULT_URL AZURE_KEY_VAULT_CERTIFICATE)
+          missing=()
+          for name in "${names[@]}"; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Azure Key Vault signing is not configured; missing: ${missing[*]}"
+            exit 1
+          fi
 
       - name: Azure login
         if: runner.os == 'Windows'
