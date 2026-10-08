@@ -3,7 +3,21 @@ import type { SelectedLineRange } from "@/context/file"
 
 const DEFAULT_PROMPT: Prompt = [{ type: "text", content: "", start: 0, end: 0 }]
 
-export const MAX_HISTORY = 100
+/** Per chat, matching the TUI's own history depth. */
+export const MAX_HISTORY = 50
+
+/**
+ * ⚠ HISTORY IS KEYED BY THE CHAT IT WAS TYPED IN, NOT BY THE WINDOW. One shared list meant ↑ in a
+ * brand-new chat replayed whatever had been sent in some *other* chat, which reads as the composer
+ * resurrecting a stranger's prompt. Scopes keep the arrow keys walking the current conversation.
+ *
+ * ⚠ THE TWO CAPS MULTIPLY, AND THE WHOLE DOCUMENT IS REWRITTEN ON EVERY SUBMIT. Persistence stores
+ * all scopes as one JSON value, so the ceiling here is how much gets re-serialized each time a
+ * prompt is sent — prompts can be pasted logs. Ten chats deep is far more than ↑ is ever walked.
+ */
+export const MAX_HISTORY_SCOPES = 10
+
+export type PromptHistoryScopes = Record<string, PromptHistoryStoredEntry[]>
 
 export type PromptHistoryComment = {
   id: string
@@ -97,6 +111,75 @@ export function prependHistoryEntry(
   const last = entries[0]
   if (last && isPromptEqual(last, entry)) return entries
   return [entry, ...entries].slice(0, max)
+}
+
+export function sessionHistoryScope(sessionID: string) {
+  return `session:${sessionID}`
+}
+
+/**
+ * The composer of a chat that has no session yet. Submitting promotes this bucket into the session
+ * the submit created, so the very first prompt stays recallable — and the next new chat starts empty
+ * instead of inheriting it.
+ *
+ * ⚠ THE DRAFT TAB, NOT THE DIRECTORY, IS THE UNIT OF "A NEW CHAT". Several drafts can be open on
+ * one folder at once, each with its own prompt text (see `Persist.draft`). Keyed by directory alone
+ * they would share a bucket, and whichever submitted first would promote the others' typed prompts
+ * into its session — the same leak between chats this scoping exists to stop, one level down. A
+ * composer with no draft of its own still falls back to the directory.
+ */
+export function pendingHistoryScope(directory: string, draftID?: string) {
+  return draftID ? `draft:${draftID}` : `new:${directory}`
+}
+
+export function promptHistoryScope(sessionID: string | undefined, directory: string, draftID?: string) {
+  return sessionID ? sessionHistoryScope(sessionID) : pendingHistoryScope(directory, draftID)
+}
+
+// Insertion order is recency: the scope written last sits last, so trimming drops the stalest chats.
+function touchScope(
+  scopes: PromptHistoryScopes,
+  scope: string,
+  entries: PromptHistoryStoredEntry[],
+  maxScopes: number,
+) {
+  const next = Object.entries(scopes)
+    .filter(([key]) => key !== scope)
+    .concat([[scope, entries]])
+  return Object.fromEntries(next.slice(-maxScopes))
+}
+
+export function prependScopedHistoryEntry(
+  scopes: PromptHistoryScopes,
+  scope: string,
+  prompt: Prompt,
+  comments: PromptHistoryComment[] = [],
+  max = MAX_HISTORY,
+  maxScopes = MAX_HISTORY_SCOPES,
+) {
+  const current = scopes[scope] ?? []
+  const next = prependHistoryEntry(current, prompt, comments, max)
+  if (next === current) return scopes
+  return touchScope(scopes, scope, next, maxScopes)
+}
+
+/**
+ * Forgets a scope outright. Used when a submit fails to create its session: the pending bucket would
+ * otherwise survive, and the next new chat would replay it — the very leak scoping exists to stop.
+ */
+export function dropHistoryScope(scopes: PromptHistoryScopes, scope: string) {
+  if (!(scope in scopes)) return scopes
+  return Object.fromEntries(Object.entries(scopes).filter(([key]) => key !== scope))
+}
+
+export function promoteHistoryScope(scopes: PromptHistoryScopes, from: string, to: string, max = MAX_HISTORY) {
+  if (from === to) return scopes
+  if (!(from in scopes)) return scopes
+
+  const rest = Object.entries(scopes).filter(([key]) => key !== from && key !== to)
+  const merged = [...(scopes[from] ?? []), ...(scopes[to] ?? [])].slice(0, max)
+  // `to` lands last: it is the chat just written to, and order is what the scope cap evicts by.
+  return Object.fromEntries(merged.length > 0 ? rest.concat([[to, merged]]) : rest)
 }
 
 function isCommentEqual(commentA: PromptHistoryComment, commentB: PromptHistoryComment) {

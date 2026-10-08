@@ -14,7 +14,7 @@ import { useCourseSession } from "@/jolli/session-binding"
 import { ModelGrant } from "@/jolli/model-grant"
 import type { PromptInputProps } from "@/components/prompt-input/contracts"
 import { normalizePromptHistoryEntry, promptLength, type PromptHistoryComment } from "@/components/prompt-input/history"
-import { createPersistedPromptInputHistory } from "@/components/prompt-input/history-store"
+import { createPromptHistoryScope } from "@/components/prompt-input/history-scope"
 import { promptDesignPlaceholder, promptPlaceholder } from "@/components/prompt-input/placeholder"
 import { createPromptSubmit } from "@/components/prompt-input/submit"
 import { selectionFromLines, type SelectedLineRange, useFile } from "@/context/file"
@@ -159,7 +159,14 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
 
   const interaction = createPromptInputV2State()
   const mode = () => interaction[0].mode
-  const history = props.history ?? createPersistedPromptInputHistory()
+  const historyScope = createPromptHistoryScope({
+    history: props.history,
+    sessionID: () => props.controls.session.id,
+    serverScope: () => sdk().scope,
+    directory: () => sdk().directory,
+    draftID: () => props.draftID,
+  })
+  const history = historyScope.history
   const tabs = () => props.controls.session.tabs
   const activeFileTab = createSessionTabs({
     tabs,
@@ -271,7 +278,11 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
     editor: () => editor,
     queueScroll: () => requestAnimationFrame(() => editor?.scrollIntoView({ block: "nearest" })),
     promptLength,
+    // `submitted()` is claimed by the `history.add` adapter below — the one place that actually
+    // writes — so v1 and v2 cannot disagree about which bucket the entry went into.
     addToHistory: (value, mode) => controller.addHistory(value, mode),
+    promoteHistory: historyScope.promote,
+    discardHistory: historyScope.discard,
     resetHistoryNavigation: () => controller.resetHistory(),
     setMode: (next) => controller.dispatch({ type: next === "shell" ? "mode.shell" : "mode.normal" }),
     setPopover: (popover) => {
@@ -406,7 +417,8 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
           const entry = normalizePromptHistoryEntry(value)
           return { prompt: entry.prompt, metadata: entry.comments }
         }),
-      add: (value, mode) => history.add(value, mode, mode === "shell" ? [] : historyComments()),
+      add: (value, mode) =>
+        history.add(value, mode, mode === "shell" ? [] : historyComments(), historyScope.submitted()),
       capture: historyComments,
       restore: (metadata) => restoreHistoryComments(metadata as PromptHistoryComment[]),
     },
@@ -551,6 +563,13 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
       { defer: true },
     ),
   )
+
+  /**
+   * Switching chats switches the history list under the cursor, so the position into it is stale.
+   * Keyed on the scope rather than the session id: moving between two drafts changes neither the id
+   * (both have none) nor the directory, and the cursor would survive into a different list.
+   */
+  createEffect(on(historyScope.scope, () => controller.resetHistory(), { defer: true }))
 
   return controller as PromptInputV2ComposerController
 }
