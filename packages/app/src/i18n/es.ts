@@ -664,7 +664,7 @@ export const dict = {
   "error.page.action.checkUpdates": "Buscar actualizaciones",
   "error.page.action.updateTo": "Actualizar a {{version}}",
   "error.page.report.prefix": "Informa de este error al equipo de Jolli Code",
-  "error.page.report.github": "en GitHub",
+  "error.page.report.email": "en {{email}}",
   "error.page.version": "Versión: {{version}}",
 
   "error.dev.rootNotFound":

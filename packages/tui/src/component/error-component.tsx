@@ -12,7 +12,7 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
   const term = useTerminalDimensions()
   const exit = useExit()
   const clipboard = useClipboard()
-  const [copied, setCopied] = createSignal(false)
+  const [copyState, setCopyState] = createSignal<"idle" | "copied" | "failed">("idle")
 
   // Safe fallback palette per mode (mirrors theme/assets/jollicode.json) since the
   // theme context may be the thing that crashed.
@@ -45,19 +45,34 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
   const stack = props.error.stack || "No stack trace available."
 
   const copyStack = () => {
+    // Copying is the only crash-report path, so a missing or failing clipboard (e.g. over SSH) must show up.
+    if (!clipboard.write) return setCopyState("failed")
     // Lead with version and environment so a support email carries them without extra back-and-forth.
-    const report = [
-      `${Brand.bin} ${InstallationVersion}`,
-      `OS: ${describeOS()}`,
-      `Terminal: ${describeTerminal()}`,
-      "",
-      stack,
-    ]
-    void clipboard.write?.(report.join("\n")).then(() => setCopied(true))
+    // The message goes in explicitly because not every stack starts with it.
+    clipboard
+      .write(
+        [
+          `${Brand.bin} ${InstallationVersion}`,
+          `OS: ${describeOS()}`,
+          `Terminal: ${describeTerminal()}`,
+          "",
+          `Error: ${message}`,
+          "",
+          stack,
+        ].join("\n"),
+      )
+      .then(() => setCopyState("copied"))
+      .catch(() => setCopyState("failed"))
   }
 
   const actions = [
-    { key: "c", label: () => (copied() ? "✓ Copied" : "Copy stack trace"), copy: true, onUse: copyStack },
+    {
+      key: "c",
+      label: () =>
+        copyState() === "copied" ? "✓ Copied" : copyState() === "failed" ? "Copy failed" : "Copy stack trace",
+      copy: true,
+      onUse: copyStack,
+    },
     { key: "r", label: () => "Restart", onUse: props.reset },
     { key: "q", label: () => "Quit", onUse: () => exit() },
   ]
@@ -142,7 +157,7 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
           <For each={actions}>
             {(action, index) => {
               const isSelected = () => selected() === index()
-              const isCopied = () => action.copy && copied()
+              const isCopied = () => action.copy && copyState() === "copied"
               return (
                 <box flexDirection="column" alignItems="center" flexShrink={0}>
                   <box
@@ -196,9 +211,11 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
         <Show when={showFooter()}>
           <box flexDirection="column" alignItems="center" flexShrink={0}>
             <text fg={colors.muted}>
-              {copied()
-                ? "Stack trace copied — email it to support@jolli.ai."
-                : "Copy the stack trace and email it to support@jolli.ai to help us fix this."}
+              {copyState() === "copied"
+                ? `Stack trace copied — email it to ${Brand.supportEmail}.`
+                : copyState() === "failed"
+                  ? `Couldn't copy — select the stack trace above and email it to ${Brand.supportEmail}.`
+                  : `Copy the stack trace and email it to ${Brand.supportEmail} to help us fix this.`}
             </text>
             <text fg={colors.muted}>
               {Brand.bin} {InstallationVersion}

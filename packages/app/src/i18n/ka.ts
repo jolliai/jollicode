@@ -617,7 +617,7 @@ export const dict = {
   "error.page.action.updateTo": "განახლება {{version}}",
   "error.page.circular": "[Circular]",
   "error.page.report.prefix": "გთხოვთ, შეატყობინოთ ეს შეცდომა Jolli Code გუნდს",
-  "error.page.report.github": "GitHub",
+  "error.page.report.email": "{{email}}-ზე",
   "error.page.version": "ვერსია: {{version}}",
   "error.dev.rootNotFound":
     "ძირის ელემენტი ვერ მოიძებნა. დაგავიწყდათ მისი დამატება თქვენს index.html-ში? ან იქნებ id ატრიბუტი არასწორად არის დაწერილი?",

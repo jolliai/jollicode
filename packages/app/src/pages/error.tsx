@@ -7,7 +7,6 @@ import { Component, createSignal, onMount, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { usePlatform } from "@/context/platform"
 import { useLanguage } from "@/context/language"
-import { Icon } from "@opencode-ai/ui/icon"
 import { errorDescriptionKey } from "./error-description"
 
 export type InitError = {
@@ -355,10 +354,9 @@ export const ErrorPage: Component<ErrorPageProps> = (props) => {
             <button
               type="button"
               class="flex items-center text-text-interactive-base gap-1"
-              onClick={() => platform.openExternal(`https://github.com/${Brand.org}/${Brand.bin}/issues`)}
+              onClick={() => platform.openExternal(`mailto:${Brand.supportEmail}`)}
             >
-              <div>{language.t("error.page.report.github")}</div>
-              <Icon name="github" class="text-text-interactive-base" />
+              {language.t("error.page.report.email", { email: Brand.supportEmail })}
             </button>
           </div>
           <Show when={platform.version}>

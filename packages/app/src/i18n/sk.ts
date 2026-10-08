@@ -616,7 +616,7 @@ export const dict = {
   "error.page.action.updateTo": "Aktualizovať na {{version}}",
   "error.page.circular": "[Cyklické]",
   "error.page.report.prefix": "Nahláste túto chybu tímu Jolli Code",
-  "error.page.report.github": "na GitHube",
+  "error.page.report.email": "na {{email}}",
   "error.page.version": "Verzia: {{version}}",
   "error.dev.rootNotFound":
     "Koreňový prvok sa nenašiel. Pridali ste ho do index.html? Alebo je atribút id napísaný nesprávne?",

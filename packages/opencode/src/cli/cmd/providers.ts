@@ -475,8 +475,10 @@ export const ProvidersLoginCommand = effectCmd({
     }
 
     if (["cloudflare", "cloudflare-ai-gateway"].includes(provider)) {
+      // Once docs.jolli.ai has a Cloudflare AI Gateway page, append the link to the message:
+      // `Cloudflare AI Gateway can be configured with CLOUDFLARE_GATEWAY_ID, CLOUDFLARE_ACCOUNT_ID, and CLOUDFLARE_API_TOKEN environment variables. Read more: ${Brand.docsUrl}`
       yield* Prompt.log.info(
-        `Cloudflare AI Gateway can be configured with CLOUDFLARE_GATEWAY_ID, CLOUDFLARE_ACCOUNT_ID, and CLOUDFLARE_API_TOKEN environment variables. Read more: ${Brand.docsUrl}`,
+        "Cloudflare AI Gateway can be configured with CLOUDFLARE_GATEWAY_ID, CLOUDFLARE_ACCOUNT_ID, and CLOUDFLARE_API_TOKEN environment variables.",
       )
     }
 

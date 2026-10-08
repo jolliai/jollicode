@@ -615,7 +615,7 @@ export const dict = {
   "error.page.action.updateTo": "Värskenda väärtusele {{version}}",
   "error.page.circular": "[Ringkiri]",
   "error.page.report.prefix": "Teatage sellest veast Jolli Code meeskonnale",
-  "error.page.report.github": "kuupäeval GitHub",
+  "error.page.report.email": "aadressil {{email}}",
   "error.page.version": "Versioon: {{version}}",
   "error.dev.rootNotFound":
     "Juurelementi ei leitud. Kas unustasite selle lisada oma loendisse index.html? Või äkki on id-atribuut valesti kirjutatud?",
