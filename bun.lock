@@ -383,7 +383,7 @@
     },
     "packages/desktop": {
       "name": "@jolli.ai/desktop",
-      "version": "1.18.31",
+      "version": "0.0.0",
       "dependencies": {
         "@zip.js/zip.js": "2.7.62",
         "drizzle-orm": "catalog:",

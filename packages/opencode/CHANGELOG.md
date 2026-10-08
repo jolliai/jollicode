@@ -2,6 +2,11 @@
 
 <!-- Each release adds a `## MAJOR.MINOR.PATCH` section at the top. The release workflow publishes the top section's version, with that section as the release notes. -->
 
+## 0.0.3
+
+- **Contact support from the crash screen.** If the terminal UI crashes, copy the crash report (version, OS, terminal, error message and stack trace) and email it to support@jolli.ai. The crash screen tells you when copying fails.
+- Bug fixes.
+
 ## 0.0.1
 
 The first release of the Jolli Code CLI, an AI coding assistant for your courses.
