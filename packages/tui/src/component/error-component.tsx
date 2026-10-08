@@ -43,14 +43,21 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
 
   const message = props.error.message || "An unknown error occurred."
   const stack = props.error.stack || "No stack trace available."
-  const issueURL = buildIssueURL(message, stack)
 
-  const copyReport = () => {
-    void clipboard.write?.(issueURL.toString()).then(() => setCopied(true))
+  const copyStack = () => {
+    // Lead with version and environment so a support email carries them without extra back-and-forth.
+    const report = [
+      `${Brand.bin} ${InstallationVersion}`,
+      `OS: ${describeOS()}`,
+      `Terminal: ${describeTerminal()}`,
+      "",
+      stack,
+    ]
+    void clipboard.write?.(report.join("\n")).then(() => setCopied(true))
   }
 
   const actions = [
-    { key: "c", label: () => (copied() ? "✓ Copied" : "Copy report"), copy: true, onUse: copyReport },
+    { key: "c", label: () => (copied() ? "✓ Copied" : "Copy stack trace"), copy: true, onUse: copyStack },
     { key: "r", label: () => "Restart", onUse: props.reset },
     { key: "q", label: () => "Quit", onUse: () => exit() },
   ]
@@ -88,7 +95,7 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
     if (evt.name === "home" && scroll) return scroll.scrollTo(0)
     if (evt.name === "end" && scroll) return scroll.scrollTo(scroll.scrollHeight)
     if (evt.name === "q") return exit()
-    if (evt.name === "c") return copyReport()
+    if (evt.name === "c") return copyStack()
     if (evt.name === "r") return props.reset()
   })
 
@@ -190,8 +197,8 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
           <box flexDirection="column" alignItems="center" flexShrink={0}>
             <text fg={colors.muted}>
               {copied()
-                ? "Report copied — paste it into a new GitHub issue."
-                : "Copy the report and open a GitHub issue to help us fix this."}
+                ? "Stack trace copied — email it to support@jolli.ai."
+                : "Copy the stack trace and email it to support@jolli.ai to help us fix this."}
             </text>
             <text fg={colors.muted}>
               {Brand.bin} {InstallationVersion}
@@ -201,43 +208,4 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
       </box>
     </box>
   )
-}
-
-function buildIssueURL(message: string, stack: string) {
-  // Field keys match the ids in .github/ISSUE_TEMPLATE/bug-report.yml so the issue
-  // form opens pre-filled. Populating os/terminal/reproduce keeps the report past
-  // the contributing-guidelines compliance check, which pushes for system info.
-  const url = new URL(`https://github.com/${Brand.org}/${Brand.bin}/issues/new?template=bug-report.yml`)
-  url.searchParams.set("title", `TUI crash: ${message}`)
-  url.searchParams.set(`${Brand.bin}-version`, InstallationVersion)
-  url.searchParams.set("os", describeOS())
-  url.searchParams.set("terminal", describeTerminal())
-  url.searchParams.set(
-    "reproduce",
-    `Reported automatically from the ${Brand.name} crash screen. If you can, describe what you were doing when it crashed.`,
-  )
-
-  // Budget the stack against the fully URL-encoded length (not the raw length) so
-  // the final link stays under GitHub's practical limit; flag truncation so a
-  // clipped trace is obvious. searchParams.set handles encoding without throwing,
-  // so measuring url.toString() is both correct and safe on any input.
-  const MAX_URL_LENGTH = 6000
-  const marker = "\n… (truncated)"
-  const head = `The ${Brand.name} TUI crashed with an unexpected error.\n\n**Error:** ${message}\n\n**Stack trace:**\n`
-  const setBody = (body: string) => url.searchParams.set("description", head + "```\n" + body + "\n```")
-
-  setBody(stack)
-  if (url.toString().length <= MAX_URL_LENGTH) return url
-
-  // Largest raw stack prefix whose encoded URL (with the marker) still fits.
-  let lo = 0
-  let hi = stack.length
-  while (lo < hi) {
-    const mid = Math.ceil((lo + hi) / 2)
-    setBody(stack.slice(0, mid) + marker)
-    if (url.toString().length <= MAX_URL_LENGTH) lo = mid
-    else hi = mid - 1
-  }
-  setBody(stack.slice(0, lo) + marker)
-  return url
 }
