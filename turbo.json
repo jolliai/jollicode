@@ -1,5 +1,9 @@
 {
   "$schema": "https://v2-8-13.turborepo.dev/schema.json",
+  // Neither is reachable from any package's own inputs, yet both change what the code under test is:
+  // `patches/**` rewrites dependencies in place at install time, and the root `bunfig.toml` configures
+  // the test runner itself. Without them a PR that only touches a patch replays `dev`'s cached results.
+  "globalDependencies": ["patches/**", "bunfig.toml"],
   "globalEnv": ["CI", "OPENCODE_DISABLE_SHARE"],
   "globalPassThroughEnv": ["CI", "OPENCODE_DISABLE_SHARE"],
   "tasks": {
@@ -14,6 +18,7 @@
       "passThroughEnv": ["*"]
     },
     "@jolli.ai/desktop#test": {
+      "dependsOn": ["^build"],
       "outputs": []
     },
     "@opencode-ai/script#test": {

@@ -45,6 +45,12 @@ export interface PromptInputProps {
   submission?: PromptInputSubmission
   controls: PromptInputControls
   ref?: (el: HTMLDivElement) => void
+  /**
+   * The draft tab this composer belongs to, when it is one. Several drafts can be open on the same
+   * directory at once, so this is what tells their prompt histories apart before any of them has a
+   * session to be keyed by.
+   */
+  draftID?: string
   newSessionWorktree?: string
   onNewSessionWorktreeReset?: () => void
   edit?: { id: string; prompt: Prompt; context: FollowupDraft["context"] }

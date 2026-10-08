@@ -221,6 +221,10 @@ type PromptSubmitInput = {
   queueScroll: () => void
   promptLength: (prompt: Prompt) => number
   addToHistory: (prompt: Prompt, mode: "normal" | "shell") => void
+  /** Hands the just-sent prompt to the session this submit created, so ↑ still finds it there. */
+  promoteHistory?: (sessionID: string) => void
+  /** No session to hand it to: drop the entry instead of leaving it for the next new chat to replay. */
+  discardHistory?: () => void
   resetHistoryNavigation: () => void
   setMode: (mode: "normal" | "shell") => void
   setPopover: (popover: "at" | "slash" | null) => void
@@ -327,9 +331,42 @@ export function createPromptSubmit(input: PromptSubmitInput) {
     })
   }
 
+  /**
+   * ⚠ ONE SESSION PER CHAT, HOWEVER FAST ENTER IS PRESSED. `handleSubmit` is async and the composer
+   * only guards held keys (`event.repeat`), so a second press lands while the first is still
+   * awaiting `session.create`. Both read `params.id` as empty, both decide they are starting a new
+   * chat, and the conversation forks into two sessions — the second carrying a duplicate of the
+   * same text, since the input is not cleared until the send returns.
+   *
+   * Only the sessionless path is gated. Submitting repeatedly inside a live chat is ordinary use
+   * (it is how followups queue), and must stay untouched.
+   */
+  let starting: Promise<void> | undefined
+
   const handleSubmit = async (event: Event) => {
     event.preventDefault()
+    if (starting) return starting
+    if (params.id) return submit()
 
+    starting = submit()
+      /**
+       * ⚠ AN EXCEPTION ESCAPES BOTH HALVES OF THE HISTORY HANDOFF. Every path that ends in a session
+       * promotes the pending bucket into it, and every path that fails to create one discards it —
+       * but a throw in between (worktree client, the transition, the draft promotion) reaches
+       * neither, parking the entry on a draft that will never claim it. A failed submit has no
+       * session to hand it to, so it is discarded on the way out and the error still propagates.
+       */
+      .catch((err) => {
+        input.discardHistory?.()
+        throw err
+      })
+      .finally(() => {
+        starting = undefined
+      })
+    return starting
+  }
+
+  const submit = async () => {
     const target = prompt.capture()
     const submission = createPromptSubmissionState({
       target,
@@ -385,6 +422,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
           })
 
         if (!createdWorktree?.directory) {
+          input.discardHistory?.()
           showToast({
             title: language.t("prompt.toast.worktreeCreateFailed.title"),
             description: language.t("common.requestFailed"),
@@ -448,6 +486,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       if (created) {
         seed(sessionDirectory, created)
         session = created
+        input.promoteHistory?.(created.id)
         await startTransition(() => {
           if (!session) return
           if (shouldAutoAccept) permissionState.enableAutoAccept(session.id, sessionDirectory)
@@ -468,6 +507,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       }
     }
     if (!session) {
+      input.discardHistory?.()
       showToast({
         title: language.t("prompt.toast.promptSendFailed.title"),
         description: language.t("prompt.toast.promptSendFailed.description"),

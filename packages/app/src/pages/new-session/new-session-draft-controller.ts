@@ -32,6 +32,10 @@ export function createNewSessionDraftController(workspace: { worktree: () => str
     get controls() {
       return controls()
     },
+    // Keeps ↑ inside this draft: two new chats on the same folder each recall only their own.
+    get draftID() {
+      return searchParams.draftId
+    },
     get newSessionWorktree() {
       return workspace.worktree()
     },

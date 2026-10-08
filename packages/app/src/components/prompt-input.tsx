@@ -59,11 +59,8 @@ import {
   type PromptHistoryEntry,
   promptLength,
 } from "./prompt-input/history"
-import {
-  createPersistedPromptInputHistory,
-  createPromptInputHistory,
-  type PromptInputHistory,
-} from "./prompt-input/history-store"
+import { createPromptHistoryScope } from "./prompt-input/history-scope"
+import { createPromptInputHistory, type PromptInputHistory } from "./prompt-input/history-store"
 import {
   type PromptInputControls,
   type PromptInputProps,
@@ -314,7 +311,14 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     return messages.some((m) => m.role === "user")
   })
 
-  const history = props.history ?? createPersistedPromptInputHistory()
+  const historyScope = createPromptHistoryScope({
+    history: props.history,
+    sessionID: () => props.controls.session.id,
+    serverScope: () => sdk().scope,
+    directory: () => sdk().directory,
+    draftID: () => props.draftID,
+  })
+  const history = historyScope.history
 
   const suggest = createMemo(() => !hasUserPrompt())
 
@@ -474,6 +478,13 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     setStore("historyIndex", -1)
     setStore("savedPrompt", null)
   }
+
+  /**
+   * Switching chats switches the history list under the cursor, so the position into it is stale.
+   * Keyed on the scope rather than the session id: moving between two drafts changes neither the id
+   * (both have none) nor the directory, and the cursor would survive into a different list.
+   */
+  createEffect(on(historyScope.scope, () => resetHistoryNavigation(true), { defer: true }))
 
   const clearEditor = () => {
     editorRef.innerHTML = ""
@@ -1100,7 +1111,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   }
 
   const addToHistory = (prompt: Prompt, mode: "normal" | "shell") => {
-    history.add(prompt, mode, mode === "shell" ? [] : historyComments())
+    history.add(prompt, mode, mode === "shell" ? [] : historyComments(), historyScope.submitted())
   }
 
   createEffect(
@@ -1210,6 +1221,8 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       queueScroll,
       promptLength,
       addToHistory,
+      promoteHistory: historyScope.promote,
+      discardHistory: historyScope.discard,
       resetHistoryNavigation: () => {
         resetHistoryNavigation(true)
       },

@@ -3,11 +3,17 @@ import type { Prompt } from "@/context/prompt"
 import {
   canNavigateHistoryAtCursor,
   clonePromptParts,
+  dropHistoryScope,
   normalizePromptHistoryEntry,
   navigatePromptHistory,
   prependHistoryEntry,
+  prependScopedHistoryEntry,
+  promoteHistoryScope,
+  promptHistoryScope,
   promptLength,
+  sessionHistoryScope,
   type PromptHistoryComment,
+  type PromptHistoryScopes,
 } from "./history"
 
 const DEFAULT_PROMPT: Prompt = [{ type: "text", content: "", start: 0, end: 0 }]
@@ -149,5 +155,57 @@ describe("prompt-input history", () => {
     expect(canNavigateHistoryAtCursor("down", "abc", 3, true)).toBe(true)
     expect(canNavigateHistoryAtCursor("up", "abc", 1, true)).toBe(false)
     expect(canNavigateHistoryAtCursor("down", "abc", 1, true)).toBe(false)
+  })
+
+  test("prependScopedHistoryEntry keeps each chat's entries to itself", () => {
+    const one = prependScopedHistoryEntry({}, sessionHistoryScope("a"), text("from a"))
+    const both = prependScopedHistoryEntry(one, sessionHistoryScope("b"), text("from b"))
+
+    expect(both[sessionHistoryScope("a")]).toHaveLength(1)
+    expect(both[sessionHistoryScope("b")]).toHaveLength(1)
+    expect(both[sessionHistoryScope("c")]).toBeUndefined()
+
+    const empty = prependScopedHistoryEntry(both, sessionHistoryScope("a"), DEFAULT_PROMPT)
+    expect(empty).toBe(both)
+  })
+
+  test("prependScopedHistoryEntry drops the stalest chats past the scope cap", () => {
+    let scopes: PromptHistoryScopes = {}
+    for (const id of ["a", "b", "c"]) {
+      scopes = prependScopedHistoryEntry(scopes, sessionHistoryScope(id), text(id), [], 100, 2)
+    }
+    expect(Object.keys(scopes)).toEqual([sessionHistoryScope("b"), sessionHistoryScope("c")])
+
+    // Writing to an older scope makes it the most recent again.
+    scopes = prependScopedHistoryEntry(scopes, sessionHistoryScope("b"), text("b again"), [], 100, 2)
+    expect(Object.keys(scopes)).toEqual([sessionHistoryScope("c"), sessionHistoryScope("b")])
+  })
+
+  test("promoteHistoryScope moves the pending chat into the session it created", () => {
+    const pending = promptHistoryScope(undefined, "/repo")
+    const scopes = prependScopedHistoryEntry({}, pending, text("first prompt"))
+
+    const promoted = promoteHistoryScope(scopes, pending, sessionHistoryScope("ses_1"))
+    expect(promoted[pending]).toBeUndefined()
+    expect(promoted[sessionHistoryScope("ses_1")]).toHaveLength(1)
+
+    // A second new chat in the same directory starts empty instead of inheriting the first.
+    expect(promoted[promptHistoryScope(undefined, "/repo")]).toBeUndefined()
+    expect(promoteHistoryScope(promoted, pending, sessionHistoryScope("ses_2"))).toBe(promoted)
+  })
+
+  test("dropHistoryScope forgets a chat and leaves the rest alone", () => {
+    const pending = promptHistoryScope(undefined, "/repo")
+    let scopes = prependScopedHistoryEntry({}, pending, text("never sent"))
+    scopes = prependScopedHistoryEntry(scopes, sessionHistoryScope("ses_1"), text("sent"))
+
+    const dropped = dropHistoryScope(scopes, pending)
+    expect(dropped[pending]).toBeUndefined()
+
+    const kept = dropped[sessionHistoryScope("ses_1")]
+    expect(kept).toHaveLength(1)
+    const part = normalizePromptHistoryEntry(kept![0]!).prompt[0]
+    expect(part?.type === "text" ? part.content : "").toBe("sent")
+    expect(dropHistoryScope(dropped, pending)).toBe(dropped)
   })
 })

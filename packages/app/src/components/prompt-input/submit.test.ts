@@ -47,6 +47,11 @@ let selected = "/repo/worktree-a"
 let variant: string | undefined
 let permissionServer = "server-a"
 let createSessionGate: Promise<void> | undefined
+/** Flip to walk the paths that leave a submit with no session to hand its history to. */
+let worktreeCreateFails = false
+let sessionCreateFails = false
+/** The one of those paths that raises instead of returning — nothing downstream gets to clean up. */
+let childSyncFails = false
 
 let promptValue: Prompt = [{ type: "text", content: "ls", start: 0, end: 2 }]
 const [promptStore, setPromptStore] = createStore<PromptStore>({
@@ -84,6 +89,7 @@ const clientFor = (directory: string) => {
       session: {
         create: async (input: (typeof sessionCreateInputs)[number]) => {
           await createSessionGate
+          if (sessionCreateFails) throw new Error("session create failed")
           const location = input.location?.directory ?? directory
           createdSessions.push(location)
           sessionCreateInputs.push(input)
@@ -117,7 +123,7 @@ const clientFor = (directory: string) => {
       abort: async () => ({ data: undefined }),
     },
     worktree: {
-      create: async () => ({ data: { directory: `${directory}/new` } }),
+      create: async () => (worktreeCreateFails ? { data: undefined } : { data: { directory: `${directory}/new` } }),
     },
   }
 }
@@ -141,6 +147,12 @@ beforeAll(async () => {
 
   mock.module("@opencode-ai/ui/toast", () => ({
     Toast: { Region: () => null },
+    showToast: () => 0,
+  }))
+
+  // What `submit.ts` actually imports. Without this the real module is loaded, dragging in the
+  // Kobalte toaster for no benefit to any assertion here.
+  mock.module("@/utils/toast", () => ({
     showToast: () => 0,
   }))
 
@@ -274,6 +286,7 @@ beforeAll(async () => {
         },
       },
       child: (directory: string) => {
+        if (childSyncFails) throw new Error("sync child failed")
         syncedDirectories.push(directory)
         storedSessions[directory] ??= []
         return [
@@ -335,6 +348,9 @@ beforeEach(() => {
   variant = undefined
   permissionServer = "server-a"
   createSessionGate = undefined
+  worktreeCreateFails = false
+  sessionCreateFails = false
+  childSyncFails = false
   serverSessionSyncs = 0
   indexedSessions.length = 0
   for (const key of Object.keys(storedSessions)) delete storedSessions[key]
@@ -720,5 +736,123 @@ describe("prompt submit session title", () => {
 
     expect(sessionCreateInputs).toHaveLength(1)
     expect(sessionCreateInputs[0]).not.toHaveProperty("title")
+  })
+})
+
+/**
+ * ⚠ THE ENTRY IS STAGED BEFORE THE FIRST AWAIT, SO EVERY EXIT OWES IT AN ANSWER. `addToHistory`
+ * runs at the top of the submit, under the bucket of a chat that has no session yet. If the submit
+ * then ends without one, nothing moves that bucket anywhere — and the next new chat in the same
+ * folder recalls a prompt it never saw. These cover the four ways out.
+ */
+describe("prompt submit history handoff", () => {
+  const history = { promoted: [] as string[], discarded: 0 }
+
+  const submitWithHistory = (info: () => { id: string } | undefined = () => undefined) =>
+    createPromptSubmit({
+      prompt,
+      info,
+      imageAttachments: () => [],
+      commentCount: () => 0,
+      autoAccept: () => false,
+      mode: () => "shell",
+      working: () => false,
+      editor: () => undefined,
+      queueScroll: () => undefined,
+      promptLength: (value) => value.reduce((sum, part) => sum + ("content" in part ? part.content.length : 0), 0),
+      addToHistory: () => undefined,
+      promoteHistory: (sessionID) => history.promoted.push(sessionID),
+      discardHistory: () => history.discarded++,
+      resetHistoryNavigation: () => undefined,
+      setMode: () => undefined,
+      setPopover: () => undefined,
+      newSessionWorktree: () => selected,
+      onNewSessionWorktreeReset: () => undefined,
+      onSubmit: () => undefined,
+    })
+
+  const event = () => ({ preventDefault: () => undefined }) as unknown as Event
+
+  beforeEach(() => {
+    history.promoted.length = 0
+    history.discarded = 0
+  })
+
+  test("hands the staged entry to the session the submit created", async () => {
+    await submitWithHistory().handleSubmit(event())
+
+    expect(history.promoted).toEqual(["session-1"])
+    expect(history.discarded).toBe(0)
+  })
+
+  test("drops the staged entry when the worktree never appears", async () => {
+    selected = "create"
+    worktreeCreateFails = true
+
+    await submitWithHistory().handleSubmit(event())
+
+    // No session was ever reached, so there is nothing to promote it into.
+    expect(createdSessions).toEqual([])
+    expect(history.promoted).toEqual([])
+    expect(history.discarded).toBe(1)
+  })
+
+  test("drops the staged entry when the session never appears", async () => {
+    sessionCreateFails = true
+
+    await submitWithHistory().handleSubmit(event())
+
+    expect(createdSessions).toEqual([])
+    expect(history.promoted).toEqual([])
+    expect(history.discarded).toBe(1)
+  })
+
+  /**
+   * ⚠ THE WAY OUT THAT RAISES SKIPS BOTH HANDOFFS. The two misses above end in a `return` that
+   * discards on its way past. Anything that throws between staging the entry and promoting it —
+   * here the per-directory store the worktree path opens — reaches neither, and the bucket would
+   * sit on a draft with no session coming for it.
+   */
+  test("drops the staged entry when the submit throws", async () => {
+    childSyncFails = true
+
+    await expect(submitWithHistory().handleSubmit(event())).rejects.toThrow("sync child failed")
+
+    expect(createdSessions).toEqual([])
+    expect(history.promoted).toEqual([])
+    expect(history.discarded).toBe(1)
+  })
+
+  /**
+   * Enter is guarded against being held down, not against being pressed twice, and the input is not
+   * cleared until the send returns — so the second press arrives mid-flight, reads the same empty
+   * `params.id`, and would start a second session carrying a duplicate of the same text.
+   */
+  test("double-pressing Enter on a new chat creates one session, not two", async () => {
+    let release = () => {}
+    createSessionGate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+
+    const submit = submitWithHistory()
+    const first = submit.handleSubmit(event())
+    const second = submit.handleSubmit(event())
+    release()
+    await Promise.all([first, second])
+
+    expect(createdSessions).toEqual(["/repo/worktree-a"])
+    expect(history.promoted).toEqual(["session-1"])
+    expect(history.discarded).toBe(0)
+  })
+
+  test("a chat that already has a session still accepts back-to-back submits", async () => {
+    params.id = "session-existing"
+
+    const submit = submitWithHistory(() => ({ id: "session-existing" }))
+    await Promise.all([submit.handleSubmit(event()), submit.handleSubmit(event())])
+
+    // Nothing to create or promote here — the point is that neither submit was swallowed.
+    expect(createdSessions).toEqual([])
+    expect(sentShell).toHaveLength(2)
   })
 })
