@@ -2,6 +2,14 @@
 
 <!-- Each release adds a `## MAJOR.MINOR.PATCH` section at the top. The release workflow publishes the top section's version, with that section as the release notes. -->
 
+## 0.0.3
+
+- **Windows and Linux installers.** The desktop app is available for Windows and Linux again, alongside macOS. Windows installers are signed.
+- **Contact Support.** Help > Contact Support, the help buttons and the error page now open an email to support@jolli.ai.
+- **Prompt history per chat.** Pressing Up in the composer recalls the prompts from the current chat only. A new chat starts with an empty history.
+- **Translated course picker and share panel.** The course and assistant picker and the session share panel are now translated into every supported language.
+- Bug fixes.
+
 ## 0.0.2
 
 Bug fixes.
