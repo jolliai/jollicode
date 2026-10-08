@@ -483,7 +483,7 @@ export const SettingsGeneral: Component = () => {
           description={
             <>
               {language.t("settings.general.row.theme.description")}{" "}
-              <ExternalLink href={`${Brand.url}/docs/themes/`}>{language.t("common.learnMore")}</ExternalLink>
+              <ExternalLink href={Brand.docsUrl}>{language.t("common.learnMore")}</ExternalLink>
             </>
           }
         >

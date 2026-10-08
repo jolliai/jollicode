@@ -149,7 +149,7 @@ const AppearanceSection: Component<{ controller: AppearanceSettingsController }>
           description={
             <>
               {language.t("settings.general.row.theme.description")}{" "}
-              <ExternalLink class="settings-v2-link" href={`${Brand.url}/docs/themes/`}>
+              <ExternalLink class="settings-v2-link" href={Brand.docsUrl}>
                 {language.t("common.learnMore")}
               </ExternalLink>
             </>

@@ -26,6 +26,7 @@ import { Provider } from "@/provider/provider"
 import { MessageV2 } from "../../session/message-v2"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { EventV2 } from "@opencode-ai/core/event"
+import { Brand } from "@opencode-ai/core/brand"
 import { SessionPrompt } from "@/session/prompt"
 import { Git } from "@/git"
 import { setTimeout as sleep } from "node:timers/promises"
@@ -201,7 +202,7 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
             "",
             "    3. Go to a GitHub issue and comment `/jc summarize` to see the agent in action",
             "",
-            "   Learn more about the GitHub agent - https://jolli.ai/docs/github/#usage-examples",
+            `   Learn more about the GitHub agent - ${Brand.docsUrl}`,
           ].join("\n"),
         )
       }
