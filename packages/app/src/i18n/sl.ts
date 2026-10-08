@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "Jolli Code Dokumentacija",
   "desktop.menu.shareFeedback": "Delite povratne informacije",
   "desktop.menu.reportBug": "Prijavi napako",
+  "desktop.menu.contactSupport": "Stik s podporo",
   "desktop.menu.ariaLabel": "Jolli Code meni",
   "desktop.updater.dialog.checkFailed.message": "Preverjanje posodobitve ni uspelo.",
   "desktop.updater.dialog.checkFailed.title": "Napaka posodobitve",

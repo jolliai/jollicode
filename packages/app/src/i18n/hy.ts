@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "Jolli Code Փաստաթղթեր",
   "desktop.menu.shareFeedback": "Կիսվել կարծիք",
   "desktop.menu.reportBug": "Հաղորդել սխալի մասին",
+  "desktop.menu.contactSupport": "Կապվել աջակցության հետ",
   "desktop.menu.ariaLabel": "Jolli Code մենյու",
   "desktop.updater.dialog.checkFailed.message": "Թարմացման ստուգումը ձախողվեց։",
   "desktop.updater.dialog.checkFailed.title": "Թարմացման սխալ",

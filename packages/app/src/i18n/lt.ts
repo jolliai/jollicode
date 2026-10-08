@@ -44,6 +44,7 @@ const desktop = [
   "Jolli Code dokumentacija",
   "Pateikti atsiliepimą",
   "Pranešti apie klaidą",
+  "Susisiekti su pagalba",
   "Jolli Code meniu",
   "Naujinių patikrinti nepavyko.",
   "Naujinimo klaida",

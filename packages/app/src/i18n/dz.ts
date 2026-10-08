@@ -42,6 +42,7 @@ export const dict: Record<string, string> = {
   "desktop.menu.documentation": "Jolli Code ཡིག་ཆ།",
   "desktop.menu.shareFeedback": "བསམ་འཆར་བརྗེ་རེས།",
   "desktop.menu.reportBug": "རྐྱེན་ཅིག་སྙན་ཞུ་འབད།",
+  "desktop.menu.contactSupport": "རྒྱབ་སྐྱོར་དང་འབྲེལ་བ་འཐབ།",
   "desktop.menu.ariaLabel": "Jolli Code དཀར་ཆག།",
   "desktop.updater.dialog.checkFailed.message": "དུས་མཐུན་ཞིབ་དཔྱད་འཐུས་ཤོར་འབྱུང་ཡོདཔ།",
   "desktop.updater.dialog.checkFailed.title": "དུས་མཐུན་འཛོལ་བ།",

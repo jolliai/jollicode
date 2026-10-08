@@ -1130,6 +1130,7 @@ export const dict = {
   "desktop.menu.shareFeedback": "Anna palautetta",
   "desktop.menu.reportBug": "Ilmoita ohjelmavirheestä",
   "desktop.menu.ariaLabel": "Jolli Code-valikko",
+  "desktop.menu.contactSupport": "Ota yhteyttä tukeen",
   "desktop.updater.dialog.checkFailed.message": "Päivitysten tarkistus epäonnistui.",
   "desktop.updater.dialog.checkFailed.title": "Päivitysvirhe",
   "desktop.updater.dialog.upToDate.message": "Olet ajan tasalla.",

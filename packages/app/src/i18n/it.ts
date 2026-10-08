@@ -1156,6 +1156,7 @@ export const dict = {
   "desktop.menu.shareFeedback": "Invia feedback",
   "desktop.menu.reportBug": "Segnala un bug",
   "desktop.menu.ariaLabel": "Menu Jolli Code",
+  "desktop.menu.contactSupport": "Contatta l'assistenza",
   "desktop.updater.dialog.checkFailed.message": "Impossibile verificare la disponibilità di aggiornamenti.",
   "desktop.updater.dialog.checkFailed.title": "Errore di aggiornamento",
   "desktop.updater.dialog.upToDate.message": "La versione è aggiornata.",

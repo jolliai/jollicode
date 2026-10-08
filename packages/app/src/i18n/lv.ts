@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "Jolli Code dokumentācija",
   "desktop.menu.shareFeedback": "Sniegt atsauksmi",
   "desktop.menu.reportBug": "Ziņot par kļūdu",
+  "desktop.menu.contactSupport": "Sazināties ar atbalstu",
   "desktop.menu.ariaLabel": "Jolli Code izvēlne",
   "desktop.updater.dialog.checkFailed.message": "Neizdevās pārbaudīt atjauninājumus.",
   "desktop.updater.dialog.checkFailed.title": "Atjaunināšanas kļūda",

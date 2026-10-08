@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "เอกสาร Jolli Code",
   "desktop.menu.shareFeedback": "ส่งข้อคิดเห็น",
   "desktop.menu.reportBug": "รายงานข้อบกพร่อง",
+  "desktop.menu.contactSupport": "ติดต่อฝ่ายสนับสนุน",
   "desktop.menu.ariaLabel": "เมนู Jolli Code",
 
   "desktop.updater.dialog.checkFailed.message": "การตรวจหาการอัปเดตล้มเหลว",

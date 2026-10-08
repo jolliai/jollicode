@@ -1148,6 +1148,7 @@ export const dict = {
   "desktop.menu.reportBug": "Fehler melden",
   "desktop.menu.ariaLabel": "Jolli Code-Menü",
   "desktop.updater.dialog.checkFailed.message": "Die Suche nach Updates ist fehlgeschlagen.",
+  "desktop.menu.contactSupport": "Support kontaktieren",
   "desktop.updater.dialog.checkFailed.title": "Updatefehler",
   "desktop.updater.dialog.upToDate.message": "Sie sind auf dem neuesten Stand.",
   "desktop.updater.dialog.upToDate.title": "Keine Updates",

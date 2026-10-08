@@ -46,6 +46,7 @@ export const dict = {
   "desktop.menu.documentation": "Jolli Code 文档",
   "desktop.menu.shareFeedback": "提供反馈",
   "desktop.menu.reportBug": "报告错误",
+  "desktop.menu.contactSupport": "联系支持",
   "desktop.menu.ariaLabel": "Jolli Code 菜单",
 
   "desktop.updater.dialog.checkFailed.message": "检查更新失败。",

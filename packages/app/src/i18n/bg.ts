@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "Jolli Code Документация",
   "desktop.menu.shareFeedback": "Споделете обратна връзка",
   "desktop.menu.reportBug": "Докладване за грешка",
+  "desktop.menu.contactSupport": "Връзка с поддръжката",
   "desktop.menu.ariaLabel": "Jolli Code меню",
   "desktop.updater.dialog.checkFailed.message": "Проверката на актуализацията е неуспешна.",
   "desktop.updater.dialog.checkFailed.title": "Грешка при актуализиране",

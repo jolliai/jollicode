@@ -297,16 +297,18 @@ export const DESKTOP_MENU: DesktopMenu[] = [
       { type: "item", labelKey: "desktop.menu.documentation", href: Brand.docsUrl },
       { type: "item", labelKey: "desktop.menu.exportLogs", command: "logs.export" },
       { type: "separator" },
-      {
-        type: "item",
-        labelKey: "desktop.menu.shareFeedback",
-        href: `${Brand.url}/desktop-feedback`,
-      },
-      {
-        type: "item",
-        labelKey: "desktop.menu.reportBug",
-        href: `${Brand.url}/desktop-feedback`,
-      },
+      // Feedback and bug reports go through Contact Support for now.
+      // {
+      //   type: "item",
+      //   labelKey: "desktop.menu.shareFeedback",
+      //   href: `${Brand.url}/desktop-feedback`,
+      // },
+      // {
+      //   type: "item",
+      //   labelKey: "desktop.menu.reportBug",
+      //   href: `${Brand.url}/desktop-feedback`,
+      // },
+      { type: "item", labelKey: "desktop.menu.contactSupport", href: "mailto:support@jolli.ai" },
     ],
   },
 ]

@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "የJolli Code ሰነድ",
   "desktop.menu.shareFeedback": "አጋራ ግብረመልስ",
   "desktop.menu.reportBug": "ስህተትን ሪፖርት አድርግ",
+  "desktop.menu.contactSupport": "ድጋፍን ያግኙ",
   "desktop.menu.ariaLabel": "Jolli Codeምናሌ",
   "desktop.updater.dialog.checkFailed.message": "የዝማኔ ማረጋገጫ አልተሳካም።",
   "desktop.updater.dialog.checkFailed.title": "ስህተት ማዘመን",

@@ -44,6 +44,7 @@ const desktop = [
   "Jolli Code dokumentáció",
   "Visszajelzés küldése",
   "Hiba jelentése",
+  "Kapcsolatfelvétel az ügyfélszolgálattal",
   "Jolli Code menü",
   "A frissítések keresése sikertelen.",
   "Frissítési hiba",

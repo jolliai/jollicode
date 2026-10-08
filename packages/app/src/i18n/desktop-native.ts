@@ -265,6 +265,7 @@ export const DESKTOP_NATIVE_ENGLISH = {
   "desktop.menu.documentation": "Jolli Code Documentation",
   "desktop.menu.shareFeedback": "Share Feedback",
   "desktop.menu.reportBug": "Report a Bug",
+  "desktop.menu.contactSupport": "Contact Support",
   "desktop.menu.ariaLabel": "Jolli Code menu",
 
   "desktop.updater.dialog.checkFailed.message": "Update check failed.",

@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "Tài liệu Jolli Code",
   "desktop.menu.shareFeedback": "Chia sẻ phản hồi",
   "desktop.menu.reportBug": "Báo cáo lỗi",
+  "desktop.menu.contactSupport": "Liên hệ hỗ trợ",
   "desktop.menu.ariaLabel": "Menu Jolli Code",
 
   "desktop.updater.dialog.checkFailed.message": "Không kiểm tra được bản cập nhật.",

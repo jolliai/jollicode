@@ -42,6 +42,7 @@ export const dict: Record<string, string> = {
   "desktop.menu.documentation": "Jolli Code ডকুমেন্টেশন",
   "desktop.menu.shareFeedback": "মতামত শেয়ার করুন",
   "desktop.menu.reportBug": "একটি বাগ রিপোর্ট করুন",
+  "desktop.menu.contactSupport": "সহায়তার সাথে যোগাযোগ করুন",
   "desktop.menu.ariaLabel": "Jolli Code মেনু",
   "desktop.updater.dialog.checkFailed.message": "আপডেট চেক ব্যর্থ হয়েছে.",
   "desktop.updater.dialog.checkFailed.title": "আপডেট ত্রুটি",

@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "Jolli Code Баримт бичиг",
   "desktop.menu.shareFeedback": "Санал хүсэлтээ хуваалцах",
   "desktop.menu.reportBug": "Алдаа мэдээлэх",
+  "desktop.menu.contactSupport": "Тусламжтай холбогдох",
   "desktop.menu.ariaLabel": "Jolli Code цэс",
   "desktop.updater.dialog.checkFailed.message": "Шинэчлэлтийг шалгаж чадсангүй.",
   "desktop.updater.dialog.checkFailed.title": "Шинэчлэлтийн алдаа",
