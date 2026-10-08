@@ -84,7 +84,12 @@ const notify: Platform["notify"] = async (title, description, onClick) => {
 const openExternal: Platform["openExternal"] = (value) => {
   if (!URL.canParse(value)) return
   const url = new URL(value)
-  if (url.protocol !== "http:" && url.protocol !== "https:" && url.protocol !== "mailto:") return
+  // A mailto: popup would leave a blank tab behind (and can trip popup blockers); navigating hands off to the mail client in place.
+  if (url.protocol === "mailto:") {
+    window.location.href = url.href
+    return
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return
   window.open(url.href, "_blank", "noopener,noreferrer")
 }
 

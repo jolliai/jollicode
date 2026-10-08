@@ -623,7 +623,7 @@ export const dict = {
   "error.page.action.updateTo": "{{version}} သို့ အပ်ဒိတ်လုပ်ပါ။",
   "error.page.circular": "[မြို့ပတ်]",
   "error.page.report.prefix": "ဤအမှားအယွင်းကို Jolli Code အဖွဲ့ထံ တိုင်ကြားပါ။\nDiscord တွင်",
-  "error.page.report.github": "GitHub တွင်",
+  "error.page.report.email": "{{email}} သို့",
   "error.page.version": "ဗားရှင်း- {{version}}",
   "error.dev.rootNotFound":
     "အမြစ်ဒြပ်စင်ကို ရှာမတွေ့ပါ။ ၎င်းကို သင်၏ index.html တွင် ထည့်ရန် မေ့သွားပါသလား။ ဒါမှမဟုတ် id attribute က စာလုံးပေါင်းမှားနေသလား။",

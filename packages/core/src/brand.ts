@@ -33,6 +33,8 @@ export const Brand = {
    * section yet, so link its root rather than deep paths that would 404.
    */
   docsUrl: "https://docs.jolli.ai",
+  /** Support inbox for feedback, bug reports, and crash reports. */
+  supportEmail: "support@jolli.ai",
   /** GitHub org for releases / upgrade / taps. */
   org: "jolliai",
   /** Desktop URL scheme: jollicode://. */

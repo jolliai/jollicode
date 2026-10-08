@@ -12,6 +12,7 @@ describe("Brand", () => {
     expect(Brand.gatewayUrl).toBe("https://api.jolli.ai")
     expect(Brand.appUrl).toBe("https://app.jolli.ai")
     expect(Brand.docsUrl).toBe("https://docs.jolli.ai")
+    expect(Brand.supportEmail).toBe("support@jolli.ai")
     expect(Brand.envPrefix).toBe("JOLLICODE_")
   })
 

@@ -543,7 +543,7 @@ export const dict = {
   "error.page.action.checkUpdates": "Tjek for opdateringer",
   "error.page.action.updateTo": "Opdater til {{version}}",
   "error.page.report.prefix": "Rapporter venligst denne fejl til Jolli Code-teamet",
-  "error.page.report.github": "på GitHub",
+  "error.page.report.email": "på {{email}}",
   "error.page.version": "Version: {{version}}",
 
   "error.dev.rootNotFound":

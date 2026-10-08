@@ -620,7 +620,7 @@ export const dict = {
   "error.page.action.updateTo": "{{version}} ga yangilang",
   "error.page.circular": "[Diraviy]",
   "error.page.report.prefix": "Iltimos, ushbu xato haqida Jolli Code jamoasiga xabar bering",
-  "error.page.report.github": "GitHub-da",
+  "error.page.report.email": "{{email}} manziliga",
   "error.page.version": "Versiya: {{version}}",
   "error.dev.rootNotFound":
     "Ildiz element topilmadi. Uni index.html-ga qo'shishni unutdingizmi? Yoki id atributi noto'g'ri yozilgandir?",

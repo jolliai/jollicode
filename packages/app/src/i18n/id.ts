@@ -673,7 +673,7 @@ export const dict = {
   "error.page.action.updateTo": "Perbarui ke {{version}}",
   "error.page.circular": "[Sirkular]",
   "error.page.report.prefix": "Harap laporkan kesalahan ini ke tim Jolli Code",
-  "error.page.report.github": "di GitHub",
+  "error.page.report.email": "di {{email}}",
   "error.page.version": "Versi: {{version}}",
 
   "error.dev.rootNotFound":

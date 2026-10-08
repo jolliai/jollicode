@@ -621,7 +621,7 @@ export const dict = {
   "error.page.action.updateTo": "Uppfærsla í {{version}}",
   "error.page.circular": "[Hringbréf]",
   "error.page.report.prefix": "Vinsamlegast tilkynnið þessa villu til Jolli Code teymisins",
-  "error.page.report.github": "á GitHub",
+  "error.page.report.email": "á {{email}}",
   "error.page.version": "Útgáfa: {{version}}",
   "error.dev.rootNotFound":
     "Rótarþáttur fannst ekki. Gleymdirðu að bæta því við index.html þinn? Eða er id eigindin kannski rangt stafsett?",

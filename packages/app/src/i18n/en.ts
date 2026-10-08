@@ -591,7 +591,7 @@ export const dict = {
   "error.page.action.updateTo": "Update to {{version}}",
   "error.page.circular": "[Circular]",
   "error.page.report.prefix": "Please report this error to the Jolli Code team",
-  "error.page.report.github": "on GitHub",
+  "error.page.report.email": "at {{email}}",
   "error.page.version": "Version: {{version}}",
 
   "error.dev.rootNotFound":

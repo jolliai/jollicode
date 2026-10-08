@@ -532,7 +532,7 @@ export const dict = {
   "error.page.action.updateTo": "Aggiorna a {{version}}",
   "error.page.circular": "[Circular]",
   "error.page.report.prefix": "Segnala questo errore al team Jolli Code",
-  "error.page.report.github": "su GitHub",
+  "error.page.report.email": "all'indirizzo {{email}}",
   "error.page.version": "Versione: {{version}}",
   "error.dev.rootNotFound":
     "Elemento radice non trovato. Hai dimenticato di aggiungerlo al tuo index.html? O forse l'attributo id è stato scritto in modo errato?",

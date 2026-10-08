@@ -1,5 +1,4 @@
 import { Component, Show, createMemo, createResource } from "solid-js"
-import { Brand } from "@/brand"
 import { createMediaQuery } from "@solid-primitives/media"
 import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
 import { SelectV2 } from "@opencode-ai/ui/v2/select-v2"
@@ -9,7 +8,6 @@ import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
 import { useUpdaterAction } from "../updater-action"
 import { useSettings } from "@/context/settings"
-import { ExternalLink } from "../external-link"
 import { SettingsListV2 } from "./parts/list"
 import { SettingsRowV2 } from "./parts/row"
 import {
@@ -148,10 +146,12 @@ const AppearanceSection: Component<{ controller: AppearanceSettingsController }>
           title={language.t("settings.general.row.theme.title")}
           description={
             <>
-              {language.t("settings.general.row.theme.description")}{" "}
+              {language.t("settings.general.row.theme.description")}
+              {/* Restore once docs.jolli.ai has a themes page; also re-add `import { Brand } from "@/brand"` and `import { ExternalLink } from "../external-link"`. */}
+              {/* {" "}
               <ExternalLink class="settings-v2-link" href={Brand.docsUrl}>
                 {language.t("common.learnMore")}
-              </ExternalLink>
+              </ExternalLink> */}
             </>
           }
         >

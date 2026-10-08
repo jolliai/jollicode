@@ -611,7 +611,7 @@ export const dict = {
   "error.page.action.updateTo": "ወደ {{version}} አዘምን",
   "error.page.circular": "[Circular]",
   "error.page.report.prefix": "እባክዎ ይህንን ስህተት ለJolli Code ቡድን ያሳውቁ",
-  "error.page.report.github": "በGitHub",
+  "error.page.report.email": "በ{{email}}",
   "error.page.version": "ስሪት፡ {{version}}",
   "error.dev.rootNotFound": "ሥርወ አካል አልተገኘም። ወደ የእርስዎ index.html ማከልን ረስተዋል? ወይም የመታወቂያ ባህሪው የተሳሳተ ፊደል ተጽፎ ሊሆን ይችላል?",
   "error.serverSync.connectFailed": "ከአገልጋይ ጋር መገናኘት አልተቻለም። `{{url}}` ላይ የሚሰራ አገልጋይ አለ?",

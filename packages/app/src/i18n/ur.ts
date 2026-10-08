@@ -630,7 +630,7 @@ export const dict = {
   "error.page.action.updateTo": "{{version}} میں اپ ڈیٹ کریں۔",
   "error.page.circular": "[سرکلر]",
   "error.page.report.prefix": "براہ کرم Jolli Code ٹیم کو اس غلطی کی اطلاع دیں۔",
-  "error.page.report.github": "GitHub پر",
+  "error.page.report.email": "{{email}} پر",
   "error.page.version": "ورژن: {{version}}",
   "error.dev.rootNotFound":
     "روٹ عنصر نہیں ملا۔ کیا آپ اسے اپنے index.html میں شامل کرنا بھول گئے؟ یا ہو سکتا ہے کہ آئی ڈی وصف کی ہجے غلط ہو گئی ہو؟",

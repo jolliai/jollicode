@@ -617,7 +617,7 @@ export const dict = {
   "error.page.action.checkUpdates": "Verificar atualizações",
   "error.page.action.updateTo": "Atualizar para {{version}}",
   "error.page.report.prefix": "Por favor, reporte este erro para a equipe do Jolli Code",
-  "error.page.report.github": "no GitHub",
+  "error.page.report.email": "pelo e-mail {{email}}",
   "error.page.version": "Versão: {{version}}",
   "error.dev.rootNotFound":
     "Elemento raiz não encontrado. Você esqueceu de adicioná-lo ao seu index.html? Ou talvez o atributo id foi escrito incorretamente?",

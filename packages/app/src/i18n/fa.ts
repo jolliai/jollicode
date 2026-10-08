@@ -617,7 +617,7 @@ export const dict = {
   "error.page.action.updateTo": "به روز رسانی به {{version}}",
   "error.page.circular": "[دایره]",
   "error.page.report.prefix": "لطفاً این خطا را به تیم Jolli Code گزارش دهید",
-  "error.page.report.github": "در GitHub",
+  "error.page.report.email": "از طریق {{email}}",
   "error.page.version": "نسخه: {{version}}",
   "error.dev.rootNotFound":
     "عنصر ریشه یافت نشد. آیا فراموش کرده اید که آن را به index.html خود اضافه کنید؟ یا شاید ویژگی id اشتباه املایی داشته باشد؟",

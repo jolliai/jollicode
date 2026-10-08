@@ -308,7 +308,7 @@ export const DESKTOP_MENU: DesktopMenu[] = [
       //   labelKey: "desktop.menu.reportBug",
       //   href: `${Brand.url}/desktop-feedback`,
       // },
-      { type: "item", labelKey: "desktop.menu.contactSupport", href: "mailto:support@jolli.ai" },
+      { type: "item", labelKey: "desktop.menu.contactSupport", href: `mailto:${Brand.supportEmail}` },
     ],
   },
 ]
