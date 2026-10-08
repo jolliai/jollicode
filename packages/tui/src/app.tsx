@@ -966,7 +966,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "docs.open",
         title: "Open docs",
         run: () => {
-          open("https://jolli.ai/docs").catch(() => {})
+          open(Brand.docsUrl).catch(() => {})
           dialog.clear()
         },
         category: "System",

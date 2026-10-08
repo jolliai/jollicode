@@ -28,6 +28,11 @@ export const Brand = {
   url: "https://jolli.ai",
   /** Hosted web app (GUI) origin the server proxies when the embedded web UI is disabled. */
   appUrl: "https://app.jolli.ai",
+  /**
+   * Product documentation site. It is the shared Jolli docs site, which has no Jolli Code
+   * section yet, so link its root rather than deep paths that would 404.
+   */
+  docsUrl: "https://docs.jolli.ai",
   /** GitHub org for releases / upgrade / taps. */
   org: "jolliai",
   /** Desktop URL scheme: jollicode://. */

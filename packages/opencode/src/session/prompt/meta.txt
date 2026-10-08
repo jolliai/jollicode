@@ -62,4 +62,4 @@ Use the instructions below and the tools available to assist the user.
 
 # User Help & Feedback
 - When giving feedback, users should mention that they are using Meta {{MODEL_NAME}}.
-- When users ask directly about Jolli Code (eg. "can Jolli Code do...", "are you able to do...") or its features (eg. implement a hook, write a slash command, or install an MCP server), use the WebFetch tool to gather information to answer the question from the Jolli Code docs at https://jolli.ai/docs.
+- When users ask directly about Jolli Code (eg. "can Jolli Code do...", "are you able to do...") or its features (eg. implement a hook, write a slash command, or install an MCP server), use the WebFetch tool to gather information to answer the question from the Jolli Code docs at https://docs.jolli.ai.

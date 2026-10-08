@@ -294,7 +294,7 @@ export const DESKTOP_MENU: DesktopMenu[] = [
     id: "help",
     labelKey: "desktop.menu.help",
     items: [
-      { type: "item", labelKey: "desktop.menu.documentation", href: `${Brand.url}/docs` },
+      { type: "item", labelKey: "desktop.menu.documentation", href: Brand.docsUrl },
       { type: "item", labelKey: "desktop.menu.exportLogs", command: "logs.export" },
       { type: "separator" },
       {
