@@ -44,6 +44,7 @@ const desktop = [
   "Dokumentacija za Jolli Code",
   "Pošalji povratne informacije",
   "Prijavi pogrešku",
+  "Kontaktiraj podršku",
   "Izbornik Jolli Code",
   "Provjera ažuriranja nije uspjela.",
   "Pogreška pri ažuriranju",

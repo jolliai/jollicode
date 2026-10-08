@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "Jolli Codeドキュメント",
   "desktop.menu.shareFeedback": "フィードバックを送信",
   "desktop.menu.reportBug": "バグを報告",
+  "desktop.menu.contactSupport": "サポートに問い合わせる",
   "desktop.menu.ariaLabel": "Jolli Codeメニュー",
 
   "desktop.updater.dialog.checkFailed.message": "アップデートを確認できませんでした。",

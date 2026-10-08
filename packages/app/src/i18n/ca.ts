@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "Jolli Code Documentació",
   "desktop.menu.shareFeedback": "Comparteix comentaris",
   "desktop.menu.reportBug": "Informar d'un error",
+  "desktop.menu.contactSupport": "Contacta amb el suport",
   "desktop.menu.ariaLabel": "menú Jolli Code.",
   "desktop.updater.dialog.checkFailed.message": "La comprovació d'actualització ha fallat.",
   "desktop.updater.dialog.checkFailed.title": "Error d'actualització",

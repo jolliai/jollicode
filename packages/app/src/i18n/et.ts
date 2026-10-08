@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "Jolli Code Dokumentatsioon",
   "desktop.menu.shareFeedback": "Jaga tagasisidet",
   "desktop.menu.reportBug": "Teatage veast",
+  "desktop.menu.contactSupport": "Võta ühendust toega",
   "desktop.menu.ariaLabel": "Jolli Code menüü",
   "desktop.updater.dialog.checkFailed.message": "Värskenduskontroll ebaõnnestus.",
   "desktop.updater.dialog.checkFailed.title": "Värskendusviga",

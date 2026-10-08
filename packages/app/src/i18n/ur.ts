@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "Jolli Code دستاویزات",
   "desktop.menu.shareFeedback": "رائے کا اشتراک کریں",
   "desktop.menu.reportBug": "خرابی کی اطلاع دیں",
+  "desktop.menu.contactSupport": "سپورٹ سے رابطہ کریں",
   "desktop.menu.ariaLabel": "Jolli Code مینو",
 
   "desktop.updater.dialog.checkFailed.message": "اپ ڈیٹ کی جانچ ناکام ہو گئی۔",

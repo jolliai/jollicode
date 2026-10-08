@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "Jolli Code Skjøl",
   "desktop.menu.shareFeedback": "Deil afturmeldingar",
   "desktop.menu.reportBug": "Melda ein feil",
+  "desktop.menu.contactSupport": "Set teg í samband við hjálp",
   "desktop.menu.ariaLabel": "Jolli Code valmynd",
   "desktop.updater.dialog.checkFailed.message": "Dagføringarkanningin miseydnaðist.",
   "desktop.updater.dialog.checkFailed.title": "Dagføring feilur",

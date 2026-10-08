@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "Jolli Code Τεκμηρίωση",
   "desktop.menu.shareFeedback": "Κοινή χρήση σχολίων",
   "desktop.menu.reportBug": "Αναφορά σφάλματος",
+  "desktop.menu.contactSupport": "Επικοινωνία με την υποστήριξη",
   "desktop.menu.ariaLabel": "Jolli Code μενού",
   "desktop.updater.dialog.checkFailed.message": "Ο έλεγχος ενημέρωσης απέτυχε.",
   "desktop.updater.dialog.checkFailed.title": "Σφάλμα ενημέρωσης",

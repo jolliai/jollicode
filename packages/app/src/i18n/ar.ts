@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "وثائق Jolli Code",
   "desktop.menu.shareFeedback": "إرسال الملاحظات",
   "desktop.menu.reportBug": "الإبلاغ عن خلل",
+  "desktop.menu.contactSupport": "الاتصال بالدعم",
   "desktop.menu.ariaLabel": "قائمة Jolli Code",
 
   "desktop.updater.dialog.checkFailed.message": "فشل التحقق من وجود تحديثات.",

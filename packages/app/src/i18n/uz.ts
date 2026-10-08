@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "Jolli Code hujjatlari",
   "desktop.menu.shareFeedback": "Fikr-mulohaza ulashing",
   "desktop.menu.reportBug": "Xato haqida xabar berish",
+  "desktop.menu.contactSupport": "Qoʻllab-quvvatlash bilan bogʻlanish",
   "desktop.menu.ariaLabel": "Jolli Code menyusi",
   "desktop.updater.dialog.checkFailed.message": "Yangilanish tekshiruvi amalga oshmadi.",
   "desktop.updater.dialog.checkFailed.title": "Yangilash xatosi",

@@ -42,6 +42,7 @@ export const dict = {
   "desktop.menu.documentation": "Jolli Code စာရွက်စာတမ်း",
   "desktop.menu.shareFeedback": "အကြံပြုချက်ကို မျှဝေပါ။",
   "desktop.menu.reportBug": "ချွတ်ယွင်းချက်တစ်ခုကို သတင်းပို့ပါ။",
+  "desktop.menu.contactSupport": "အကူအညီဌာနကို ဆက်သွယ်ရန်",
   "desktop.menu.ariaLabel": "Jolli Code မီနူး",
   "desktop.updater.dialog.checkFailed.message": "အပ်ဒိတ်စစ်ဆေးမှု မအောင်မြင်ပါ။",
   "desktop.updater.dialog.checkFailed.title": "အပ်ဒိတ် အမှား",

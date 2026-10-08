@@ -1143,6 +1143,7 @@ export const dict = {
   "desktop.menu.shareFeedback": "피드백 보내기",
   "desktop.menu.reportBug": "버그 신고",
   "desktop.menu.ariaLabel": "Jolli Code 메뉴",
+  "desktop.menu.contactSupport": "지원팀에 문의",
 
   "desktop.updater.dialog.checkFailed.message": "업데이트를 확인하지 못했습니다.",
   "desktop.updater.dialog.checkFailed.title": "업데이트 오류",

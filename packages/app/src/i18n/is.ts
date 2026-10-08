@@ -44,6 +44,7 @@ const desktop = [
   "Jolli Code skjölun",
   "Deila ábendingu",
   "Tilkynna villu",
+  "Hafa samband við þjónustuver",
   "Jolli Code-valmynd",
   "Athugun á uppfærslu mistókst.",
   "Villa í uppfærslu",
