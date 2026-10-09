@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test"
-import { latestDesktopTag, releaseVersion, requireCliVersion, shouldReuseRelease, staleDesktopDrafts } from "./version"
+import {
+  latestDesktopTag,
+  releaseVersion,
+  requireCliVersion,
+  shouldReuseRelease,
+  staleDesktopDrafts,
+  windowsSigningNotes,
+} from "./version"
 
 const published = (tagName: string) => ({ tagName, isDraft: false, isPrerelease: false })
 
@@ -100,5 +107,23 @@ describe("requireCliVersion", () => {
   test("refuses to release before a real CLI is published", () => {
     expect(() => requireCliVersion("0.0.0")).toThrow("publish the CLI first")
     expect(() => requireCliVersion("")).toThrow("publish the CLI first")
+  })
+})
+
+describe("windowsSigningNotes", () => {
+  test("states the Windows installers are unsigned when signing is turned off", () => {
+    expect(windowsSigningNotes("false")).toEqual([expect.stringContaining("not code-signed")])
+  })
+
+  test("adds nothing when signing is on or the input is unset", () => {
+    expect(windowsSigningNotes("true")).toEqual([])
+    expect(windowsSigningNotes(undefined)).toEqual([])
+  })
+
+  test("only an exact lowercase false turns the notice on", () => {
+    expect(windowsSigningNotes("False")).toEqual([])
+    expect(windowsSigningNotes("FALSE")).toEqual([])
+    expect(windowsSigningNotes("0")).toEqual([])
+    expect(windowsSigningNotes("")).toEqual([])
   })
 })
