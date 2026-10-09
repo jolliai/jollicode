@@ -36,6 +36,7 @@ await $`mkdir -p ./dist/${pkg.name}`
 await $`mkdir -p ./dist/${pkg.name}/bin`
 await $`cp ./script/postinstall.mjs ./dist/${pkg.name}/postinstall.mjs`
 await Bun.file(`./dist/${pkg.name}/LICENSE`).write(await Bun.file("../../LICENSE").text())
+await Bun.file(`./dist/${pkg.name}/README.md`).write(await Bun.file("../../README.md").text())
 await Bun.file(`./dist/${pkg.name}/bin/${Brand.bin}.exe`).write(
   [
     `echo "Error: ${Brand.npm}'s postinstall script was not run." >&2`,
@@ -64,6 +65,10 @@ await Bun.file(`./dist/${pkg.name}/package.json`).write(
       },
       version: version,
       license: pkg.license,
+      description: Brand.tagline,
+      homepage: "https://jolli.ai",
+      // npm resolves the README's relative links and images (logo, LICENSE, translations) against this repo.
+      repository: { type: "git", url: "git+https://github.com/jolliai/jollicode.git" },
       os: ["darwin", "linux", "win32"],
       cpu: ["arm64", "x64"],
       optionalDependencies: binaries,
