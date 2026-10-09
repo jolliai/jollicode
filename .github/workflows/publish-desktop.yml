@@ -8,6 +8,9 @@ on:
     inputs:
       # Escape hatch for shipping Windows before the Key Vault certificate exists. Off, the Windows legs
       # skip signing and the signature check and the release notes say the installers are unsigned.
+      # Temporary: remove this input once the certificate is in the vault. The release still goes out as
+      # Latest and auto-updates skip the signature check, so after a signed Windows release has shipped,
+      # an unsigned run would move every install to an unsigned build.
       sign_windows:
         description: "Sign the Windows installers (turn off only to ship an unsigned preview)"
         type: boolean
@@ -22,6 +25,11 @@ concurrency:
 permissions:
   id-token: write
   contents: write
+
+# Read by version.ts for the release notes, and on Windows by the signing step and script/sign-windows.ps1,
+# so the notes and the actual signing always come from the same value.
+env:
+  SIGN_WINDOWS: ${{ inputs.sign_windows }}
 
 jobs:
   version:
@@ -57,7 +65,6 @@ jobs:
           GH_REPO: jolliai/jollicode-releases
           DESKTOP_VERSION: ${{ steps.changelog.outputs.version }}
           RELEASE_NOTES_FILE: ${{ steps.changelog.outputs.notes }}
-          DESKTOP_SIGN_WINDOWS: ${{ inputs.sign_windows }}
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
@@ -72,8 +79,8 @@ jobs:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      AZURE_KEY_VAULT_URL: ${{ inputs.sign_windows && secrets.AZURE_KEY_VAULT_URL || '' }}
-      AZURE_KEY_VAULT_CERTIFICATE: ${{ inputs.sign_windows && secrets.AZURE_KEY_VAULT_CERTIFICATE || '' }}
+      AZURE_KEY_VAULT_URL: ${{ secrets.AZURE_KEY_VAULT_URL }}
+      AZURE_KEY_VAULT_CERTIFICATE: ${{ secrets.AZURE_KEY_VAULT_CERTIFICATE }}
     strategy:
       fail-fast: false
       matrix:
@@ -118,16 +125,19 @@ jobs:
         with:
           install-flags: ${{ matrix.settings.bun_install_flags }}
 
-      # The desktop installer never ships unsigned: the signature check after packaging would fail the
-      # leg anyway, so missing secrets fail here by name instead of as an opaque Azure login error.
-      - name: Warn about unsigned Windows installers
-        if: runner.os == 'Windows' && !inputs.sign_windows
-        run: echo "::warning::sign_windows is off; publishing UNSIGNED Windows installers"
-
+      # The desktop installer never ships unsigned unless sign_windows is off: the signature check after
+      # packaging would fail the leg anyway, so missing secrets fail here by name instead of as an opaque
+      # Azure login error. Later Windows signing steps gate on this step's output, as in publish.yml.
       - name: Check Windows signing secrets
-        if: runner.os == 'Windows' && inputs.sign_windows
+        id: signing
+        if: runner.os == 'Windows'
         shell: bash
         run: |
+          if [ "$SIGN_WINDOWS" = "false" ]; then
+            echo "::warning::sign_windows is off; publishing UNSIGNED Windows installers"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           names=(AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_KEY_VAULT_URL AZURE_KEY_VAULT_CERTIFICATE)
           missing=()
           for name in "${names[@]}"; do
@@ -137,9 +147,10 @@ jobs:
             echo "::error::Azure Key Vault signing is not configured; missing: ${missing[*]}"
             exit 1
           fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
 
       - name: Azure login
-        if: runner.os == 'Windows' && inputs.sign_windows
+        if: steps.signing.outputs.enabled == 'true'
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
         with:
           client-id: ${{ env.AZURE_CLIENT_ID }}
@@ -231,8 +242,10 @@ jobs:
           fi
           tar -czf "$OUT_NAME" -C "$(dirname "$APP_PATH")" "$(basename "$APP_PATH")"
 
+      # Fails closed: only an explicit enabled=false skips the check, so a signing step that stops writing
+      # its output cannot let unsigned installers through.
       - name: Verify signed Windows Electron artifacts
-        if: runner.os == 'Windows' && inputs.sign_windows
+        if: runner.os == 'Windows' && steps.signing.outputs.enabled != 'false'
         shell: pwsh
         run: |
           $files = @()

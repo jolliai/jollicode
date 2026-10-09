@@ -14,6 +14,14 @@ if ($env:GITHUB_ACTIONS -ne "true") {
   exit 0
 }
 
+# The desktop release's sign_windows dispatch input turns signing off explicitly. Only an exact, lowercase
+# "false" counts, matching the workflow's bash check and version.ts. The CLI release never sets it, so this
+# switch does not affect it; the Key Vault check below still skips signing when the vault is not configured.
+if ($env:SIGN_WINDOWS -ceq "false") {
+  Write-Host "Skipping Windows signing because SIGN_WINDOWS is false"
+  exit 0
+}
+
 # The certificate lives in Azure Key Vault Premium on a non-exportable HSM key, so each file's digest is
 # signed inside the vault and no key ever reaches the runner. The workflow's azure/login step has already
 # signed the Azure CLI in through OIDC, and its token is what AzureSignTool presents to the vault.
