@@ -356,7 +356,7 @@ Tasks:
   helpers.
 - Replace direct backend actions such as retry with SDK calls.
 - For each missing operation, add or adjust the server endpoint, regenerate the
-  JavaScript SDK with `./packages/sdk/js/script/build.ts`, and consume the
+  JavaScript SDK with `bun run generate` from `packages/sdk/js`, and consume the
   generated SDK API.
 - Keep transport creation outside the package. Accept a base URL, headers,
   custom fetch, event source, or constructed SDK client as appropriate.
@@ -602,7 +602,7 @@ rg 'src/cli/cmd/tui|@tui/' packages/opencode/src packages/opencode/test
 SDK checks when server APIs change:
 
 ```text
-./packages/sdk/js/script/build.ts
+bun run --cwd packages/sdk/js generate
 git diff --check
 ```
 

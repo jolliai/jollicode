@@ -6,9 +6,11 @@
   "type": "module",
   "license": "UNLICENSED",
   "scripts": {
+    "generate": "bun ./script/generate.ts",
+    "check:generated": "bun run generate && git add -N -- src/v2/gen && git diff --exit-code -- src/v2/gen",
     "test": "bun test",
     "typecheck": "tsgo --noEmit",
-    "build": "bun ./script/build.ts"
+    "build": "rm -rf dist tsconfig.tsbuildinfo && tsc"
   },
   "exports": {
     ".": "./src/index.ts",

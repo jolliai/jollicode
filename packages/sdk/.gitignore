@@ -8,3 +8,7 @@ dist-deno
 /*.tgz
 .idea/
 
+# Scratch input for `js/script/generate.ts`, which removes it on success. A failed run leaves it
+# behind, and this keeps that stray out of `git status` rather than out of any diff — `git diff`
+# never showed untracked files, which is the hole `check:generated` closes with `git add -N`.
+js/openapi.json
