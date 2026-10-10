@@ -14,14 +14,15 @@ import type { CatalogModel, CourseAssistantChoice, CourseListItem } from "./api"
 import { isSupportedProtocol, providerIdFor, type JolliModel, type SupportedProtocol } from "./gateway-config"
 
 /**
- * Fallback protocol used when a course grant names a UUID the runnable catalogue does not carry —
- * a model that is gone, or one on a protocol this build declares no provider for.
- * "anthropic" mirrors the pre-multi-protocol behaviour — a dead id used to key against the
- * single Jolli provider — and keeps `allowedModelIds` at least parseable rather than empty.
- * The picker still shows nothing for the id (no provider block lists it), which is the honest
- * rendering of "your grant names a model that cannot be run here".
+ * The provider segment of a grant key whose model the runnable catalogue does not carry — one that
+ * is gone, or one on a protocol this build declares no provider for.
+ *
+ * ⚠ IT NAMES NO PROVIDER, AND THAT IS THE POINT. Every reader of a grant key looks the provider up
+ * before it accepts the model, so a key under this segment resolves nowhere: no picker lists it, no
+ * default or fallback lands on it, and no tier is filed under it. Keyed under a real provider
+ * instead, the dead id would have read as that provider's model wherever the key was handled.
  */
-const FALLBACK_PROTOCOL: SupportedProtocol = "anthropic"
+const UNAVAILABLE_PROVIDER = "unavailable"
 
 /** A catalogue model on a protocol this build declares a provider for. */
 export type RunnableModel = CatalogModel & { readonly protocol: SupportedProtocol }
@@ -210,9 +211,9 @@ const MODEL_TIER: Record<string, Jolli.ModelTier | undefined> = {
  * An opencode model key for a Registry UUID the catalogue still carries.
  *
  * ⚠ THE PROVIDER SEGMENT IS PROTOCOL-QUALIFIED — one opencode provider per wire protocol
- * (see `providerIdFor` in `gateway-config.ts`), so the key has to name which one. A grant
- * pointing at a UUID the runnable catalogue does not carry falls back to the anthropic-flavoured
- * id, which matches how the single-provider era wrote every key.
+ * (see `providerIdFor` in `gateway-config.ts`), so the key has to name which one. A UUID the
+ * runnable catalogue does not carry has no protocol to name; `toAssistant` keys it under
+ * {@link UNAVAILABLE_PROVIDER} instead.
  */
 const modelKey = (uuid: string, protocol: SupportedProtocol) => `${providerIdFor(protocol)}/${uuid}`
 
@@ -259,12 +260,18 @@ export function toAssistant(input: {
    * student — the exact inverse of what they asked for. It happens for real: a provider whose
    * `isActive` flips to false takes its whole vendor group out of the index at once.
    *
-   * Keeping the dead ids means nothing matches and the picker is empty, which is the honest
-   * rendering of "every model your course allowed is currently unavailable".
+   * The dead ids are kept under {@link UNAVAILABLE_PROVIDER}, which no reader resolves, so nothing
+   * matches and the picker is empty — the honest rendering of "every model your course allowed is
+   * currently unavailable".
    */
-  const surviving = input.choice.allowedModelIds.filter((uuid) => input.models.has(uuid))
+  const surviving = input.choice.allowedModelIds.flatMap((uuid) => {
+    const model = input.models.get(uuid)
+    return model ? [modelKey(model.id, model.protocol)] : []
+  })
   const granted =
-    surviving.length === 0 && input.choice.allowedModelIds.length > 0 ? input.choice.allowedModelIds : surviving
+    surviving.length === 0 && input.choice.allowedModelIds.length > 0
+      ? input.choice.allowedModelIds.map((uuid) => `${UNAVAILABLE_PROVIDER}/${uuid}`)
+      : surviving
   const preferred = input.models.get(input.choice.modelId)
   return {
     id: String(input.choice.id),
@@ -277,7 +284,7 @@ export function toAssistant(input: {
     ...(input.isDefault ? { isDefault: true } : {}),
     // Staff-only on the gateway, and the course prompt is injected server-side anyway.
     instructions: "",
-    allowedModelIds: granted.map((uuid) => modelKey(uuid, input.models.get(uuid)?.protocol ?? FALLBACK_PROTOCOL)),
+    allowedModelIds: granted,
     ...(preferred ? { modelId: modelKey(preferred.id, preferred.protocol) } : {}),
     guardrails: {
       neverGiveDirectAnswers: input.choice.worksThroughProblems,
@@ -322,18 +329,19 @@ export function toAssistant(input: {
  * different halves of such a pair still sees both suffixes — the grant in force is chosen in the
  * app, after this config is built.
  *
- * ⚠ A MODEL ON A PROTOCOL THIS BUILD HAS NO PROVIDER FOR IS LEFT OUT, NOT FILED UNDER ANOTHER ONE.
- * Filing it under the fallback put it in the Anthropic block: its vendor joined that group's title,
- * and picking it sent an Anthropic Messages request for a model the gateway serves on another
- * route. Absent from every block, it is simply not offered until a build declares its protocol —
- * and {@link runnableModels} keeps it out of the assistants and tiers for the same reason.
+ * ⚠ IT TAKES THE RUNNABLE CATALOGUE, SO A MODEL ON A PROTOCOL THIS BUILD HAS NO PROVIDER FOR NEVER
+ * REACHES IT. Filed under a fallback, such a model sat in the Anthropic block: its vendor joined that
+ * group's title, and picking it sent an Anthropic Messages request for a model the gateway serves on
+ * another route. The parameter type is what keeps it out — the caller filters through
+ * {@link runnableModels}, as the assistants and tiers do — so it is not offered until a build
+ * declares its protocol.
  */
 export function toProviderModels(
-  models: ReadonlyMap<string, CatalogModel>,
+  models: ReadonlyMap<string, RunnableModel>,
   granted?: ReadonlySet<string>,
 ): Readonly<Record<string, ReadonlyArray<JolliModel>>> {
-  const isGranted = (model: CatalogModel) => !granted || granted.has(model.id)
-  const resolved = Array.from(runnableModels(models.values()).values(), (model) => ({
+  const isGranted = (model: RunnableModel) => !granted || granted.has(model.id)
+  const resolved = Array.from(models.values(), (model) => ({
     ...model,
     vendor: model.vendor || model.protocol,
   }))

@@ -462,7 +462,7 @@ const live: Layer.Layer<
                       Effect.gen(function* () {
                         const protocol = headers?.["x-jolli-served-provider"]
                         const modelID = headers?.["x-jolli-served-model"]
-                        if (!protocol || !isSupportedProtocol(protocol) || !modelID) return
+                        if (!isSupportedProtocol(protocol) || !modelID) return
                         const providerID = ProviderV2.ID.make(providerIdFor(protocol))
                         const key = `${providerID}/${modelID}`
                         if (key === servedModelKey) return

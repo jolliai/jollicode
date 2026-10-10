@@ -180,8 +180,9 @@ const AgentModelProvider = Schema.Struct({
   /**
    * The wire protocol this provider's models are reached over. Held as an open
    * string for the same reason `CourseListItem.status` is: a value the client
-   * has not heard of must not fail the whole array, and the mapping layer picks
-   * a safe default when it meets one.
+   * has not heard of must not fail the whole array. The mapping layer leaves a
+   * model on such a protocol out (`runnableModels` in `catalog.ts`), since this
+   * build has no provider to send it through.
    */
   protocol: Schema.String,
   isActive: Schema.Boolean,
