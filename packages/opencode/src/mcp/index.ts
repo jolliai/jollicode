@@ -423,7 +423,13 @@ const layer = Layer.effect(
 
         if (!mcpClient) {
           if (status.status !== "connected" && status.status !== "disabled") {
-            yield* Effect.logWarning("server unavailable", { key, type: mcp.type, status: status.status })
+            // The reason is logged too: the status that carries it lives only in this process's memory.
+            yield* Effect.logWarning("server unavailable", {
+              key,
+              type: mcp.type,
+              status: status.status,
+              ...("error" in status ? { error: status.error } : {}),
+            })
           }
           return { status } satisfies CreateResult
         }
@@ -446,13 +452,18 @@ const layer = Layer.effect(
         )
       },
       Effect.map((result): CreateResult => result),
-      Effect.catchCause((cause) => {
-        if (Cause.hasInterruptsOnly(cause)) return Effect.interrupt
-        const error = Cause.squash(cause)
-        return Effect.succeed<CreateResult>({
-          status: { status: "failed", error: error instanceof Error ? error.message : String(error) },
-        })
-      }),
+      (effect, key, mcp) =>
+        effect.pipe(
+          Effect.catchCause((cause) => {
+            if (Cause.hasInterruptsOnly(cause)) return Effect.interrupt
+            const error = Cause.squash(cause)
+            const status = { status: "failed" as const, error: error instanceof Error ? error.message : String(error) }
+            // A server that connected and then could not list its tools fails here, not above.
+            return Effect.logWarning("server unavailable", { key, type: mcp.type, ...status }).pipe(
+              Effect.as<CreateResult>({ status }),
+            )
+          }),
+        ),
     )
     const cfgSvc = yield* Config.Service
 

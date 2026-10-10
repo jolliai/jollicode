@@ -696,6 +696,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Κλείσιμο καρτέλας",
   "session.error.serverConnection": "Δεν είναι δυνατή η σύνδεση σε αυτόν τον διακομιστή",
   "session.review.filesChanged": "Τα αρχεία άλλαξαν {{count}}",
+  "session.sources.materials": "Υλικό μαθήματος",
+  "session.sources.web": "Ιστοσελίδες",
   "session.review.change.one": "Αλλαγή",
   "session.review.change.other": "Αλλαγές",
   "session.review.loadingChanges": "Φόρτωση αλλαγών...",

@@ -686,6 +686,8 @@ export const dict = {
   "session.error.notFound.closeTab": "បិទផ្ទាំង",
   "session.error.serverConnection": "មិនអាចភ្ជាប់ទៅម៉ាស៊ីនមេនេះទេ។",
   "session.review.filesChanged": "ឯកសារបានផ្លាស់ប្តូរ {{count}}",
+  "session.sources.materials": "ឯកសារវគ្គសិក្សា",
+  "session.sources.web": "គេហទំព័រ",
   "session.review.change.one": "ការផ្លាស់ប្តូរ",
   "session.review.change.other": "ការផ្លាស់ប្តូរ",
   "session.review.loadingChanges": "កំពុងផ្ទុកការផ្លាស់ប្តូរ...",

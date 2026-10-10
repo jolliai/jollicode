@@ -1,4 +1,5 @@
 import { courseBindingOf, type SessionLike } from "@opencode-ai/core/jolli/binding"
+import { JolliSources } from "@opencode-ai/core/jolli/sources"
 import type { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { isRecord } from "@/util/record"
 
@@ -13,15 +14,14 @@ import { isRecord } from "@/util/record"
  * the credential, which the MCP layer attaches by destination origin, not by server name.
  * Guarding it would mean threading the server name through upstream's generic hook inputs.
  */
-export const COURSE_TOOL_IDS = new Set([
-  "jolliedu_get_conversation_context",
-  "jolliedu_list_all_materials_in_remote_course",
-  "jolliedu_search_remote_course_materials",
-  "jolliedu_get_remote_material_content",
+export const COURSE_TOOL_IDS = new Set<string>([
+  `${JolliSources.COURSE_TOOL_PREFIX}get_conversation_context`,
+  `${JolliSources.COURSE_TOOL_PREFIX}list_all_materials_in_remote_course`,
+  ...JolliSources.MATERIAL_TOOLS,
 ])
 
-const MATERIAL_LIST_TOOL = "jolliedu_list_all_materials_in_remote_course"
-const ATTACHMENT_LIST_TOOL = "jolliedu_list_user_attachments"
+const MATERIAL_LIST_TOOL = `${JolliSources.COURSE_TOOL_PREFIX}list_all_materials_in_remote_course`
+const ATTACHMENT_LIST_TOOL = `${JolliSources.COURSE_TOOL_PREFIX}list_user_attachments`
 const BINDING_PARAMETER_NAMES = new Set(["courseId", "assistantId"])
 
 export type ListKind = "materials" | "attachments"

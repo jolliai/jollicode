@@ -693,6 +693,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Stäng flik",
   "session.error.serverConnection": "Det går inte att ansluta till den här servern",
   "session.review.filesChanged": "Ändrade filer: {{count}}",
+  "session.sources.materials": "Kursmaterial",
+  "session.sources.web": "Webbsidor",
   "session.review.change.one": "Ändring",
   "session.review.change.other": "Ändringar",
   "session.review.loadingChanges": "Läser in ändringar...",

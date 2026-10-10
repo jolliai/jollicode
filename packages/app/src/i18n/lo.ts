@@ -684,6 +684,8 @@ export const dict = {
   "session.error.notFound.closeTab": "ປິດແຖບ",
   "session.error.serverConnection": "ບໍ່ສາມາດເຊື່ອມຕໍ່ກັບເຊີບເວີນີ້ໄດ້",
   "session.review.filesChanged": "ໄຟລ໌ປ່ຽນ {{count}}",
+  "session.sources.materials": "ເອກະສານວິຊາ",
+  "session.sources.web": "ໜ້າເວັບ",
   "session.review.change.one": "ປ່ຽນແປງ",
   "session.review.change.other": "ການປ່ຽນແປງ",
   "session.review.loadingChanges": "ກຳລັງໂຫຼດການປ່ຽນແປງ...",

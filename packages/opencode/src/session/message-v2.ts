@@ -122,9 +122,29 @@ function hydrate(db: Database.Interface["db"], rows: (typeof MessageTable.$infer
   })
 }
 
+/**
+ * A stored part's metadata as provider options for replaying it: only the entries whose value is an
+ * object, which is the one shape the AI SDK accepts there (a provider name mapped to its options).
+ *
+ * ⚠ A PART'S METADATA IS ALSO WHERE THIS PROCESS KEEPS ITS OWN FLAGS. `providerExecuted` is a
+ * boolean, and a course answer's `answerSources` is an array; replayed as they are, either one fails
+ * the prompt schema with "The messages do not match the ModelMessage[] schema", and every later
+ * request of the session with it. Keeping only object values covers the next such key too, which a
+ * list of keys to strip would not. The native request path filters the same way (`native-request.ts`).
+ *
+ * ⚠ AN OBJECT-VALUED FLAG OF THIS PROCESS WOULD STILL BE SENT. The filter tells the two apart by
+ * shape alone, so a key this process adds must not hold a plain object — least of all under a
+ * provider's name, which that provider would read as its own options. Giving this process's flags a
+ * field of their own would end the overlap, but it changes the stored part schema and the generated
+ * SDKs, which is more than replaying a part safely needs today.
+ */
 function providerMeta(metadata: Record<string, any> | undefined) {
   if (!metadata) return undefined
-  const { providerExecuted: _, ...rest } = metadata
+  const rest = Object.fromEntries(
+    Object.entries(metadata).filter(
+      ([, value]) => typeof value === "object" && value !== null && !Array.isArray(value),
+    ),
+  )
   return Object.keys(rest).length > 0 ? rest : undefined
 }
 
@@ -284,7 +304,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           assistantMessage.parts.push({
             type: "text",
             text,
-            ...(differentModel ? {} : { providerMetadata: part.metadata }),
+            ...(differentModel ? {} : { providerMetadata: providerMeta(part.metadata) }),
           })
         }
         if (part.type === "step-start")
@@ -375,7 +395,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           assistantMessage.parts.push({
             type: "reasoning",
             text: part.text,
-            providerMetadata: part.metadata,
+            providerMetadata: providerMeta(part.metadata),
           })
         }
       }
@@ -541,6 +561,19 @@ export const get = Effect.fn("MessageV2.get")(function* (input: { sessionID: Ses
     parts: yield* parts(input.messageID),
   }
 })
+
+/**
+ * Whether a part is the synthetic text auto-compaction writes to carry on the turn it compacted,
+ * rather than anything the user wrote. The marker is internal and may change, so every reader of it
+ * asks here.
+ */
+export function isCompactionContinue(part: {
+  readonly type: string
+  readonly synthetic?: boolean
+  readonly metadata?: { readonly [key: string]: unknown }
+}) {
+  return part.type === "text" && !!part.synthetic && part.metadata?.compaction_continue === true
+}
 
 export function filterCompacted(msgs: Iterable<WithParts>) {
   const result = [] as WithParts[]

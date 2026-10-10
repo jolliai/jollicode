@@ -14,6 +14,12 @@ export function createTimelineProjection(input: {
   status: Accessor<SessionStatus>
   showReasoningSummaries: Accessor<boolean>
   inlineComments: Accessor<boolean>
+  /**
+   * Whether the bound course shows citations, read like the settings above; undefined outside a
+   * course. The projection still decides nothing about the course itself: whether a turn drew on the
+   * materials is read off its parts.
+   */
+  showCitations?: Accessor<boolean | undefined>
 }) {
   const messageByID = createMemo(() => new Map(input.messages().map((message) => [message.id, message] as const)))
   const assistantMessagesByParent = createMemo(() => {
@@ -38,6 +44,7 @@ export function createTimelineProjection(input: {
       input.status().type,
       input.inlineComments(),
       input.userMessages(),
+      input.showCitations?.() === true,
     ),
   )
   const activeMessageID = createMemo(() => projection().activeMessageID)

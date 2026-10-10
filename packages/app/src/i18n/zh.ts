@@ -731,6 +731,8 @@ export const dict = {
   "session.error.notFound.closeTab": "关闭标签页",
   "session.error.serverConnection": "无法连接到此服务器",
   "session.review.filesChanged": "{{count}} 个文件已更改",
+  "session.sources.materials": "课程资料",
+  "session.sources.web": "网页",
   "session.review.change.one": "更改",
   "session.review.change.other": "更改",
   "session.review.loadingChanges": "正在加载更改...",
