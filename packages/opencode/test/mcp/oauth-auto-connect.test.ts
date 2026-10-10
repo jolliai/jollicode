@@ -245,6 +245,37 @@ mcpTest.instance("successful reauthentication commits replacement credentials", 
     expect(entry?.tokens?.accessToken).toBe("replacement-token")
     expect(entry?.clientInfo?.clientId).toBe("replacement-client")
     expect(entry?.serverUrl).toBe(server.url)
+    // The SDK binds credentials to the authorization server that issued them
+    const issuer = new URL(server.url).origin
+    expect(entry?.tokens?.issuer).toBe(issuer)
+    expect(entry?.clientInfo?.issuer).toBe(issuer)
+  }),
+)
+
+mcpTest.instance("provider round-trips the issuer stamped on stored credentials", () =>
+  Effect.gen(function* () {
+    const auth = yield* McpAuth.Service
+    const provider = new McpOAuthProvider(
+      "test-issuer",
+      "https://example.com/mcp",
+      {},
+      { onRedirect: async () => {} },
+      auth,
+    )
+
+    yield* Effect.promise(() =>
+      provider.saveClientInformation({
+        client_id: "client",
+        redirect_uris: [provider.redirectUrl],
+        issuer: "https://auth.example.com",
+      }),
+    )
+    yield* Effect.promise(() =>
+      provider.saveTokens({ access_token: "token", token_type: "Bearer", issuer: "https://auth.example.com" }),
+    )
+
+    expect((yield* Effect.promise(() => provider.clientInformation()))?.issuer).toBe("https://auth.example.com")
+    expect((yield* Effect.promise(() => provider.tokens()))?.issuer).toBe("https://auth.example.com")
   }),
 )
 

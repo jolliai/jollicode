@@ -72,6 +72,7 @@ export class McpOAuthProvider implements OAuthClientProvider {
       return {
         client_id: entry.clientInfo.clientId,
         client_secret: entry.clientInfo.clientSecret,
+        issuer: entry.clientInfo.issuer,
       }
     }
 
@@ -88,6 +89,7 @@ export class McpOAuthProvider implements OAuthClientProvider {
           clientSecret: info.client_secret,
           clientIdIssuedAt: info.client_id_issued_at,
           clientSecretExpiresAt: info.client_secret_expires_at,
+          issuer: info.issuer,
         },
         this.serverUrl,
       ),
@@ -107,6 +109,7 @@ export class McpOAuthProvider implements OAuthClientProvider {
         ? Math.max(0, Math.floor(entry.tokens.expiresAt - Date.now() / 1000))
         : undefined,
       scope: entry.tokens.scope,
+      issuer: entry.tokens.issuer,
     }
   }
 
@@ -119,6 +122,7 @@ export class McpOAuthProvider implements OAuthClientProvider {
           refreshToken: tokens.refresh_token,
           expiresAt: tokens.expires_in ? Date.now() / 1000 + tokens.expires_in : undefined,
           scope: tokens.scope,
+          issuer: tokens.issuer,
         },
         this.serverUrl,
       ),
@@ -221,6 +225,7 @@ export class McpOAuthPendingProvider extends McpOAuthProvider {
             refreshToken: this.pendingTokens.refresh_token,
             expiresAt: this.pendingTokens.expires_in ? Date.now() / 1000 + this.pendingTokens.expires_in : undefined,
             scope: this.pendingTokens.scope,
+            issuer: this.pendingTokens.issuer,
           },
           clientInfo:
             this.pendingClientInfo && !this.config.clientId
@@ -229,6 +234,7 @@ export class McpOAuthPendingProvider extends McpOAuthProvider {
                   clientSecret: this.pendingClientInfo.client_secret,
                   clientIdIssuedAt: this.pendingClientInfo.client_id_issued_at,
                   clientSecretExpiresAt: this.pendingClientInfo.client_secret_expires_at,
+                  issuer: this.pendingClientInfo.issuer,
                 }
               : undefined,
         },
