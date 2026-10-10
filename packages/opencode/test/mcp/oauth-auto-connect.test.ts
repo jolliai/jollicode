@@ -1,4 +1,5 @@
 import { expect } from "bun:test"
+import { auth as sdkAuth } from "@modelcontextprotocol/sdk/client/auth.js"
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js"
 import { ListResourcesRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
@@ -92,6 +93,9 @@ function serveOAuthMcp(options: OAuthMcpOptions = {}) {
           }
           if (url.pathname === "/token") {
             const body = new URLSearchParams(await request.text())
+            if (body.get("grant_type") === "refresh_token" && body.get("refresh_token") === "valid-refresh") {
+              return Response.json({ access_token: "refreshed-token", token_type: "Bearer" })
+            }
             if (body.get("code") !== "valid-code") {
               return Response.json(
                 { error: "invalid_grant", error_description: "Token exchange failed" },
@@ -245,6 +249,88 @@ mcpTest.instance("successful reauthentication commits replacement credentials", 
     expect(entry?.tokens?.accessToken).toBe("replacement-token")
     expect(entry?.clientInfo?.clientId).toBe("replacement-client")
     expect(entry?.serverUrl).toBe(server.url)
+    // The SDK binds credentials to the authorization server that issued them
+    const issuer = new URL(server.url).origin
+    expect(entry?.tokens?.issuer).toBe(issuer)
+    expect(entry?.clientInfo?.issuer).toBe(issuer)
+  }),
+)
+
+mcpTest.instance("provider round-trips the issuer stamped on stored credentials", () =>
+  Effect.gen(function* () {
+    const auth = yield* McpAuth.Service
+    const provider = new McpOAuthProvider(
+      "test-issuer",
+      "https://example.com/mcp",
+      {},
+      { onRedirect: async () => {} },
+      auth,
+    )
+
+    yield* Effect.promise(() =>
+      provider.saveClientInformation({
+        client_id: "client",
+        redirect_uris: [provider.redirectUrl],
+        issuer: "https://auth.example.com",
+      }),
+    )
+    yield* Effect.promise(() =>
+      provider.saveTokens({ access_token: "token", token_type: "Bearer", issuer: "https://auth.example.com" }),
+    )
+
+    expect((yield* Effect.promise(() => provider.clientInformation()))?.issuer).toBe("https://auth.example.com")
+    expect((yield* Effect.promise(() => provider.tokens()))?.issuer).toBe("https://auth.example.com")
+  }),
+)
+
+mcpTest.instance("refreshing a client saved without an issuer keeps its secret expiry", () =>
+  Effect.gen(function* () {
+    const server = yield* serveOAuthMcp()
+    const auth = yield* McpAuth.Service
+    const name = "test-legacy-client"
+    const provider = new McpOAuthProvider(name, server.url, {}, { onRedirect: async () => {} }, auth)
+    const expiresAt = Math.floor(Date.now() / 1000) + 3600
+
+    // Shape of a record saved before the SDK stamped issuers
+    yield* auth.updateClientInfo(
+      name,
+      { clientId: "legacy-client", clientSecret: "legacy-secret", clientIdIssuedAt: 1, clientSecretExpiresAt: expiresAt },
+      server.url,
+    )
+    yield* auth.updateTokens(name, { accessToken: "old-token", refreshToken: "valid-refresh" }, server.url)
+
+    expect(yield* Effect.promise(() => sdkAuth(provider, { serverUrl: server.url }))).toBe("AUTHORIZED")
+    const entry = yield* auth.get(name)
+    expect(entry?.tokens?.accessToken).toBe("refreshed-token")
+    expect(entry?.clientInfo).toEqual({
+      clientId: "legacy-client",
+      clientSecret: "legacy-secret",
+      clientIdIssuedAt: 1,
+      clientSecretExpiresAt: expiresAt,
+      issuer: new URL(server.url).origin,
+    })
+  }),
+)
+
+mcpTest.instance("refreshing with a configured client never persists it", () =>
+  Effect.gen(function* () {
+    const server = yield* serveOAuthMcp()
+    const auth = yield* McpAuth.Service
+    const name = "test-configured-client"
+    const provider = new McpOAuthProvider(
+      name,
+      server.url,
+      { clientId: "configured-client", clientSecret: "configured-secret" },
+      { onRedirect: async () => {} },
+      auth,
+    )
+
+    yield* auth.updateTokens(name, { accessToken: "old-token", refreshToken: "valid-refresh" }, server.url)
+
+    expect(yield* Effect.promise(() => sdkAuth(provider, { serverUrl: server.url }))).toBe("AUTHORIZED")
+    const entry = yield* auth.get(name)
+    expect(entry?.tokens?.accessToken).toBe("refreshed-token")
+    expect(entry?.clientInfo).toBeUndefined()
   }),
 )
 
