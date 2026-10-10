@@ -693,6 +693,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Փակել ներդիրը",
   "session.error.serverConnection": "Հնարավոր չէ միանալ այս սերվերին",
   "session.review.filesChanged": "Ֆայլերը փոխվել են {{count}}",
+  "session.sources.materials": "Դասընթացի նյութեր",
+  "session.sources.web": "Վեբ էջեր",
   "session.review.change.one": "Փոխել",
   "session.review.change.other": "Փոփոխություններ",
   "session.review.loadingChanges": "Բեռնվում են փոփոխություններ...",

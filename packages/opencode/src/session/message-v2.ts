@@ -122,9 +122,23 @@ function hydrate(db: Database.Interface["db"], rows: (typeof MessageTable.$infer
   })
 }
 
+/**
+ * A stored part's metadata as provider options for replaying it: only the entries whose value is an
+ * object, which is the one shape the AI SDK accepts there (a provider name mapped to its options).
+ *
+ * ⚠ A PART'S METADATA IS ALSO WHERE THIS PROCESS KEEPS ITS OWN FLAGS. `providerExecuted` is a
+ * boolean, and a course answer's `answerSources` is an array; replayed as they are, either one fails
+ * the prompt schema with "The messages do not match the ModelMessage[] schema", and every later
+ * request of the session with it. Keeping only object values covers the next such key too, which a
+ * list of keys to strip would not. The native request path filters the same way (`native-request.ts`).
+ */
 function providerMeta(metadata: Record<string, any> | undefined) {
   if (!metadata) return undefined
-  const { providerExecuted: _, ...rest } = metadata
+  const rest = Object.fromEntries(
+    Object.entries(metadata).filter(
+      ([, value]) => typeof value === "object" && value !== null && !Array.isArray(value),
+    ),
+  )
   return Object.keys(rest).length > 0 ? rest : undefined
 }
 
@@ -284,7 +298,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           assistantMessage.parts.push({
             type: "text",
             text,
-            ...(differentModel ? {} : { providerMetadata: part.metadata }),
+            ...(differentModel ? {} : { providerMetadata: providerMeta(part.metadata) }),
           })
         }
         if (part.type === "step-start")

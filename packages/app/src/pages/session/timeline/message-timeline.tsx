@@ -80,6 +80,7 @@ import { scheduleConnectedMeasure } from "./measure"
 import { observeElementOffsetReconnectAware } from "./observe-element-offset"
 import { createTimelineProjection } from "./projection"
 import { MessageComment, SummaryDiff, TimelineRow, TimelineRowMap } from "./rows"
+import { TimelineSourcesRow } from "./turn-sources-row"
 import { filterVirtualIndexes } from "./virtual-items"
 
 const emptyMessages: MessageType[] = []
@@ -396,6 +397,13 @@ export function MessageTimeline(props: {
     )
   }
 
+  // The bound assistant's citation switch, as a primitive so an unrelated catalogue refresh does not
+  // rebuild every row. Undefined outside a course, where no sources row is ever drawn.
+  const showCitations = createMemo(() => courseSession.assistant()?.guardrails.showCitations)
+  const sourcePolicy = createMemo(() => {
+    const citations = showCitations()
+    return citations === undefined ? undefined : { showCitations: citations }
+  })
   const projection = createTimelineProjection({
     messages: sessionMessages,
     userMessages: () => props.userMessages,
@@ -404,6 +412,7 @@ export function MessageTimeline(props: {
     status: sessionStatus,
     showReasoningSummaries: settings.general.showReasoningSummaries,
     inlineComments: settings.general.newLayoutDesigns,
+    sourcePolicy,
   })
   const activeMessageID = projection.activeMessageID
   const assistantMessagesByParent = projection.assistantMessagesByParent
@@ -1224,6 +1233,16 @@ export function MessageTimeline(props: {
           <TimelineRowFrame row={diffSummaryRow}>
             <div data-slot="session-turn-message-container" class="w-full px-4 md:px-5">
               <TimelineDiffSummaryRow diffs={diffSummaryRow().diffs} />
+            </div>
+          </TimelineRowFrame>
+        )
+      }
+      case "Sources": {
+        const sourcesRow = row as Accessor<TimelineRowByTag<"Sources">>
+        return (
+          <TimelineRowFrame row={sourcesRow}>
+            <div data-slot="session-turn-message-container" class="w-full px-4 md:px-5">
+              <TimelineSourcesRow sources={sourcesRow().sources} />
             </div>
           </TimelineRowFrame>
         )

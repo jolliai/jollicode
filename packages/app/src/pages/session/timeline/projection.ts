@@ -3,6 +3,7 @@ import type { AssistantMessage, Message, Part, SessionStatus, UserMessage } from
 import { createMemo, type Accessor } from "solid-js"
 import { reuseTimelineRows } from "./row-reconciliation"
 import { Timeline, TimelineRow } from "./rows"
+import type { JolliSources } from "@opencode-ai/core/jolli/sources"
 
 export { reuseTimelineRows } from "./row-reconciliation"
 
@@ -14,6 +15,11 @@ export function createTimelineProjection(input: {
   status: Accessor<SessionStatus>
   showReasoningSummaries: Accessor<boolean>
   inlineComments: Accessor<boolean>
+  /**
+   * The bound course's display switches, read like the settings above. The projection still decides
+   * nothing about the course itself: whether a turn drew on the materials is read off its parts.
+   */
+  sourcePolicy?: Accessor<JolliSources.TurnSourcePolicy | undefined>
 }) {
   const messageByID = createMemo(() => new Map(input.messages().map((message) => [message.id, message] as const)))
   const assistantMessagesByParent = createMemo(() => {
@@ -38,6 +44,7 @@ export function createTimelineProjection(input: {
       input.status().type,
       input.inlineComments(),
       input.userMessages(),
+      input.sourcePolicy?.(),
     ),
   )
   const activeMessageID = createMemo(() => projection().activeMessageID)

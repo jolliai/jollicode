@@ -691,6 +691,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Варақаро пӯшед",
   "session.error.serverConnection": "Ба ин сервер пайваст шудан мумкин нест",
   "session.review.filesChanged": "Файлҳо тағир дода шуданд {{count}}",
+  "session.sources.materials": "Маводҳои курс",
+  "session.sources.web": "Саҳифаҳои веб",
   "session.review.change.one": "Тағйир",
   "session.review.change.other": "Тағйирот",
   "session.review.loadingChanges": "Тағйирот бор карда мешавад...",

@@ -751,6 +751,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Tutup Tab",
   "session.error.serverConnection": "Tidak dapat terhubung ke server ini",
   "session.review.filesChanged": "{{count}} Berkas Berubah",
+  "session.sources.materials": "Materi mata kuliah",
+  "session.sources.web": "Halaman web",
   "session.review.change.one": "Perubahan",
   "session.review.change.other": "Perubahan",
   "session.review.loadingChanges": "Memuat perubahan...",

@@ -700,6 +700,8 @@ export const dict: Record<string, string> = {
   "session.error.notFound.closeTab": "མཆོང་ལྡེ་ཁ་བསྡམས།",
   "session.error.serverConnection": "སར་བར་འདི་ལུ་མཐུད་མི་ཚུགས།",
   "session.review.filesChanged": "ཡིག་སྣོད་ཚུ་བསྒྱུར་བཅོས་འབད་ཡོདཔ། {{count}}",
+  "session.sources.materials": "སློབ་ཚན་གྱི་ཡིག་ཆ།",
+  "session.sources.web": "ཝེབ་ཤོག་ངོས།",
   "session.review.change.one": "འགྱུར་བ",
   "session.review.change.other": "བསྒྱུར་བཅོས་ཚུ།",
   "session.review.loadingChanges": "བསྒྱུར་བཅོས་ཚུ་མངོན་གསལ་འབད་དོ...",

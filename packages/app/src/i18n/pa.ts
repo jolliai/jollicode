@@ -698,6 +698,8 @@ export const dict = {
   "session.error.notFound.closeTab": "ٹیب بند کرو",
   "session.error.serverConnection": "اس سرور نال جڑ نئیں سکدے",
   "session.review.filesChanged": "بدلیاں فائلاں {{count}}",
+  "session.sources.materials": "کورس دا مواد",
+  "session.sources.web": "ویب صفحے",
   "session.review.change.one": "تبدیلی",
   "session.review.change.other": "تبدیلیاں",
   "session.review.loadingChanges": "تبدیلیاں لوڈ ہو رہیاں نیں...",

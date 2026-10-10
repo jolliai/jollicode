@@ -725,6 +725,8 @@ export const dict = {
   "session.error.notFound.closeTab": "ปิดแท็บ",
   "session.error.serverConnection": "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์นี้",
   "session.review.filesChanged": "{{count}} ไฟล์ที่เปลี่ยนแปลง",
+  "session.sources.materials": "เอกสารประกอบรายวิชา",
+  "session.sources.web": "หน้าเว็บ",
   "session.review.change.one": "การเปลี่ยนแปลง",
   "session.review.change.other": "การเปลี่ยนแปลง",
   "session.review.loadingChanges": "กำลังโหลดการเปลี่ยนแปลง...",

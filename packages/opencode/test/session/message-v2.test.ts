@@ -647,6 +647,81 @@ describe("session.message-v2.toModelMessage", () => {
     ])
   })
 
+  test("replays a course answer with its provider metadata but without the sources picked for it", async () => {
+    const userID = "m-user"
+    const assistantID = "m-assistant"
+    const sources = [{ kind: "material", materialId: "401", title: "Processes and threads" }]
+
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo(userID),
+        parts: [
+          {
+            ...basePart(userID, "u1"),
+            type: "text",
+            text: "explain threads",
+          },
+        ] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo(assistantID, userID),
+        parts: [
+          {
+            ...basePart(assistantID, "a1"),
+            type: "text",
+            text: "A thread is a path of execution.",
+            metadata: { openai: { assistant: "meta" }, answerSources: sources },
+          },
+          {
+            ...basePart(assistantID, "a2"),
+            type: "text",
+            text: "It shares its process's memory.",
+            metadata: { answerSources: sources },
+          },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const messages = await MessageV2.toModelMessages(input, model)
+    // An array under provider options fails the AI SDK's prompt schema, and every later turn with it.
+    expect(JSON.stringify(messages)).not.toContain("answerSources")
+    expect(messages[1]?.content).toContainEqual({
+      type: "text",
+      text: "A thread is a path of execution.",
+      providerOptions: { openai: { assistant: "meta" } },
+    })
+  })
+
+  test("replays only the provider entries of a text part's metadata, whatever else this process keeps there", async () => {
+    const userID = "m-user"
+    const assistantID = "m-assistant"
+
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo(userID),
+        parts: [{ ...basePart(userID, "u1"), type: "text", text: "hi" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo(assistantID, userID),
+        parts: [
+          {
+            ...basePart(assistantID, "a1"),
+            type: "text",
+            text: "Hello.",
+            metadata: { anthropic: { signature: "sig" }, someFlag: true, someList: [1], someText: "x", none: null },
+          },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const messages = await MessageV2.toModelMessages(input, model)
+    expect(messages[1]?.content).toContainEqual({
+      type: "text",
+      text: "Hello.",
+      providerOptions: { anthropic: { signature: "sig" } },
+    })
+  })
+
   test("omits provider metadata when assistant model differs", async () => {
     const userID = "m-user"
     const assistantID = "m-assistant"

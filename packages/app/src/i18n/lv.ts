@@ -690,6 +690,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Aizvērt cilni",
   "session.error.serverConnection": "Nevar izveidot savienojumu ar šo serveri",
   "session.review.filesChanged": "Mainīti faili: {{count}}",
+  "session.sources.materials": "Kursa materiāli",
+  "session.sources.web": "Tīmekļa lapas",
   "session.review.change.one": "Izmaiņa",
   "session.review.change.other": "Izmaiņas",
   "session.review.loadingChanges": "Notiek izmaiņu ielāde...",

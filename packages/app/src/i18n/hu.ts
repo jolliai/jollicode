@@ -694,6 +694,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Zárja be a Tab-t",
   "session.error.serverConnection": "Nem lehet csatlakozni ehhez a szerverhez",
   "session.review.filesChanged": "A fájlok megváltoztak {{count}}",
+  "session.sources.materials": "Kurzusanyagok",
+  "session.sources.web": "Weboldalak",
   "session.review.change.one": "Változás",
   "session.review.change.other": "Változások",
   "session.review.loadingChanges": "Módosítások betöltése...",

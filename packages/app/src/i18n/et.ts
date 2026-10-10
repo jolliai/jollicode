@@ -685,6 +685,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Sule vahekaart",
   "session.error.serverConnection": "Selle serveriga ei saa ühendust",
   "session.review.filesChanged": "Muudetud failid {{count}}",
+  "session.sources.materials": "Kursuse materjalid",
+  "session.sources.web": "Veebilehed",
   "session.review.change.one": "Muuda",
   "session.review.change.other": "Muudatused",
   "session.review.loadingChanges": "Muudatuste laadimine...",

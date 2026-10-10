@@ -688,6 +688,8 @@ export const dict: Record<string, string> = {
   "session.error.notFound.closeTab": "ট্যাব বন্ধ করুন",
   "session.error.serverConnection": "এই সার্ভারের সাথে সংযোগ করা যাচ্ছে না৷",
   "session.review.filesChanged": "ফাইলগুলি পরিবর্তন করা হয়েছে {{count}}৷",
+  "session.sources.materials": "কোর্সের উপকরণ",
+  "session.sources.web": "ওয়েব পেজ",
   "session.review.change.one": "পরিবর্তন",
   "session.review.change.other": "পরিবর্তন",
   "session.review.loadingChanges": "পরিবর্তনগুলি লোড হচ্ছে...",
