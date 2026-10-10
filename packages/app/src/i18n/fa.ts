@@ -688,6 +688,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Tab را ببندید",
   "session.error.serverConnection": "نمی توان به این سرور متصل شد",
   "session.review.filesChanged": "فایل ها تغییر کردند {{count}}",
+  "session.sources.materials": "منابع درس",
+  "session.sources.web": "صفحه‌های وب",
   "session.review.change.one": "تغییر دهید",
   "session.review.change.other": "تغییرات",
   "session.review.loadingChanges": "در حال بارگیری تغییرات...",

@@ -613,6 +613,8 @@ export const dict = {
   "session.tab.context": "Kontekst",
   "session.panel.reviewAndFiles": "Gjennomgang og filer",
   "session.review.filesChanged": "{{count}} filer endret",
+  "session.sources.materials": "Emnemateriell",
+  "session.sources.web": "Nettsider",
   "session.review.change.one": "Endring",
   "session.review.change.other": "Endringer",
   "session.review.loadingChanges": "Laster endringer...",

@@ -699,6 +699,8 @@ export const dict = {
   "session.error.notFound.closeTab": "टैब बंद करें",
   "session.error.serverConnection": "इस सर्वर से कनेक्ट नहीं किया जा सकता",
   "session.review.filesChanged": "बदली गई फ़ाइलें: {{count}}",
+  "session.sources.materials": "पाठ्यक्रम सामग्री",
+  "session.sources.web": "वेब पेज",
   "session.review.change.one": "परिवर्तन",
   "session.review.change.other": "परिवर्तन",
   "session.review.loadingChanges": "परिवर्तन लोड हो रहे हैं...",

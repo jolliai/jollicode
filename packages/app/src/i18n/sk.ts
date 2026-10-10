@@ -687,6 +687,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Zavrieť kartu",
   "session.error.serverConnection": "Nedá sa pripojiť k tomuto serveru",
   "session.review.filesChanged": "Zmenené súbory {{count}}",
+  "session.sources.materials": "Materiály kurzu",
+  "session.sources.web": "Webové stránky",
   "session.review.change.one": "Zmena",
   "session.review.change.other": "Zmeny",
   "session.review.loadingChanges": "Načítavam zmeny...",

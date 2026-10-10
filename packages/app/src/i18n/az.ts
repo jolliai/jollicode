@@ -698,6 +698,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Tabı bağla",
   "session.error.serverConnection": "Bu serverə qoşulmaq mümkün deyil",
   "session.review.filesChanged": "{{count}} fayl dəyişdi",
+  "session.sources.materials": "Kurs materialları",
+  "session.sources.web": "Veb səhifələr",
   "session.review.change.one": "Dəyişiklik",
   "session.review.change.other": "Dəyişikliklər",
   "session.review.loadingChanges": "Dəyişikliklər yüklənir...",

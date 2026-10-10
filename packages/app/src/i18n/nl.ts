@@ -696,6 +696,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Tabblad sluiten",
   "session.error.serverConnection": "Kan geen verbinding maken met deze server",
   "session.review.filesChanged": "Gewijzigde bestanden: {{count}}",
+  "session.sources.materials": "Cursusmateriaal",
+  "session.sources.web": "Webpagina's",
   "session.review.change.one": "Wijziging",
   "session.review.change.other": "Wijzigingen",
   "session.review.loadingChanges": "Wijzigingen laden...",

@@ -698,6 +698,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Đóng tab",
   "session.error.serverConnection": "Không thể kết nối với máy chủ này",
   "session.review.filesChanged": "Số tệp đã thay đổi: {{count}}",
+  "session.sources.materials": "Tài liệu khóa học",
+  "session.sources.web": "Trang web",
   "session.review.change.one": "Thay đổi",
   "session.review.change.other": "Thay đổi",
   "session.review.loadingChanges": "Đang tải các thay đổi...",

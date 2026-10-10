@@ -690,6 +690,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Затвори картицу",
   "session.error.serverConnection": "Не могу да се повежем са овим сервером",
   "session.review.filesChanged": "Промењене датотеке {{count}}",
+  "session.sources.materials": "Материјали курса",
+  "session.sources.web": "Веб-странице",
   "session.review.change.one": "Промена",
   "session.review.change.other": "Промене",
   "session.review.loadingChanges": "Учитавање промена...",

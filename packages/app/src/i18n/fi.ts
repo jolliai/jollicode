@@ -586,6 +586,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Sulje välilehti",
   "session.error.serverConnection": "Ei voi muodostaa yhteyttä tähän palvelimeen",
   "session.review.filesChanged": "Muutettuja tiedostoja: {{count}}",
+  "session.sources.materials": "Kurssimateriaalit",
+  "session.sources.web": "Verkkosivut",
   "session.review.change.one": "Muutos",
   "session.review.change.other": "Muutokset",
   "session.review.loadingChanges": "Ladataan muutoksia...",

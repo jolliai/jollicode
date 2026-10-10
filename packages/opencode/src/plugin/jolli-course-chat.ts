@@ -44,6 +44,10 @@
  * already say when to pass `continue`, and each page's own `hasMore` says whether there is more.
  */
 import type { Hooks, PluginInput } from "@opencode-ai/plugin"
+import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
+import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
+import { JolliSources } from "@opencode-ai/core/jolli/sources"
 import { Effect, Option, Schema } from "effect"
 import type { EffectBridge } from "@/effect/bridge"
 import { SessionID } from "@/session/schema"
@@ -87,11 +91,17 @@ const decodePage = Schema.decodeUnknownOption(
 
 export async function JolliCourseChatPlugin(
   _input: PluginInput,
-  options: { bridge: EffectBridge.Shape; pageWaitMs?: number },
+  options: {
+    bridge: EffectBridge.Shape
+    pageWaitMs?: number
+    /** Whether the session's course shows citations; see {@link citationsShownFor}. Replaced in tests. */
+    citationsShown?: (sessionID: string) => Promise<boolean | undefined>
+  },
 ): Promise<Hooks> {
   const paging = new Map<string, PagingState>()
   const inflight = new Map<string, InflightPage>()
   const pageWaitMs = options.pageWaitMs ?? PAGE_WAIT_MS
+  const citationsShown = options.citationsShown ?? ((sessionID: string) => citationsShownFor(options.bridge, sessionID))
 
   /** Save a session's cursors as the most recently used, dropping the least recently used past the bound. */
   function remember(sessionID: string, state: PagingState) {
@@ -211,6 +221,35 @@ export async function JolliCourseChatPlugin(
       claimPage(key, input.callID)
     },
     "tool.execute.after": async (input, output) => {
+      /**
+       * ⚠ READ HERE, FROM THE WHOLE RESULT, BECAUSE THE STORED OUTPUT MAY BE CUT. The output limit
+       * applies after this hook, and a cut JSON cannot be read back when the turn's sources are
+       * judged; the evidence recorded on the tool part is what that judgement reads instead.
+       *
+       * ⚠ NOT RECORDED WHERE THE COURSE HIDES CITATIONS. Nothing judges a turn's sources then
+       * (`SessionPrompt` asks for them only when the course shows citations), so the evidence — up to
+       * one evidence limit per passage, synced to every client with the part — would be stored for
+       * nobody. A course whose switch cannot be read records it, since the turn may still be judged.
+       * A teacher who turns citations on mid-turn gets sources for that turn only from the reads
+       * after the switch, and in full from the next turn.
+       */
+      const evidence = JolliSources.materialEvidenceOf(input.tool, output)
+      if (evidence.length > 0 && (await citationsShown(input.sessionID)) !== false) {
+        output.metadata = { ...(isRecord(output.metadata) ? output.metadata : {}), evidence }
+      }
+      if (JolliSources.isCourseTool(input.tool)) {
+        await options.bridge.promise(
+          Effect.logInfo("jolli course tool", {
+            "session.id": input.sessionID,
+            tool: input.tool,
+            failed: "isError" in output && output.isError === true,
+            evidence:
+              evidence
+                .map((item) => (item.kind === "material" ? `${item.materialId}:${item.title}` : item.url))
+                .join(" | ") || "none",
+          }),
+        )
+      }
       const kind = kindOf(input.tool)
       if (!kind) return
       // Released after the cursor below is written, so a waiting continuation reads the new one.
@@ -250,12 +289,29 @@ export async function JolliCourseChatPlugin(
 
 /** The page a successful list call returned, or undefined for an error or an unexpected shape. */
 function pageOf(output: unknown) {
-  if (!isRecord(output) || output.isError === true || !Array.isArray(output.content)) return undefined
-  const text = output.content.find(
-    (item): item is { type: "text"; text: string } =>
-      isRecord(item) && item.type === "text" && typeof item.text === "string",
-  )?.text
+  const text = JolliSources.firstText(output)
   return text === undefined ? undefined : Option.getOrUndefined(decodePage(text))
+}
+
+/**
+ * Whether the course a session is bound to shows citations, as the student's catalogue states it, or
+ * undefined when that cannot be read: an unbound session, no credential, no catalogue. Never fails.
+ * The same reading `SessionPrompt` makes before it asks for a turn's sources.
+ */
+function citationsShownFor(bridge: EffectBridge.Shape, sessionID: string): Promise<boolean | undefined> {
+  return bridge.promise(
+    Effect.gen(function* () {
+      const session = yield* (yield* Session.Service).get(SessionID.make(sessionID))
+      const binding = courseBindingOf(session)
+      if (!binding) return undefined
+      const jolli = yield* JolliSession.Service
+      const request = yield* jolli.request().pipe(
+        Effect.timeout("5 seconds"),
+        Effect.catchCause(() => Effect.succeed(undefined)),
+      )
+      return (yield* JolliCourseGuardrails.resolve({ request, binding }))?.showCitations
+    }).pipe(Effect.catchCause(() => Effect.succeed(undefined))),
+  )
 }
 
 function pageKey(sessionID: string, kind: ListKind) {

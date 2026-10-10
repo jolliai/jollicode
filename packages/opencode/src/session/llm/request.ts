@@ -27,6 +27,8 @@ type PrepareInput = {
   readonly stepIndex?: number
   readonly courseID?: string
   readonly courseAssistantID?: string
+  /** The turn only carries on with the previous one, after compaction. */
+  readonly continuesTurn?: boolean
   /** Each MCP tool's key -> the sanitized name of its server, from the same resolve that built `tools`. */
   readonly mcpToolServers?: ReadonlyMap<string, string>
   /** Names of the tools whose results this request carries for the first time and that failed. */
@@ -69,6 +71,7 @@ export function jolliCodingAgentHeaders(input: {
   readonly stepIndex?: number
   readonly courseID?: string
   readonly courseAssistantID?: string
+  readonly continuesTurn?: boolean
   readonly command?: string
   readonly mcpServers?: ReadonlyArray<string>
   readonly mcpToolOverrides?: ReadonlyArray<readonly [tool: string, server: string]>
@@ -84,6 +87,9 @@ export function jolliCodingAgentHeaders(input: {
     "x-jolli-step-index": String(input.stepIndex),
     ...(input.courseID ? { "x-jolli-space-id": input.courseID } : {}),
     ...(input.courseAssistantID ? { "x-jolli-assistant-id": input.courseAssistantID } : {}),
+    // The gateway decides a course-bound turn from its user message; a turn compaction opened to
+    // carry on has none of the student's, so the gateway keeps the rule of the turn it continues.
+    ...(input.continuesTurn ? { "x-jolli-turn-continues": "1" } : {}),
     ...(input.parentSessionID ? { "x-jolli-parent-session-id": input.parentSessionID } : {}),
     // Stats only: which slash command produced this turn's user message. Percent-encoded because
     // a command is named after a file or skill and may be non-ASCII, which fetch refuses in a
@@ -328,6 +334,7 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
         stepIndex: input.stepIndex,
         courseID: input.courseID,
         courseAssistantID: input.courseAssistantID,
+        continuesTurn: input.continuesTurn,
         command: input.user.command,
         toolErrors: input.toolErrors,
         ...jolliMcpReport({

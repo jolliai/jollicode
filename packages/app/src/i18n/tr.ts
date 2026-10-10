@@ -737,6 +737,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Sekmeyi kapat",
   "session.error.serverConnection": "Bu sunucuya bağlanılamıyor",
   "session.review.filesChanged": "{{count}} dosya değişti",
+  "session.sources.materials": "Ders materyalleri",
+  "session.sources.web": "Web sayfaları",
   "session.review.change.one": "Değişiklik",
   "session.review.change.other": "Değişiklik",
   "session.review.loadingChanges": "Değişiklikler yükleniyor...",

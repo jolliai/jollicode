@@ -675,6 +675,8 @@ export const dict = {
   "session.error.notFound.closeTab": "إغلاق علامة التبويب",
   "session.error.serverConnection": "تعذر الاتصال بهذا الخادم",
   "session.review.filesChanged": "الملفات المتغيرة: {{count}}",
+  "session.sources.materials": "مواد المقرر",
+  "session.sources.web": "صفحات الويب",
   "session.review.change.one": "تغيير",
   "session.review.change.other": "تغييرات",
   "session.review.loadingChanges": "جارٍ تحميل التغييرات...",

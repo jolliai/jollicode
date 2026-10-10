@@ -687,6 +687,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Tutup Tab",
   "session.error.serverConnection": "Tidak dapat berhubung dengan pelayan ini",
   "session.review.filesChanged": "{{count}} Fail Diubah",
+  "session.sources.materials": "Bahan kursus",
+  "session.sources.web": "Halaman web",
   "session.review.change.one": "Perubahan",
   "session.review.change.other": "Perubahan",
   "session.review.loadingChanges": "Memuat perubahan...",

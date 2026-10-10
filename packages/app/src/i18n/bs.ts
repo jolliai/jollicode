@@ -734,6 +734,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Zatvori karticu",
   "session.error.serverConnection": "Nije moguće povezati se s ovim serverom",
   "session.review.filesChanged": "Izmijenjeno {{count}} datoteka",
+  "session.sources.materials": "Materijali predmeta",
+  "session.sources.web": "Web stranice",
   "session.review.change.one": "Izmjena",
   "session.review.change.other": "Izmjene",
   "session.review.loadingChanges": "Učitavanje izmjena...",

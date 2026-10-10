@@ -689,6 +689,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Zapri zavihek",
   "session.error.serverConnection": "Ni mogoče vzpostaviti povezave s tem strežnikom",
   "session.review.filesChanged": "Spremenjene datoteke {{count}}",
+  "session.sources.materials": "Gradiva predmeta",
+  "session.sources.web": "Spletne strani",
   "session.review.change.one": "spremeniti",
   "session.review.change.other": "Spremembe",
   "session.review.loadingChanges": "Nalaganje sprememb ...",

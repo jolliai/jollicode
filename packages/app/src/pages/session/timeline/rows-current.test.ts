@@ -1,5 +1,6 @@
 import { describe, expect, mock, test } from "bun:test"
 import type { SessionMessageInfo } from "@opencode-ai/client/promise"
+import type { AssistantMessage, TextPart, UserMessage } from "@opencode-ai/sdk/v2"
 import { normalizeSessionMessages } from "@/utils/session-message"
 
 mock.module("@opencode-ai/session-ui/message-part", () => ({
@@ -57,6 +58,42 @@ describe("current session timeline rows", () => {
       "user-message:msg_3",
       "assistant-part:msg_3:msg_4:reasoning:0",
     ])
+  })
+
+  test("closes a finished course turn with its sources row, and never a running or unbound one", () => {
+    const user = { id: "msg_1", sessionID: "ses_1", role: "user", time: { created: 1 } } as UserMessage
+    const assistant = {
+      id: "msg_2",
+      sessionID: "ses_1",
+      role: "assistant",
+      parentID: "msg_1",
+      time: { created: 2, completed: 3 },
+    } as AssistantMessage
+    const answer: TextPart = {
+      id: "prt_answer",
+      sessionID: "ses_1",
+      messageID: "msg_2",
+      type: "text",
+      text: "A pointer holds an address.",
+      metadata: { answerSources: [{ kind: "material", materialId: "3", title: "Lecture 4" }] },
+    }
+    const keys = (status: "idle" | "busy", policy?: { showCitations: boolean }) =>
+      Timeline.constructMessageRows(
+        user,
+        (messageID) => (messageID === "msg_2" ? [answer] : []),
+        [assistant],
+        0,
+        true,
+        status,
+        true,
+        true,
+        policy,
+      ).map(TimelineRow.key)
+
+    expect(keys("idle", { showCitations: true }).at(-1)).toBe("sources:msg_1")
+    expect(keys("busy", { showCitations: true })).not.toContain("sources:msg_1")
+    expect(keys("idle", { showCitations: false })).not.toContain("sources:msg_1")
+    expect(keys("idle")).not.toContain("sources:msg_1")
   })
 
   test("renders a current shell message as a standalone turn", () => {

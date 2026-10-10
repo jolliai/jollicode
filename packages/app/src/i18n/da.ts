@@ -614,6 +614,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Luk fane",
   "session.error.serverConnection": "Kan ikke oprette forbindelse til denne server",
   "session.review.filesChanged": "{{count}} ændrede filer",
+  "session.sources.materials": "Kursusmaterialer",
+  "session.sources.web": "Websider",
   "session.review.change.one": "Ændring",
   "session.review.change.other": "Ændringer",
   "session.review.loadingChanges": "Indlæser ændringer...",

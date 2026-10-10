@@ -689,6 +689,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Lat flipan aftur",
   "session.error.serverConnection": "Kann ikki seta samband við hendan ambætaran",
   "session.review.filesChanged": "Fílur broyttar {{count}}",
+  "session.sources.materials": "Tilfar til skeiðið",
+  "session.sources.web": "Vevsíður",
   "session.review.change.one": "Broyting",
   "session.review.change.other": "Broytingar",
   "session.review.loadingChanges": "Heinta broytingar...",
