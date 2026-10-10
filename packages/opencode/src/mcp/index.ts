@@ -40,6 +40,9 @@ import { isJolliOriginAllowed } from "@opencode-ai/core/jolli/origin"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 
 const DEFAULT_TIMEOUT = 30_000
+// SDK 1.30+ caps a single stdio message at 10 MB and closes the transport past it, which rejects
+// large base64 screenshots. Stay bounded: ReadBuffer re-concats per chunk, so cost grows quadratically.
+const STDIO_MAX_BUFFER_SIZE = 32 * 1024 * 1024
 const CLIENT_OPTIONS = {
   capabilities: {
     // https://github.com/anomalyco/opencode/issues/11948
@@ -387,6 +390,7 @@ const layer = Layer.effect(
       const cwd = mcp.cwd ? path.resolve(baseDir, mcp.cwd) : baseDir
       const transport = new StdioClientTransport({
         stderr: "pipe",
+        maxBufferSize: STDIO_MAX_BUFFER_SIZE,
         command: cmd,
         args,
         cwd,
