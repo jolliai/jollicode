@@ -5,7 +5,7 @@ import { join } from "node:path"
 import { clearCourseSkills, jolliGatewayConfig } from "./jolli-gateway"
 
 const roots: string[] = []
-const ENABLED_PROVIDERS = ["jolli-anthropic", "jolli-openai", "jolli-google"]
+const ENABLED_PROVIDERS = ["jolli-anthropic", "jolli-openai", "jolli-google", "jolli-openai-compatible"]
 
 async function tempRoot() {
   const root = await mkdtemp(join(tmpdir(), "jolli-gateway-"))
@@ -45,6 +45,7 @@ describe("jolliGatewayConfig", () => {
     expect(config().provider["jolli-anthropic"].npm).toBe("@ai-sdk/anthropic")
     expect(config().provider["jolli-openai"].npm).toBe("@ai-sdk/openai")
     expect(config().provider["jolli-google"].npm).toBe("@ai-sdk/google")
+    expect(config().provider["jolli-openai-compatible"].npm).toBe("@ai-sdk/openai-compatible")
   })
 
   test("never carries a credential", () => {

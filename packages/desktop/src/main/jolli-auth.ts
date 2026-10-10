@@ -80,8 +80,9 @@ export async function signIn(call: SidecarCall) {
  *
  * ⚠ AND IT ASKS THROUGH `isJolliConnected` RATHER THAN LOOKING FOR THE BARE `jolli` SLUG, which is
  * the one spelling the answer never contains. The gateway config declares one provider per wire
- * protocol (`jolli-anthropic`, `jolli-openai`, `jolli-google`) and the bare slug is only the AUTH
- * id, so `/provider` deliberately reports the three and not it — `httpapi-provider.test.ts` pins
+ * protocol (`jolli-anthropic`, `jolli-openai`, `jolli-google`, `jolli-openai-compatible`) and the
+ * bare slug is only the AUTH id, so `/provider` deliberately reports those and not it —
+ * `httpapi-provider.test.ts` pins
  * that with `expect(body.connected).not.toContain(Brand.short)`. Matching the slug here therefore
  * answered "signed out" to every student on every launch, which is the sign-in gate coming up for
  * somebody who already holds a credential. `dialog-logout.tsx` reads the same helper, which is

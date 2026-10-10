@@ -1437,6 +1437,235 @@ describe("session.llm.stream", () => {
     },
   )
 
+  /**
+   * ⚠ THE GATEWAY NAMES A PROTOCOL AND THE CLIENT TURNS IT INTO ONE OF ITS OWN PROVIDER IDS. An
+   * OpenRouter model is served on `openai-compatible`, which has to resolve to the provider block
+   * whose SDK speaks Chat Completions — not to `jolli-openai`, whose SDK only reaches Responses.
+   */
+  const switchAgent = {
+    name: "test",
+    mode: "primary",
+    options: {},
+    permission: [{ permission: "*", pattern: "*", action: "allow" }],
+  } satisfies Agent.Info
+
+  function switchUser(sessionID: SessionID, model: Provider.Model): SessionV1.User {
+    return {
+      id: MessageID.make(`msg_user-${sessionID}`),
+      sessionID,
+      role: "user",
+      time: { created: Date.now() },
+      agent: switchAgent.name,
+      model: { providerID: model.providerID, modelID: model.id },
+    }
+  }
+
+  function responsesStream(modelID: string) {
+    return createEventStream(
+      [
+        {
+          type: "response.created",
+          response: {
+            id: "resp-served",
+            created_at: Math.floor(Date.now() / 1000),
+            model: modelID,
+            service_tier: null,
+          },
+        },
+        {
+          type: "response.completed",
+          response: {
+            incomplete_details: null,
+            usage: {
+              input_tokens: 1,
+              input_tokens_details: null,
+              output_tokens: 1,
+              output_tokens_details: null,
+            },
+            service_tier: null,
+          },
+        },
+      ],
+      true,
+    )
+  }
+
+  /** A gateway that answers the OpenAI and the OpenAI-compatible protocols, each with its own block. */
+  function openAiAndCompatibleConfig(compatibleModelID: string, extraOpenAiModelID?: string) {
+    const fixture = loadFixture("openai", "gpt-4o").model
+    return {
+      enabled_providers: ["jolli-openai", "jolli-openai-compatible"],
+      provider: {
+        "jolli-openai": {
+          name: "Jolli",
+          npm: "@ai-sdk/openai",
+          models: {
+            [fixture.id]: configModel(fixture) satisfies ConfigModel,
+            ...(extraOpenAiModelID
+              ? { [extraOpenAiModelID]: { ...configModel(fixture), id: extraOpenAiModelID } satisfies ConfigModel }
+              : {}),
+          },
+          options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` },
+        },
+        "jolli-openai-compatible": {
+          name: "Jolli",
+          npm: "@ai-sdk/openai-compatible",
+          models: {
+            [compatibleModelID]: { ...configModel(fixture), id: compatibleModelID } satisfies ConfigModel,
+          },
+          options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` },
+        },
+      },
+    }
+  }
+
+  it.instance(
+    "resolves a served openai-compatible header to the OpenAI-compatible provider",
+    () =>
+      Effect.gen(function* () {
+        const source = loadFixture("openai", "gpt-4o").model
+        const targetCatalogID = "served-compatible-model"
+        const request = waitRequest(
+          "/responses",
+          new Response(responsesStream(source.id), {
+            status: 200,
+            headers: {
+              "Content-Type": "text/event-stream",
+              "x-jolli-served-provider": "openai-compatible",
+              "x-jolli-served-model": targetCatalogID,
+            },
+          }),
+        )
+        const resolved = yield* Provider.use.getModel(ProviderV2.ID.make("jolli-openai"), ModelV2.ID.make(source.id))
+        const sessionID = SessionID.make("session-served-compatible")
+        const served: string[] = []
+
+        yield* drain({
+          user: switchUser(sessionID, resolved),
+          sessionID,
+          model: resolved,
+          agent: switchAgent,
+          system: ["You are a helpful assistant."],
+          messages: [{ role: "user", content: "Hello" }],
+          tools: {},
+          onModelSwitch: (next) => Effect.sync(() => served.push(`${next.providerID}/${next.id}`)),
+        })
+
+        yield* Effect.promise(() => request)
+        expect(served).toEqual([`jolli-openai-compatible/${targetCatalogID}`])
+      }),
+    { config: () => openAiAndCompatibleConfig("served-compatible-model") },
+  )
+
+  for (const [servedProvider, expected] of [
+    ["openai-compatible", []],
+    ["openai", ["jolli-openai/compatible-model"]],
+  ] as const) {
+    it.instance(
+      servedProvider === "openai-compatible"
+        ? "reports no switch when the OpenAI-compatible model it asked for served the turn"
+        : "reports a switch when the same model id is served under the OpenAI provider instead",
+      () =>
+        Effect.gen(function* () {
+          const modelID = "compatible-model"
+          const request = waitRequest(
+            "/chat/completions",
+            new Response(createChatStream("Hello"), {
+              status: 200,
+              headers: {
+                "Content-Type": "text/event-stream",
+                "x-jolli-served-provider": servedProvider,
+                "x-jolli-served-model": modelID,
+              },
+            }),
+          )
+          const resolved = yield* Provider.use.getModel(
+            ProviderV2.ID.make("jolli-openai-compatible"),
+            ModelV2.ID.make(modelID),
+          )
+          const sessionID = SessionID.make(`session-served-${servedProvider}`)
+          const served: string[] = []
+
+          yield* drain({
+            user: switchUser(sessionID, resolved),
+            sessionID,
+            model: resolved,
+            agent: switchAgent,
+            system: ["You are a helpful assistant."],
+            messages: [{ role: "user", content: "Hello" }],
+            tools: {},
+            onModelSwitch: (next) => Effect.sync(() => served.push(`${next.providerID}/${next.id}`)),
+          })
+
+          yield* Effect.promise(() => request)
+          // The key is provider and model together: the same id under another protocol is a switch.
+          expect(served).toEqual([...expected])
+        }),
+      { config: () => openAiAndCompatibleConfig("compatible-model", "compatible-model") },
+    )
+  }
+
+  it.instance(
+    "follows a 409 model switch onto an OpenAI-compatible model through Chat Completions",
+    () =>
+      Effect.gen(function* () {
+        const source = loadFixture("openai", "gpt-4o").model
+        const targetCatalogID = "switch-compatible-model"
+        const first = waitRequest(
+          "/responses",
+          new Response(
+            JSON.stringify({ code: "jolli_model_switch", provider: "openai-compatible", model: targetCatalogID }),
+            { status: 409, headers: { "Content-Type": "application/json" } },
+          ),
+        )
+        const second = waitRequest(
+          "/chat/completions",
+          new Response(createChatStream("Hello"), {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          }),
+        )
+        const resolved = yield* Provider.use.getModel(ProviderV2.ID.make("jolli-openai"), ModelV2.ID.make(source.id))
+        const sessionID = SessionID.make("session-switch-compatible")
+        const user = switchUser(sessionID, resolved)
+        const proposed: string[] = []
+        const prepared: string[] = []
+
+        yield* drain({
+          user,
+          sessionID,
+          model: resolved,
+          agent: switchAgent,
+          system: ["You are a helpful assistant."],
+          messages: [{ role: "user", content: "Hello" }],
+          tools: {},
+          onModelSwitchProposal: (next) =>
+            Effect.sync(() => {
+              proposed.push(`${next.providerID}/${next.id}`)
+              return true
+            }),
+          onModelSwitchPrepare: (next) =>
+            Effect.sync(() => {
+              prepared.push(`${next.providerID}/${next.id}`)
+              return {
+                user: { ...user, model: { providerID: next.providerID, modelID: next.id } },
+                system: ["You are a helpful assistant."],
+                messages: [{ role: "user", content: "Hello" }],
+                tools: {},
+              }
+            }),
+        })
+
+        expect((yield* Effect.promise(() => first)).url.pathname).toContain("/responses")
+        const switched = yield* Effect.promise(() => second)
+        expect(switched.url.pathname).toContain("/chat/completions")
+        expect(switched.body.model).toBe(targetCatalogID)
+        expect(proposed).toEqual([`jolli-openai-compatible/${targetCatalogID}`])
+        expect(prepared).toEqual([`jolli-openai-compatible/${targetCatalogID}`])
+      }),
+    { config: () => openAiAndCompatibleConfig("switch-compatible-model") },
+  )
+
   it.instance(
     "service stream cancellation cancels provider response body promptly",
     () =>

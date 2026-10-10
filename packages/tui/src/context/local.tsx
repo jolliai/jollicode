@@ -302,7 +302,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
              *
              * ⚠ AND IT IS ASKED THROUGH `isJolliConnected`, BECAUSE THE BARE `jolli` SLUG IS THE
              * ONE SPELLING THAT ANSWER NEVER CARRIES. `/provider` reports one id per wire protocol
-             * (`jolli-anthropic`, `jolli-openai`, `jolli-google`) and deliberately not the auth id
+             * (every id in `JOLLI_PROVIDER_IDS`: `jolli-anthropic`, `jolli-openai`, `jolli-google`,
+             * `jolli-openai-compatible`) and deliberately not the auth id
              * — `httpapi-provider.test.ts` pins that with `not.toContain(Brand.short)`. Matching
              * the slug made this branch unconditional under lockdown, which collapsed the two
              * states the comment above distinguishes: a signed-in student who had not picked a

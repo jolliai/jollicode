@@ -184,8 +184,9 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
      * courses yet, sign in" instead of "still loading" forever.
      *
      * ⚠ CHECKS ANY OF THE PER-PROTOCOL PROVIDER IDS (`jolli-anthropic`, `jolli-openai`,
-     * `jolli-google`), NOT THE BARE `jolli` SLUG. The gateway config emits one opencode provider
-     * per wire protocol (see `providerIdFor`), and none of them is called `"jolli"` — so a check
+     * `jolli-google`, `jolli-openai-compatible`), NOT THE BARE `jolli` SLUG. The gateway config emits
+     * one opencode provider per wire protocol (see `providerIdFor`), and none of them is called
+     * `"jolli"` — so a check
      * that only asked about the bare slug would report "signed out" for a student who had actually
      * signed in, and the course dialog would sit on its empty view forever.
      */

@@ -33,18 +33,25 @@ import { isJolliOriginAllowed, parseJolliUrl } from "./origin"
  * `enabled_providers`. Kept as a hard-coded list because it is the lockdown surface:
  * one new value here is one new BYO channel a student can reach.
  *
- * `openai-compatible` is deliberately absent — it exists at the gateway level as a
- * relay flavour rather than as its own protocol, and nothing in the tenant catalogue
- * publishes models under it.
+ * `openai-compatible` is a protocol of its own here even though its body is OpenAI's, because it
+ * reaches the gateway by a different SDK: `@ai-sdk/openai` talks to the Responses route, which
+ * only OpenAI itself serves, while every OpenAI-compatible supplier (OpenRouter, a relay) is only
+ * reachable through Chat Completions. Its models therefore need a provider block whose SDK speaks
+ * that, rather than a seat in the OpenAI one.
  */
-export const SUPPORTED_PROTOCOLS = ["anthropic", "openai", "google"] as const
+export const SUPPORTED_PROTOCOLS = ["anthropic", "openai", "google", "openai-compatible"] as const
 export type SupportedProtocol = (typeof SUPPORTED_PROTOCOLS)[number]
+
+/** Whether a protocol the gateway names is one this build declares a provider for. */
+export function isSupportedProtocol(protocol: string | undefined): protocol is SupportedProtocol {
+  return SUPPORTED_PROTOCOLS.some((supported) => supported === protocol)
+}
 
 /**
  * The opencode provider id one wire protocol answers under.
  *
  * ⚠ EACH PROTOCOL GETS ITS OWN OPENCODE PROVIDER, AND THAT IS THE WHOLE REASON THIS EXISTS.
- * An opencode provider is one npm SDK plus one HTTP path shape, so the three protocols the
+ * An opencode provider is one npm SDK plus one HTTP path shape, so the protocols the
  * gateway serves cannot share a single provider id — the SDK's own routing decides which
  * URL a call reaches, and only one `npm` can be declared per provider block.
  */
@@ -79,6 +86,8 @@ function npmForProtocol(protocol: SupportedProtocol): string {
       return "@ai-sdk/openai"
     case "google":
       return "@ai-sdk/google"
+    case "openai-compatible":
+      return "@ai-sdk/openai-compatible"
   }
   return protocol satisfies never
 }
@@ -158,7 +167,7 @@ export function jolliBaseConfig(input: JolliConfigInput) {
     /**
      * ⚠ THE WHOLE LOCKDOWN IS THIS LINE. Everything else here is a catalogue; this is what
      * makes the catalogue the only one. Removing it does not "show more models", it re-opens BYO
-     * keys. Enumerated for all three supported protocols even when signed out so a logged-out
+     * keys. Enumerated for every supported protocol even when signed out so a logged-out
      * student still cannot reach a non-Jolli provider, and even when the catalog omits a
      * protocol (empty picker under that vendor) rather than opens BYO under its slot.
      */
@@ -190,7 +199,7 @@ export function jolliBaseConfig(input: JolliConfigInput) {
  *
  * ⚠ AN EMPTY BLOCK SET IS THE SIGNED-IN-BUT-NO-CATALOG POSTURE, AND IT MUST NOT COLLAPSE INTO THE
  * SIGNED-OUT ONE. `jolliBaseConfig` still emits `enabled_providers` in that case, so the resolver
- * finds three declared providers with no model rows — every list stays empty rather than the
+ * finds every protocol's provider declared with no model rows — every list stays empty rather than the
  * BYO screens coming back.
  */
 function providerBlocks(input: JolliConfigInput) {
@@ -204,8 +213,8 @@ function providerBlocks(input: JolliConfigInput) {
 function providerBlock(input: JolliConfigInput, protocol: SupportedProtocol, models?: ReadonlyArray<JolliModel>) {
   return {
     /**
-     * ⚠ EACH PROVIDER READS AS THE GATEWAY'S OWN VENDOR NAME, NOT AS "JOLLI". There are up to three
-     * blocks and the pickers group by provider, so a uniform label rendered three identical "Jolli"
+     * ⚠ EACH PROVIDER READS AS THE GATEWAY'S OWN VENDOR NAME, NOT AS "JOLLI". There is one block per
+     * protocol and the pickers group by provider, so a uniform label rendered identical "Jolli"
      * headers. The name comes from the gateway, as it does in the web chat, so a vendor added there
      * shows up correctly without a client release. It is display-only: routing is decided by `npm`
      * and `baseURL`.
@@ -235,13 +244,14 @@ function providerBlock(input: JolliConfigInput, protocol: SupportedProtocol, mod
      * `/chat/completions`, `/models/{id}:{action}`) to whatever base URL it was given — it does
      * NOT add `/v1` for you (`@ai-sdk/anthropic` fetches `${baseURL}/messages`;
      * `@ai-sdk/openai` fetches `${baseURL}/responses`; `@ai-sdk/google` fetches
-     * `${baseURL}/models/{...}`). Passing the bare `<origin>/api` leaves the SDK hitting
+     * `${baseURL}/models/{...}`; `@ai-sdk/openai-compatible` fetches `${baseURL}/chat/completions`).
+     * Passing the bare `<origin>/api` leaves the SDK hitting
      * `<origin>/api/messages`, which the pass-through router has no route for → Express 404
      * "Not Found". The per-protocol suffix here is what makes the URL the SDK builds line up
      * with the routes `PassThroughRouter.ts` mounts (`/v1/messages`, `/v1/responses`,
      * `/v1/chat/completions`, `/v1beta/models/:modelAction`).
      *
-     * ⚠ NO `apiKey` IS EVER WRITTEN HERE, ON EITHER SURFACE, AND THAT IS TRUE OF ALL THREE BLOCKS.
+     * ⚠ NO `apiKey` IS EVER WRITTEN HERE, ON EITHER SURFACE, AND THAT IS TRUE OF EVERY BLOCK.
      * The credential lives in the shared database and reaches the model call through the provider's
      * own `fetch` — `plugin/jolli.ts` declares every Jolli provider id so the loader's options land
      * on each protocol block, and resolves the token per request. A token frozen into a config
@@ -332,6 +342,8 @@ function baseUrlSuffixFor(protocol: SupportedProtocol): string {
       return "/v1"
     case "google":
       return "/v1beta"
+    case "openai-compatible":
+      return "/v1"
   }
   return protocol satisfies never
 }

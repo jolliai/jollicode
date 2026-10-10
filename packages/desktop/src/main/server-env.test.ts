@@ -42,9 +42,14 @@ describe("createSidecarEnv", () => {
 
   test("carries the ceiling but never a credential", async () => {
     const config = JSON.parse((await createSidecarEnv())["JOLLICODE_CONFIG_CONTENT"] ?? "{}")
-    expect(config.enabled_providers).toEqual(["jolli-anthropic", "jolli-openai", "jolli-google"])
+    expect(config.enabled_providers).toEqual([
+      "jolli-anthropic",
+      "jolli-openai",
+      "jolli-google",
+      "jolli-openai-compatible",
+    ])
     // The credential comes from the shared database, resolved per request by the provider's fetch —
-    // for every protocol block, since `plugin/jolli.ts` claims all three provider ids.
+    // for every protocol block, since `plugin/jolli.ts` claims every one of those provider ids.
     for (const id of config.enabled_providers) expect(config.provider?.[id]?.options).not.toHaveProperty("apiKey")
     expect((await createSidecarEnv())["JOLLICODE_JOLLI_TOKEN"]).toBeUndefined()
   })

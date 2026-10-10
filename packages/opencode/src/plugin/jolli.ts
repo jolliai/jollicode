@@ -15,10 +15,11 @@
  * skips a loader whose provider has no `auth.json` entry. The `auth()` argument the loader is handed
  * is therefore always undefined for Jolli, and is not used.
  *
- * ⚠ ONE SIGN-IN, THREE PROVIDERS. The gateway dispatches to three wire protocols and each one needs
- * its own opencode provider (one npm SDK, one URL shape), but the sign-in is a single act recorded
- * under the bare `jolli` id. `providers` is what carries the resolved `fetch` to all three; without
- * it the protocol providers resolve with no credential and 401 on the first message.
+ * ⚠ ONE SIGN-IN, ONE PROVIDER PER PROTOCOL. The gateway dispatches to several wire protocols and
+ * each one needs its own opencode provider (one npm SDK, one URL shape), but the sign-in is a single
+ * act recorded under the bare `jolli` id. `providers` is what carries the resolved `fetch` to every
+ * one of them; without it the protocol providers resolve with no credential and 401 on the first
+ * message.
  */
 import { Brand } from "@opencode-ai/core/brand"
 import { Flag } from "@opencode-ai/core/flag/flag"

@@ -11,21 +11,40 @@
  */
 import { Jolli } from "@opencode-ai/schema/jolli"
 import type { CatalogModel, CourseAssistantChoice, CourseListItem } from "./api"
-import { providerIdFor, type JolliModel, type SupportedProtocol, SUPPORTED_PROTOCOLS } from "./gateway-config"
+import { isSupportedProtocol, providerIdFor, type JolliModel, type SupportedProtocol } from "./gateway-config"
 
 /**
- * Fallback protocol used when a course grant names a UUID no longer in the catalogue.
+ * Fallback protocol used when a course grant names a UUID the runnable catalogue does not carry —
+ * a model that is gone, or one on a protocol this build declares no provider for.
  * "anthropic" mirrors the pre-multi-protocol behaviour — a dead id used to key against the
  * single Jolli provider — and keeps `allowedModelIds` at least parseable rather than empty.
- * The picker still shows nothing for the id (the model row is gone), which is the honest
- * rendering of "your grant names a model that has been removed".
+ * The picker still shows nothing for the id (no provider block lists it), which is the honest
+ * rendering of "your grant names a model that cannot be run here".
  */
-const FALLBACK_PROTOCOL = "anthropic"
+const FALLBACK_PROTOCOL: SupportedProtocol = "anthropic"
 
-function supportedProtocolOf(protocol: string | undefined): SupportedProtocol {
-  return SUPPORTED_PROTOCOLS.includes(protocol as SupportedProtocol)
-    ? (protocol as SupportedProtocol)
-    : FALLBACK_PROTOCOL
+/** A catalogue model on a protocol this build declares a provider for. */
+export type RunnableModel = CatalogModel & { readonly protocol: SupportedProtocol }
+
+/**
+ * The catalogue as this build can run it, keyed by UUID.
+ *
+ * ⚠ EVERY PROJECTION STARTS HERE, WHICH IS WHY IT IS ONE FUNCTION. A model on a protocol this build
+ * declares no provider for is in no provider block, so it has to be absent everywhere else that
+ * names a model too: an assistant's grant and default, and the tier map. Left in those it was keyed
+ * under the anthropic fallback — an assistant defaulting to a model no picker lists, which the
+ * client quietly swaps for another, and a tier filed under a key nothing looks up. Absent, it is a
+ * model the catalogue does not carry, which every projection already knows how to say.
+ *
+ * ⚠ THE SNAPSHOT KEEPS IT, AND THE READER FILTERS. The cache file outlives the build that wrote it,
+ * and a later build reading the same snapshot may well run that protocol.
+ */
+export function runnableModels(models: Iterable<CatalogModel>): ReadonlyMap<string, RunnableModel> {
+  return new Map(
+    Array.from(models)
+      .filter((model): model is RunnableModel => isSupportedProtocol(model.protocol))
+      .map((model) => [model.id, model]),
+  )
 }
 
 /**
@@ -192,14 +211,10 @@ const MODEL_TIER: Record<string, Jolli.ModelTier | undefined> = {
  *
  * ⚠ THE PROVIDER SEGMENT IS PROTOCOL-QUALIFIED — one opencode provider per wire protocol
  * (see `providerIdFor` in `gateway-config.ts`), so the key has to name which one. A grant
- * pointing at a UUID whose model row is gone falls back to the anthropic-flavoured id, which
- * matches how the single-provider era wrote every key.
+ * pointing at a UUID the runnable catalogue does not carry falls back to the anthropic-flavoured
+ * id, which matches how the single-provider era wrote every key.
  */
-const modelKey = (uuid: string, protocol: string) => `${providerIdFor(supportedProtocolOf(protocol))}/${uuid}`
-
-/** Look up a UUID's protocol in the catalogue, or the safe default when the model is gone. */
-const protocolOf = (models: ReadonlyMap<string, CatalogModel>, uuid: string): string =>
-  supportedProtocolOf(models.get(uuid)?.protocol)
+const modelKey = (uuid: string, protocol: SupportedProtocol) => `${providerIdFor(protocol)}/${uuid}`
 
 export function toCourse(input: {
   item: CourseListItem
@@ -224,7 +239,8 @@ export function toCourse(input: {
  * ⚠ THE UUIDS ARE FILTERED AGAINST THE CATALOGUE, AND SILENTLY SO. A grant naming a model the
  * catalogue no longer carries would match nothing downstream and empty the student's picker with no
  * explanation — `fixtures.ts` warned about exactly this. Dropping the dead id keeps the rest of the
- * grant working; the caller logs what it dropped.
+ * grant working; the caller logs what it dropped. The catalogue is the RUNNABLE one (see
+ * {@link runnableModels}), so a model this build has no provider for is dropped the same way.
  *
  * ⚠ AN EMPTY `allowedModelIds` STAYS EMPTY, because empty means UNRESTRICTED — an assistant the
  * professor never restricted must keep behaving that way. The inverse case, a restricted grant
@@ -234,7 +250,7 @@ export function toAssistant(input: {
   choice: CourseAssistantChoice
   courseId: string
   isDefault: boolean
-  models: ReadonlyMap<string, CatalogModel>
+  models: ReadonlyMap<string, RunnableModel>
 }): Jolli.Assistant {
   /**
    * ⚠ A GRANT THAT FILTERS DOWN TO NOTHING KEEPS ITS ORIGINAL IDS, AND THAT LOOKS WRONG UNTIL YOU
@@ -261,7 +277,7 @@ export function toAssistant(input: {
     ...(input.isDefault ? { isDefault: true } : {}),
     // Staff-only on the gateway, and the course prompt is injected server-side anyway.
     instructions: "",
-    allowedModelIds: granted.map((uuid) => modelKey(uuid, protocolOf(input.models, uuid))),
+    allowedModelIds: granted.map((uuid) => modelKey(uuid, input.models.get(uuid)?.protocol ?? FALLBACK_PROTOCOL)),
     ...(preferred ? { modelId: modelKey(preferred.id, preferred.protocol) } : {}),
     guardrails: {
       neverGiveDirectAnswers: input.choice.worksThroughProblems,
@@ -305,15 +321,24 @@ export function toAssistant(input: {
  * means unrestricted, as an empty `allowedModelIds` does. A student in two courses that grant
  * different halves of such a pair still sees both suffixes — the grant in force is chosen in the
  * app, after this config is built.
+ *
+ * ⚠ A MODEL ON A PROTOCOL THIS BUILD HAS NO PROVIDER FOR IS LEFT OUT, NOT FILED UNDER ANOTHER ONE.
+ * Filing it under the fallback put it in the Anthropic block: its vendor joined that group's title,
+ * and picking it sent an Anthropic Messages request for a model the gateway serves on another
+ * route. Absent from every block, it is simply not offered until a build declares its protocol —
+ * and {@link runnableModels} keeps it out of the assistants and tiers for the same reason.
  */
 export function toProviderModels(
   models: ReadonlyMap<string, CatalogModel>,
   granted?: ReadonlySet<string>,
 ): Readonly<Record<string, ReadonlyArray<JolliModel>>> {
   const isGranted = (model: CatalogModel) => !granted || granted.has(model.id)
-  const resolved = Array.from(models.values(), (model) => ({ ...model, vendor: model.vendor || model.protocol }))
+  const resolved = Array.from(runnableModels(models.values()).values(), (model) => ({
+    ...model,
+    vendor: model.vendor || model.protocol,
+  }))
   const sameNamed = Map.groupBy(resolved.filter(isGranted), nameKey)
-  const byProtocol = Map.groupBy(resolved, (model) => supportedProtocolOf(model.protocol))
+  const byProtocol = Map.groupBy(resolved, (model) => model.protocol)
   return Object.fromEntries(
     Array.from(byProtocol, ([protocol, bucket]) => [
       protocol,
@@ -329,8 +354,8 @@ export function toProviderModels(
   )
 }
 
-function nameKey(model: CatalogModel) {
-  return `${supportedProtocolOf(model.protocol)}/${model.name}`
+function nameKey(model: RunnableModel) {
+  return `${model.protocol}/${model.name}`
 }
 
 function displayName(model: CatalogModel, sameNamed: readonly CatalogModel[]) {
@@ -375,11 +400,11 @@ export function projectCatalog(
   },
   now: string,
 ): Jolli.Catalog {
-  const models = new Map(snapshot.models.map((model) => [model.id, model]))
+  const models = runnableModels(snapshot.models)
   const courses: Jolli.Course[] = []
   const assistants: Jolli.Assistant[] = []
   const modelTiers: Record<string, Jolli.ModelTier> = {}
-  for (const model of snapshot.models) {
+  for (const model of models.values()) {
     const tier = model.category ? MODEL_TIER[model.category] : undefined
     if (tier) modelTiers[modelKey(model.id, model.protocol)] = tier
   }

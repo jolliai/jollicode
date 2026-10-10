@@ -38,8 +38,9 @@ export function DialogLogout() {
    * same field to decide whether there is anything to sign in to.
    *
    * ⚠ CHECKS ANY OF THE PER-PROTOCOL PROVIDER IDS (`jolli-anthropic`, `jolli-openai`,
-   * `jolli-google`), NOT THE BARE `jolli` SLUG. The gateway config emits one provider per wire
-   * protocol; the bare slug is now only the AUTH id (a single credential feeds all three blocks).
+   * `jolli-google`, `jolli-openai-compatible`), NOT THE BARE `jolli` SLUG. The gateway config emits
+   * one provider per wire protocol; the bare slug is now only the AUTH id (a single credential feeds
+   * every block).
    */
   const signedIn = createMemo(() => isJolliConnected(sync.data.provider_next.connected))
 
