@@ -70,7 +70,7 @@ Verification:
 
 - `[x]` `bun test --timeout 5000 test/server/httpapi-query-schema-drift.test.ts` from `packages/opencode`.
 - `[x]` `bun dev generate > /tmp/opencode-openapi.json` from `packages/opencode`.
-- `[x]` `./packages/sdk/js/script/build.ts` from repo root.
+- `[x]` `bun run --cwd packages/sdk/js generate` from repo root.
 - `[x]` Inspect SDK diff for removed `directory` / `workspace` params. Result: none after explicit runtime schemas; v2 list/message now also expose their existing beta pagination/filter query params in the SDK.
 - `[x]` `bun typecheck` from `packages/opencode`.
 
@@ -92,7 +92,7 @@ Verification:
 
 - Focused HTTP tests for changed query fields.
 - `bun dev generate > /tmp/opencode-openapi.json` from `packages/opencode`.
-- `./packages/sdk/js/script/build.ts` from repo root.
+- `bun run --cwd packages/sdk/js generate` from repo root.
 - Inspect generated SDK request param types before deleting each override.
 - `bun typecheck` from `packages/opencode`.
 
@@ -116,7 +116,7 @@ Concrete first targets:
 Verification:
 
 - `bun dev generate > /tmp/opencode-openapi.json` from `packages/opencode`.
-- `./packages/sdk/js/script/build.ts` from repo root.
+- `bun run --cwd packages/sdk/js generate` from repo root.
 - Inspect generated path param types and patterns.
 - `bun typecheck` from `packages/opencode`.
 
@@ -138,7 +138,7 @@ Verification:
 
 - Focused HTTP tests asserting response body shape for changed error paths.
 - `bun dev generate > /tmp/opencode-openapi.json` from `packages/opencode`.
-- `./packages/sdk/js/script/build.ts` from repo root.
+- `bun run --cwd packages/sdk/js generate` from repo root.
 - Inspect SDK error union diff.
 - `bun typecheck` from `packages/opencode`.
 
@@ -151,7 +151,7 @@ Verification:
 
 Verification:
 
-- `./packages/sdk/js/script/build.ts` from repo root.
+- `bun run --cwd packages/sdk/js generate` from repo root.
 - Inspect generated client call signatures and error unions.
 - Do not merge if auth churn changes normal SDK call ergonomics unintentionally.
 
@@ -170,7 +170,7 @@ Concrete first targets:
 Verification:
 
 - `bun dev generate > /tmp/opencode-openapi.json` from `packages/opencode`.
-- `./packages/sdk/js/script/build.ts` from repo root.
+- `bun run --cwd packages/sdk/js generate` from repo root.
 - Inspect generated SDK type-name and optionality diffs.
 
 ## Upstream Middleware Query Support
@@ -199,6 +199,6 @@ Once available, remove `WorkspaceRoutingQueryFields` spreads from route groups a
 - Focused HTTP tests for changed routes.
 - OpenAPI drift tests.
 - `bun dev generate > /tmp/opencode-openapi.json` from `packages/opencode`.
-- `./packages/sdk/js/script/build.ts` from repo root.
+- `bun run --cwd packages/sdk/js generate` from repo root.
 - Inspect generated SDK diff for public API churn.
 - `bun typecheck` from `packages/opencode`.

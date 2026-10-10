@@ -1,5 +1,6 @@
-- To regenerate the legacy JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
+- To regenerate the legacy JavaScript SDK, run `bun run generate` from `packages/sdk/js`. Do not edit `src/v2/gen` directly, and do not wire this into `build`: it rewrites tracked source other packages build against.
 - After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client`. Do not edit `src/generated` or `src/generated-effect` directly.
+- `check:generated` in both packages regenerates and then `git add -N`s the output before diffing it, because `git diff` does not see untracked files and a newly generated one would otherwise pass unnoticed. It is not read-only: it overwrites the generated files, leaves any newly generated one staged as intent-to-add, and in `packages/sdk/js` the codegen runs with `clean: true`, so it deletes that whole directory first — anything you put there goes with it, and a failed run leaves `packages/sdk/js/openapi.json` behind. (`packages/client` is gentler: it removes only what its own manifest last wrote.) Commit or stash anything in those directories you care about first.
 - Keep runtime dependencies directed from Schema to Core and Protocol, then from Core and Protocol to Server. Client runtime code may depend on Schema and Protocol but never Core or Server; `sdk-next` composes Client, Core, and Server.
 - The default branch in this repo is `dev`.
 - Local `main` ref may not exist; use `dev` or `origin/dev` for diffs.

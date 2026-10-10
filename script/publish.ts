@@ -28,6 +28,12 @@ const pkgjsons = await Array.fromAsync(
     ),
 )
 
+// ⚠ NOTHING IS REGENERATED HERE, AND A CODEGEN STEP MUST NOT BE ADDED BACK. This used to run the
+// SDK codegen, which was wrong twice over: the generated output is committed and carries no version
+// string, so stamping versions cannot invalidate it, and the SDK is not published at all (see the
+// note under the cli step). It is also the worst place to find out — this function runs at the top
+// level below, ahead of the CLI publish and the tag, so anything that throws here takes the whole
+// release with it before a single artifact exists.
 async function prepareReleaseFiles() {
   for (const file of pkgjsons) {
     let pkg = await Bun.file(file).text()
@@ -37,7 +43,6 @@ async function prepareReleaseFiles() {
   }
 
   await $`bun install`
-  await $`./packages/sdk/js/script/build.ts`
 }
 
 // Stamps the released versions onto the tip of dev and pushes that commit. A PR merged into dev after

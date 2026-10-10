@@ -123,9 +123,29 @@ jobs:
           retention-days: 7
 
       # Repo-wide, not per-shard: pinned to one leg so they do not run four times.
+      #
+      # Both regeneration steps carry their own timeout because this job declares none, so the
+      # GitHub default of six hours is what a hung generator would otherwise burn. `Run unit tests`
+      # above is bounded at 20 minutes, and the SDK codegen used to run inside it — turbo's `test`
+      # tasks depend on `^build`, which is where that codegen lived. Lifting it out of the build
+      # graph also lifted it out of that bound.
+      #
+      # Five minutes is a hang cutoff, not a budget: measured warm, the SDK step takes ~45s (it
+      # boots the CLI for `bun dev generate`) and the client step ~10s. Wide enough that a slow
+      # runner never trips it, narrow enough that a stuck lock or hung request fails in minutes.
       - name: Check generated client
         if: ${{ matrix.extras }}
+        timeout-minutes: 5
         working-directory: packages/client
+        run: bun run check:generated
+
+      # This is the only thing keeping the committed src/v2/gen honest, since the codegen is
+      # deliberately outside the build graph — see the header of packages/sdk/js/script/generate.ts
+      # for why it had to come out.
+      - name: Check generated SDK
+        if: ${{ matrix.extras }}
+        timeout-minutes: 5
+        working-directory: packages/sdk/js
         run: bun run check:generated
 
       # Each release publishes the top section of its product's changelog, so catch a malformed
