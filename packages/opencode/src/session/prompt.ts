@@ -58,6 +58,9 @@ import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { LLMEvent } from "@opencode-ai/llm"
 import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
+import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
+import { CourseServer } from "./course-server"
+import { CourseSources } from "./course-sources"
 import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { syncTitle } from "@opencode-ai/core/jolli/title"
@@ -104,6 +107,18 @@ function isOrphanedInterruptedTool(part: SessionV1.ToolPart) {
   // cleanup() marks abandoned tool_use blocks this way after retries/aborts.
   // They are not pending work and must not trigger an assistant-prefill request.
   return part.state.status === "error" && part.state.metadata?.interrupted === true
+}
+
+/**
+ * Whether a turn's user message is the one auto-compaction writes to carry on with the turn it
+ * compacted, rather than anything the student wrote.
+ *
+ * ⚠ THE GATEWAY DECIDES A COURSE-BOUND TURN FROM ITS USER MESSAGE, and this one is the client's own
+ * words. Marked, the gateway carries the previous turn's course rule over instead of judging them as
+ * a question. Same marker the Copilot plugin reads to tell the follow-up apart.
+ */
+export function continuesTurn(messages: readonly SessionV1.WithParts[], userID: MessageID) {
+  return messages.findLast((message) => message.info.id === userID)?.parts.some(MessageV2.isCompactionContinue) ?? false
 }
 
 export interface Interface {
@@ -1138,6 +1153,9 @@ const layer = Layer.effect(
         const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
         const clientAttemptID = randomUUID()
         const courseBinding = courseBindingOf(session)
+        // A course server that failed since the last message gets its chance to come back before the
+        // tool list is read; see `CourseServer`.
+        if (courseBinding) yield* CourseServer.ensure(scope).pipe(Effect.provideService(MCP.Service, mcp))
 
         while (true) {
           yield* status.set(sessionID, { type: "busy" })
@@ -1352,6 +1370,7 @@ const layer = Layer.effect(
               stepIndex: providerStepIndex,
               courseID: courseBinding?.courseId,
               courseAssistantID: courseBinding?.assistantId,
+              continuesTurn: continuesTurn(msgs, lastUser.id),
               toolErrors: LLMRequestPrep.jolliToolErrors(msgs),
               model,
               toolChoice: format.type === "json_schema" ? "required" : undefined,
@@ -1413,7 +1432,33 @@ const layer = Layer.effect(
         }
 
         yield* compaction.prune({ sessionID }).pipe(Effect.ignore, Effect.forkIn(scope))
-        return yield* lastAssistant(sessionID)
+        const answered = yield* lastAssistant(sessionID)
+        // Not for a subagent: the student reads the parent's answer.
+        if (courseBinding && !session.parentID && answered.info.role === "assistant") {
+          const userMessageID = answered.info.parentID
+          yield* CourseSources.attribute({
+            sessionID,
+            userMessageID,
+            // Only where the course shows citations, as the student's catalogue states it.
+            citationsShown: JolliCourseGuardrails.ofBinding(courseBinding).pipe(
+              Effect.map((guardrails) => guardrails?.showCitations === true),
+              Effect.provideService(JolliSession.Service, jolli),
+            ),
+          }).pipe(
+            Effect.provideService(Session.Service, sessions),
+            Effect.provideService(LLM.Service, llm),
+            Effect.provideService(Provider.Service, provider),
+            Effect.timeout("60 seconds"),
+            Effect.catchCause((cause) =>
+              Effect.logWarning("jolli course answer sources failed", {
+                "session.id": sessionID,
+                cause: String(cause),
+              }),
+            ),
+            Effect.forkIn(scope),
+          )
+        }
+        return answered
       },
     )
 

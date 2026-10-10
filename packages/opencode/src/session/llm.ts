@@ -95,6 +95,8 @@ export type StreamInput = PreparedModelInput & {
   stepIndex?: number
   courseID?: string
   courseAssistantID?: string
+  /** The turn only carries on with the previous one, after compaction; see `SessionPrompt.continuesTurn`. */
+  continuesTurn?: boolean
   toolErrors?: ReadonlyArray<string>
   model: Provider.Model
   agent: Agent.Info

@@ -65,6 +65,7 @@ import { useEpilogue } from "../../context/epilogue"
 import { normalizePath } from "../../util/path"
 import { PermissionPrompt } from "./permission"
 import { QuestionPrompt } from "./question"
+import { TurnSources } from "./turn-sources"
 import { DialogExportOptions } from "../../ui/dialog-export-options"
 import * as Model from "../../util/model"
 import { formatTranscript } from "../../util/transcript"
@@ -1544,6 +1545,10 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
         >
           <text fg={theme.textMuted}>{errorMessage(props.message.error)}</text>
         </box>
+      </Show>
+      {/* Once per turn, under its answer: only the final message of a turn that did not fail. */}
+      <Show when={final() && !props.message.error}>
+        <TurnSources message={props.message} />
       </Show>
       <Switch>
         <Match when={props.last || final() || props.message.error?.name === "MessageAbortedError"}>

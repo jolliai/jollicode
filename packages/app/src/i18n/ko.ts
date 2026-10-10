@@ -457,6 +457,8 @@ export const dict = {
   "session.tab.context": "컨텍스트",
   "session.panel.reviewAndFiles": "검토 및 파일",
   "session.review.filesChanged": "{{count}}개 파일 변경됨",
+  "session.sources.materials": "과목 자료",
+  "session.sources.web": "웹 페이지",
   "session.review.change.one": "변경",
   "session.review.change.other": "변경",
   "session.review.loadingChanges": "변경 사항 로드 중...",

@@ -5,6 +5,7 @@ import { groupParts, renderable, type PartGroup } from "@opencode-ai/session-ui/
 import { TimelineRow, type SummaryDiff } from "./timeline-row"
 import { uniqueSummaryDiffs } from "./summary-diffs"
 import { compareMessages } from "@/utils/session-message"
+import { JolliSources } from "@opencode-ai/core/jolli/sources"
 
 export { TimelineRow, type SummaryDiff } from "./timeline-row"
 
@@ -29,6 +30,7 @@ export type TimelineRowMap = {
   Thinking: { userMessageID: string; reasoningHeading?: string }
   Retry: { userMessageID: string }
   DiffSummary: { userMessageID: string; diffs: SummaryDiff[] }
+  Sources: { userMessageID: string; sources: JolliSources.TurnSources }
   Error: { userMessageID: string; text: string }
 }
 
@@ -41,6 +43,8 @@ export namespace Timeline {
     status: SessionStatus["type"],
     inlineComments: boolean,
     projectedUserMessages: UserMessage[],
+    // Whether the bound course shows citations; false for a session bound to none.
+    showCitations = false,
   ) {
     const turns: { user: UserMessage; assistants: AssistantMessage[] }[] = []
     const turnByUserID = new Map<string, (typeof turns)[number]>()
@@ -93,6 +97,7 @@ export namespace Timeline {
           status,
           turn.user.id === activeMessageID,
           inlineComments,
+          showCitations,
         ),
       ),
     }
@@ -108,6 +113,7 @@ export namespace Timeline {
     isActive: boolean,
     // v2 renders comments inside the user message attachments row instead of a strip row
     inlineComments: boolean,
+    showCitations = false,
   ) {
     const rows: TimelineRow.TimelineRow[] = []
 
@@ -205,6 +211,14 @@ export namespace Timeline {
     }
 
     if (isActive && status === "retry") rows.push(new TimelineRow.Retry({ userMessageID: userMessage.id }))
+
+    // After the answer and before the diff summary, and only once the turn is over: a turn still
+    // running has not finished drawing on anything, and one that failed or was stopped answered nothing.
+    const sources =
+      showCitations && (status === "idle" || !isActive) && !error && !interrupted
+        ? JolliSources.turnSources(assistantMessages.flatMap((message) => getMessageParts(message.id)))
+        : undefined
+    if (sources) rows.push(new TimelineRow.Sources({ userMessageID: userMessage.id, sources }))
 
     const diffs = uniqueSummaryDiffs(userMessage.summary?.diffs)
     if (diffs.length > 0 && (status === "idle" || !isActive)) {

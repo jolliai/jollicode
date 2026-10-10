@@ -692,6 +692,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Mbyll skedën",
   "session.error.serverConnection": "Nuk mund të lidhet me këtë server",
   "session.review.filesChanged": "Skedarët u ndryshuan {{count}}",
+  "session.sources.materials": "Materialet e kursit",
+  "session.sources.web": "Faqe uebi",
   "session.review.change.one": "Ndryshimi",
   "session.review.change.other": "Ndryshimet",
   "session.review.loadingChanges": "Ndryshimet po ngarkohen...",

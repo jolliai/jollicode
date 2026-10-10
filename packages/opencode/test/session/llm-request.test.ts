@@ -35,6 +35,19 @@ describe("jolli coding-agent request headers", () => {
     }
   })
 
+  test("marks a turn that only continues the previous one, and only such a turn", () => {
+    const base = {
+      providerID: providerIdFor("anthropic"),
+      sessionID: SessionID.descending(),
+      turnID: MessageID.ascending(),
+      clientAttemptID: "attempt-1",
+      stepIndex: 0,
+    }
+    expect(jolliCodingAgentHeaders({ ...base, continuesTurn: true })["x-jolli-turn-continues"]).toBe("1")
+    expect(jolliCodingAgentHeaders({ ...base, continuesTurn: false })).not.toHaveProperty("x-jolli-turn-continues")
+    expect(jolliCodingAgentHeaders(base)).not.toHaveProperty("x-jolli-turn-continues")
+  })
+
   test("keeps the conversation id stable across provider steps and distinct across sessions", () => {
     const firstSessionID = SessionID.descending()
     const secondSessionID = SessionID.descending()

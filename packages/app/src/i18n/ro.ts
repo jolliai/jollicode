@@ -689,6 +689,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Închide tab-ul",
   "session.error.serverConnection": "Nu se poate conecta la acest server",
   "session.review.filesChanged": "{{count}} fișiere modificate",
+  "session.sources.materials": "Materialele cursului",
+  "session.sources.web": "Pagini web",
   "session.review.change.one": "Modificare",
   "session.review.change.other": "Modificări",
   "session.review.loadingChanges": "Se încarcă modificările...",

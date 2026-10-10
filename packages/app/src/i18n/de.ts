@@ -575,6 +575,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Tab schließen",
   "session.error.serverConnection": "Verbindung zu diesem Server nicht möglich",
   "session.review.filesChanged": "Geänderte Dateien: {{count}}",
+  "session.sources.materials": "Kursmaterialien",
+  "session.sources.web": "Webseiten",
   "session.review.change.one": "Änderung",
   "session.review.change.other": "Änderungen",
   "session.review.loadingChanges": "Änderungen werden geladen…",

@@ -44,6 +44,9 @@
  * already say when to pass `continue`, and each page's own `hasMore` says whether there is more.
  */
 import type { Hooks, PluginInput } from "@opencode-ai/plugin"
+import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
+import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
+import { JolliSources } from "@opencode-ai/core/jolli/sources"
 import { Effect, Option, Schema } from "effect"
 import type { EffectBridge } from "@/effect/bridge"
 import { SessionID } from "@/session/schema"
@@ -62,8 +65,21 @@ type PagingState = {
   attachments?: { nextCursor: string | null }
 }
 
-/** Sessions whose cursors are kept. A long-lived desktop sidecar would otherwise keep one per session forever. */
+/**
+ * Sessions whose cursors, or whose citations switch, are kept. A long-lived desktop sidecar would
+ * otherwise keep them for every session forever.
+ */
 const MAX_PAGED_SESSIONS = 256
+
+/**
+ * How long a session's citations switch is kept once read.
+ *
+ * ⚠ READ ONCE A MINUTE, NOT ONCE PER MATERIAL. The reading waits on the credential and then on the
+ * catalogue, up to five seconds each, and a turn reads materials one after another; with the backend
+ * slow, asking on every read added that wait to each of them. The catalogue it comes from is itself
+ * minutes behind the teacher's edits, so a minute more changes nothing a student sees.
+ */
+const CITATIONS_TTL_MS = 60_000
 
 /**
  * How long a continuation waits for an earlier one of the same list before reading the cursor
@@ -87,11 +103,18 @@ const decodePage = Schema.decodeUnknownOption(
 
 export async function JolliCourseChatPlugin(
   _input: PluginInput,
-  options: { bridge: EffectBridge.Shape; pageWaitMs?: number },
+  options: {
+    bridge: EffectBridge.Shape
+    pageWaitMs?: number
+    /** Whether the session's course shows citations; see {@link citationsShownFor}. Replaced in tests. */
+    citationsShown?: (sessionID: string) => Promise<boolean | undefined>
+  },
 ): Promise<Hooks> {
   const paging = new Map<string, PagingState>()
   const inflight = new Map<string, InflightPage>()
+  const citations = new Map<string, { readAt: number; shown: Promise<boolean | undefined> }>()
   const pageWaitMs = options.pageWaitMs ?? PAGE_WAIT_MS
+  const readCitations = options.citationsShown ?? ((sessionID: string) => citationsShownFor(options.bridge, sessionID))
 
   /** Save a session's cursors as the most recently used, dropping the least recently used past the bound. */
   function remember(sessionID: string, state: PagingState) {
@@ -124,6 +147,24 @@ export async function JolliCourseChatPlugin(
     )
     if (!session.ok) throw new Error("Could not read this session's course binding. Try again.")
     return courseToolBindingOf(session.read)
+  }
+
+  /**
+   * Whether the session's course shows citations, read at most once per {@link CITATIONS_TTL_MS}. Reads
+   * that overlap — a parallel tool step — share the one in flight. A read that fails answers that it
+   * does not know, so one started ahead of a call and not yet awaited cannot reject unobserved.
+   */
+  function citationsShown(sessionID: string) {
+    const kept = citations.get(sessionID)
+    if (kept && Date.now() - kept.readAt < CITATIONS_TTL_MS) return kept.shown
+    const shown = readCitations(sessionID).catch(() => undefined)
+    citations.delete(sessionID)
+    citations.set(sessionID, { readAt: Date.now(), shown })
+    if (citations.size > MAX_PAGED_SESSIONS) {
+      const oldest = citations.keys().next().value
+      if (oldest !== undefined) citations.delete(oldest)
+    }
+    return shown
   }
 
   /** Wait for an earlier continuation of this list to report back, for at most `pageWaitMs`. */
@@ -185,6 +226,8 @@ export async function JolliCourseChatPlugin(
         if (!binding) throw new Error("Course tool requires a valid session course and assistant binding.")
         // The MCP executor retains this object, so the session binding replaces model-supplied ids.
         Object.assign(args, binding)
+        // Read while the call runs, so its result is not held back for it after; see the after hook.
+        if (JolliSources.isMaterialTool(input.tool)) void citationsShown(input.sessionID)
       }
       if (!kind) return
       const wantsMore = args.continue === true
@@ -211,6 +254,40 @@ export async function JolliCourseChatPlugin(
       claimPage(key, input.callID)
     },
     "tool.execute.after": async (input, output) => {
+      /**
+       * ⚠ READ HERE, FROM THE WHOLE RESULT, BECAUSE THE STORED OUTPUT MAY BE CUT. The output limit
+       * applies after this hook, and a cut JSON cannot be read back when the turn's sources are
+       * judged; the evidence recorded on the tool part is what that judgement reads instead.
+       *
+       * ⚠ NOT RECORDED WHERE THE COURSE HIDES CITATIONS. Nothing judges a turn's sources then
+       * (`SessionPrompt` asks for them only when the course shows citations), so the evidence — up to
+       * one evidence limit per passage, synced to every client with the part — would be stored for
+       * nobody. A course whose switch cannot be read records it, since the turn may still be judged.
+       * A teacher who turns citations on mid-turn gets sources for that turn only from the reads
+       * after the switch, and in full from the next turn.
+       *
+       * ⚠ THE SWITCH WAS ASKED FOR BEFORE THE CALL WENT OUT. Asked only here, a read that missed the
+       * cache held the result back from the model for as long as the credential and the catalogue
+       * took, up to ten seconds with the backend slow; started in the before hook, it runs alongside
+       * the call, and this waits only for what is left of it.
+       */
+      const evidence = JolliSources.materialEvidenceOf(input.tool, output)
+      if (evidence.length > 0 && (await citationsShown(input.sessionID)) !== false) {
+        output.metadata = { ...(isRecord(output.metadata) ? output.metadata : {}), evidence }
+      }
+      if (JolliSources.isCourseTool(input.tool)) {
+        await options.bridge.promise(
+          Effect.logInfo("jolli course tool", {
+            "session.id": input.sessionID,
+            tool: input.tool,
+            failed: "isError" in output && output.isError === true,
+            evidence:
+              evidence
+                .map((item) => (item.kind === "material" ? `${item.materialId}:${item.title}` : item.url))
+                .join(" | ") || "none",
+          }),
+        )
+      }
       const kind = kindOf(input.tool)
       if (!kind) return
       // Released after the cursor below is written, so a waiting continuation reads the new one.
@@ -250,12 +327,24 @@ export async function JolliCourseChatPlugin(
 
 /** The page a successful list call returned, or undefined for an error or an unexpected shape. */
 function pageOf(output: unknown) {
-  if (!isRecord(output) || output.isError === true || !Array.isArray(output.content)) return undefined
-  const text = output.content.find(
-    (item): item is { type: "text"; text: string } =>
-      isRecord(item) && item.type === "text" && typeof item.text === "string",
-  )?.text
+  const text = JolliSources.firstText(output)
   return text === undefined ? undefined : Option.getOrUndefined(decodePage(text))
+}
+
+/**
+ * Whether the course a session is bound to shows citations, as the student's catalogue states it, or
+ * undefined when that cannot be read: an unbound session, no credential, no catalogue. Never fails.
+ * The same reading `SessionPrompt` makes before it asks for a turn's sources.
+ */
+function citationsShownFor(bridge: EffectBridge.Shape, sessionID: string): Promise<boolean | undefined> {
+  return bridge.promise(
+    Effect.gen(function* () {
+      const sessions = yield* Session.Service
+      const binding = courseBindingOf(yield* sessions.get(SessionID.make(sessionID)))
+      if (!binding) return undefined
+      return (yield* JolliCourseGuardrails.ofBinding(binding))?.showCitations
+    }).pipe(Effect.catchCause(() => Effect.succeed(undefined))),
+  )
 }
 
 function pageKey(sessionID: string, kind: ListKind) {

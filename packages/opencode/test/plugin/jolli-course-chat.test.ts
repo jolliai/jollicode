@@ -59,9 +59,16 @@ function page(body: Record<string, unknown>) {
   return { content: [{ type: "text", text: JSON.stringify(body) }] } as never
 }
 
-async function plugin(metadata?: Record<string, unknown>, options: { pageWaitMs?: number } = {}) {
+async function plugin(
+  metadata?: Record<string, unknown>,
+  options: { pageWaitMs?: number; citationsShown?: (sessionID: string) => Promise<boolean | undefined> } = {},
+) {
   const session = sessionBridge(metadata)
-  const hooks = await JolliCourseChatPlugin({} as PluginInput, { bridge: session.bridge, ...options })
+  const hooks = await JolliCourseChatPlugin({} as PluginInput, {
+    bridge: session.bridge,
+    citationsShown: async () => true,
+    ...options,
+  })
   return { hooks, reads: session.reads }
 }
 
@@ -172,6 +179,104 @@ describe("plugin.jolli-course-chat", () => {
     )
 
     expect(args).toEqual({})
+  })
+
+  test("records the evidence a course read returned on its tool part, from the whole result", async () => {
+    const { hooks } = await plugin(BOUND)
+    const output = page({
+      id: 3,
+      title: "Lecture 4: Pointers",
+      lines: [{ number: 1, text: "A pointer holds an address." }],
+    }) as {
+      metadata?: Record<string, unknown>
+    }
+    await hooks["tool.execute.after"]?.(
+      { tool: "jolliedu_get_remote_material_content", sessionID: "ses_test", callID: "call_1", args: {} },
+      output as never,
+    )
+    expect(output.metadata).toEqual({
+      evidence: [
+        { kind: "material", materialId: "3", title: "Lecture 4: Pointers", text: "A pointer holds an address." },
+      ],
+    })
+  })
+
+  test("leaves a result that returned no material text alone", async () => {
+    const { hooks } = await plugin(BOUND)
+    const output = page({ results: [{ id: 3, title: "Lecture 4", evidenceKind: "search_preview" }] }) as {
+      metadata?: Record<string, unknown>
+    }
+    await hooks["tool.execute.after"]?.(
+      { tool: "jolliedu_search_remote_course_materials", sessionID: "ses_test", callID: "call_1", args: {} },
+      output as never,
+    )
+    expect(output.metadata).toBeUndefined()
+  })
+
+  test("records no evidence where the course hides citations, and records it where that cannot be read", async () => {
+    const read = () =>
+      page({ id: 3, title: "Lecture 4", lines: [{ number: 1, text: "A pointer holds an address." }] }) as {
+        metadata?: Record<string, unknown>
+      }
+    for (const [shown, recorded] of [
+      [false, false],
+      [undefined, true],
+    ] as const) {
+      const { hooks } = await plugin(BOUND, { citationsShown: async () => shown })
+      const output = read()
+      await hooks["tool.execute.after"]?.(
+        { tool: "jolliedu_get_remote_material_content", sessionID: "ses_test", callID: "call_1", args: {} },
+        output as never,
+      )
+      expect(output.metadata !== undefined).toBe(recorded)
+    }
+  })
+
+  test("asks whether the course shows citations once for a session's reads, not once per read", async () => {
+    let asked = 0
+    const { hooks } = await plugin(BOUND, {
+      citationsShown: async () => {
+        asked += 1
+        return true
+      },
+    })
+    const read = (callID: string) =>
+      hooks["tool.execute.after"]?.(
+        { tool: "jolliedu_get_remote_material_content", sessionID: "ses_test", callID, args: {} },
+        page({ id: 3, title: "Lecture 4", lines: [{ number: 1, text: "A pointer holds an address." }] }),
+      )
+    // Two reads of one parallel step, then a read of the next step.
+    await Promise.all([read("call_1"), read("call_2")])
+    await read("call_3")
+    expect(asked).toBe(1)
+  })
+
+  test("asks whether the course shows citations as a course read goes out, not once its result is back", async () => {
+    const answer = Promise.withResolvers<boolean>()
+    const asked: string[] = []
+    const { hooks } = await plugin(BOUND, {
+      citationsShown: (sessionID) => {
+        asked.push(sessionID)
+        return answer.promise
+      },
+    })
+    await hooks["tool.execute.before"]?.(
+      { tool: "jolliedu_get_remote_material_content", sessionID: "ses_test", callID: "call_1" },
+      { args: {} },
+    )
+    expect(asked).toEqual(["ses_test"])
+
+    // The answer arrives while the call is still running; the result then waits on nothing.
+    answer.resolve(true)
+    const output = page({ id: 3, title: "Lecture 4", lines: [{ number: 1, text: "A pointer holds an address." }] }) as {
+      metadata?: Record<string, unknown>
+    }
+    await hooks["tool.execute.after"]?.(
+      { tool: "jolliedu_get_remote_material_content", sessionID: "ses_test", callID: "call_1", args: {} },
+      output as never,
+    )
+    expect(asked).toEqual(["ses_test"])
+    expect(output.metadata).toHaveProperty("evidence")
   })
 
   test("stores an attachment cursor and injects it only for a continuation", async () => {

@@ -1,5 +1,6 @@
 import type { SnapshotFileDiff } from "@opencode-ai/sdk/v2"
 import type { PartGroup } from "@opencode-ai/session-ui/message-part"
+import type { JolliSources } from "@opencode-ai/core/jolli/sources"
 import { Data, Equal } from "effect"
 
 export type SummaryDiff = SnapshotFileDiff & { file: string }
@@ -32,6 +33,11 @@ export namespace TimelineRow {
     userMessageID: string
     diffs: SummaryDiff[]
   }> {}
+  /** A course session's finished turn: the materials and pages it drew on. */
+  export class Sources extends Data.TaggedClass("Sources")<{
+    userMessageID: string
+    sources: JolliSources.TurnSources
+  }> {}
   export class Error extends Data.TaggedClass("Error")<{
     userMessageID: string
     text: string
@@ -48,6 +54,7 @@ export namespace TimelineRow {
     | AssistantPart
     | Thinking
     | DiffSummary
+    | Sources
     | Error
     | Retry
 
@@ -67,6 +74,8 @@ export namespace TimelineRow {
         return `thinking:${row.userMessageID}`
       case "DiffSummary":
         return `diff-summary:${row.userMessageID}`
+      case "Sources":
+        return `sources:${row.userMessageID}`
       case "Error":
         return `error:${row.userMessageID}`
       case "Retry":

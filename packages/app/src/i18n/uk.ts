@@ -756,6 +756,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Закрити вкладку",
   "session.error.serverConnection": "Не вдається підключитися до цього сервера",
   "session.review.filesChanged": "Змінено файлів: {{count}}",
+  "session.sources.materials": "Матеріали курсу",
+  "session.sources.web": "Веб-сторінки",
   "session.review.change.one": "Зміна",
   "session.review.change.other": "Зміни",
   "session.review.loadingChanges": "Завантаження змін...",

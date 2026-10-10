@@ -694,6 +694,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Табыг хаах",
   "session.error.serverConnection": "Энэ серверт холбогдох боломжгүй байна",
   "session.review.filesChanged": "Файлууд өөрчлөгдсөн {{count}}",
+  "session.sources.materials": "Хичээлийн материал",
+  "session.sources.web": "Вэб хуудас",
   "session.review.change.one": "Өөрчлөх",
   "session.review.change.other": "Өөрчлөлтүүд",
   "session.review.loadingChanges": "Өөрчлөлтүүдийг ачаалж байна...",

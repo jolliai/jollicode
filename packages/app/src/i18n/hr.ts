@@ -696,6 +696,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Zatvori Tab",
   "session.error.serverConnection": "Ne mogu se spojiti na ovaj poslužitelj",
   "session.review.filesChanged": "Datoteke promijenjene {{count}}",
+  "session.sources.materials": "Materijali kolegija",
+  "session.sources.web": "Web-stranice",
   "session.review.change.one": "Promijeniti",
   "session.review.change.other": "Promjene",
   "session.review.loadingChanges": "Učitavanje promjena...",

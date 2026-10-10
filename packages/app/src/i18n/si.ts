@@ -686,6 +686,8 @@ export const dict: Record<string, string> = {
   "session.error.notFound.closeTab": "ටැබය වසන්න",
   "session.error.serverConnection": "මෙම සේවාදායකයට සම්බන්ධ විය නොහැක",
   "session.review.filesChanged": "ගොනු {{count}} වෙනස් කරන ලදී",
+  "session.sources.materials": "පාඨමාලා ද්‍රව්‍ය",
+  "session.sources.web": "වෙබ් පිටු",
   "session.review.change.one": "වෙනස් කරන්න",
   "session.review.change.other": "වෙනස්කම්",
   "session.review.loadingChanges": "වෙනස්කම් පූරණය කරමින්...",

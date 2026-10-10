@@ -689,6 +689,8 @@ export const dict = {
   "session.error.notFound.closeTab": "ჩანართის დახურვა",
   "session.error.serverConnection": "ამ სერვერთან დაკავშირება შეუძლებელია",
   "session.review.filesChanged": "ფაილები შეიცვალა {{count}}",
+  "session.sources.materials": "კურსის მასალები",
+  "session.sources.web": "ვებგვერდები",
   "session.review.change.one": "შეცვლა",
   "session.review.change.other": "ცვლილებები",
   "session.review.loadingChanges": "ცვლილებების ჩატვირთვა...",

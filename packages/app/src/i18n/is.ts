@@ -691,6 +691,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Lokaðu Tab",
   "session.error.serverConnection": "Get ekki tengst þessum þjóni",
   "session.review.filesChanged": "Skráum breytt {{count}}",
+  "session.sources.materials": "Námsefni námskeiðs",
+  "session.sources.web": "Vefsíður",
   "session.review.change.one": "Breyta",
   "session.review.change.other": "Breytingar",
   "session.review.loadingChanges": "Hleður breytingum...",

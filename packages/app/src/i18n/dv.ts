@@ -699,6 +699,8 @@ export const dict = {
   "session.error.notFound.closeTab": "Tab ބަންދުކުރުން",
   "session.error.serverConnection": "މި ސަރވަރ އާއި ގުޅެވޭކަށް ނެތެވެ",
   "session.review.filesChanged": "ފައިލްތައް ބަދަލުވެއްޖެ {{count}}",
+  "session.sources.materials": "ކޯހުގެ މެޓީރިއަލްތައް",
+  "session.sources.web": "ވެބް ޕޭޖްތައް",
   "session.review.change.one": "ބަދަލު",
   "session.review.change.other": "ބަދަލުތައް",
   "session.review.loadingChanges": "ބަދަލުތައް ލޯޑް ކުރަނީ...",
