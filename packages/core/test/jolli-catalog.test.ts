@@ -241,9 +241,9 @@ describe("toAssistant", () => {
 
 describe("toProviderModels", () => {
   test("carries the catalogue's input modalities onto each model, and leaves them off where it has none", () => {
-    const models = new Map([
-      ["uuid-a", { ...model("uuid-a", "claude-sonnet-5"), inputModalities: ["text", "image", "pdf"] }],
-      ["uuid-b", model("uuid-b", "claude-haiku-4-5")],
+    const models = runnableModels([
+      { ...model("uuid-a", "claude-sonnet-5"), inputModalities: ["text", "image", "pdf"] },
+      model("uuid-b", "claude-haiku-4-5"),
     ])
 
     const anthropic = toProviderModels(models)["anthropic"] ?? []
@@ -254,9 +254,9 @@ describe("toProviderModels", () => {
 
   // Model names are not unique across vendors; the object is keyed by id, so ids must be.
   test("keys on the UUID and sends the name upstream, grouped by protocol", () => {
-    const models = new Map([
-      ["uuid-a", model("uuid-a", "gpt-5.5", "Premium", "openai")],
-      ["uuid-b", model("uuid-b", "gpt-5.5", "Basic", "openai")],
+    const models = runnableModels([
+      model("uuid-a", "gpt-5.5", "Premium", "openai"),
+      model("uuid-b", "gpt-5.5", "Basic", "openai"),
     ])
     const mapped = toProviderModels(models)
     const openai = mapped["openai"] ?? []
@@ -266,11 +266,11 @@ describe("toProviderModels", () => {
   })
 
   test("shows the raw name, keeping the tier only to tell same-named models apart", () => {
-    const models = new Map([
-      ["uuid-a", model("uuid-a", "gpt-5.5", "Premium", "openai")],
-      ["uuid-b", model("uuid-b", "gpt-5.5", "Basic", "openai")],
-      ["uuid-c", model("uuid-c", "claude-haiku-4-5", "Basic", "anthropic")],
-      ["uuid-d", model("uuid-d", "gpt-5.5", "Basic", "google")],
+    const models = runnableModels([
+      model("uuid-a", "gpt-5.5", "Premium", "openai"),
+      model("uuid-b", "gpt-5.5", "Basic", "openai"),
+      model("uuid-c", "claude-haiku-4-5", "Basic", "anthropic"),
+      model("uuid-d", "gpt-5.5", "Basic", "google"),
     ])
     const mapped = toProviderModels(models)
     expect(mapped["openai"]?.map((m) => m.name)).toEqual(["gpt-5.5 (Premium)", "gpt-5.5 (Basic)"])
@@ -283,11 +283,11 @@ describe("toProviderModels", () => {
       ...model(id, name, category, "openai"),
       vendor,
     })
-    const models = new Map([
-      ["uuid-a", vendored("uuid-a", "gpt-5.5", "Basic", "OpenAI")],
-      ["uuid-b", vendored("uuid-b", "gpt-5.5", "Basic", "Azure")],
-      ["uuid-c", vendored("uuid-c", "o4", "Premium", "OpenAI")],
-      ["uuid-d", vendored("uuid-d", "o4", "Basic", "Azure")],
+    const models = runnableModels([
+      vendored("uuid-a", "gpt-5.5", "Basic", "OpenAI"),
+      vendored("uuid-b", "gpt-5.5", "Basic", "Azure"),
+      vendored("uuid-c", "o4", "Premium", "OpenAI"),
+      vendored("uuid-d", "o4", "Basic", "Azure"),
     ])
     expect(toProviderModels(models)["openai"]?.map((m) => m.name)).toEqual([
       "gpt-5.5 (OpenAI)",
@@ -298,10 +298,10 @@ describe("toProviderModels", () => {
   })
 
   test("labels only what the student's courses grant", () => {
-    const models = new Map([
-      ["uuid-a", model("uuid-a", "gpt-5.5", "Premium", "openai")],
-      ["uuid-b", { ...model("uuid-b", "gpt-5.5", "Basic", "openai"), vendor: "OpenAI" }],
-      ["uuid-c", { ...model("uuid-c", "deepseek-v4", "Basic", "openai"), vendor: "DeepSeek" }],
+    const models = runnableModels([
+      model("uuid-a", "gpt-5.5", "Premium", "openai"),
+      { ...model("uuid-b", "gpt-5.5", "Basic", "openai"), vendor: "OpenAI" },
+      { ...model("uuid-c", "deepseek-v4", "Basic", "openai"), vendor: "DeepSeek" },
     ])
     const openai = toProviderModels(models, new Set(["uuid-b"]))["openai"]
     // One granted row needs no suffix, and an ungranted vendor names no group.
@@ -312,9 +312,9 @@ describe("toProviderModels", () => {
   })
 
   test("carries the gateway vendor name through to each model, or the protocol without one", () => {
-    const models = new Map([
-      ["uuid-a", { ...model("uuid-a", "gpt-5.5", "Premium", "openai"), vendor: "OpenAI" }],
-      ["uuid-b", model("uuid-b", "claude-haiku-4-5", "Basic", "anthropic")],
+    const models = runnableModels([
+      { ...model("uuid-a", "gpt-5.5", "Premium", "openai"), vendor: "OpenAI" },
+      model("uuid-b", "claude-haiku-4-5", "Basic", "anthropic"),
     ])
     const mapped = toProviderModels(models)
     expect(mapped["openai"]?.[0]?.vendor).toBe("OpenAI")
@@ -323,14 +323,11 @@ describe("toProviderModels", () => {
   })
 
   test("splits models across protocol buckets", () => {
-    const models = new Map([
-      ["uuid-a", model("uuid-a", "claude-opus-4-8", "Premium", "anthropic")],
-      ["uuid-b", model("uuid-b", "gpt-5.5", "Premium", "openai")],
-      ["uuid-c", model("uuid-c", "gemini-2.0-flash", "Basic", "google")],
-      [
-        "uuid-d",
-        { ...model("uuid-d", "google/gemma-4-31b-it:free", "Basic", "openai-compatible"), vendor: "OpenRouter" },
-      ],
+    const models = runnableModels([
+      model("uuid-a", "claude-opus-4-8", "Premium", "anthropic"),
+      model("uuid-b", "gpt-5.5", "Premium", "openai"),
+      model("uuid-c", "gemini-2.0-flash", "Basic", "google"),
+      { ...model("uuid-d", "google/gemma-4-31b-it:free", "Basic", "openai-compatible"), vendor: "OpenRouter" },
     ])
     const mapped = toProviderModels(models)
     expect(mapped["anthropic"]?.map((m) => m.id)).toEqual(["uuid-a"])
@@ -338,17 +335,6 @@ describe("toProviderModels", () => {
     expect(mapped["google"]?.map((m) => m.id)).toEqual(["uuid-c"])
     // Its own bucket, so its vendor names its own group rather than joining Anthropic's.
     expect(mapped["openai-compatible"]?.map((m) => [m.id, m.vendor])).toEqual([["uuid-d", "OpenRouter"]])
-  })
-
-  test("leaves out a model on a protocol this build has no provider for", () => {
-    const models = new Map([
-      ["uuid-a", model("uuid-a", "claude-opus-4-8", "Premium", "anthropic")],
-      ["uuid-new", { ...model("uuid-new", "future-model", "Premium", "future-protocol"), vendor: "Future" }],
-    ])
-    // Not filed under the fallback, where it would have joined Anthropic's group and its requests.
-    expect(toProviderModels(models)).toEqual({
-      anthropic: [expect.objectContaining({ id: "uuid-a", vendor: "anthropic" })],
-    })
   })
 })
 
@@ -420,6 +406,22 @@ describe("projectCatalog", () => {
       "jolli-anthropic/uuid-opus": "premium",
       "jolli-anthropic/uuid-haiku": "economy",
     })
+  })
+
+  test("keeps a grant of only unrunnable models restricted, under a provider nothing resolves", () => {
+    const projected = projectCatalog(
+      {
+        courses: [course()],
+        assistants: { "7": [choice({ modelId: "uuid-future", allowedModelIds: ["uuid-future"] })] },
+        models: [...catalogue.values(), model("uuid-future", "future-model", "Premium", "future-protocol")],
+      },
+      "2026-09-21",
+    )
+
+    expect(projected.assistants[0]?.modelId).toBeUndefined()
+    // Neither `jolli-anthropic/uuid-future`, which reads as an Anthropic model, nor empty, which
+    // reads as unrestricted.
+    expect(projected.assistants[0]?.allowedModelIds).toEqual(["unavailable/uuid-future"])
   })
 
   test("keys an OpenAI-compatible model under its own provider", () => {
@@ -518,7 +520,7 @@ describe("toAssistant — a grant whose models have all gone", () => {
       isDefault: false,
       models: catalogue,
     })
-    expect(mapped.allowedModelIds).toEqual(["jolli-anthropic/uuid-gone", "jolli-anthropic/uuid-also-gone"])
+    expect(mapped.allowedModelIds).toEqual(["unavailable/uuid-gone", "unavailable/uuid-also-gone"])
     expect(mapped.allowedModelIds.length).toBeGreaterThan(0)
     expect(mapped.modelId).toBeUndefined()
   })

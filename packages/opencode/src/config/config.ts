@@ -72,17 +72,23 @@ function mergeConfigConcatArrays(target: Info, source: Info): Info {
  * happens when the gateway starts serving a protocol a student's install predates. The picker then
  * offers fewer models than the course grants — none at all if every one is on that protocol, which
  * looks exactly like an empty catalogue — and nothing on screen says why, so support needs the log.
+ *
+ * ⚠ ONLY WHAT THE STUDENT'S COURSES GRANT COUNTS. The catalogue is the whole tenant's, and this runs
+ * on every config load, so counting all of it warned every student on an older build — including
+ * those whose picker the dropped models were never going to reach. No grant in force means every
+ * model is reachable, so then every dropped one counts.
  */
 const declaredModels = Effect.fnUntraced(function* (snapshot: CatalogSnapshot) {
   const runnable = runnableModels(snapshot.models)
-  const dropped = snapshot.models.filter((model) => !runnable.has(model.id))
+  const granted = grantedModelIds(snapshot.assistants)
+  const dropped = snapshot.models.filter((model) => !runnable.has(model.id) && (!granted || granted.has(model.id)))
   if (dropped.length > 0)
     yield* Effect.logWarning("Jolli: the catalogue offers models on protocols this build has no provider for", {
       protocols: Array.from(new Set(dropped.map((model) => model.protocol))),
       dropped: dropped.length,
       runnable: runnable.size,
     })
-  return toProviderModels(runnable, grantedModelIds(snapshot.assistants))
+  return toProviderModels(runnable, granted)
 })
 
 /**

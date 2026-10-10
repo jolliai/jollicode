@@ -78,10 +78,10 @@ export const STARTUP_DEADLINE = Duration.seconds(20)
  */
 /**
  * Bumped to 2 when models grew a `protocol` field. Older cache files carried `AgentModel[]`
- * without protocol, so a snapshot decoded under this version would leave every model in the
- * FALLBACK_PROTOCOL bucket — treating them as `anthropic` and silently making the openai/google
- * providers unreachable until the next successful refresh. `readSnapshot` returns undefined on a
- * mismatch, which is exactly the "refetch rather than guess" posture we want here.
+ * without one, and the shallow validation in `readSnapshot` would let them through: every model
+ * would then fail `runnableModels` (`catalog.ts`) as a protocol this build cannot run, leaving the
+ * student an empty picker until the next successful refresh. `readSnapshot` returns undefined on a
+ * version mismatch, which is exactly the "refetch rather than guess" posture we want here.
  *
  * ⚠ EXPORTED so `script/seed-jolli-catalog.ts` stamps the fixture it drops with the same version
  * this reader demands; a second copy of the number there would silently write unreadable files.

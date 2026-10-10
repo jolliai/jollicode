@@ -330,11 +330,13 @@ export const Assistant = Schema.Struct({
   /**
    * WHICH MODELS THIS ASSISTANT MAY RUN ON, AS A GRANT.
    *
-   * ⚠ THESE ARE OPENCODE MODEL KEYS (`jolli/<uuid>`), NOT THE WEB MOCK'S BARE IDS. The education
-   * mock names a model `claude-sonnet-5`; this application resolves one as a `{providerID, id}`
-   * pair, so a bare id would match nothing. The GRANT ports faithfully — which assistants are
-   * restricted and how tightly — while the ids are written in this surface's vocabulary. Already
-   * stripped of anything the catalogue no longer carries.
+   * ⚠ THESE ARE OPENCODE MODEL KEYS (`jolli-<protocol>/<uuid>`), NOT THE WEB MOCK'S BARE IDS. The
+   * education mock names a model `claude-sonnet-5`; this application resolves one as a
+   * `{providerID, id}` pair, so a bare id would match nothing. The GRANT ports faithfully — which
+   * assistants are restricted and how tightly — while the ids are written in this surface's
+   * vocabulary. Already stripped of anything the catalogue no longer carries, unless that is every
+   * id: such a grant keeps them under a provider segment no reader resolves, so it stays restricted
+   * rather than reading as empty.
    *
    * ⚠ EMPTY MEANS UNRESTRICTED, NOT "NO MODELS". A course that has not thought about model access
    * must behave exactly as the product did before this field existed. Note this is the opposite
