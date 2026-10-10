@@ -38,13 +38,14 @@ import { Npm } from "@opencode-ai/core/npm"
 import { Brand } from "@opencode-ai/core/brand"
 import { JOLLI_PROVIDER_IDS, jolliBaseConfig } from "@opencode-ai/core/jolli/gateway-config"
 import {
+  type CatalogSnapshot,
   dropMcpConfigCache,
   loadCatalog,
   readMcpConfigCache,
   STARTUP_DEADLINE,
   writeMcpConfigCache,
 } from "@opencode-ai/core/jolli/cache"
-import { grantedModelIds, toProviderModels } from "@opencode-ai/core/jolli/catalog"
+import { grantedModelIds, runnableModels, toProviderModels } from "@opencode-ai/core/jolli/catalog"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { fetchMcpConfig } from "@opencode-ai/core/jolli/api"
 import { JOLLI_MCP_SERVER } from "@opencode-ai/core/jolli/mcp"
@@ -63,6 +64,26 @@ function mergeConfigConcatArrays(target: Info, source: Info): Info {
   }
   return merged
 }
+
+/**
+ * The provider models one loaded catalogue declares.
+ *
+ * ⚠ A MODEL THIS BUILD HAS NO PROVIDER FOR IS DROPPED, AND THIS WARNING IS THE ONLY TRACE OF IT. It
+ * happens when the gateway starts serving a protocol a student's install predates. The picker then
+ * offers fewer models than the course grants — none at all if every one is on that protocol, which
+ * looks exactly like an empty catalogue — and nothing on screen says why, so support needs the log.
+ */
+const declaredModels = Effect.fnUntraced(function* (snapshot: CatalogSnapshot) {
+  const runnable = runnableModels(snapshot.models)
+  const dropped = snapshot.models.filter((model) => !runnable.has(model.id))
+  if (dropped.length > 0)
+    yield* Effect.logWarning("Jolli: the catalogue offers models on protocols this build has no provider for", {
+      protocols: Array.from(new Set(dropped.map((model) => model.protocol))),
+      dropped: dropped.length,
+      runnable: runnable.size,
+    })
+  return toProviderModels(runnable, grantedModelIds(snapshot.assistants))
+})
 
 /**
  * The Jolli floor for one stored credential: locked either way, with a provider once signed in.
@@ -119,13 +140,7 @@ const jolliLockdownConfig = Effect.fnUntraced(function* (session: JolliSession.I
     : undefined
   return jolliBaseConfig({
     signedIn: true,
-    models:
-      loaded?.kind === "ok"
-        ? toProviderModels(
-            new Map(loaded.snapshot.models.map((m) => [m.id, m])),
-            grantedModelIds(loaded.snapshot.assistants),
-          )
-        : {},
+    models: loaded?.kind === "ok" ? yield* declaredModels(loaded.snapshot) : {},
     /**
      * ⚠ THE PIN OUTRANKS THE TENANT, AND `gatewayOptions` IS WHERE THAT IS DECIDED. Both are passed
      * so neither has to be resolved twice; a build that pinned no gateway reaches the same place it
@@ -886,7 +901,7 @@ const layer = Layer.effect(
             /**
              * ⚠ THE BARE `jolli` ID IS THE AUTH SURFACE, NOT A PROVIDER ANYTHING RUNS AGAINST, so a
              * block under it can only have come from a config layer. `enabled_providers` names the
-             * three protocol ids alone, and `jolliBaseConfig` never emits this key — leaving it in
+             * protocol ids alone, and `jolliBaseConfig` never emits this key — leaving it in
              * place hands a coursework repo a provider whose `npm`, `baseURL` and models nothing
              * below pins.
              */

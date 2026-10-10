@@ -96,7 +96,7 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
          */
         ...Object.keys(credentials).filter((id) => id !== Brand.short && allowed(id)),
         /**
-         * ⚠ ONE STORED CREDENTIAL ANSWERS FOR ALL THREE PROTOCOL PROVIDERS, because that is what the
+         * ⚠ ONE STORED CREDENTIAL ANSWERS FOR EVERY PROTOCOL PROVIDER, because that is what the
          * config declares and what `plugin/jolli.ts` resolves options for. The bare `jolli` id is
          * the auth surface, not a provider anything runs against, so it is not reported here.
          */

@@ -32,6 +32,7 @@ import { LLMNativeRuntime } from "./llm/native-runtime"
 import { LLMRequestPrep } from "./llm/request"
 import {
   isJolliProviderId,
+  isSupportedProtocol,
   providerIdFor,
   SUPPORTED_PROTOCOLS,
   type SupportedProtocol,
@@ -57,10 +58,6 @@ const ModelSwitchBodySchema = Schema.fromJsonString(
   }),
 )
 const decodeModelSwitchBody = Schema.decodeUnknownOption(ModelSwitchBodySchema)
-
-function isSupportedProtocol(value: string): value is SupportedProtocol {
-  return SUPPORTED_PROTOCOLS.some((protocol) => protocol === value)
-}
 
 function modelSwitch(error: unknown):
   | {

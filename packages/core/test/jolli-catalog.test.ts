@@ -10,6 +10,7 @@ import {
   toAssistant,
   toCourse,
   projectCatalog,
+  runnableModels,
   toProviderModels,
   today,
 } from "../src/jolli/catalog"
@@ -55,9 +56,9 @@ const model = (
   protocol,
 })
 
-const catalogue = new Map<string, CatalogModel>([
-  ["uuid-opus", model("uuid-opus", "claude-opus-4-8", "Premium")],
-  ["uuid-haiku", model("uuid-haiku", "claude-haiku-4-5", "Basic")],
+const catalogue = runnableModels([
+  model("uuid-opus", "claude-opus-4-8", "Premium"),
+  model("uuid-haiku", "claude-haiku-4-5", "Basic"),
 ])
 
 describe("courseEntryState", () => {
@@ -319,10 +320,6 @@ describe("toProviderModels", () => {
     expect(mapped["openai"]?.[0]?.vendor).toBe("OpenAI")
     // A schema-2 cache entry predates the field; its protocol stands in rather than a blank.
     expect(mapped["anthropic"]?.[0]?.vendor).toBe("anthropic")
-    // A protocol this client has no SDK for still reads as what the gateway called it, not as the
-    // protocol it is routed through.
-    const unknown = toProviderModels(new Map([["uuid-c", model("uuid-c", "mistral-large", "Basic", "mistral")]]))
-    expect(unknown["anthropic"]?.[0]?.vendor).toBe("mistral")
   })
 
   test("splits models across protocol buckets", () => {
@@ -330,18 +327,28 @@ describe("toProviderModels", () => {
       ["uuid-a", model("uuid-a", "claude-opus-4-8", "Premium", "anthropic")],
       ["uuid-b", model("uuid-b", "gpt-5.5", "Premium", "openai")],
       ["uuid-c", model("uuid-c", "gemini-2.0-flash", "Basic", "google")],
+      [
+        "uuid-d",
+        { ...model("uuid-d", "google/gemma-4-31b-it:free", "Basic", "openai-compatible"), vendor: "OpenRouter" },
+      ],
     ])
     const mapped = toProviderModels(models)
     expect(mapped["anthropic"]?.map((m) => m.id)).toEqual(["uuid-a"])
     expect(mapped["openai"]?.map((m) => m.id)).toEqual(["uuid-b"])
     expect(mapped["google"]?.map((m) => m.id)).toEqual(["uuid-c"])
+    // Its own bucket, so its vendor names its own group rather than joining Anthropic's.
+    expect(mapped["openai-compatible"]?.map((m) => [m.id, m.vendor])).toEqual([["uuid-d", "OpenRouter"]])
   })
 
-  test("falls back safely when the server reports an unknown protocol", () => {
-    const models = new Map([["uuid-new", model("uuid-new", "future-model", "Premium", "future-protocol")]])
-    const mapped = toProviderModels(models)
-    expect(mapped["anthropic"]?.map((entry) => entry.id)).toEqual(["uuid-new"])
-    expect(mapped["future-protocol"]).toBeUndefined()
+  test("leaves out a model on a protocol this build has no provider for", () => {
+    const models = new Map([
+      ["uuid-a", model("uuid-a", "claude-opus-4-8", "Premium", "anthropic")],
+      ["uuid-new", { ...model("uuid-new", "future-model", "Premium", "future-protocol"), vendor: "Future" }],
+    ])
+    // Not filed under the fallback, where it would have joined Anthropic's group and its requests.
+    expect(toProviderModels(models)).toEqual({
+      anthropic: [expect.objectContaining({ id: "uuid-a", vendor: "anthropic" })],
+    })
   })
 })
 
@@ -390,6 +397,71 @@ describe("projectCatalog", () => {
     const projected = projectCatalog(snapshot, "2026-09-21")
     expect(projected.courses[1]?.assistantIds).toEqual([])
     expect(projected.assistants.filter((a) => a.courseId === "8")).toEqual([])
+  })
+
+  /**
+   * ⚠ NO PROVIDER BLOCK LISTS IT, SO NOTHING ELSE MAY NAME IT EITHER. Keyed under the anthropic
+   * fallback, the assistant's default pointed at a model no picker carried and the client swapped it
+   * for another without a word, and its tier sat under a key nothing looked up.
+   */
+  test("leaves a model on a protocol this build cannot run out of assistants and tiers alike", () => {
+    const projected = projectCatalog(
+      {
+        courses: [course()],
+        assistants: { "7": [choice({ modelId: "uuid-future", allowedModelIds: ["uuid-future", "uuid-haiku"] })] },
+        models: [...catalogue.values(), model("uuid-future", "future-model", "Premium", "future-protocol")],
+      },
+      "2026-09-21",
+    )
+
+    expect(projected.assistants[0]?.modelId).toBeUndefined()
+    expect(projected.assistants[0]?.allowedModelIds).toEqual(["jolli-anthropic/uuid-haiku"])
+    expect(projected.modelTiers).toEqual({
+      "jolli-anthropic/uuid-opus": "premium",
+      "jolli-anthropic/uuid-haiku": "economy",
+    })
+  })
+
+  test("keys an OpenAI-compatible model under its own provider", () => {
+    const projected = projectCatalog(
+      {
+        courses: [course()],
+        assistants: { "7": [choice({ modelId: "uuid-free", allowedModelIds: ["uuid-free"] })] },
+        models: [model("uuid-free", "google/gemma-4-31b-it:free", "Basic", "openai-compatible")],
+      },
+      "2026-09-21",
+    )
+
+    expect(projected.assistants[0]?.modelId).toBe("jolli-openai-compatible/uuid-free")
+    expect(projected.assistants[0]?.allowedModelIds).toEqual(["jolli-openai-compatible/uuid-free"])
+    expect(projected.modelTiers).toEqual({ "jolli-openai-compatible/uuid-free": "economy" })
+  })
+})
+
+describe("runnableModels", () => {
+  test("keeps every protocol this build declares a provider for, keyed by UUID", () => {
+    const runnable = runnableModels([
+      model("uuid-a", "claude-opus-4-8", "Premium", "anthropic"),
+      model("uuid-b", "gpt-5.5", "Premium", "openai"),
+      model("uuid-c", "gemini-2.0-flash", "Basic", "google"),
+      model("uuid-d", "google/gemma-4-31b-it:free", "Basic", "openai-compatible"),
+    ])
+
+    expect(Array.from(runnable, ([id, item]) => [id, item.protocol])).toEqual([
+      ["uuid-a", "anthropic"],
+      ["uuid-b", "openai"],
+      ["uuid-c", "google"],
+      ["uuid-d", "openai-compatible"],
+    ])
+  })
+
+  test("drops a model on a protocol this build has never heard of", () => {
+    const runnable = runnableModels([
+      model("uuid-a", "claude-opus-4-8"),
+      model("uuid-new", "future-model", "Premium", "future-protocol"),
+    ])
+
+    expect(Array.from(runnable.keys())).toEqual(["uuid-a"])
   })
 })
 

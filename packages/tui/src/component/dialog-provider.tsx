@@ -54,10 +54,11 @@ type ProviderOption = {
  * through the provider list at all, so `enabled_providers` — which is the whole model lockdown —
  * never sees it: it was the one way a student could still attach their own key.
  *
- * ⚠ THE THREE PER-PROTOCOL JOLLI PROVIDERS FOLD INTO ONE UI ROW WHOSE VALUE IS `Brand.short`. The
- * opencode config emits `jolli-anthropic`, `jolli-openai`, `jolli-google` — three provider blocks
- * because each SDK npm needs its own — but the picker is a UX surface, and three identical "Jolli"
- * rows offering the same sign-in would be noise, not choice. The auth layer already thinks of
+ * ⚠ THE PER-PROTOCOL JOLLI PROVIDERS FOLD INTO ONE UI ROW WHOSE VALUE IS `Brand.short`. The
+ * opencode config emits `jolli-anthropic`, `jolli-openai`, `jolli-google`, `jolli-openai-compatible`
+ * — one provider block per protocol because each SDK npm needs its own — but the picker is a UX
+ * surface, and several identical "Jolli" rows offering the same sign-in would be noise, not choice.
+ * The auth layer already thinks of
  * them as one credential (`plugin/jolli.ts` writes a single `"jolli"` entry that feeds every
  * block), so this fold mirrors that. Downstream checks that need "is Jolli connected" have to look
  * for ANY of the per-protocol ids — {@link isProviderConnected} does that.

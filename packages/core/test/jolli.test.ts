@@ -83,7 +83,7 @@ describe("jolliBaseConfig", () => {
   test("declares no provider while signed out", () => {
     const config = jolliBaseConfig({ signedIn: false, models: MODELS })
     // The lockdown still applies — a signed-out student must not reach another provider either.
-    // All three protocol ids stay enabled even when signed out so nothing outside them can be reached.
+    // Every protocol id stays enabled even when signed out so nothing outside them can be reached.
     expect(config.enabled_providers).toEqual(ALL_ENABLED)
     // And the provider list stays genuinely empty, which is what the sign-in prompt keys off.
     expect(config).not.toHaveProperty("provider")
@@ -228,6 +228,7 @@ describe("jolliBaseConfig", () => {
         anthropic: [{ id: "anthropic-id", name: "Claude" }],
         openai: [{ id: "openai-id", name: "GPT" }],
         google: [{ id: "google-id", name: "Gemini" }],
+        "openai-compatible": [{ id: "relay-id", name: "google/gemma-4-31b-it:free", vendor: "OpenRouter" }],
       },
     })
     expect(config.provider?.[JOLLI_ANTHROPIC]).toMatchObject({
@@ -241,6 +242,13 @@ describe("jolliBaseConfig", () => {
     expect(config.provider?.[JOLLI_GOOGLE]).toMatchObject({
       npm: "@ai-sdk/google",
       options: { baseURL: "https://acme.jolli.ai/api/v1beta" },
+    })
+    // Chat Completions, the one route the gateway forwards to an OpenAI-compatible supplier; the
+    // OpenAI block's SDK talks to the Responses route, which only OpenAI itself serves.
+    expect(config.provider?.[providerIdFor("openai-compatible")]).toMatchObject({
+      name: "OpenRouter",
+      npm: "@ai-sdk/openai-compatible",
+      options: { baseURL: "https://acme.jolli.ai/api/v1" },
     })
   })
 
