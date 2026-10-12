@@ -19,6 +19,8 @@ Valid types are `feat`, `fix`, `docs`, `chore`, `refactor`, and `test`. Scopes a
 
 Examples: `fix(tui): simplify thinking toggle styling`, `docs: update contributing guide`, `chore(sdk): regenerate types`.
 
+Do not add AI attribution to commits or PRs: no `Co-authored-by` trailer naming an AI agent (for example a `noreply@anthropic.com` address), and no `Generated with Claude Code` or similar line in PR descriptions. `Co-authored-by` trailers naming a human collaborator are fine.
+
 ## Style Guide
 
 ### General Principles
