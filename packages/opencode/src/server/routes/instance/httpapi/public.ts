@@ -72,6 +72,7 @@ const QueryParameterSchemas: Record<string, OpenApiSchema> = {
   "GET /api/session start": { type: "number" },
   "GET /api/session roots": QueryBooleanOpenApi,
   "GET /api/session/{sessionID}/message limit": { type: "number" },
+  "GET /jolli/course fresh": QueryBooleanOpenApi,
 }
 
 const LegacyComponentDescriptions: Record<string, string> = {

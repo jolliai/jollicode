@@ -8,7 +8,8 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ShareNext } from "./share-next"
 
 export interface Interface {
-  readonly create: (input?: Session.CreateInput) => Effect.Effect<Session.Info>
+  /** `id` is the Jolli start route's: see `Session.Interface.create`. */
+  readonly create: (input?: Session.CreateInput & { id?: SessionID }) => Effect.Effect<Session.Info>
   readonly share: (sessionID: SessionID) => Effect.Effect<{ url: string }, unknown>
   readonly unshare: (sessionID: SessionID) => Effect.Effect<void, unknown>
 }
@@ -41,7 +42,7 @@ const layer = Layer.effect(
       yield* session.setShare({ sessionID, share: undefined })
     })
 
-    const create = Effect.fn("SessionShare.create")(function* (input?: Session.CreateInput) {
+    const create = Effect.fn("SessionShare.create")(function* (input?: Session.CreateInput & { id?: SessionID }) {
       const result = yield* session.create(input)
       if (result.parentID || Flag.JOLLICODE_LOCKDOWN) return result
       if (!(flags.autoShare || (yield* cfg.get()).share === "auto")) return result

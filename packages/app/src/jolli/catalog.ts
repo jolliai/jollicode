@@ -12,10 +12,12 @@
  * that is settled before `/jolli/course` answers. What is left here is lookup and ordering.
  */
 
-import { createSignal } from "solid-js"
+import { createRoot, createSignal } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { Lookup } from "@opencode-ai/core/jolli/lookup"
+import type { CourseBinding } from "@opencode-ai/core/jolli/binding"
 import { ModelTiers } from "./model-tier"
+import { createWindowClock } from "./window-clock"
 import type { Assistant, Catalog, Course, Viewer } from "./types"
 
 const [store, setStore] = createStore<{
@@ -43,6 +45,19 @@ const [generation, setGeneration] = createSignal(0)
 
 /** Bumped by {@link resetCatalog}; read by whoever owns the fetch so a reset actually re-asks. */
 export const catalogGeneration = generation
+
+/** The generation {@link refreshCatalog} last raised to — the one load that asks past the server's cache. */
+let refreshed: number | undefined
+
+/**
+ * WHETHER THIS GENERATION'S LOAD SHOULD ASK FOR A FRESH CATALOGUE (`/jolli/course?fresh=true`).
+ *
+ * ⚠ ONLY A {@link refreshCatalog} GENERATION DOES. A reset or a first load is happy with the
+ * server's snapshot; a refresh is somebody who has just been told it is wrong.
+ */
+export function catalogRefreshed(count: number) {
+  return count === refreshed
+}
 
 /**
  * WHETHER THE ANSWER HAS ARRIVED, WHICH IS NOT THE SAME QUESTION AS WHETHER IT WAS EMPTY.
@@ -154,8 +169,70 @@ export function enrolledCourses(): Course[] {
   return [...store.courses]
 }
 
-export function canStartSession(courseId: string | undefined): boolean {
-  return Lookup.canStartSession(store, courseId)
+/**
+ * ⚠ `now` DEFAULTS TO {@link windowNow}, SO A SCREEN RE-ASKS WHEN AN ASSISTANT'S WINDOW OPENS OR
+ * CLOSES. A caller in a render or a memo tracks the clock just by calling this; the parameter is
+ * there for a test, or for a caller that must not track it.
+ */
+export function canStartSession(courseId: string | undefined, now = windowNow()): boolean {
+  return Lookup.canStartSession(store, courseId, now)
+}
+
+/** Every assistant the catalogue holds, across every course — what the window clock is armed from. */
+export function allAssistants(): readonly Assistant[] {
+  return store.assistants
+}
+
+/**
+ * THE TIME ASSISTANT WINDOWS ARE JUDGED BY, TICKING ONLY AT A BOUNDARY — see `window-clock.ts`.
+ *
+ * ⚠ ONE CLOCK FOR THE WHOLE APP, BESIDE THE CATALOGUE IT IS ARMED FROM. It used to live in each
+ * `CourseSessionProvider`, and two of those are mounted on the draft route — two timers that could
+ * disagree around a boundary — while the sidebar, which sits outside both, fell back to a
+ * `new Date()` read once: its "+" stayed disabled after a window opened, and stayed enabled after
+ * one closed. Armed from every assistant, because the course picker words every course's blocked
+ * reason off it.
+ *
+ * ⚠ A ROOT NOBODY DISPOSES, ON PURPOSE. It lives as long as the catalogue it watches, which is the
+ * life of the page.
+ */
+export const windowNow = createRoot(() => createWindowClock(allAssistants))
+
+/**
+ * THE ASSISTANTS A NEW SESSION IN THIS COURSE MAY OFFER AT `now`: the open ones for a student, every
+ * one for staff.
+ *
+ * ⚠ A FILTER FOR NEW SESSIONS ONLY. {@link assistantsForCourse} still answers with every assistant,
+ * so a live session bound to one that has since closed keeps its name on screen.
+ */
+export function newSessionAssistants(courseId: string | undefined, now = windowNow()): Assistant[] {
+  const course = courseById(courseId)
+  if (!course) return []
+  return Lookup.startableAssistants(course, assistantsForCourse(courseId), now)
+}
+
+/**
+ * THE DRAFT A NEW SESSION IN THIS COURSE STARTS FROM: the preferred assistant if it may start at
+ * `now`, otherwise the first that may.
+ *
+ * ⚠ THE FIRST THAT MAY START IS THE PROFESSOR'S DEFAULT WHENEVER THE DEFAULT IS OPEN, because it
+ * sorts first. When it is closed the next one stands in for it — selected, but still not the
+ * default, which stays where the server put it.
+ */
+export function draftBinding(courseId: string, assistantId?: string, now = windowNow()): CourseBinding | undefined {
+  const chosen = Lookup.pickAssistant(newSessionAssistants(courseId, now), assistantId)
+  if (!chosen) return undefined
+  return { courseId, assistantId: chosen.id }
+}
+
+/**
+ * Whether a live session's assistant has closed for the person reading it — a student, past the end
+ * of the window. Staff are exempt on the gateway; before the window opens an existing chat may
+ * still continue, so only `after` counts.
+ */
+export function closedForViewer(course: Course | undefined, assistant: Assistant | undefined, now = windowNow()) {
+  if (!course || !assistant || course.isStaff) return false
+  return Lookup.windowPhase(assistant, now) === "after"
 }
 
 /**
@@ -168,19 +245,26 @@ export function canStartSession(courseId: string | undefined): boolean {
  * the sidebar with draft, ended and archived courses that cannot be clicked into a session. The
  * only case the explanation is needed for is the one where there is nothing else to show.
  *
+ * ⚠ A COURSE WHOSE AGENTS ARE ALL OUTSIDE THEIR WINDOWS STAYS LISTED. Only a new session is refused
+ * there; the student's chats in it stay readable, and this row is where they are filed — hiding it
+ * hid them. Its "+" still goes by {@link canStartSession}, so nothing new can be started from it.
+ *
  * ⚠ IT IS NOT WHAT THE PICKER USES, DELIBERATELY. `prompt-course-selector` lists every enrolment
  * with its `blockedReason` spelled out, because refusing a course a student went looking for is
  * information; a filter row in a 300px column that they did not ask for is not.
  */
 export function listedCourses(): Course[] {
   const all = enrolledCourses()
-  const startable = all.filter((course) => canStartSession(course.id))
-  return startable.length > 0 ? startable : all
+  const listed = all.filter((course) => {
+    const reason = blockedReason(course)
+    return reason === undefined || reason === "no-open-assistants"
+  })
+  return listed.length > 0 ? listed : all
 }
 
 /** What is in the way of starting this course, as the code the picker puts into words. */
-export function blockedReason(course: Course) {
-  return Lookup.blockedReason(store, course)
+export function blockedReason(course: Course, now = windowNow()) {
+  return Lookup.blockedReason(store, course, now)
 }
 
 /** ⚠ An empty grant means UNRESTRICTED. Kept for the callers that named it. */
@@ -266,13 +350,27 @@ export function ensureCatalog(key: string, load: () => Promise<Catalog>): Promis
  * caller that DOES own it ask again — and `inFlight` is keyed by the same counter, so the new key
  * cannot be deduped against the load it is replacing.
  *
- * ⚠ AND IT REACHES NO FURTHER THAN THE SERVER'S OWN CACHE, which is a five minute TTL on a
- * snapshot (`core/jolli/cache.ts`). Within that window this re-reads what the server already has
- * rather than the gateway; the endpoint has no way to ask for more, and a student pressing this
- * twice in a minute is better served instantly than truthfully.
+ * ⚠ AND IT REACHES PAST THE SERVER'S OWN CACHE, which is a five minute snapshot
+ * (`core/jolli/cache.ts`). Every caller is somebody told the list is wrong — a refused Start, a
+ * picker opened to choose again, the sidebar's refresh — and re-reading that snapshot handed back
+ * the assistant whose window had just closed, leaving the draft on it.
  */
 export function refreshCatalog() {
-  setGeneration((value) => value + 1)
+  refreshedAt = Date.now()
+  refreshed = generation() + 1
+  setGeneration(refreshed)
+}
+
+/** When {@link refreshCatalog} last ran, for {@link recheckCatalog}. */
+let refreshedAt = Number.NEGATIVE_INFINITY
+
+/**
+ * {@link refreshCatalog}, unless one ran in the last `Lookup.RECHECK_INTERVAL_MS`. For a picker
+ * being opened, which re-asks in case the list moved since launch.
+ */
+export function recheckCatalog() {
+  if (Date.now() - refreshedAt < Lookup.RECHECK_INTERVAL_MS) return
+  refreshCatalog()
 }
 
 /**

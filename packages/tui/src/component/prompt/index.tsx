@@ -13,9 +13,12 @@ import { createEffect, createMemo, onMount, createSignal, onCleanup, on, Show, S
 import { registerOpencodeSpinner } from "../register-spinner"
 import path from "path"
 import { fileURLToPath } from "url"
-import { useJolli } from "../../context/jolli"
+import { startOutcome, useJolli } from "../../context/jolli"
 import { useLocal } from "../../context/local"
 import { Flag } from "@opencode-ai/core/flag/flag"
+import { Identifier } from "@opencode-ai/core/id/id"
+import { sameBinding, type CourseBinding } from "@opencode-ai/core/jolli/binding"
+import { settleStart } from "@opencode-ai/core/jolli/opener"
 import { tint, useTheme } from "../../context/theme"
 import { EmptyBorder, SplitBorder } from "../../ui/border"
 import { useTuiPaths, useTuiTerminalEnvironment } from "../../context/runtime"
@@ -980,6 +983,21 @@ export function Prompt(props: PromptProps) {
     }
   })
 
+  /**
+   * WHETHER THIS COMPOSER STARTS A CHAT RATHER THAN SENDS A PROMPT: a new session, with an assistant
+   * that speaks first.
+   *
+   * ⚠ THE INPUT STAYS, BECAUSE IT IS ALSO HOW A STUDENT LEAVES. `/course` and `/assistant` are typed
+   * here; a Start button standing in for the box would leave no way to pick a different assistant.
+   * So an empty Enter is Start, and anything else is held back — the agent has not spoken yet, and a
+   * first line from the student would talk over it.
+   *
+   * ⚠ A SLASH COMMAND IS HELD BACK TOO. `/course` and `/assistant` run from the autocomplete and never
+   * reach submit; one that does is a server command, which would create a plain session without Start
+   * and become its first turn.
+   */
+  const opening = createMemo(() => !props.sessionID && !!jolli.assistant()?.opensConversation)
+
   let submitting = false
   async function submit() {
     // Prevent overlapping invocations (e.g. a double-pressed Enter, or the
@@ -1010,7 +1028,9 @@ export function Prompt(props: PromptProps) {
     if (props.disabled) return false
     if (workspace.creating() || move.creating()) return false
     if (auto()?.visible) return false
-    if (!store.prompt.input) return false
+    // ⚠ A START BELONGS TO THE NEW-SESSION COMPOSER. A live session's Enter is not its to swallow.
+    if (!props.sessionID && jolli.starting()) return false
+    if (!store.prompt.input && !opening()) return false
     const agent = local.agent.current()
     if (!agent) return false
     const trimmed = store.prompt.input.trim()
@@ -1038,6 +1058,15 @@ export function Prompt(props: PromptProps) {
       return false
     }
 
+    if (opening() && store.prompt.input) {
+      toast.show({
+        message: "This agent opens the conversation — clear the prompt and press Enter to start.",
+        variant: "info",
+        duration: 4000,
+      })
+      return false
+    }
+
     const workspaceSession = props.sessionID ? sync.session.get(props.sessionID) : undefined
     const workspaceID = workspaceSession?.workspaceID
     const workspaceStatus = workspaceID ? (project.workspace.status(workspaceID) ?? "error") : undefined
@@ -1060,11 +1089,34 @@ export function Prompt(props: PromptProps) {
       const selectedWorkspace = workspace.selection()
       const workspaceID = selectedWorkspace?.type === "existing" ? selectedWorkspace.workspaceID : undefined
 
+      const binding = jolli.current()
+      const opens = opening()
       const directory = await move.getDirectory(store.prompt.input)
       if (move.pending() && !directory) return false
       finishMoveProgress = Boolean(move.progress())
 
-      const binding = jolli.current()
+      /**
+       * ⚠ WHAT WAS DECIDED BEFORE THE WAIT IS CHECKED AGAIN AFTER IT, AND A CHANGE STOPS HERE. Making a
+       * worktree takes seconds; text typed meanwhile, or a window boundary moving the draft, must not
+       * turn a Start into a plain session the agent never opened — nor send an empty prompt to an
+       * assistant that does not speak first. The student presses Enter again on what is now there.
+       */
+      const bound = jolli.current()
+      const changed = opens !== opening() || (binding ? !sameBinding(bound, binding) : !!bound)
+      if (changed || (opens && store.prompt.input) || (!opens && !store.prompt.input)) {
+        if (finishMoveProgress) move.finishSubmit()
+        return false
+      }
+      if (binding && opens) {
+        const started = await start(binding, {
+          directory,
+          workspace: workspaceID,
+          agent: agent.name,
+          model: { providerID: selectedModel.providerID, id: selectedModel.modelID, variant },
+        })
+        if (finishMoveProgress) move.finishSubmit()
+        return started
+      }
       const res = await sdk.client.session.create({
         directory,
         workspace: workspaceID,
@@ -1097,7 +1149,7 @@ export function Prompt(props: PromptProps) {
       }
 
       sessionID = res.data.id
-      jolli.promote(sessionID)
+      jolli.promote(sessionID, binding)
     }
 
     const inputText = expandTrackedPastedText(
@@ -1220,6 +1272,53 @@ export function Prompt(props: PromptProps) {
     }
     input.clear()
     if (finishMoveProgress) move.finishSubmit()
+    return true
+  }
+
+  /**
+   * START A CHAT WHOSE AGENT SPEAKS FIRST, AND ENTER IT ONLY ONCE IT EXISTS.
+   *
+   * ⚠ THE SIDECAR OPENS THE CONVERSATION ON THE GATEWAY BEFORE IT CREATES ANYTHING HERE, so a refused
+   * or failed Start leaves no local session behind and there is nothing to undo — the student stays
+   * on the draft with the reason in front of them. A dynamic opener is written by a model while
+   * this waits, which is why the wait is shown at all.
+   *
+   * ⚠ NO DEFERRED NAVIGATION. The normal path waits 50ms for the prompt it just sent; Start sends
+   * nothing, and the opener rides on the session it navigates to.
+   *
+   * ⚠ A START THAT GOT NO ANSWER IS RETRIED UNDER THE SAME ID — see `jolli.unanswered`, which keeps
+   * it in the context because this composer is unmounted whenever the student leaves home.
+   *
+   * ⚠ IT RETURNS TRUE ONLY WHEN IT MOVED THE SCREEN. `prompt.submit` clears dialogs on true, and a
+   * failed Start — or one answered after the student went elsewhere — must not close a dialog they
+   * opened while it waited. Nor does it navigate from anywhere but home: a student who left for
+   * another session is not pulled out of it.
+   */
+  async function start(
+    binding: CourseBinding,
+    input: Omit<Parameters<typeof sdk.client.session.jolliStart>[0], "courseId" | "assistantId" | "sessionID">,
+  ) {
+    const retry = jolli.unanswered()
+    const sessionID = sameBinding(retry, binding) ? retry.sessionID : Identifier.descending("session")
+    jolli.setStarting(true)
+    const answer = await settleStart(
+      sdk.client.session.jolliStart({ ...input, ...binding, sessionID }, { throwOnError: true }),
+    )
+    jolli.setStarting(false)
+    const outcome = startOutcome(answer.result)
+    jolli.setUnanswered(answer.unanswered ? { ...binding, sessionID } : undefined)
+    if (outcome.type === "failed") {
+      if (outcome.refresh) jolli.refresh()
+      toast.show({ message: outcome.message, variant: "warning", duration: 5000 })
+      return false
+    }
+    jolli.promote(outcome.sessionID, binding)
+    if (route.data.type !== "home") {
+      toast.show({ message: "The conversation has started — open it from the session list.", variant: "info" })
+      return false
+    }
+    props.onSubmit?.()
+    route.navigate({ type: "session", sessionID: outcome.sessionID })
     return true
   }
 
@@ -1706,6 +1805,16 @@ export function Prompt(props: PromptProps) {
                     {store.interrupt > 0 ? "again to interrupt" : "interrupt"}
                   </span>
                 </text>
+              </box>
+            </Match>
+            <Match when={!props.sessionID && jolli.starting()}>
+              <box paddingLeft={3}>
+                <Spinner color={theme.accent}>The agent is writing…</Spinner>
+              </box>
+            </Match>
+            <Match when={opening()}>
+              <box paddingLeft={3}>
+                <text fg={theme.accent}>The agent will open the conversation — press Enter to start</text>
               </box>
             </Match>
             <Match when={workspace.notice()}>

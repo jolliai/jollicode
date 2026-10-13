@@ -24,7 +24,7 @@ import { CourseAccent } from "@/components/course-accent"
 import { MenuV2 } from "@opencode-ai/ui/v2/menu-v2"
 import { useLanguage } from "@/context/language"
 import { assistantIconName } from "@/jolli/assistant-icon"
-import { assistantsForCourse, blockedReason, canStartSession, enrolledCourses } from "@/jolli/catalog"
+import { blockedReason, canStartSession, enrolledCourses, newSessionAssistants, recheckCatalog } from "@/jolli/catalog"
 import { useCourseSession } from "@/jolli/session-binding"
 
 /**
@@ -41,7 +41,19 @@ const BLOCKED_REASON = {
   ended: "prompt.course.blocked.ended",
   archived: "prompt.course.blocked.archived",
   "no-assistants": "prompt.course.blocked.noAssistants",
+  "no-open-assistants": "prompt.course.blocked.noOpenAssistants",
 } as const satisfies Record<Lookup.CourseBlockedReason, string>
+
+/**
+ * ⚠ OPENING EITHER PICKER RE-ASKS FOR THE CATALOGUE. A professor who just opened or closed an
+ * assistant expects the student's list to agree; the answer lands while the menu is open and the
+ * rows below re-render from it. Closing hands focus back, as before. Re-opening within half a minute
+ * keeps the answer it already has — see `recheckCatalog`.
+ */
+function onPickerOpenChange(open: boolean, done?: () => void) {
+  if (open) return recheckCatalog()
+  done?.()
+}
 
 const TRIGGER_CLASS =
   "flex h-7 min-w-0 max-w-[203px] items-center gap-1.5 rounded-sm px-1.5 hover:bg-v2-overlay-simple-overlay-hover focus-visible:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none data-[expanded]:bg-v2-overlay-simple-overlay-pressed data-[expanded]:text-v2-text-text-muted"
@@ -53,7 +65,7 @@ export function PromptCourseSelector(props: { onDone?: () => void }) {
   const current = () => binding.course()
 
   return (
-    <MenuV2 placement="bottom" gutter={4} onOpenChange={(open) => !open && props.onDone?.()}>
+    <MenuV2 placement="bottom" gutter={4} onOpenChange={(open) => onPickerOpenChange(open, props.onDone)}>
       <MenuV2.Trigger class={TRIGGER_CLASS}>
         {/* The chosen course's colour, or nothing to colour until one is chosen. `CourseAccent`
             says why this replaced a kind glyph. */}
@@ -82,14 +94,14 @@ export function PromptCourseSelector(props: { onDone?: () => void }) {
                    * for the teacher, wait for term, ask the teacher, nothing — so collapsing them
                    * into one "unavailable" would throw away the only useful part.
                    */
-                  disabled={!canStartSession(course.id)}
+                  disabled={!canStartSession(course.id, binding.now())}
                   onSelect={() => binding.draft.setCourse(course.id)}
                 >
                   <CourseAccent accent={course.accent} />
                   <span class="min-w-0 flex-1 truncate">
                     {course.code}
                     <span class="text-v2-text-text-faint"> · {course.title}</span>
-                    <Show when={blockedReason(course)}>
+                    <Show when={blockedReason(course, binding.now())}>
                       {(reason) => (
                         <span class="text-v2-text-text-faint"> · {language.t(BLOCKED_REASON[reason()])}</span>
                       )}
@@ -111,13 +123,18 @@ export function PromptCourseSelector(props: { onDone?: () => void }) {
 export function PromptAssistantSelector(props: { onDone?: () => void }) {
   const language = useLanguage()
   const binding = useCourseSession()
-  const options = () => assistantsForCourse(binding.course()?.id)
+  /**
+   * ⚠ ONLY WHAT MAY START NOW, FOR A STUDENT — staff see every assistant, to try one before it
+   * opens. This picker exists only on the draft screen, so the filter never hides the assistant a
+   * live session is already bound to.
+   */
+  const options = () => newSessionAssistants(binding.course()?.id, binding.now())
   const current = () => binding.assistant()
 
   return (
     <Show when={binding.course()}>
       <span class="hidden select-none opacity-50 sm:inline mx-1">/</span>
-      <MenuV2 placement="bottom" gutter={4} onOpenChange={(open) => !open && props.onDone?.()}>
+      <MenuV2 placement="bottom" gutter={4} onOpenChange={(open) => onPickerOpenChange(open, props.onDone)}>
         <MenuV2.Trigger class={TRIGGER_CLASS}>
           {/*
            * ⚠ THE GLYPH BELONGS ON THE TRIGGER TOO, NOT ONLY IN THE MENU. Every other segment of
@@ -126,9 +143,7 @@ export function PromptAssistantSelector(props: { onDone?: () => void }) {
            * It is also the only thing distinguishing `cs101-as` from `cs101-as2` at a glance.
            */}
           <Show when={current()}>
-            {(assistant) => (
-              <IconV2 name={assistantIconName(assistant().icon)} size="small" class="shrink-0" />
-            )}
+            {(assistant) => <IconV2 name={assistantIconName(assistant().icon)} size="small" class="shrink-0" />}
           </Show>
           <span class="min-w-0 truncate">{current()?.name ?? language.t("prompt.assistant.placeholder")}</span>
           <Icon name="chevron-down" size="small" class="shrink-0 text-v2-icon-icon-muted" />

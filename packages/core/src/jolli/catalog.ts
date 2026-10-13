@@ -233,6 +233,7 @@ export function toCourse(input: {
     status: courseStatusOf(input.item.status),
     entryState: input.entryState,
     endsOn: input.item.endsOn,
+    isStaff: input.item.isStaff,
   }
 }
 
@@ -298,6 +299,13 @@ export function toAssistant(input: {
     // The gateway has no skills concept. Empty means exactly none.
     skills: [],
     status: "live",
+    // A server, or a cached snapshot, that predates these fields reads as no brief, no window,
+    // chat allowed and an agent that waits to be spoken to.
+    brief: input.choice.brief ?? "",
+    startsAt: input.choice.startsAt ?? null,
+    endsAt: input.choice.endsAt ?? null,
+    directChatEnabled: input.choice.directChatEnabled ?? true,
+    opensConversation: input.choice.opensConversation ?? false,
   }
 }
 

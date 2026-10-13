@@ -1,7 +1,17 @@
 import { describe, expect, test } from "bun:test"
-import { needsCourseChoice, submissionBlocker } from "../../src/context/jolli"
+import type { Session } from "@opencode-ai/sdk/v2"
+import { briefPreview, needsCourseChoice, START_FAILED, startOutcome, submissionBlocker } from "../../src/context/jolli"
 
-const base = { lockdown: true, signedIn: true, started: false, bound: false, loaded: true, courses: 2, startable: 2 }
+const base = {
+  lockdown: true,
+  signedIn: true,
+  started: false,
+  bound: false,
+  loaded: true,
+  courses: 2,
+  startable: 2,
+  noOpenAssistants: false,
+}
 
 describe("submissionBlocker", () => {
   /**
@@ -53,6 +63,16 @@ describe("submissionBlocker", () => {
   test("enrolled in nothing startable is not the same as being told to choose", () => {
     expect(submissionBlocker({ ...base, startable: 0 })).toBe(
       "None of your courses can be started yet — press /course to see why.",
+    )
+  })
+
+  /**
+   * ⚠ WHEN THE CLOCK IS ALL THAT STANDS IN THE WAY, THE SENTENCE SAYS SO. Sending the student to
+   * `/course` would show them an empty list — every course was hidden for having nothing open.
+   */
+  test("nothing startable because no assistant is open says so", () => {
+    expect(submissionBlocker({ ...base, startable: 0, noOpenAssistants: true })).toBe(
+      "No assistants are open right now — try again later.",
     )
   })
   /**
@@ -133,5 +153,79 @@ describe("needsCourseChoice", () => {
    */
   test("waits for the remembered course to be read, not just the catalogue", () => {
     expect(needsCourseChoice({ ...choice, consulted: false })).toBe(false)
+  })
+})
+
+describe("startOutcome", () => {
+  const session = { id: "ses_started" } as Session
+
+  /** ⚠ AN OPENER THE GATEWAY COULD NOT WRITE IS STILL A STARTED CHAT, which the student types into. */
+  test("a started session is entered, with or without an opener", () => {
+    expect(startOutcome({ status: "started", session, opener: true })).toEqual({
+      type: "started",
+      sessionID: "ses_started",
+    })
+    expect(startOutcome({ status: "started", session, opener: false })).toEqual({
+      type: "started",
+      sessionID: "ses_started",
+    })
+  })
+
+  /** ⚠ A REFUSAL ASKS FOR THE CATALOGUE AGAIN, so the Start it refused is not offered a second time. */
+  test("a refusal says why in the student's words and refreshes the catalogue", () => {
+    expect(startOutcome({ status: "refused", code: "assistant_not_open" })).toEqual({
+      type: "failed",
+      message: "This agent isn't open yet.",
+      refresh: true,
+    })
+    expect(startOutcome({ status: "refused", code: "assistant_not_found" })).toEqual({
+      type: "failed",
+      message: "This agent is no longer available.",
+      refresh: true,
+    })
+  })
+
+  /** ⚠ THERE IS NO CHAT TO "STILL READ" WHEN STARTING ONE WAS REFUSED. */
+  test("a closed agent is reported without the sentence about reading the chat", () => {
+    expect(startOutcome({ status: "refused", code: "assistant_closed" })).toEqual({
+      type: "failed",
+      message: "This agent has closed.",
+      refresh: true,
+    })
+  })
+
+  test("a refusal with no code, or one this does not know, falls back to trying again", () => {
+    expect(startOutcome({ status: "refused" })).toEqual({ type: "failed", message: START_FAILED, refresh: true })
+    expect(startOutcome({ status: "refused", code: "something_new" })).toEqual({
+      type: "failed",
+      message: START_FAILED,
+      refresh: true,
+    })
+  })
+
+  /**
+   * ⚠ NO ANSWER IS NEVER "NO OPENER". The gateway may have written one the student did not see, so
+   * nothing is entered — not even an empty chat.
+   */
+  test("an unreachable gateway, or no readable answer, enters nothing", () => {
+    expect(startOutcome({ status: "unreachable" })).toEqual({ type: "failed", message: START_FAILED, refresh: false })
+    expect(startOutcome(undefined)).toEqual({ type: "failed", message: START_FAILED, refresh: false })
+  })
+})
+
+describe("briefPreview", () => {
+  test("a blank brief shows nothing", () => {
+    expect(briefPreview(undefined, 80)).toBeUndefined()
+    expect(briefPreview("  \n ", 80)).toBeUndefined()
+  })
+
+  test("folds line breaks and keeps a short brief whole", () => {
+    expect(briefPreview("Interview for\n\nthe analyst role.", 80)).toBe("Interview for the analyst role.")
+  })
+
+  test("cuts a long brief to a few lines", () => {
+    const preview = briefPreview("word ".repeat(200), 40, 3)
+    expect(preview?.length).toBe(40 * 3 - "Brief: ".length)
+    expect(preview?.endsWith("…")).toBe(true)
   })
 })

@@ -4,6 +4,8 @@ import { iife } from "@/util/iife"
 import type { ProviderV2 } from "@opencode-ai/core/provider"
 import { isContextOverflow } from "@opencode-ai/llm"
 import { Brand } from "@opencode-ai/core/brand"
+import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
+import { turnRefusalMessage } from "@opencode-ai/core/jolli/refusal"
 
 export class HeaderTimeoutError extends Error {
   public override readonly name = "ProviderHeaderTimeoutError"
@@ -32,6 +34,16 @@ function isOpenAiErrorRetryable(e: APICallError) {
 // - z.ai: can accept overflow silently (needs token-count/context-window checks)
 function message(providerID: ProviderV2.ID, e: APICallError) {
   return iife(() => {
+    /**
+     * ⚠ A JOLLI REFUSAL WITH A CODE WE KNOW IS ANSWERED IN THE STUDENT'S WORDS, NOT THE WIRE'S. The
+     * general path below would prefix the status text ("Forbidden: …") and, over HTTP/2 where that
+     * text is empty, show the raw JSON body instead — neither of which tells a student their agent
+     * has closed.
+     */
+    if (isJolliProviderId(providerID)) {
+      const refusal = turnRefusalMessage(json(e.responseBody)?.code)
+      if (refusal) return refusal
+    }
     const msg = e.message
     if (msg === "") {
       if (e.responseBody) return e.responseBody
@@ -182,11 +194,21 @@ export function parseAPICallError(input: { providerID: ProviderV2.ID; error: API
   }
 
   const metadata = input.error.url ? { url: input.error.url } : undefined
+  /**
+   * ⚠ A JOLLI REFUSAL IS AN ANSWER, NEVER RETRIED. The AI SDK marks every 409 retryable, and the
+   * gateway refuses with 409 for an archived course or a binding conflict — so the session retried
+   * a decision that cannot change, five times over about a minute, before the student read why.
+   */
+  const refused = isJolliProviderId(input.providerID) && turnRefusalMessage(body?.code) !== undefined
   return {
     type: "api_error",
     message: m,
     statusCode: input.error.statusCode,
-    isRetryable: input.providerID.startsWith("openai") ? isOpenAiErrorRetryable(input.error) : input.error.isRetryable,
+    isRetryable: refused
+      ? false
+      : input.providerID.startsWith("openai")
+        ? isOpenAiErrorRetryable(input.error)
+        : input.error.isRetryable,
     responseHeaders: input.error.responseHeaders,
     responseBody: input.error.responseBody,
     metadata,

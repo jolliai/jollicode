@@ -96,6 +96,18 @@ export interface CatalogSnapshot {
   /** Keyed by the course's numeric id as a string. Order is the gateway's — default first. */
   readonly assistants: Readonly<Record<string, readonly CourseAssistantChoice[]>>
   readonly models: readonly CatalogModel[]
+  /**
+   * `Date.now()` when the fetch that produced this snapshot BEGAN, which a caller asking past the
+   * cache compares against when its own request began — see `loadCatalog`.
+   *
+   * ⚠ WHEN IT BEGAN, NOT WHEN IT WAS WRITTEN. A fetch already under way when a Start was refused
+   * read the gateway before the refusal; stamping its finish would let it pass for an answer to the
+   * refresh that refusal asked for, and hand back the assistant that was just refused.
+   *
+   * ⚠ NOT THE FILE'S MTIME. That comes off the filesystem's coarser clock, with a fractional part
+   * `Date.now()` lacks. Absent on a snapshot an older build wrote, which then answers no such caller.
+   */
+  readonly fetchedAt?: number
 }
 
 export type CatalogLoad =
@@ -201,6 +213,7 @@ const isFresh = Effect.fn("Jolli.isFresh")(function* (file: string) {
  * assistants yet", which is a sentence a student can act on.
  */
 export const refreshCatalog = Effect.fn("Jolli.refreshCatalog")(function* (request: GatewayRequest) {
+  const fetchedAt = Date.now()
   const courses = (yield* fetchCourses(request)).filter(isVisibleCourse)
   const models = yield* fetchModelIndex(request)
   const pairs = yield* Effect.forEach(
@@ -221,6 +234,7 @@ export const refreshCatalog = Effect.fn("Jolli.refreshCatalog")(function* (reque
     courses,
     assistants: Object.fromEntries(pairs),
     models: Array.from(models.values()),
+    fetchedAt,
   }
 
   const file = catalogCachePath(request)
@@ -339,7 +353,7 @@ const sweepOrphans = (keep: string) =>
 /**
  * The catalogue, however it can be had.
  *
- * Fresh cache wins outright; otherwise a fetch is attempted and its failure falls back to whatever
+ * Fresh cache wins outright unless {@link LoadOptions.fresh} is set; otherwise a fetch is attempted and its failure falls back to whatever
  * is on disk, however old. Only a failure with nothing behind it is `unreachable`.
  */
 /**
@@ -351,11 +365,23 @@ const sweepOrphans = (keep: string) =>
 export interface LoadOptions {
   /** How long a refresh may take before the stale copy wins. Defaults to {@link REFRESH_DEADLINE}. */
   readonly timeout?: Duration.Input
+  /**
+   * Ask the gateway even when the snapshot is within its TTL.
+   *
+   * ⚠ FOR A STUDENT WHO HAS JUST BEEN TOLD THE SNAPSHOT IS WRONG. A Start refused because an
+   * assistant's window closed, or a picker opened to choose again, re-asks precisely because what
+   * is on screen may be out of date — and a five-minute-old snapshot answering that re-ask hands
+   * back the closed assistant, so the draft never moves off it. Only the "fresh cache wins"
+   * shortcuts are skipped: the lock, the deadline, the stale-if-error fallback and the sweep all
+   * still apply, so an offline student still gets their snapshot.
+   */
+  readonly fresh?: boolean
 }
 
 const loadCatalogEffect = Effect.fn("Jolli.loadCatalog")(function* (request: GatewayRequest, options?: LoadOptions) {
   const file = catalogCachePath(request)
-  if (yield* isFresh(file)) {
+  const requested = Date.now()
+  if (!options?.fresh && (yield* isFresh(file))) {
     const cached = yield* readSnapshot(file)
     if (cached) return { kind: "ok", snapshot: cached, stale: false } satisfies CatalogLoad
   }
@@ -363,8 +389,17 @@ const loadCatalogEffect = Effect.fn("Jolli.loadCatalog")(function* (request: Gat
   const refreshed = yield* Effect.scoped(
     Effect.gen(function* () {
       yield* Flock.effect(`jolli-catalog:${file}`)
-      // Another process may have refreshed while we waited for the lock.
-      if (yield* isFresh(file)) {
+      /**
+       * Another process may have refreshed while we waited for the lock. A caller asking past the
+       * cache takes that answer only when its fetch began no earlier than its own request: one that
+       * began before may predate whatever made the caller ask, but one since is exactly what it
+       * asked for, and refetching it again is how queued refreshes each cost a full gateway load.
+       */
+      if (options?.fresh) {
+        const cached = yield* readSnapshot(file)
+        if (cached && (cached.fetchedAt ?? Number.NEGATIVE_INFINITY) >= requested) return cached
+      }
+      if (!options?.fresh && (yield* isFresh(file))) {
         const cached = yield* readSnapshot(file)
         if (cached) return cached
       }

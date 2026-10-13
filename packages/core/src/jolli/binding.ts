@@ -41,3 +41,8 @@ export function courseBindingOf(session: SessionLike | undefined): CourseBinding
   if (typeof value.courseId !== "string" || typeof value.assistantId !== "string") return undefined
   return { courseId: value.courseId, assistantId: value.assistantId }
 }
+
+/** Whether `left` is the same course and assistant as `right`; narrows `left` when it is. */
+export function sameBinding<T extends CourseBinding>(left: T | undefined, right: CourseBinding): left is T {
+  return left?.courseId === right.courseId && left.assistantId === right.assistantId
+}

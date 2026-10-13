@@ -22,14 +22,17 @@ import { Flag } from "@opencode-ai/core/flag/flag"
 import { courseBindingOf, type CourseBinding } from "@opencode-ai/core/jolli/binding"
 import { isJolliConnected } from "@opencode-ai/core/jolli/gateway-config"
 import { Lookup } from "@opencode-ai/core/jolli/lookup"
+import { startRefusalMessage } from "@opencode-ai/core/jolli/refusal"
 import { Jolli } from "@opencode-ai/schema/jolli"
-import { createEffect, createMemo, createSignal, on } from "solid-js"
+import type { JolliStartResult } from "@opencode-ai/sdk/v2"
+import { createEffect, createMemo, createSignal, on, onCleanup } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { createSimpleContext } from "./helper"
 import { useRoute } from "./route"
 import { useKV } from "./kv"
 import { useSDK } from "./sdk"
 import { useSync } from "./sync"
+import { Locale } from "../util/locale"
 
 export type { CourseBinding }
 
@@ -37,7 +40,7 @@ export type { CourseBinding }
 export const parseModelKey = Lookup.parseModelKey
 
 /**
- * THE FIVE REFUSALS, IN WORDS. `Lookup.blockedReason` answers with a code precisely so that each
+ * THE SIX REFUSALS, IN WORDS. `Lookup.blockedReason` answers with a code precisely so that each
  * renderer can word them itself; this one has no i18n dictionary anywhere in it, so English is the
  * whole vocabulary and it lives here rather than in a module the desktop shares.
  *
@@ -51,6 +54,7 @@ const BLOCKED_REASON: Record<Lookup.CourseBlockedReason, string> = {
   ended: "ended",
   archived: "archived",
   "no-assistants": "no assistants yet",
+  "no-open-assistants": "no assistants open right now",
 }
 
 const [allowed, setAllowed] = createSignal<readonly string[]>([])
@@ -137,6 +141,27 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
      * value of its own to bump, the button would be inert.
      */
     const [generation, setGeneration] = createSignal(0)
+    /**
+     * A Start is out with the gateway. The draft is frozen meanwhile — the session that comes back is
+     * bound to what was sent, not to whatever a window boundary turned the draft into while it waited.
+     */
+    const [starting, setStarting] = createSignal(false)
+    /**
+     * ⚠ A START THAT GOT NO ANSWER IS RETRIED UNDER THE SAME ID. The gateway may have made the
+     * conversation all the same, and asked again under that id it answers with it; a fresh id would
+     * leave that one orphaned. A refusal or a rejected request made nothing, and a different binding
+     * is a different conversation, so each starts over with a new one — see `settleStart`.
+     *
+     * ⚠ HERE, NOT IN THE COMPOSER, because the composer is unmounted every time the student leaves
+     * home, and a retry from the remounted one under a fresh id was the orphan this exists to prevent.
+     */
+    const [unanswered, setUnanswered] = createSignal<(CourseBinding & { sessionID: string }) | undefined>()
+    /** When {@link refresh} last ran, so a dialog being opened can let a recent one stand. */
+    let refreshedAt = Number.NEGATIVE_INFINITY
+    const refresh = () => {
+      refreshedAt = Date.now()
+      setGeneration((value) => value + 1)
+    }
 
     /**
      * WHETHER THE REMEMBERED COURSE HAS BEEN LOOKED UP YET — NOT WHETHER THERE WAS ONE.
@@ -160,6 +185,17 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
      * and has not been read either.
      */
     const [consulted, setConsulted] = createSignal(false)
+
+    /**
+     * THE INSTANT EVERY AVAILABILITY WINDOW IS JUDGED AGAINST, AS A SIGNAL SO A BOUNDARY CAN MOVE IT.
+     *
+     * ⚠ A WINDOW OPENS AND CLOSES WITH NOTHING ELSE CHANGING. No fetch, no event, no keypress marks
+     * the moment an assistant closes, so a `new Date()` read inside a memo would keep offering it
+     * until something unrelated happened to re-run that memo. The timer below moves this just past
+     * the next boundary instead, and a catalogue landing moves it too, so a list fetched an hour
+     * after the last tick is not judged by that tick.
+     */
+    const [now, setNow] = createSignal(new Date())
 
     const [store, setStore] = createStore<{
       courses: readonly Jolli.Course[]
@@ -198,15 +234,27 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
      */
     const REMEMBERED = "jolli_last_course"
 
+    /**
+     * ⚠ A BUMPED GENERATION ASKS PAST THE SERVER'S CACHE; A CREDENTIAL CHANGE DOES NOT. Every
+     * {@link refresh} is somebody being told the list on screen is wrong — a refused Start, a picker
+     * opened to choose again, "check again" — and `/jolli/course` otherwise serves a snapshot for
+     * five minutes, which handed back the assistant whose window had just closed.
+     */
+    /**
+     * ⚠ ONLY THE LATEST ASK MAY LAND. A cached answer to an older one can arrive after a `fresh` one
+     * and would put back the list the refresh was asked to replace.
+     */
+    let asked = 0
     createEffect(
       on(
         () => [signedIn(), generation()] as const,
-        () => {
+        (input, previous) => {
+          const ask = ++asked
           void sdk.client.jolli
-            .course()
+            .course(previous && input[1] !== previous[1] ? { fresh: true } : undefined)
             .then((response) => {
               const catalog = response.data
-              if (!catalog) return
+              if (!catalog || ask !== asked) return
               setStore(
                 produce((draft) => {
                   draft.courses = catalog.courses as readonly Jolli.Course[]
@@ -216,6 +264,7 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
                   draft.loaded = true
                 }),
               )
+              setNow(new Date())
             })
             /**
              * ⚠ A FAILED FETCH LEAVES `loaded` ALONE RATHER THAN SETTING IT. The flag means "the
@@ -319,7 +368,31 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
      * row, because a terminal list has no hover, no disabled styling and no second column to carry
      * the excuse. What the desktop says per row, this surface says once, in the gate.
      */
-    const startable = createMemo(() => store.courses.filter((item) => Lookup.canStartSession(store, item.id)))
+    const startable = createMemo(() => store.courses.filter((item) => Lookup.canStartSession(store, item.id, now())))
+
+    /**
+     * ⚠ RE-ARMED ON EVERY CATALOGUE AND EVERY TICK, AND CLEARED BY THE SAME CLEANUP. Each run arms
+     * exactly one wait for the soonest boundary still ahead; when it is due, `now` moves, this runs
+     * again and arms the next. `Lookup.watchBoundary` is what keeps that wait honest across sleep.
+     */
+    createEffect(() => {
+      const due = Lookup.nextWindowBoundaryAt(store.assistants, now())
+      if (due === undefined) return
+      onCleanup(Lookup.watchBoundary(due, () => setNow(new Date())))
+    })
+
+    /**
+     * THE ASSISTANTS A NEW SESSION IN THIS COURSE MAY BE STARTED WITH — EVERY ONE, FOR STAFF.
+     *
+     * ⚠ THE CATALOGUE ITSELF STAYS WHOLE. A session bound to an assistant that has since closed still
+     * resolves it by id through {@link assistant}; only the choices for a session not yet made are
+     * narrowed, which is also what keeps a student from rebinding onto one the gateway would refuse.
+     */
+    const startableAssistants = (courseId: string | undefined) => {
+      const course = Lookup.courseById(store, courseId)
+      if (!course) return []
+      return Lookup.startableAssistants(course, Lookup.assistantsForCourse(store, courseId), now())
+    }
 
     const course = createMemo(() => Lookup.courseById(store, current()?.courseId))
     const assistant = createMemo(() => Lookup.assistantById(store, current()?.assistantId))
@@ -331,9 +404,16 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
      */
     const draftFor = (courseId: string, assistantId?: string) => {
       if (!Lookup.courseById(store, courseId)) return undefined
-      const chosen =
-        (assistantId ? Lookup.assistantById(store, assistantId) : undefined) ??
-        Lookup.defaultAssistantFor(store, courseId)
+      /**
+       * ⚠ CHOSEN FROM WHAT MAY START NOW, NOT FROM THE COURSE'S WHOLE LIST. A remembered assistant,
+       * the one of the session just left, and the professor's default all fall through to the first
+       * open one when they are closed — staging a closed one would hand the student a draft whose
+       * first prompt the gateway refuses.
+       */
+      const chosen = Lookup.pickAssistant(
+        startableAssistants(courseId),
+        assistantId ?? Lookup.defaultAssistantFor(store, courseId)?.id,
+      )
       if (!chosen) return undefined
       return { courseId, assistantId: chosen.id }
     }
@@ -407,7 +487,7 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
       const last = rememberedAll()[accountKey()]
       if (!last) return undefined
       const restored = draftFor(last.courseId, last.assistantId)
-      if (!restored || !Lookup.canStartSession(store, restored.courseId)) return undefined
+      if (!restored || !Lookup.canStartSession(store, restored.courseId, now())) return undefined
       return restored
     }
 
@@ -498,11 +578,46 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
     createEffect(() => {
       if (!sessionID()) return
       const bound = current()
-      if (!bound || !Lookup.canStartSession(store, bound.courseId)) return
+      if (!bound || !Lookup.canStartSession(store, bound.courseId, now())) return
       const next = draftFor(bound.courseId, bound.assistantId)
       if (!next) return
       setStore("draft", next)
-      remember(next)
+      /**
+       * ⚠ THE SESSION'S OWN BINDING IS REMEMBERED, NOT THE DRAFT STAGED FROM IT. When its assistant
+       * has closed, `draftFor` stages an open one in its place — a stand-in, which the re-pick below
+       * also declines to remember. The student's choice stays on disk and comes back by itself once
+       * its window opens again.
+       */
+      remember(bound)
+    })
+
+    /**
+     * A DRAFT WHOSE ASSISTANT HAS CLOSED SINCE IT WAS STAGED MOVES TO ONE THAT IS OPEN.
+     *
+     * ⚠ NOT REMEMBERED. The student's own choice is still the one on disk; it is re-resolved through
+     * {@link draftFor} on the next launch, and comes back by itself once its window opens again.
+     *
+     * ⚠ A COURSE LEFT WITH NOTHING OPEN DROPS THE DRAFT, which is what hands the student back to the
+     * picker or the gate rather than to a composer whose first prompt would be refused.
+     *
+     * ⚠ ONLY AGAINST A CATALOGUE THE GATEWAY ACTUALLY ANSWERED. An `unreachable` answer carries empty
+     * lists, and judging the draft against them would throw away the student's choice over a blip.
+     *
+     * ⚠ NOR WHILE A START IS OUTSTANDING. It can wait up to 45 seconds on the gateway, and re-picking
+     * under it would re-render the composer for an assistant nobody pressed Start on. The effect
+     * re-runs when it clears, so a refused Start still moves the draft on.
+     */
+    createEffect(() => {
+      const draft = store.draft
+      if (!draft || sessionID() || starting() || !store.loaded || store.status !== "ok") return
+      if (startableAssistants(draft.courseId).some((item) => item.id === draft.assistantId)) return
+      const next = draftFor(draft.courseId)
+      /**
+       * ⚠ A DROPPED DRAFT REOPENS THE AUTO-SELECT LATCH, or an auto-selected course whose window
+       * closed would never be restored when it opens again — the restore effect returns on the latch.
+       */
+      if (!next) autoSelected = false
+      setStore("draft", next)
     })
 
     /**
@@ -515,12 +630,32 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
       setPreferred(item?.modelId)
     })
 
+    const noCourses = () =>
+      Flag.JOLLICODE_LOCKDOWN && signedIn() && store.loaded && store.status === "ok" && startable().length === 0
+
+    /**
+     * ⚠ WHY THERE IS NOTHING TO START, WHEN THE ANSWER IS THE CLOCK. A course whose assistants are all
+     * outside their windows is hidden like any other that cannot start, so the student may be left
+     * with none — and "none of your courses are open" would send them looking for a course that is
+     * open, just not right now.
+     */
+    const noOpenAssistants = () =>
+      store.courses.some((item) => Lookup.blockedReason(store, item, now()) === "no-open-assistants")
+
     return {
       loaded: () => store.loaded,
       /** Whether a Jolli credential is held. The honest signal on both surfaces — see `connectAction`. */
       signedIn,
-      /** Ask the server again. The catalogue is the only thing "check again" can change. */
-      refresh: () => setGeneration((value) => value + 1),
+      /** Ask the server again, past its cache. The catalogue is the only thing "check again" can change. */
+      refresh,
+      /**
+       * {@link refresh}, unless one ran in the last `Lookup.RECHECK_INTERVAL_MS`. For a dialog being
+       * opened, which re-asks in case the list moved since launch.
+       */
+      recheck: () => {
+        if (Date.now() - refreshedAt < Lookup.RECHECK_INTERVAL_MS) return
+        refresh()
+      },
       /**
        * SIGNED IN AND ENROLLED IN NOTHING THIS PRODUCT CAN START.
        *
@@ -533,8 +668,9 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
        * picker and no gate — stuck between two screens, neither of which can say why. Keying the
        * gate on what the picker would actually show keeps exactly one of them in front of them.
        */
-      noCourses: () =>
-        Flag.JOLLICODE_LOCKDOWN && signedIn() && store.loaded && store.status === "ok" && startable().length === 0,
+      noCourses,
+      /** {@link noCourses}, because every course left has assistants but none open right now. */
+      noOpenAssistants: () => noCourses() && noOpenAssistants(),
       /** Whether anything is enrolled at all, which decides WHICH sentence the gate uses. */
       enrolled: () => store.courses.length > 0,
       /**
@@ -571,10 +707,11 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
       current,
       /** ⚠ ONLY THE STARTABLE ONES — see {@link startable}. Nothing renders a course it would refuse. */
       courses: () => [...startable()],
-      assistantsFor: (courseId: string | undefined) => Lookup.assistantsForCourse(store, courseId),
-      canStart: (courseId: string | undefined) => Lookup.canStartSession(store, courseId),
+      /** ⚠ A NEW SESSION'S CHOICES — see {@link startableAssistants}. A live session reads {@link assistant}. */
+      assistantsFor: startableAssistants,
+      canStart: (courseId: string | undefined) => Lookup.canStartSession(store, courseId, now()),
       blockedReason: (item: Jolli.Course) => {
-        const reason = Lookup.blockedReason(store, item)
+        const reason = Lookup.blockedReason(store, item, now())
         return reason && BLOCKED_REASON[reason]
       },
 
@@ -606,18 +743,25 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
           loaded: store.loaded,
           courses: store.courses.length,
           startable: startable().length,
+          noOpenAssistants: noOpenAssistants(),
         }),
 
       draft: {
         get value() {
           return store.draft
         },
+        /**
+         * ⚠ BOTH REFUSE WHILE A START IS OUT. The session that comes back is bound to what was sent, so
+         * a draft changed under it would show a course the new session does not have.
+         */
         setCourse(courseId: string) {
+          if (starting()) return
           const next = draftFor(courseId)
           setStore("draft", next)
           remember(next)
         },
         setAssistant(assistantId: string) {
+          if (starting()) return
           const courseId = store.draft?.courseId ?? Lookup.assistantById(store, assistantId)?.courseId
           if (!courseId) return
           const next = draftFor(courseId, assistantId)
@@ -627,7 +771,11 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
       },
 
       /**
-       * CARRY THE DRAFT ONTO THE SESSION THAT WAS JUST CREATED.
+       * CARRY THE BINDING A SESSION WAS JUST CREATED WITH ONTO IT.
+       *
+       * ⚠ THE BINDING SENT, PASSED IN, NOT THE DRAFT READ NOW. A Start waits on the gateway for up to
+       * 45 seconds, and a draft read after that wait is not necessarily the one the session was
+       * created under.
        *
        * ⚠ IT WRITES NOTHING ANYWHERE — `submit()` sends the binding as part of `session.create` so
        * that the session never exists unbound. All this covers is the frame between that call and
@@ -644,11 +792,14 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
        * Keeping it costs nothing: the draft is only ever read while there is no session id, and the
        * remembered course would restore the same value on the next new session anyway.
        */
-      promote(session: string) {
-        const next = store.draft
-        if (!next) return
-        handoff.set(session, { ...next })
+      promote(session: string, binding: CourseBinding | undefined) {
+        if (!binding) return
+        handoff.set(session, { ...binding })
       },
+      starting,
+      setStarting,
+      unanswered,
+      setUnanswered,
     }
   },
 })
@@ -682,6 +833,8 @@ export function submissionBlocker(input: {
   loaded: boolean
   courses: number
   startable: number
+  /** Every course left out has assistants, none of them open right now. See `noOpenAssistants`. */
+  noOpenAssistants: boolean
 }) {
   if (!input.lockdown) return undefined
   /**
@@ -701,6 +854,7 @@ export function submissionBlocker(input: {
   if (input.bound) return undefined
   if (!input.loaded) return "Still loading your courses — try again in a moment."
   if (input.courses === 0) return "No courses yet. Sign in with /login, or ask your instructor."
+  if (input.startable === 0 && input.noOpenAssistants) return "No assistants are open right now — try again later."
   if (input.startable === 0) return "None of your courses can be started yet — press /course to see why."
   return "Choose a course before you start — press /course."
 }
@@ -753,4 +907,39 @@ export function needsCourseChoice(input: {
    */
   if (!input.consulted) return false
   return input.startable > 1
+}
+
+/** What a Start that failed for no reason a student can act on says. The web's sentence. */
+export const START_FAILED = "Couldn't start the chat. Try again."
+
+/**
+ * WHAT A START ENDED IN, AS THE COMPOSER ACTS ON IT.
+ *
+ * ⚠ ONLY `started` ENTERS A SESSION, AND `opener: false` IS STILL `started`. The gateway creates the
+ * conversation without an opener when it cannot write one, and that chat simply begins with the
+ * student typing. Anything else — a refusal, no answer, an answer this cannot read — created nothing
+ * locally, and is never treated as "no opener": the gateway may have stored one the student did not
+ * see, and the model would go on from a greeting nobody read.
+ *
+ * ⚠ A REFUSAL ASKS FOR THE CATALOGUE AGAIN. It almost always means the window moved under a list
+ * drawn before it did, and the fresh list is what stops the same Start being offered twice.
+ */
+export function startOutcome(
+  result: JolliStartResult | undefined,
+): { type: "started"; sessionID: string } | { type: "failed"; message: string; refresh: boolean } {
+  if (result?.status === "started") return { type: "started", sessionID: result.session.id }
+  if (result?.status !== "refused") return { type: "failed", message: START_FAILED, refresh: false }
+  return { type: "failed", message: startRefusalMessage(result.code) ?? START_FAILED, refresh: true }
+}
+
+/**
+ * AN ASSISTANT'S BRIEF SHORTENED TO A FEW LINES OF `width` CELLS, OR NOTHING WHEN IT IS BLANK.
+ *
+ * ⚠ LINE BREAKS ARE FOLDED INTO SPACES. A brief is written for a page; above a composer it is a
+ * reminder of the task, and a teacher's paragraph breaks would spend the few lines it gets on air.
+ */
+export function briefPreview(brief: string | undefined, width: number, lines = 3) {
+  const text = brief?.replace(/\s+/g, " ").trim()
+  if (!text) return undefined
+  return Locale.truncate(text, Math.max(20, width * lines - "Brief: ".length))
 }

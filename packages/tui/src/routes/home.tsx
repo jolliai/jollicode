@@ -1,5 +1,5 @@
 import { Prompt, type PromptRef } from "../component/prompt"
-import { createEffect, createMemo, createSignal, onMount } from "solid-js"
+import { createEffect, createMemo, createSignal, onMount, Show } from "solid-js"
 import { Logo } from "../component/logo"
 import { useSync } from "../context/sync"
 import { Toast } from "../ui/toast"
@@ -12,6 +12,8 @@ import { useEditorContext } from "../context/editor"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useTuiConfig } from "../config"
 import { HomeSessionDestinationProvider } from "./home/session-destination"
+import { briefPreview, useJolli } from "../context/jolli"
+import { useTheme } from "../context/theme"
 
 let once = false
 const placeholder = {
@@ -30,11 +32,21 @@ export function Home() {
   const editor = useEditorContext()
   const dimensions = useTerminalDimensions()
   const tuiConfig = useTuiConfig()
+  const jolli = useJolli()
+  const theme = useTheme().theme
   const promptMaxWidth = createMemo(() => {
     const configured = tuiConfig.prompt?.max_width
     if (configured === "auto") return Math.max(75, Math.floor(dimensions().width * 0.7))
     return configured ?? 75
   })
+  /**
+   * THE DRAFT ASSISTANT'S BRIEF, ABOVE THE COMPOSER RATHER THAN IN ITS HEADER. The header is one row
+   * budgeted down to the cell; a teacher's task description needs lines of its own, and a few of
+   * them — the whole of it opens the session once it starts.
+   */
+  const brief = createMemo(() =>
+    briefPreview(jolli.assistant()?.brief, Math.min(promptMaxWidth(), dimensions().width - 4) - 2),
+  )
   let sent = false
 
   onMount(() => {
@@ -78,6 +90,15 @@ export function Home() {
           </pluginRuntime.Slot>
         </box>
         <box height={1} minHeight={0} flexShrink={1} />
+        <Show when={brief()}>
+          {(text) => (
+            <box width="100%" maxWidth={promptMaxWidth()} paddingTop={1} paddingLeft={2} flexShrink={0}>
+              <text fg={theme.text}>
+                <span style={{ fg: theme.textMuted }}>Brief:</span> {text()}
+              </text>
+            </box>
+          )}
+        </Show>
         <box width="100%" maxWidth={promptMaxWidth()} zIndex={1000} paddingTop={1} flexShrink={0}>
           <pluginRuntime.Slot name="home_prompt" mode="replace" ref={bind}>
             <Prompt ref={bind} right={<pluginRuntime.Slot name="home_prompt_right" />} placeholders={placeholder} />

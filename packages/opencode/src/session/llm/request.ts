@@ -71,6 +71,8 @@ export function jolliCodingAgentHeaders(input: {
   readonly stepIndex?: number
   readonly courseID?: string
   readonly courseAssistantID?: string
+  /** The catalogue id of the model this request runs on; the body carries only its name. */
+  readonly modelID?: string
   readonly continuesTurn?: boolean
   readonly command?: string
   readonly mcpServers?: ReadonlyArray<string>
@@ -87,6 +89,9 @@ export function jolliCodingAgentHeaders(input: {
     "x-jolli-step-index": String(input.stepIndex),
     ...(input.courseID ? { "x-jolli-space-id": input.courseID } : {}),
     ...(input.courseAssistantID ? { "x-jolli-assistant-id": input.courseAssistantID } : {}),
+    // The session remembers which catalogue row ran it, so the web chat's model picker opens on that
+    // model. The name in the body cannot say: several rows may share one name.
+    ...(input.modelID ? { "x-jolli-model-id": input.modelID } : {}),
     // The gateway decides a course-bound turn from its user message; a turn compaction opened to
     // carry on has none of the student's, so the gateway keeps the rule of the turn it continues.
     ...(input.continuesTurn ? { "x-jolli-turn-continues": "1" } : {}),
@@ -334,6 +339,7 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
         stepIndex: input.stepIndex,
         courseID: input.courseID,
         courseAssistantID: input.courseAssistantID,
+        modelID: input.model.id,
         continuesTurn: input.continuesTurn,
         command: input.user.command,
         toolErrors: input.toolErrors,

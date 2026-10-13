@@ -68,7 +68,8 @@ export function SessionCourseBar(props: { onDone?: () => void; trailing?: JSX.El
          * session" rather than "bind this one in place".
          */}
         <Show
-          when={!binding.locked()}
+          /* Frozen too while a Start is out — see `draft.starting` in `session-binding.tsx`. */
+          when={!binding.locked() && !binding.draft.starting}
           fallback={
             <Show when={binding.course()}>
               {(course) => (

@@ -217,10 +217,8 @@ export function AppSidebar() {
              * the list, the header and this very button would vanish under the cursor and paint
              * back a round trip later.
              *
-             * ⚠ AND IT REACHES THE SERVER, NOT THE GATEWAY. `/jolli/course` serves a five-minute
-             * snapshot, so a second press inside that window re-reads what the server already
-             * holds. Accepted deliberately: the endpoint has no way to ask for more, and an instant
-             * answer beats a truthful wait for somebody who just wants their new course to appear.
+             * ⚠ AND IT REACHES THE GATEWAY, past `/jolli/course`'s five-minute snapshot — a course
+             * published a minute ago is not in a snapshot taken four minutes ago.
              */
             action={
               <TooltipV2 placement="bottom" value={language.t("sidebar.courses.refresh")}>

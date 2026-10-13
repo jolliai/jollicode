@@ -82,6 +82,8 @@ import { getRevertDiffFiles } from "../../util/revert-diff"
 import { OPENCODE_BASE_MODE, useBindings, useCommandShortcut, useOpencodeKeymap } from "../../keymap"
 import { usePathFormatter } from "../../context/path-format"
 import { LocationProvider } from "../../context/location"
+import { useJolli } from "../../context/jolli"
+import { openerTextOf } from "@opencode-ai/core/jolli/opener"
 
 addDefaultParsers(parsers.parsers)
 
@@ -191,7 +193,7 @@ export function Session() {
   const paths = useTuiPaths()
   const tuiConfig = useTuiConfig()
   const kv = useKV()
-  const { theme } = useTheme()
+  const { theme, syntax } = useTheme()
   const promptRef = usePromptRef()
   const session = createMemo(() => sync.session.get(route.sessionID))
   const location = createMemo(() => {
@@ -211,6 +213,20 @@ export function Session() {
       .toSorted((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   })
   const messages = createMemo(() => sync.data.message[route.sessionID] ?? [])
+  const jolli = useJolli()
+  /**
+   * ⚠ THE BRIEF AND THE OPENER WAIT FOR THE WHOLE HISTORY. Both sit above the first message, and
+   * above a partial history they would claim to precede whatever happens to be oldest in memory —
+   * then vanish again when the load reported it was cut short. Same rule as the desktop's lead rows.
+   */
+  const historyComplete = () => sync.data.message_complete[route.sessionID] === true
+  /**
+   * ⚠ THE BOUND ASSISTANT'S, RESOLVED FROM THE WHOLE CATALOGUE, so a session whose assistant has
+   * closed since still opens with the task it was started under.
+   */
+  const brief = createMemo(() => (historyComplete() ? jolli.assistant()?.brief?.trim() || undefined : undefined))
+  /** ⚠ DISPLAY ONLY. It is not a message, and nothing here sends it to the model. */
+  const opener = createMemo(() => (historyComplete() ? openerTextOf(session()) : undefined))
   const messagesBeforeRevert = () => {
     const messageID = session()?.revert?.messageID
     if (!messageID) return messages()
@@ -1197,6 +1213,31 @@ export function Session() {
                 scrollAcceleration={scrollAcceleration()}
               >
                 <box height={1} />
+                <Show when={brief()}>
+                  {(text) => (
+                    <box paddingLeft={3} flexShrink={0}>
+                      <text fg={theme.text}>
+                        <span style={{ fg: theme.textMuted }}>Brief:</span> {text()}
+                      </text>
+                    </box>
+                  )}
+                </Show>
+                <Show when={opener()}>
+                  {(text) => (
+                    <box paddingLeft={3} marginTop={1} flexShrink={0}>
+                      <markdown
+                        syntaxStyle={syntax()}
+                        streaming={false}
+                        internalBlockMode="top-level"
+                        content={text()}
+                        tableOptions={{ style: "grid" }}
+                        conceal={conceal()}
+                        fg={theme.markdownText}
+                        bg={theme.background}
+                      />
+                    </box>
+                  )}
+                </Show>
                 <For each={messages()}>
                   {(message, index) => (
                     <Switch>

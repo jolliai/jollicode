@@ -45,6 +45,15 @@ export namespace TimelineRow {
   export class Retry extends Data.TaggedClass("Retry")<{
     userMessageID: string
   }> {}
+  /** The bound assistant's brief, above everything said. Belongs to no turn. */
+  export class Brief extends Data.TaggedClass("Brief")<{
+    text: string
+  }> {}
+  /** The agent's opening words. Display only — not a message, and never sent to a model. */
+  export class Opener extends Data.TaggedClass("Opener")<{
+    sessionID: string
+    text: string
+  }> {}
 
   export type TimelineRow =
     | TurnGap
@@ -57,6 +66,8 @@ export namespace TimelineRow {
     | Sources
     | Error
     | Retry
+    | Brief
+    | Opener
 
   export const key = (row: TimelineRow) => {
     switch (row._tag) {
@@ -80,6 +91,10 @@ export namespace TimelineRow {
         return `error:${row.userMessageID}`
       case "Retry":
         return `retry:${row.userMessageID}`
+      case "Brief":
+        return "brief"
+      case "Opener":
+        return `opener:${row.sessionID}`
     }
   }
 

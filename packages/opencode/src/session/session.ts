@@ -45,15 +45,9 @@ import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { SessionMessage } from "@opencode-ai/schema/session-message"
 import { KeyedMutex } from "@opencode-ai/core/effect/keyed-mutex"
+import { SessionTitle } from "@opencode-ai/core/session/title"
 
-const parentTitlePrefix = "New session - "
-const childTitlePrefix = "Child session - "
-
-export function isDefaultTitle(title: string) {
-  return new RegExp(
-    `^(${parentTitlePrefix}|${childTitlePrefix})\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$`,
-  ).test(title)
-}
+export const isDefaultTitle = SessionTitle.isDefault
 
 type SessionRow = typeof SessionTable.$inferSelect
 
@@ -258,17 +252,17 @@ export const GlobalInfo = Schema.Struct({
 }).annotate({ identifier: "GlobalSession" })
 export type GlobalInfo = Types.DeepMutable<Schema.Schema.Type<typeof GlobalInfo>>
 
-export const CreateInput = Schema.optional(
-  Schema.Struct({
-    parentID: Schema.optional(SessionID),
-    title: Schema.optional(Schema.String),
-    agent: Schema.optional(Schema.String),
-    model: Schema.optional(Model),
-    metadata: Schema.optional(Metadata),
-    permission: Schema.optional(PermissionV1.Ruleset),
-    workspaceID: Schema.optional(WorkspaceV2.ID),
-  }),
-)
+/** Exported apart from {@link CreateInput} so a route that creates a session another way can reuse them. */
+export const CreateFields = {
+  parentID: Schema.optional(SessionID),
+  title: Schema.optional(Schema.String),
+  agent: Schema.optional(Schema.String),
+  model: Schema.optional(Model),
+  metadata: Schema.optional(Metadata),
+  permission: Schema.optional(PermissionV1.Ruleset),
+  workspaceID: Schema.optional(WorkspaceV2.ID),
+}
+export const CreateInput = Schema.optional(Schema.Struct(CreateFields))
 export type CreateInput = Types.DeepMutable<Schema.Schema.Type<typeof CreateInput>>
 
 export const ForkInput = Schema.Struct({
@@ -415,6 +409,11 @@ export interface Interface {
   readonly list: (input?: ListInput) => Effect.Effect<Info[]>
   readonly listGlobal: (input?: GlobalListInput) => Effect.Effect<GlobalInfo[]>
   readonly create: (input?: {
+    /**
+     * Use this id rather than minting one. Only the Jolli start route passes it: it has already
+     * created the conversation on the gateway under this id, and the local session must match.
+     */
+    id?: SessionID
     parentID?: SessionID
     title?: string
     agent?: string
@@ -527,7 +526,9 @@ const layer: Layer.Layer<
         path: input.path,
         workspaceID: input.workspaceID,
         parentID: input.parentID,
-        title: input.title ?? (input.parentID ? childTitlePrefix : parentTitlePrefix) + new Date().toISOString(),
+        title:
+          input.title ??
+          (input.parentID ? SessionTitle.childPrefix : SessionTitle.parentPrefix) + new Date().toISOString(),
         agent: input.agent,
         model: input.model,
         metadata: input.metadata,
@@ -684,6 +685,7 @@ const layer: Layer.Layer<
     })
 
     const create = Effect.fn("Session.create")(function* (input?: {
+      id?: SessionID
       parentID?: SessionID
       title?: string
       agent?: string
@@ -695,6 +697,7 @@ const layer: Layer.Layer<
       const ctx = yield* InstanceState.context
       const workspace = yield* InstanceState.workspaceID
       return yield* createNext({
+        id: input?.id,
         parentID: input?.parentID,
         directory: ctx.directory,
         path: sessionPath(ctx.worktree, ctx.directory),

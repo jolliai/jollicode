@@ -109,6 +109,15 @@ export const {
       message: {
         [sessionID: string]: Message[]
       }
+      /**
+       * Whether a session's loaded messages reach back to the first one. False when the load hit its
+       * limit or the oldest was dropped to stay under it, and absent until the first load lands —
+       * an unloaded history is not a complete one. Read by the Jolli opener, which sits above the
+       * first message and must not be drawn over a partial history.
+       */
+      message_complete: {
+        [sessionID: string]: boolean
+      }
       part: {
         [messageID: string]: Part[]
       }
@@ -145,6 +154,7 @@ export const {
       session_diff: {},
       todo: {},
       message: {},
+      message_complete: {},
       part: {},
       lsp: [],
       mcp: {},
@@ -393,6 +403,7 @@ export const {
           if (updated.length > 100) {
             const oldest = updated[0]
             batch(() => {
+              setStore("message_complete", event.properties.info.sessionID, false)
               setStore(
                 "message",
                 event.properties.info.sessionID,
@@ -706,10 +717,16 @@ export const {
                 }
                 for (const message of removed) delete draft.part[message.id]
                 draft.message[sessionID] = visible
+                /**
+                 * ⚠ A FAILED LOAD IS NOT AN EMPTY HISTORY. Without `data` nothing was read, so it is
+                 * neither complete — the Jolli opener would be drawn over it — nor fully synced below.
+                 */
+                draft.message_complete[sessionID] =
+                  !!messages.data && messages.data.length < 100 && removed.length === 0
                 draft.session_diff[sessionID] = diff.data ?? []
               }),
             )
-            fullSyncedSessions.add(sessionID)
+            if (messages.data) fullSyncedSessions.add(sessionID)
           })().finally(() => {
             syncingSessions.delete(sessionID)
             hydratingSessions.delete(sessionID)

@@ -51,6 +51,11 @@ describe("getWorkspaceRouteSessionID", () => {
     expect(getWorkspaceRouteSessionID(url)).toBeNull()
   })
 
+  // The Jolli start route sits under /session/ and names no session; reading it as one threw.
+  test("returns null for a segment that is not a session ID", () => {
+    expect(getWorkspaceRouteSessionID(new URL("http://localhost/session/jolli/start"))).toBeNull()
+  })
+
   test("returns null for non-session paths", () => {
     const url = new URL("http://localhost/config")
     expect(getWorkspaceRouteSessionID(url)).toBeNull()

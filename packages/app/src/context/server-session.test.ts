@@ -366,6 +366,21 @@ describe("server session", () => {
     expect(store.history.more("child")).toBe(true)
   })
 
+  // `more()` is false before anything loads, so it cannot say the history reaches the first message.
+  test("history is complete only once a page reaching the first message has loaded", async () => {
+    const user = userMessage("message-1")
+    const whole = createServerSession(rootMessageClient([response([{ info: user, parts: [] }])], []))
+    expect(whole.history.more("root")).toBe(false)
+    expect(whole.history.complete("root")).toBe(false)
+    await whole.sync("root")
+    expect(whole.history.complete("root")).toBe(true)
+
+    const paged = createServerSession(rootMessageClient([response([{ info: user, parts: [] }], "older")], []))
+    await paged.sync("root")
+    expect(paged.history.more("root")).toBe(true)
+    expect(paged.history.complete("root")).toBe(false)
+  })
+
   test("keeps assistant history when its deleted parent cannot be backfilled", async () => {
     const missing = Promise.withResolvers<SingleMessageResponse>()
     const assistant = assistantMessage("message-2", "message-missing")

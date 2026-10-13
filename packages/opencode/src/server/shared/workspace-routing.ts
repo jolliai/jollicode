@@ -1,3 +1,4 @@
+import { Option, Schema } from "effect"
 import { SessionID } from "@/session/schema"
 
 type Rule = { method?: string; path: string; exact?: boolean; action: "local" | "forward" }
@@ -25,7 +26,8 @@ export function getWorkspaceRouteSessionID(url: URL) {
     url.pathname.match(/^\/experimental\/session\/([^/]+)\/background$/)?.[1]
   if (!id) return null
 
-  return SessionID.make(id)
+  // A segment that is not a session id — `/session/jolli/start` — names no session to route by.
+  return Option.getOrNull(Schema.decodeUnknownOption(SessionID)(id))
 }
 
 export function workspaceProxyURL(target: string | URL, requestURL: URL) {
