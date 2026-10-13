@@ -75,6 +75,42 @@ export const RevertPayload = Schema.Struct(Struct.omit(SessionRevert.RevertInput
 export const PermissionResponsePayload = Schema.Struct({
   response: PermissionV1.Reply,
 })
+/**
+ * A NEW SESSION'S FIELDS PLUS THE COURSE BINDING IT IS STARTED UNDER.
+ *
+ * ⚠ NO `metadata` AND NO `parentID`. The route writes the binding and the opener itself — the opener
+ * is the gateway's answer, not something a client may assert — and a child session is never started
+ * this way: it has no conversation of its own on the gateway.
+ *
+ * ⚠ THE IDS ARE STRINGS, as `metadata.jolli` holds them; the route parses them for the gateway.
+ */
+export const JolliStartPayload = Schema.Struct({
+  ...Struct.omit(Session.CreateFields, ["parentID", "metadata"]),
+  courseId: Schema.String,
+  assistantId: Schema.String,
+  /**
+   * The id to open the conversation under. A client retrying a Start that got no answer sends the
+   * same one, which the gateway treats as the same conversation; omitted, the route mints one.
+   */
+  sessionID: Schema.optional(SessionID),
+})
+/**
+ * WHAT STARTING ANSWERED.
+ *
+ * ⚠ A REFUSAL IS AN ANSWER, NOT AN ERROR, and nothing was created locally for one: the conversation
+ * is opened on the gateway first and the local session made only once that succeeded. `code` is the
+ * gateway's (`assistant_not_open`, `assistant_closed`, …; `assistant_not_found` for a course or
+ * assistant that is gone); absent for a refusal that named no reason. `unreachable` covers no
+ * credential, no response in time, and a gateway that failed rather than refused.
+ *
+ * ⚠ `opener` FALSE ON A STARTED SESSION IS NORMAL. The gateway creates the conversation without an
+ * opener when it cannot write one, and the student then simply starts typing.
+ */
+export const JolliStartResult = Schema.Union([
+  Schema.Struct({ status: Schema.Literal("started"), session: Session.Info, opener: Schema.Boolean }),
+  Schema.Struct({ status: Schema.Literal("refused"), code: Schema.optional(Schema.String) }),
+  Schema.Struct({ status: Schema.Literal("unreachable") }),
+]).annotate({ identifier: "JolliStartResult" })
 
 export const SessionPaths = {
   list: root,
@@ -86,6 +122,7 @@ export const SessionPaths = {
   messages: `${root}/:sessionID/message`,
   message: `${root}/:sessionID/message/:messageID`,
   create: root,
+  jolliStart: `${root}/jolli/start`,
   remove: `${root}/:sessionID`,
   update: `${root}/:sessionID`,
   fork: `${root}/:sessionID/fork`,
@@ -211,6 +248,23 @@ export const SessionApi = HttpApi.make("session")
             identifier: "session.create",
             summary: "Create session",
             description: `Create a new ${Brand.name} session for interacting with AI assistants and managing conversations.`,
+          }),
+        ),
+        HttpApiEndpoint.post("jolliStart", SessionPaths.jolliStart, {
+          query: WorkspaceRoutingQuery,
+          payload: JolliStartPayload,
+          success: described(JolliStartResult, "The started session, or why it could not start"),
+          error: HttpApiError.BadRequest,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "session.jolliStart",
+            summary: "Start a Jolli session",
+            description:
+              "Opens the conversation on the Jolli gateway under the given session id (or a newly " +
+              "minted one), then creates the local session with that id, bound to the course and " +
+              "assistant, carrying the agent's opening message when the gateway returned one. A " +
+              "retry with an id whose session already exists answers with that session. A refusal " +
+              "answers `refused` with the gateway's code and creates nothing.",
           }),
         ),
         HttpApiEndpoint.delete("remove", SessionPaths.remove, {

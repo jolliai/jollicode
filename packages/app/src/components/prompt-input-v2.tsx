@@ -6,17 +6,19 @@ import { Icon } from "@opencode-ai/ui/v2/icon"
 import { KeybindV2 } from "@opencode-ai/ui/v2/keybind-v2"
 import { TooltipV2 } from "@opencode-ai/ui/v2/tooltip-v2"
 import type { ReferenceInfo } from "@opencode-ai/sdk/v2/client"
+import { TextShimmer } from "@opencode-ai/ui/text-shimmer"
 import { createEffect, createMemo, on, Show, type JSX } from "solid-js"
 import { ModelSelectorPopoverV2 } from "@/components/dialog-select-model"
 import { SessionCourseBar } from "@/components/session/session-course-bar"
 import { groupSlashCommands } from "@/jolli/slash-groups"
 import { useCourseSession } from "@/jolli/session-binding"
 import { ModelGrant } from "@/jolli/model-grant"
+import { closedForViewer } from "@/jolli/catalog"
 import type { PromptInputProps } from "@/components/prompt-input/contracts"
 import { normalizePromptHistoryEntry, promptLength, type PromptHistoryComment } from "@/components/prompt-input/history"
 import { createPromptHistoryScope } from "@/components/prompt-input/history-scope"
 import { promptDesignPlaceholder, promptPlaceholder } from "@/components/prompt-input/placeholder"
-import { createPromptSubmit } from "@/components/prompt-input/submit"
+import { createPromptSubmit, createSessionStart } from "@/components/prompt-input/submit"
 import { selectionFromLines, type SelectedLineRange, useFile } from "@/context/file"
 import { useComments } from "@/context/comments"
 import { useCommand } from "@/context/command"
@@ -53,6 +55,8 @@ export type PromptInputV2ComposerProps = {
 export type PromptInputV2ControllerProps = Omit<PromptInputProps, "class" | "submission">
 export type PromptInputV2ComposerController = PromptInputV2Interaction & {
   readonly model: PromptInputProps["controls"]["model"]
+  /** Starts a chat whose agent speaks first — the Start button in the input's place. */
+  readonly start: () => Promise<unknown>
 }
 
 export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
@@ -68,9 +72,47 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
    * below is the exit rather than a dead, un-sendable composer.
    */
   const unboundLive = () => courseSession.locked() && !courseSession.course()
+  /**
+   * ⚠ A LIVE SESSION WHOSE AGENT HAS CLOSED IS READ-ONLY, FOR A STUDENT. The gateway refuses every
+   * further turn past the window's end, so a send button would only produce a refusal; saying so up
+   * front leaves the history readable and the reason on screen. Staff are exempt on the gateway and
+   * see nothing; before the window opens an existing chat may continue, so only `after` counts.
+   */
+  const closed = () =>
+    courseSession.locked() && closedForViewer(courseSession.course(), courseSession.assistant(), courseSession.now())
+  /** The teacher's brief for the draft's assistant; a blank one shows nothing, as on the web. */
+  const brief = () => (courseSession.locked() ? "" : (courseSession.assistant()?.brief?.trim() ?? ""))
+  /**
+   * ⚠ AN AGENT THAT SPEAKS FIRST GETS START IN THE INPUT'S PLACE. The student has nothing to write
+   * until it has, and a first message typed anyway would race the opener for the first turn. Only on
+   * the draft: once the session exists — with an opener or, when the gateway could not write one,
+   * without — the ordinary input takes over.
+   */
+  const opens = () => !courseSession.locked() && !!courseSession.assistant()?.opensConversation
 
   return (
     <div class="flex flex-col gap-3">
+      <Show when={closed()}>
+        <div
+          data-component="session-closed-notice"
+          class="flex items-center gap-2 rounded-xl bg-v2-background-bg-base px-3 py-2 text-[13px] leading-5 text-v2-text-text-muted shadow-[var(--v2-elevation-raised)]"
+        >
+          <Icon name="lock" class="shrink-0 text-v2-icon-icon-muted" />
+          <span class="min-w-0 flex-1">{language.t("prompt.jolli.closed.notice")}</span>
+        </div>
+      </Show>
+      <Show when={!courseSession.locked() && courseSession.draft.startError}>
+        {(key) => (
+          <div
+            data-component="session-start-error"
+            role="alert"
+            class="flex items-center gap-2 rounded-xl bg-v2-background-bg-base px-3 py-2 text-[13px] leading-5 text-v2-text-text-muted shadow-[var(--v2-elevation-raised)]"
+          >
+            <Icon name="help" class="shrink-0 text-v2-icon-icon-info" />
+            <span class="min-w-0 flex-1">{language.t(key())}</span>
+          </div>
+        )}
+      </Show>
       <Show when={unboundLive()}>
         <div
           data-component="session-no-course-notice"
@@ -86,6 +128,21 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
           >
             {language.t("prompt.session.noCourse.new")}
           </ButtonV2>
+        </div>
+      </Show>
+      {/*
+       * ⚠ THE CLAMP IS ON THE TEXT, NOT THE CARD, as on the web: on the card its bottom padding
+       * would sit inside the clip and half of a fourth line would show through it.
+       */}
+      <Show when={brief()}>
+        <div
+          data-component="session-brief"
+          class="rounded-xl bg-v2-background-bg-base px-3.5 py-3 shadow-[var(--v2-elevation-raised)]"
+        >
+          <p class="line-clamp-3 whitespace-pre-line text-[13px] leading-5 text-v2-text-text-muted">
+            <strong class="font-semibold text-v2-text-text-base">{language.t("prompt.jolli.brief.label")}</strong>{" "}
+            {brief()}
+          </p>
         </div>
       </Show>
       {/*
@@ -105,39 +162,93 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
        * project picker and branch; in a live session, the same two read-only.
        */}
       <SessionCourseBar onDone={props.controller.restoreFocus} trailing={props.courseBarTrailing} />
-      <PromptInputV2
-        controller={props.controller}
-        borderUnderlay={props.borderUnderlay}
-        class={props.class}
-        /**
-         * ⚠ NO COURSE, NO SEND — ON EVERY SCREEN. Nothing is pre-selected on a new session, and a
-         * session created without a binding is one no screen can describe: no assistant to run, no
-         * model grant, no visibility, and an in-chat header with nothing in it. The guard is
-         * `!course()` alone, so it holds on the new-session screen AND on a live session that never
-         * got one. It gates every send path — see `submitDisabled` handling in `session-ui`'s
-         * prompt-input (button, form submit, and Enter all honour it), so it cannot be keyboard-bypassed.
-         *
-         * ⚠ A LIVE SESSION WITH NO COURSE IS BLOCKED, NOT TRAPPED. It has no course control on screen
-         * to fix the binding in place, so the `unboundLive` notice above hands the reader a new
-         * session — the one screen where a course can be chosen — rather than leaving them stuck.
-         */
-        submitDisabled={!courseSession.course()}
-        variantControlVisible={!props.controller.model.loading}
-        attachKeybind={command.keybindParts("file.attach")}
-        attachShortcut={command.keybind("file.attach")}
-        modelControl={
-          <PromptInputV2ModelControl
-            loading={props.controller.model.loading}
-            title={language.t("command.model.choose")}
-            keybind={command.keybindParts("model.choose")}
-            model={props.controller.model.selection}
-            providerID={props.controller.model.selection.current()?.provider?.id}
-            modelName={props.controller.model.selection.current()?.name ?? language.t("dialog.model.select.title")}
-            unboundLabel={language.t("prompt.model.noCourse")}
-            onClose={props.controller.restoreFocus}
-          />
+      {/*
+       * ⚠ AN OUTSTANDING START KEEPS THE START ROW, whatever the draft has turned into meanwhile. The
+       * prompt box coming back under it is a second way to make a session for the same draft.
+       */}
+      <Show
+        when={!opens() && !courseSession.draft.starting}
+        fallback={<PromptStartRow onStart={() => void props.controller.start()} />}
+      >
+        <PromptInputV2
+          controller={props.controller}
+          borderUnderlay={props.borderUnderlay}
+          class={props.class}
+          /**
+           * ⚠ NO COURSE, NO SEND — ON EVERY SCREEN. Nothing is pre-selected on a new session, and a
+           * session created without a binding is one no screen can describe: no assistant to run, no
+           * model grant, no visibility, and an in-chat header with nothing in it. The guard is
+           * `!course()` alone, so it holds on the new-session screen AND on a live session that never
+           * got one. It gates every send path — see `submitDisabled` handling in `session-ui`'s
+           * prompt-input (button, form submit, and Enter all honour it), so it cannot be keyboard-bypassed.
+           *
+           * ⚠ A LIVE SESSION WITH NO COURSE IS BLOCKED, NOT TRAPPED. It has no course control on screen
+           * to fix the binding in place, so the `unboundLive` notice above hands the reader a new
+           * session — the one screen where a course can be chosen — rather than leaving them stuck.
+           */
+          submitDisabled={!courseSession.course() || closed()}
+          variantControlVisible={!props.controller.model.loading}
+          attachKeybind={command.keybindParts("file.attach")}
+          attachShortcut={command.keybind("file.attach")}
+          modelControl={
+            <PromptInputV2ModelControl
+              loading={props.controller.model.loading}
+              title={language.t("command.model.choose")}
+              keybind={command.keybindParts("model.choose")}
+              model={props.controller.model.selection}
+              providerID={props.controller.model.selection.current()?.provider?.id}
+              modelName={props.controller.model.selection.current()?.name ?? language.t("dialog.model.select.title")}
+              unboundLabel={language.t("prompt.model.noCourse")}
+              onClose={props.controller.restoreFocus}
+            />
+          }
+        />
+      </Show>
+    </div>
+  )
+}
+
+/**
+ * WHAT STANDS IN THE INPUT'S PLACE FOR AN AGENT THAT SPEAKS FIRST: ONE THING TO DO, AND THEN THE
+ * WAIT FOR IT.
+ *
+ * ⚠ THE WAIT REPLACES THE ROW RATHER THAN DISABLING ITS BUTTON. The opener can take twenty seconds
+ * to write, and a greyed Start for that long reads as broken; "The agent is writing…" says what the
+ * time is for. The flag is the binding's, so it survives this row re-rendering.
+ *
+ * ⚠ START TAKES FOCUS WHEN IT IS DRAWN, as on the web: it replaces the box the draft screen would
+ * otherwise focus, and a keyboard reader would be left on the page's body.
+ */
+function PromptStartRow(props: { onStart: () => void }) {
+  const language = useLanguage()
+  const courseSession = useCourseSession()
+  let button: HTMLButtonElement | undefined
+  createEffect(() => {
+    if (!courseSession.draft.starting) button?.focus()
+  })
+  return (
+    <div
+      data-component="session-start-row"
+      class="flex min-h-12 items-center gap-3 rounded-xl bg-v2-background-bg-base px-3 py-2.5 shadow-[var(--v2-elevation-raised)]"
+    >
+      <Show
+        when={!courseSession.draft.starting}
+        fallback={
+          <span role="status" class="min-w-0 flex-1 text-[13px] leading-5 text-v2-text-text-muted">
+            <TextShimmer text={language.t("prompt.jolli.start.writing")} />
+          </span>
         }
-      />
+      >
+        <span class="min-w-0 flex-1 text-[13px] leading-5 text-v2-text-text-muted">
+          {language.t("prompt.jolli.start.prompt")}
+        </span>
+        <ButtonV2 ref={button} variant="contrast" size="normal" data-action="session-start" onClick={props.onStart}>
+          <svg viewBox="0 0 16 16" class="size-3 shrink-0" fill="currentColor" aria-hidden="true">
+            <path d="M4 2.5v11l9-5.5z" />
+          </svg>
+          {language.t("prompt.jolli.start.button")}
+        </ButtonV2>
+      </Show>
     </div>
   )
 }
@@ -290,10 +401,19 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
     },
     newSessionWorktree: () => props.newSessionWorktree,
     onNewSessionWorktreeReset: props.onNewSessionWorktreeReset,
+    onNewSessionWorktreeCreated: props.onNewSessionWorktreeCreated,
     shouldQueue: props.shouldQueue,
     onQueue: props.onQueue,
     onAbort: props.onAbort,
     onSubmit: props.onSubmit,
+    model: props.controls.model.selection,
+  })
+
+  const start = createSessionStart({
+    newSessionWorktree: () => props.newSessionWorktree,
+    onNewSessionWorktreeReset: props.onNewSessionWorktreeReset,
+    onNewSessionWorktreeCreated: props.onNewSessionWorktreeCreated,
+    autoAccept: accepting,
     model: props.controls.model.selection,
   })
 
@@ -508,6 +628,7 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
     },
   })
   Object.defineProperty(controller, "model", { get: () => props.controls.model })
+  Object.defineProperty(controller, "start", { value: start })
 
   command.register("prompt-input", () => [
     {

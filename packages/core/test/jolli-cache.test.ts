@@ -4,6 +4,7 @@ import path from "node:path"
 import { Effect, Layer } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 import { Global } from "../src/global"
+import { Flock } from "../src/util/flock"
 import { CATALOG_SCHEMA, catalogCachePath, clearCatalogCache, loadCatalog, refreshCatalog } from "../src/jolli/cache"
 
 /**
@@ -271,6 +272,123 @@ describe("loadCatalog's refresh deadline", () => {
       loadCatalog(req("https://cache-slow-empty.invalid"), { timeout: "250 millis" }),
     )
     expect(loaded.kind).toBe("unreachable")
+  }, 30_000)
+})
+
+/**
+ * ⚠ A RE-ASK AFTER A REFUSED START MUST REACH THE GATEWAY. The refusal says the snapshot is wrong —
+ * an assistant's window closed inside the TTL — so serving it again hands back the closed assistant.
+ * A real local server rather than a stubbed client, because `loadCatalog` brings its own.
+ */
+describe("loadCatalog asked for a fresh answer", () => {
+  const snapshot = { courses: [course({ code: "CS 101" })], assistants: { "7": [choice(12)] }, models: [] }
+
+  test("refreshes a snapshot still inside its TTL", async () => {
+    const seen: string[] = []
+    using server = Bun.serve({
+      port: 0,
+      fetch(request) {
+        const pathname = new URL(request.url).pathname
+        seen.push(pathname)
+        if (pathname === "/api/courses") return json([course()])
+        if (pathname === "/api/agent/models") return json(providers)
+        return json([choice(13)])
+      },
+    })
+    const origin = server.url.origin
+    await seed(origin, snapshot)
+
+    const cached = await Effect.runPromise(loadCatalog(req(origin)))
+    expect(seen).toEqual([])
+    expect(cached.kind === "ok" && cached.snapshot.courses.map((c) => c.code)).toEqual(["CS 101"])
+
+    const loaded = await Effect.runPromise(loadCatalog(req(origin), { fresh: true }))
+    expect(seen).toContain("/api/courses")
+    expect(loaded.kind).toBe("ok")
+    if (loaded.kind !== "ok") return
+    expect(loaded.stale).toBe(false)
+    expect(loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 310"])
+    expect(loaded.snapshot.assistants["7"]?.map((a) => a.id)).toEqual([13])
+    // Written down, so the other process reads the same answer.
+    expect(JSON.parse(await Bun.file(cacheFile(origin)).text()).courses[0].code).toBe("CS 310")
+  })
+
+  // Callers asking past the cache that queue on the lock take the one answer fetched after they both
+  // asked, rather than loading the whole catalogue from the gateway once each.
+  test("refreshes queued behind the lock share the fetch that began after they asked", async () => {
+    const seen: string[] = []
+    using server = Bun.serve({
+      port: 0,
+      fetch(request) {
+        const pathname = new URL(request.url).pathname
+        seen.push(pathname)
+        if (pathname === "/api/courses") return json([course()])
+        if (pathname === "/api/agent/models") return json(providers)
+        return json([choice(13)])
+      },
+    })
+    const origin = server.url.origin
+    await seed(origin, snapshot)
+
+    const lock = await Flock.acquire(`jolli-catalog:${cacheFile(origin)}`)
+    const loads = Promise.all([
+      Effect.runPromise(loadCatalog(req(origin), { fresh: true })),
+      Effect.runPromise(loadCatalog(req(origin), { fresh: true })),
+    ])
+    await Bun.sleep(50)
+    await lock.release()
+
+    const answers = await loads
+    expect(seen.filter((pathname) => pathname === "/api/courses")).toHaveLength(1)
+    expect(answers.map((loaded) => loaded.kind === "ok" && loaded.snapshot.courses[0]?.code)).toEqual([
+      "CS 310",
+      "CS 310",
+    ])
+  })
+
+  /**
+   * ⚠ A FETCH ALREADY UNDER WAY READ THE GATEWAY BEFORE THE NEW REQUEST WAS MADE. The request may be
+   * a refused Start asking because the list just changed, so it waits out that fetch and makes its own.
+   */
+  test("a fetch already under way when a refresh is asked for does not answer it", async () => {
+    const seen: string[] = []
+    const gate = Promise.withResolvers<void>()
+    using server = Bun.serve({
+      port: 0,
+      async fetch(request) {
+        const pathname = new URL(request.url).pathname
+        seen.push(pathname)
+        if (pathname === "/api/courses") {
+          if (seen.filter((item) => item === "/api/courses").length === 1) await gate.promise
+          return json([course()])
+        }
+        if (pathname === "/api/agent/models") return json(providers)
+        return json([choice(13)])
+      },
+    })
+    const origin = server.url.origin
+    await seed(origin, snapshot)
+
+    const first = Effect.runPromise(loadCatalog(req(origin), { fresh: true }))
+    while (!seen.includes("/api/courses")) await Bun.sleep(5)
+    const second = Effect.runPromise(loadCatalog(req(origin), { fresh: true }))
+    await Bun.sleep(20)
+    gate.resolve()
+
+    await Promise.all([first, second])
+    expect(seen.filter((pathname) => pathname === "/api/courses")).toHaveLength(2)
+  })
+
+  // Asking past the cache does not give up the fallback: offline, the snapshot still serves.
+  test("still serves the snapshot when the gateway cannot answer, marked stale", async () => {
+    const origin = "https://cache-fresh-offline.invalid"
+    await seed(origin, snapshot)
+    const loaded = await Effect.runPromise(loadCatalog(req(origin), { fresh: true, timeout: "5 seconds" }))
+    expect(loaded.kind).toBe("ok")
+    if (loaded.kind !== "ok") return
+    expect(loaded.stale).toBe(true)
+    expect(loaded.error).toBeDefined()
+    expect(loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 101"])
   }, 30_000)
 })
 

@@ -49,13 +49,19 @@ export function DialogCourseGate() {
    * does not list a course it would refuse, the second case reaches the gate too — and telling a
    * student whose term starts next week that none of their courses use this product would be the
    * same class of wrong answer as calling a missing tenant a connection problem.
+   *
+   * ⚠ AND A COURSE WHOSE ASSISTANTS ARE ALL OUTSIDE THEIR WINDOWS IS A THIRD. It is published and
+   * running; only the clock stands in the way, and this closes by itself when a window opens.
    */
   const title = createMemo(() => {
     if (unreachable()) return "Couldn't reach Jolli"
+    if (jolli.noOpenAssistants()) return "No assistants open right now"
     return jolli.enrolled() ? "No courses open yet" : "No Jolli Code courses"
   })
   const body = createMemo(() => {
     if (unreachable()) return "Jolli Code couldn't load your courses. Check your connection, then try again."
+    if (jolli.noOpenAssistants())
+      return "Your courses have assistants, but none is open right now. Once one opens, check again."
     return jolli.enrolled()
       ? "None of your courses are open in Jolli Code right now. Once your instructor publishes one, check again."
       : "None of your courses use Jolli Code yet. Once your instructor sets one up, check again."

@@ -15,7 +15,12 @@ import { useDialog } from "../ui/dialog"
  * ⚠ IT REFUSES BEFORE IT OPENS WHEN NO COURSE IS CHOSEN, because an assistant belongs to exactly
  * one course — there is no list to show until that is settled.
  *
- * ⚠ A LOCKED SESSION LISTS ONLY ITS OWN ASSISTANT, read off the binding like `DialogCourse` does.
+ * ⚠ A LOCKED SESSION LISTS ONLY ITS OWN ASSISTANT, read off the binding like `DialogCourse` does —
+ * which is how one that has closed since still shows by name.
+ *
+ * ⚠ OTHERWISE IT LISTS ONLY THE ASSISTANTS A NEW SESSION MAY START WITH. A student does not see one
+ * outside its window at all (staff see every one, to try ahead of time), and opening this asks for
+ * the catalogue again, so a list that sat stale since launch is not what a student chooses from.
  */
 export function DialogAssistant() {
   const jolli = useJolli()
@@ -24,6 +29,7 @@ export function DialogAssistant() {
 
   /** Closes once a session takes over the draft it was opened for — see `DialogCourse`. */
   const openedUnlocked = !jolli.locked()
+  if (openedUnlocked) jolli.recheck()
   createEffect(
     on(jolli.locked, (locked) => {
       if (openedUnlocked && locked) dialog.clear()

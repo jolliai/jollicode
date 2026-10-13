@@ -1,16 +1,20 @@
 import { describe, expect, test } from "bun:test"
-import { Effect, Layer } from "effect"
+import { Effect, Fiber, Layer } from "effect"
 import { HttpClient, HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
+import { TestClock } from "effect/testing"
 import {
+  fetchAssistantChoices,
   fetchConversationShares,
   fetchConversationVisibility,
   fetchCourses,
   fetchModelIndex,
   gatewayRequest,
   JolliApiError,
+  openConversation,
   shareConversation,
   unshareConversation,
 } from "../src/jolli/api"
+import { it } from "./lib/effect"
 
 /** Something to send, and something to file the snapshot under. See `GatewayRequest.identity`. */
 const CREDENTIAL = { token: "jwt", identity: "student-a" }
@@ -297,4 +301,157 @@ describe("the session-share calls", () => {
     expect(http.seen[0]?.method).toBe("DELETE")
     expect(http.seen[0]?.url).toBe("https://acme.jolli.ai/api/agent/convos/ses_1/shares/9")
   })
+})
+
+describe("fetchAssistantChoices", () => {
+  const request = { origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }
+  const older = {
+    id: 12,
+    name: "Pair programmer",
+    blurb: "",
+    icon: "Terminal",
+    accent: 0,
+    worksThroughProblems: true,
+    answersFromMaterialsOnly: false,
+    showCitations: true,
+    modelId: "uuid-opus",
+    allowedModelIds: [],
+  }
+
+  test("reads the brief, the window, and how a chat begins", async () => {
+    const newer = {
+      ...older,
+      brief: "Read the case first.",
+      startsAt: "2026-10-01T09:00:00.000Z",
+      endsAt: null,
+      directChatEnabled: true,
+      opensConversation: true,
+    }
+    const http = stub(() => json([newer]))
+    const result = await Effect.runPromise(fetchAssistantChoices(request, 7).pipe(Effect.provide(http.layer)))
+    expect(result).toEqual([newer])
+  })
+
+  /** ⚠ ONE MISSING KEY WOULD FAIL THE WHOLE ARRAY, and an older tenant does not send these. */
+  test("still decodes a server that predates them", async () => {
+    const http = stub(() => json([older]))
+    const result = await Effect.runPromise(fetchAssistantChoices(request, 7).pipe(Effect.provide(http.layer)))
+    expect(result).toEqual([older])
+  })
+})
+
+describe("openConversation", () => {
+  const request = { origin: "https://acme.jolli.ai", tenantSlug: "acme", token: "jwt", identity: "student-a" }
+  const input = { spaceId: 7, courseAssistantId: 12, publicSessionId: "ses_abc" }
+  const transportFailure = (request: HttpClientRequest.HttpClientRequest) =>
+    new HttpClientError.HttpClientError({
+      reason: new HttpClientError.TransportError({ request, description: "ECONNRESET" }),
+    })
+
+  test("posts the binding and the client's id as a coding-agent conversation, and reads the opener", async () => {
+    const http = stub(() =>
+      json({ publicSessionId: "ses_abc", config: { opener: { text: "Hi Maya, I'm Dana." } }, timeline: [] }, 201),
+    )
+    const result = await Effect.runPromise(openConversation(request, input).pipe(Effect.provide(http.layer)))
+    expect(result).toEqual({ opener: "Hi Maya, I'm Dana." })
+    const sent = http.seen[0]
+    expect(sent?.method).toBe("POST")
+    expect(sent?.url).toBe("https://acme.jolli.ai/api/agent/convos")
+    expect(sent?.headers["x-tenant-slug"]).toBe("acme")
+    const body = sent?.body
+    expect(JSON.parse(new TextDecoder().decode(body?._tag === "Uint8Array" ? body.body : undefined))).toEqual({
+      spaceId: 7,
+      courseAssistantId: 12,
+      origin: "coding_agent",
+      publicSessionId: "ses_abc",
+    })
+  })
+
+  /** ⚠ NO OPENER IS A SUCCESS: the server creates the conversation without one when it cannot write it. */
+  test("a conversation created without an opener answers with none rather than failing", async () => {
+    for (const detail of [{ config: {} }, { config: { opener: null } }, { config: null }, {}]) {
+      const http = stub(() => json(detail, 200))
+      const result = await Effect.runPromise(openConversation(request, input).pipe(Effect.provide(http.layer)))
+      expect(result).toEqual({ opener: undefined })
+    }
+  })
+
+  test("carries a refusal's status and code, and never retries an answer", async () => {
+    const http = stub(() => json({ error: "This agent has closed.", code: "assistant_closed" }, 409))
+    const error = await Effect.runPromise(
+      openConversation(request, input).pipe(Effect.provide(http.layer), Effect.flip),
+    )
+    expect(error).toBeInstanceOf(JolliApiError)
+    expect(error.status).toBe(409)
+    expect(error.code).toBe("assistant_closed")
+    expect(http.seen).toHaveLength(1)
+  })
+
+  test("a 404 with no code fails with no code", async () => {
+    const http = stub(() => json({ error: "Not found" }, 404))
+    const error = await Effect.runPromise(
+      openConversation(request, input).pipe(Effect.provide(http.layer), Effect.flip),
+    )
+    expect(error.status).toBe(404)
+    expect(error.code).toBeUndefined()
+  })
+
+  /**
+   * ⚠ A DROPPED CONNECTION IS REPLAYED ONCE, UNDER THE SAME ID. The call is idempotent by id, so the
+   * second request returns whatever the first one created rather than a second conversation.
+   */
+  test("retries once, with the same id, when no response came back", async () => {
+    const seen: HttpClientRequest.HttpClientRequest[] = []
+    const layer = Layer.succeed(
+      HttpClient.HttpClient,
+      HttpClient.make((sent) => {
+        seen.push(sent)
+        return seen.length === 1
+          ? Effect.fail(transportFailure(sent))
+          : Effect.succeed(HttpClientResponse.fromWeb(sent, json({ config: { opener: { text: "Hello." } } })))
+      }),
+    )
+    const result = await Effect.runPromise(openConversation(request, input).pipe(Effect.provide(layer)))
+    expect(result).toEqual({ opener: "Hello." })
+    expect(seen).toHaveLength(2)
+    expect(seen[1]?.body).toEqual(seen[0]?.body)
+  })
+
+  test("gives up after the one retry, with no status", async () => {
+    const seen: HttpClientRequest.HttpClientRequest[] = []
+    const layer = Layer.succeed(
+      HttpClient.HttpClient,
+      HttpClient.make((sent) => {
+        seen.push(sent)
+        return Effect.fail(transportFailure(sent))
+      }),
+    )
+    const error = await Effect.runPromise(openConversation(request, input).pipe(Effect.provide(layer), Effect.flip))
+    expect(error.status).toBeUndefined()
+    expect(seen).toHaveLength(2)
+  })
+
+  /**
+   * ⚠ A TIMEOUT IS NOT RETRIED. The first request may still be writing the opener; a second 45
+   * seconds stacked behind it is a wait no student sits through.
+   */
+  it.effect("waits 45 seconds, not 15, and does not retry a timeout", () =>
+    Effect.gen(function* () {
+      const seen: HttpClientRequest.HttpClientRequest[] = []
+      const layer = Layer.succeed(
+        HttpClient.HttpClient,
+        HttpClient.make((sent) => {
+          seen.push(sent)
+          return Effect.never
+        }),
+      )
+      const fiber = yield* openConversation(request, input).pipe(Effect.provide(layer), Effect.flip, Effect.forkChild)
+      yield* TestClock.adjust("44 seconds")
+      expect(fiber.pollUnsafe()).toBeUndefined()
+      yield* TestClock.adjust("2 seconds")
+      const error = yield* Fiber.join(fiber)
+      expect(error.status).toBeUndefined()
+      expect(seen).toHaveLength(1)
+    }),
+  )
 })

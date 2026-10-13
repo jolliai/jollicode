@@ -44,6 +44,7 @@ import { isScrollKeyTarget, scrollKey, scrollKeyOwner, ScrollView } from "@openc
 import { StickyAccordionHeader } from "@opencode-ai/ui/sticky-accordion-header"
 import { TextReveal } from "@opencode-ai/ui/text-reveal"
 import { TextShimmer } from "@opencode-ai/ui/text-shimmer"
+import { Markdown } from "@opencode-ai/session-ui/markdown"
 import type {
   AssistantMessage,
   Message as MessageType,
@@ -81,6 +82,7 @@ import { observeElementOffsetReconnectAware } from "./observe-element-offset"
 import { createTimelineProjection } from "./projection"
 import { MessageComment, SummaryDiff, TimelineRow, TimelineRowMap } from "./rows"
 import { TimelineSourcesRow } from "./turn-sources-row"
+import { constructLeadRows } from "./lead-rows"
 import { filterVirtualIndexes } from "./virtual-items"
 
 const emptyMessages: MessageType[] = []
@@ -89,7 +91,7 @@ const emptyTools: ToolPart[] = []
 const emptyAssistantMessages: AssistantMessage[] = []
 const idle = { type: "idle" as const }
 
-type FramedTimelineRow = Exclude<TimelineRow.TimelineRow, { _tag: "TurnGap" }>
+type FramedTimelineRow = Exclude<TimelineRow.TimelineRow, { _tag: "TurnGap" | "Brief" | "Opener" }>
 type TimelineRowByTag<T extends TimelineRow.TimelineRow["_tag"]> = Extract<TimelineRow.TimelineRow, { _tag: T }>
 
 const timelineFallbackItemSize = 60
@@ -400,7 +402,25 @@ export function MessageTimeline(props: {
   // The bound assistant's citation switch, as a primitive so an unrelated catalogue refresh does not
   // rebuild every row. Undefined outside a course, where no sources row is ever drawn.
   const showCitations = createMemo(() => courseSession.assistant()?.guardrails.showCitations)
+
+  /**
+   * THE BRIEF AND THE OPENER, ABOVE THE FIRST TURN — see `constructLeadRows` for why both wait for
+   * the whole history and why the opener is not a message.
+   */
+  const leadRows = createMemo(
+    () =>
+      constructLeadRows({
+        sessionID: sessionID(),
+        metadata: info()?.metadata,
+        brief: courseSession.assistant()?.brief,
+        historyComplete: !!sessionID() && sync().session.history.complete(sessionID()!),
+      }),
+    [],
+    { equals: (a, b) => a.length === b.length && a.every((row, index) => TimelineRow.equals(row, b[index])) },
+  )
+
   const projection = createTimelineProjection({
+    lead: leadRows,
     messages: sessionMessages,
     userMessages: () => props.userMessages,
     sessionMessages: projectedMessages,
@@ -1091,10 +1111,56 @@ export function MessageTimeline(props: {
     )
   }
 
+  /** A row above the first turn: framed like a turn, with the gap a turn would have below it. */
+  function TimelineLeadFrame(input: { tag: "Brief" | "Opener"; children: JSX.Element }) {
+    return (
+      <div
+        data-timeline-row={input.tag}
+        classList={{
+          "min-w-0 w-full max-w-full pb-6": true,
+          "md:max-w-200 2xl:max-w-[1000px]": props.centered,
+          "md:mx-auto": props.centered,
+        }}
+      >
+        <div data-slot="session-turn-message-container" class="w-full px-4 md:px-5">
+          {input.children}
+        </div>
+      </div>
+    )
+  }
+
   const renderTimelineRow = (row: Accessor<TimelineRow.TimelineRow>, onSizeChange?: () => void) => {
     switch (row()._tag) {
       case "TurnGap":
         return <div data-timeline-row="TurnGap" aria-hidden="true" class="h-6" />
+      case "Brief": {
+        const briefRow = row as Accessor<TimelineRowByTag<"Brief">>
+        return (
+          <TimelineLeadFrame tag="Brief">
+            <div
+              data-component="session-brief"
+              class="rounded-lg border border-border-weak-base bg-background-stronger px-3.5 py-3 text-13-regular text-text-base whitespace-pre-line"
+            >
+              <strong class="font-semibold text-text-strong">{language.t("prompt.jolli.brief.label")}</strong>{" "}
+              {briefRow().text}
+            </div>
+          </TimelineLeadFrame>
+        )
+      }
+      case "Opener": {
+        const openerRow = row as Accessor<TimelineRowByTag<"Opener">>
+        return (
+          <TimelineLeadFrame tag="Opener">
+            <div data-slot="session-turn-assistant-content">
+              <div data-component="text-part" data-jolli-opener>
+                <div data-slot="text-part-body">
+                  <Markdown text={openerRow().text} cacheKey={`opener:${openerRow().sessionID}`} />
+                </div>
+              </div>
+            </div>
+          </TimelineLeadFrame>
+        )
+      }
       case "CommentStrip": {
         const commentStripRow = row as Accessor<TimelineRowByTag<"CommentStrip">>
         const comments = createMemo(() =>

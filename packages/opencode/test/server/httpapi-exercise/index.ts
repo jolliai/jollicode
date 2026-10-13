@@ -1178,6 +1178,25 @@ const scenarios: Scenario[] = [
       "status",
     ),
   http.protected
+    .post("/session/jolli/start", "session.jolliStart.signedOut")
+    .at((ctx) => ({
+      path: "/session/jolli/start",
+      headers: ctx.headers(),
+      body: { courseId: "7", assistantId: "12", title: "Started session" },
+    }))
+    .json(200, (body) => {
+      object(body)
+      check(body.status === "unreachable", "start without a Jolli credential should answer unreachable")
+    }),
+  http.protected
+    .post("/session/jolli/start", "session.jolliStart.invalid")
+    .at((ctx) => ({
+      path: "/session/jolli/start",
+      headers: ctx.headers(),
+      body: { courseId: "not-a-course", assistantId: "12" },
+    }))
+    .status(400),
+  http.protected
     .get("/session/{sessionID}", "session.get")
     .seeded((ctx) => ctx.session({ title: "Get me" }))
     .at((ctx) => ({ path: route("/session/{sessionID}", { sessionID: ctx.state.id }), headers: ctx.headers() }))

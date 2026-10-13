@@ -32,6 +32,8 @@ export type TimelineRowMap = {
   DiffSummary: { userMessageID: string; diffs: SummaryDiff[] }
   Sources: { userMessageID: string; sources: JolliSources.TurnSources }
   Error: { userMessageID: string; text: string }
+  Brief: { text: string }
+  Opener: { sessionID: string; text: string }
 }
 
 export namespace Timeline {

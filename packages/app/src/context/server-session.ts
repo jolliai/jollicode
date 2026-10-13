@@ -1398,6 +1398,14 @@ export function createServerSession(
         meta.limit[sessionID] !== undefined &&
         !meta.complete[sessionID] &&
         !!meta.cursor[sessionID],
+      /**
+       * Whether what is loaded reaches back to the session's first message. Not `!more()`, which is
+       * also true before the first page has arrived.
+       */
+      complete: (sessionID: string) =>
+        data.message[sessionID] !== undefined &&
+        meta.limit[sessionID] !== undefined &&
+        (!!meta.complete[sessionID] || !meta.cursor[sessionID]),
       loading: (sessionID: string) => meta.loading[sessionID] ?? false,
       async loadMore(sessionID: string, count = historyMessagePageSize) {
         touch(sessionID)

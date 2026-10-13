@@ -14,6 +14,7 @@ import { Jolli } from "@opencode-ai/schema/jolli"
 import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { described } from "./metadata"
+import { QueryBoolean } from "./query"
 
 export const JolliPaths = {
   course: "/jolli/course",
@@ -32,10 +33,18 @@ const ShareParams = { sessionID: Schema.String }
 /** ⚠ INLINE, NOT A NAMED SCHEMA, so the generated client takes `{ sessionID, subject }` flat. */
 const SharePayload = Schema.Struct({ subject: Jolli.ShareSubject })
 
+/**
+ * ⚠ `fresh` IS FOR A STUDENT WHO HAS JUST BEEN TOLD THE CATALOGUE IS WRONG — a refused Start, a
+ * picker opened to choose again. Without it this route serves `cache.ts`'s snapshot for its whole
+ * TTL, so the re-ask those screens make came back with the assistant that had just closed.
+ */
+const CourseQuery = Schema.Struct({ fresh: Schema.optional(QueryBoolean) })
+
 export const JolliApi = HttpApi.make("jolli").add(
   HttpApiGroup.make("jolli")
     .add(
       HttpApiEndpoint.get("course", JolliPaths.course, {
+        query: CourseQuery,
         success: described(Jolli.Catalog, "The student's courses, their assistants and model tiers"),
       }).annotateMerge(
         OpenApi.annotations({
@@ -45,7 +54,9 @@ export const JolliApi = HttpApi.make("jolli").add(
             "Courses the signed-in student is enrolled in that use Jolli Code, each with the " +
             "professor-authored assistants a session may run. Courses that cannot be started yet " +
             "are included and carry the reason in `entryState`. Answers an empty catalogue rather " +
-            "than an error when no Jolli credential is present.",
+            "than an error when no Jolli credential is present. Served from a short-lived cache " +
+            "unless `fresh` is `true`, which asks Jolli again and falls back to the cache only if " +
+            "Jolli cannot answer.",
         }),
       ),
     )

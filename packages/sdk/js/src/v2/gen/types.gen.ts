@@ -2551,6 +2551,20 @@ export type NotFoundError = {
   }
 }
 
+export type JolliStartResult =
+  | {
+      status: "started"
+      session: Session
+      opener: boolean
+    }
+  | {
+      status: "refused"
+      code?: string
+    }
+  | {
+      status: "unreachable"
+    }
+
 export type TextPartInput = {
   id?: string
   type: "text"
@@ -3867,6 +3881,7 @@ export type JolliCourse = {
   status: "draft" | "published" | "archived"
   entryState: JolliCourseEntryState
   endsOn: string
+  isStaff?: boolean
 }
 
 export type JolliAssistantKind = "standard" | "code"
@@ -3925,6 +3940,11 @@ export type JolliAssistant = {
   coaching: JolliCoachingRubric
   skills: Array<JolliAssistantSkill>
   status: "draft" | "live" | "paused"
+  brief?: string
+  startsAt?: string
+  endsAt?: string
+  directChatEnabled?: boolean
+  opensConversation?: boolean
 }
 
 export type JolliModelTier = "premium" | "economy"
@@ -7538,7 +7558,9 @@ export type GlobalUpgradeResponse = GlobalUpgradeResponses[keyof GlobalUpgradeRe
 export type JolliCourseData = {
   body?: never
   path?: never
-  query?: never
+  query?: {
+    fresh?: boolean | "true" | "false"
+  }
   url: "/jolli/course"
 }
 
@@ -10204,6 +10226,47 @@ export type SessionMessageResponses = {
 }
 
 export type SessionMessageResponse = SessionMessageResponses[keyof SessionMessageResponses]
+
+export type SessionJolliStartData = {
+  body?: {
+    title?: string
+    agent?: string
+    model?: {
+      id: string
+      providerID: string
+      variant?: string
+    }
+    permission?: PermissionRuleset
+    workspaceID?: string
+    courseId: string
+    assistantId: string
+    sessionID?: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/jolli/start"
+}
+
+export type SessionJolliStartErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+}
+
+export type SessionJolliStartError = SessionJolliStartErrors[keyof SessionJolliStartErrors]
+
+export type SessionJolliStartResponses = {
+  /**
+   * The started session, or why it could not start
+   */
+  200: JolliStartResult
+}
+
+export type SessionJolliStartResponse = SessionJolliStartResponses[keyof SessionJolliStartResponses]
 
 export type SessionForkData = {
   body?: {

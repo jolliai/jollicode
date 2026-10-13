@@ -52,6 +52,8 @@ export function DialogCourse() {
    */
   const openedUnlocked = !jolli.locked()
   const openedUnbound = !jolli.current()
+  /** ⚠ ASKED AGAIN ON OPEN, as `DialogAssistant` is: an assistant's window may have moved since launch. */
+  if (openedUnlocked) jolli.recheck()
   createEffect(
     on(
       () => jolli.locked() || (openedUnbound && !!jolli.current()),
@@ -84,9 +86,11 @@ export function DialogCourse() {
           <text fg={theme.textMuted}>
             {jolli.locked()
               ? "This session has no course."
-              : jolli.loaded()
-                ? "You are not enrolled in any Jolli Code course yet."
-                : "Loading your courses…"}
+              : jolli.noOpenAssistants()
+                ? "No assistant in your courses is open right now."
+                : jolli.loaded()
+                  ? "You are not enrolled in any Jolli Code course yet."
+                  : "Loading your courses…"}
           </text>
         </box>
       }

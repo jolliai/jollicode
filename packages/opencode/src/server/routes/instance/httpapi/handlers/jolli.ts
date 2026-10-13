@@ -55,7 +55,7 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
   Effect.gen(function* () {
     const session = yield* JolliSession.Service
 
-    const course = Effect.fn("JolliHttpApi.course")(function* () {
+    const course = Effect.fn("JolliHttpApi.course")(function* (ctx: { query: { fresh?: boolean } }) {
       /**
        * WHO IS SIGNED IN, DECIDED BEFORE WE ASK WHETHER THE GATEWAY IS REACHABLE.
        *
@@ -93,7 +93,7 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
       const request = yield* session.request().pipe(Effect.catch(() => Effect.succeed(undefined)))
       if (!request) return { ...UNREACHABLE, ...identity }
 
-      const loaded = yield* loadCatalog(request)
+      const loaded = yield* loadCatalog(request, ctx.query.fresh ? { fresh: true } : undefined)
       /**
        * ⚠ A 401 IS NOT AN OUTAGE, AND THIS IS THE STUDENT WHO NEVER SENDS A MESSAGE. The model
        * path reaches `refused` on its own, but somebody who only opens the app would otherwise

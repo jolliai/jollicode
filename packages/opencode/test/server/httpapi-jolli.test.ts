@@ -389,7 +389,7 @@ const refusals: string[] = []
 const refusing = (tenant: string) =>
   (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
     const url = input instanceof Request ? input.url : input.toString()
-    if (url.startsWith(tenant)) return new Response("", { status: 401 })
+    if (new URL(url).origin === new URL(tenant).origin) return new Response("", { status: 401 })
     return globalThis.fetch(input, init)
   }) as typeof fetch
 
@@ -447,6 +447,61 @@ describe("jolli HttpApi — a refused credential with a catalogue still on disk"
       // Serving what we have is not in question — a student on a train needs it. Doing it silently is.
       expect(yield* response.json).toMatchObject({ status: "ok" })
       expect(staleRefusals).toEqual([STALE_TOKEN])
+    }),
+  )
+})
+
+/**
+ * `?fresh=true` ASKS THE GATEWAY PAST A SNAPSHOT STILL INSIDE ITS TTL.
+ *
+ * ⚠ THE CLIENTS ASK THIS AFTER A REFUSED START, which means the snapshot just said something the
+ * gateway disagrees with — an assistant whose window has since closed. Without it this route serves
+ * that snapshot again and the draft stays on the closed assistant.
+ */
+const FRESH_TENANT = "https://httpapi-jolli-fresh.jolli.ai"
+const freshFile = catalogCachePath({ origin: FRESH_TENANT, token: TOKEN, identity: IDENTITY })
+await writeFile(freshFile, await readFile(cacheFile, "utf8"))
+afterAll(() => rm(freshFile, { force: true }))
+
+const freshCalls: string[] = []
+const answering = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+  const request = new Request(input, init)
+  const url = new URL(request.url)
+  if (url.origin !== FRESH_TENANT) return globalThis.fetch(request)
+  const path = url.pathname
+  freshCalls.push(path)
+  const body =
+    path === "/api/courses"
+      ? [
+          {
+            id: 7,
+            name: "Systems Programming",
+            description: null,
+            code: "CS 311",
+            status: "published",
+            requiresCoding: true,
+            endsOn: null,
+            viewerRole: "course-student",
+            isStaff: false,
+          },
+        ]
+      : []
+  return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } })
+}) as typeof fetch
+
+const freshGateway = testEffect(apiLayer({ token: TOKEN, baseUrl: FRESH_TENANT }, undefined, answering))
+
+describe("jolli HttpApi — asked for a fresh catalogue", () => {
+  freshGateway.live("serves the snapshot unasked, and asks the gateway when told to", () =>
+    Effect.gen(function* () {
+      const cached = yield* HttpClientRequest.get(JolliPaths.course).pipe(HttpClient.execute)
+      expect(yield* cached.json).toMatchObject({ status: "ok", courses: [{ code: "CS 310" }] })
+      expect(freshCalls).toEqual([])
+
+      const fresh = yield* HttpClientRequest.get(`${JolliPaths.course}?fresh=true`).pipe(HttpClient.execute)
+      expect(fresh.status).toBe(200)
+      expect(yield* fresh.json).toMatchObject({ status: "ok", courses: [{ code: "CS 311" }] })
+      expect(freshCalls).toContain("/api/courses")
     }),
   )
 })

@@ -206,6 +206,8 @@ import type {
   SessionGetResponses,
   SessionInitErrors,
   SessionInitResponses,
+  SessionJolliStartErrors,
+  SessionJolliStartResponses,
   SessionListErrors,
   SessionListResponses,
   SessionMessageErrors,
@@ -1397,12 +1399,19 @@ export class Jolli extends HeyApiClient {
   /**
    * List the signed-in student's courses
    *
-   * Courses the signed-in student is enrolled in that use Jolli Code, each with the professor-authored assistants a session may run. Courses that cannot be started yet are included and carry the reason in `entryState`. Answers an empty catalogue rather than an error when no Jolli credential is present.
+   * Courses the signed-in student is enrolled in that use Jolli Code, each with the professor-authored assistants a session may run. Courses that cannot be started yet are included and carry the reason in `entryState`. Answers an empty catalogue rather than an error when no Jolli credential is present. Served from a short-lived cache unless `fresh` is `true`, which asks Jolli again and falls back to the cache only if Jolli cannot answer.
    */
-  public course<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+  public course<ThrowOnError extends boolean = false>(
+    parameters?: {
+      fresh?: boolean | "true" | "false"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "fresh" }] }])
     return (options?.client ?? this.client).get<JolliCourseResponses, JolliCourseErrors, ThrowOnError>({
       url: "/jolli/course",
       ...options,
+      ...params,
     })
   }
 
@@ -3991,6 +4000,61 @@ export class Session2 extends HeyApiClient {
       url: "/session/{sessionID}/message/{messageID}",
       ...options,
       ...params,
+    })
+  }
+
+  /**
+   * Start a Jolli session
+   *
+   * Opens the conversation on the Jolli gateway under the given session id (or a newly minted one), then creates the local session with that id, bound to the course and assistant, carrying the agent's opening message when the gateway returned one. A retry with an id whose session already exists answers with that session. A refusal answers `refused` with the gateway's code and creates nothing.
+   */
+  public jolliStart<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      title?: string
+      agent?: string
+      model?: {
+        id: string
+        providerID: string
+        variant?: string
+      }
+      permission?: PermissionRuleset
+      workspaceID?: string
+      courseId?: string
+      assistantId?: string
+      sessionID?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "title" },
+            { in: "body", key: "agent" },
+            { in: "body", key: "model" },
+            { in: "body", key: "permission" },
+            { in: "body", key: "workspaceID" },
+            { in: "body", key: "courseId" },
+            { in: "body", key: "assistantId" },
+            { in: "body", key: "sessionID" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SessionJolliStartResponses, SessionJolliStartErrors, ThrowOnError>({
+      url: "/session/jolli/start",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     })
   }
 

@@ -17,9 +17,13 @@ import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
+import { JolliApiError, openConversation } from "@opencode-ai/core/jolli/api"
+import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
+import { openedOnGateway, openerTextOf } from "@opencode-ai/core/jolli/opener"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { syncTitle } from "@opencode-ai/core/jolli/title"
 import { Cause, Effect, Option, Schema, Scope } from "effect"
+import { KeyedMutex } from "@opencode-ai/core/effect/keyed-mutex"
 import * as Stream from "effect/Stream"
 import { InstanceState } from "@/effect/instance-state"
 import { FetchHttpClient, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
@@ -30,6 +34,7 @@ import {
   DiffQuery,
   ForkPayload,
   InitPayload,
+  JolliStartPayload,
   ListQuery,
   MessagesQuery,
   PermissionResponsePayload,
@@ -58,10 +63,24 @@ const tryParseJson = (text: string) =>
  * binding is what makes both statements true at once: an unrelated write keeps it, and a write that
  * carries a DIFFERENT binding still reaches the guard and is judged on its merits.
  */
-export function preserveBinding(before: Record<string, unknown> | undefined, after: Record<string, unknown>) {
+export function preserveBinding(
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown>,
+): Record<string, unknown> {
   const previous = before?.["jolli"]
-  if (previous === undefined || "jolli" in after) return after
-  return { ...after, jolli: previous }
+  /**
+   * ⚠ THE OPENER IS THE SERVER'S, SO NO WRITE MAY SET, CHANGE OR DROP IT. Only the start route puts
+   * it there, from what the gateway answered; a client that could write it could put words in the
+   * agent's mouth on screen. It is kept apart from `jolli` because a visibility toggle rewrites that
+   * whole object.
+   */
+  const opener = before?.["jolliOpener"]
+  const rest = Object.fromEntries(Object.entries(after).filter(([key]) => key !== "jolliOpener"))
+  return {
+    ...rest,
+    ...(previous === undefined || "jolli" in after ? {} : { jolli: previous }),
+    ...(opener === undefined ? {} : { jolliOpener: opener }),
+  }
 }
 
 /** The two fields of a session's binding that stop being writable. Anything else in there is not. */
@@ -86,6 +105,11 @@ function boundTo(metadata: Record<string, unknown> | undefined) {
  * first prompt happen in one submit, so a student never observes the gap — but the CLI can create a
  * session and stop, and a crash can leave one half-made. Both should still be bindable.
  *
+ * ⚠ EXCEPT A SESSION STARTED ON THE GATEWAY, WHICH IS LOCKED BEFORE ANY MESSAGE. Start creates the
+ * conversation there, bound, before the student says anything, and its opener is not a message.
+ * Rebinding it locally would leave every later turn refused as a binding conflict, so a session
+ * Start recorded as its own (`openedOnGateway`) counts as started — with an opener or without one.
+ *
  * ⚠ AND A SESSION THAT STARTED UNBOUND IS COVERED TOO, WHICH IS EASY TO LEAVE OUT. The comparison
  * below treats "no binding" as a value rather than as a reason to skip the check, because the CLI
  * and the TUI create sessions with no metadata at all: a conversation can run to completion unbound
@@ -101,6 +125,7 @@ export const refuseRebindingAfterFirstMessage = Effect.fn("SessionHttpApi.refuse
   before: Record<string, unknown> | undefined,
   after: Record<string, unknown>,
   started: () => Effect.Effect<boolean, unknown>,
+  sessionID: string,
 ) {
   const previous = boundTo(before)
   const next = boundTo(after)
@@ -132,7 +157,8 @@ export const refuseRebindingAfterFirstMessage = Effect.fn("SessionHttpApi.refuse
    * killed the request: still fail-closed, by luck rather than by the rule stated above, and a 500
    * where this is meant to answer 400. Catching the cause is what makes the sentence true.
    */
-  if (!(yield* started().pipe(Effect.catchCause(() => Effect.succeed(true))))) return
+  const opened = openedOnGateway({ id: sessionID, metadata: before })
+  if (!opened && !(yield* started().pipe(Effect.catchCause(() => Effect.succeed(true))))) return
   /**
    * ⚠ THE REASON GOES IN THE LOG, NOT THE BODY. `HttpApiError.BadRequest` carries no message field,
    * and the only caller that can trip this is a client rewriting a binding it was never offered a
@@ -144,6 +170,124 @@ export const refuseRebindingAfterFirstMessage = Effect.fn("SessionHttpApi.refuse
     after: next,
   })
   return yield* Effect.fail(new HttpApiError.BadRequest({}))
+})
+
+/**
+ * START A SESSION WHOSE AGENT SPEAKS FIRST: THE GATEWAY BEFORE THE LOCAL SESSION.
+ *
+ * ⚠ THE ORDER IS THE WHOLE DESIGN. The opener exists only once the gateway has created the
+ * conversation, and a refused or failed Start must leave nothing behind — no empty local session for
+ * the student to stumble into later. So the id is minted here, the gateway is asked under it, and
+ * the local session is created with that same id only after it answered.
+ *
+ * ⚠ A FAILURE IS NEVER TREATED AS "NO OPENER". The gateway may have stored an opener the student
+ * never saw; starting the chat anyway would have the model continue a greeting nobody read. Only a
+ * success without one starts a plain session.
+ *
+ * ⚠ A RETRY REUSES THE ID, AND THAT IS WHAT MAKES IT SAFE. The gateway is idempotent by id — asked
+ * again it answers with the conversation it already made, opener included — so a client whose Start
+ * got no answer sends the same id rather than leaving an orphan conversation behind a fresh one. And
+ * when the first try did get as far as the local session, its answer is that session.
+ *
+ * ⚠ THE CREDENTIAL, THE LOOKUP AND THE CREATE ARE PARAMETERS so all of this can be tested without a
+ * server.
+ */
+export const startJolliSession = Effect.fn("SessionHttpApi.startJolliSession")(function* (input: StartInput) {
+  if (!isGatewayId(input.payload.courseId) || !isGatewayId(input.payload.assistantId))
+    return yield* new HttpApiError.BadRequest({})
+  const id = input.payload.sessionID ?? SessionID.descending()
+  return yield* startLock.withLock(id)(startUnder(id, input))
+})
+
+/**
+ * ⚠ ONE START PER ID AT A TIME. A retry can arrive while the first try is still waiting on the
+ * gateway — up to 45 seconds — and without this both would pass the `existing` check, both open the
+ * (idempotent) conversation, and the second create would collide with the first: a 500 where the
+ * contract promises the same session. Queued, the retry finds the session the first one made.
+ */
+const startLock = KeyedMutex.makeUnsafe<SessionID>()
+
+type StartInput = {
+  payload: typeof JolliStartPayload.Type
+  gateway: Pick<JolliSession.Interface, "request" | "refused">
+  existing: (id: SessionID) => Effect.Effect<Session.Info | undefined>
+  create: (input: Session.CreateInput & { id: SessionID }) => Effect.Effect<Session.Info>
+}
+
+const startUnder = Effect.fn("SessionHttpApi.startUnder")(function* (id: SessionID, input: StartInput) {
+  const previous = input.payload.sessionID ? yield* input.existing(id) : undefined
+  if (previous) return yield* alreadyStarted(previous, input.payload)
+  const request = yield* input.gateway.request().pipe(Effect.catch(() => Effect.succeed(undefined)))
+  if (!request) return { status: "unreachable" as const }
+  const opened = yield* openConversation(request, {
+    spaceId: Number(input.payload.courseId),
+    courseAssistantId: Number(input.payload.assistantId),
+    publicSessionId: id,
+  }).pipe(Effect.catch((error) => Effect.succeed(error)))
+  if (opened instanceof JolliApiError) return yield* startRefused(input.gateway, opened, request.token)
+  const session = yield* input.create({
+    id,
+    title: input.payload.title,
+    agent: input.payload.agent,
+    model: input.payload.model,
+    permission: input.payload.permission ? [...input.payload.permission] : undefined,
+    workspaceID: input.payload.workspaceID,
+    /**
+     * ⚠ `jolliOpener` IS WRITTEN EVEN WITHOUT AN OPENER. Its `sessionID` is the record that the
+     * gateway's conversation exists and is bound, which is what locks the binding before the first
+     * message; only `text` depends on what the gateway answered.
+     */
+    metadata: {
+      jolli: { courseId: input.payload.courseId, assistantId: input.payload.assistantId },
+      jolliOpener: { sessionID: id, ...(opened.opener ? { text: opened.opener } : {}) },
+    },
+  })
+  return { status: "started" as const, session, opener: !!opened.opener }
+})
+
+/**
+ * A retried Start whose session already exists: the same session, if it is the one this Start made.
+ *
+ * ⚠ ANYTHING ELSE UNDER THAT ID IS A BAD REQUEST. Another session, or this one under a different
+ * binding, is not something a retry can have produced.
+ */
+const alreadyStarted = Effect.fn("SessionHttpApi.alreadyStarted")(function* (
+  session: Session.Info,
+  payload: typeof JolliStartPayload.Type,
+) {
+  const bound = courseBindingOf(session)
+  if (!openedOnGateway(session) || bound?.courseId !== payload.courseId || bound.assistantId !== payload.assistantId)
+    return yield* new HttpApiError.BadRequest({})
+  return { status: "started" as const, session, opener: openerTextOf(session) !== undefined }
+})
+
+/**
+ * ⚠ A 401 RENEWS THE CREDENTIAL, as the Jolli routes do, and still answers `unreachable`: the
+ * gateway created nothing, so trying again with the renewed token is safe.
+ */
+const startRefused = Effect.fn("SessionHttpApi.startRefused")(function* (
+  gateway: Pick<JolliSession.Interface, "refused">,
+  error: JolliApiError,
+  token: string,
+) {
+  if (error.status === 401) yield* gateway.refused(token).pipe(Effect.catch(() => Effect.void))
+  /**
+   * ⚠ A 2XX THAT WOULD NOT DECODE IS A FAILURE, NOT A REFUSAL. The gateway created the conversation,
+   * so nothing about the course or assistant changed, and this client cannot tell what it said —
+   * refreshing the catalogue and telling the student the chat was refused would both be wrong.
+   */
+  if (error.status === undefined || error.status < 300 || error.status === 401 || error.status >= 500) {
+    yield* Effect.logWarning("Jolli: start failed", { status: error.status, cause: error.cause })
+    return { status: "unreachable" as const }
+  }
+  yield* Effect.logInfo("Jolli: start refused", { status: error.status, code: error.code })
+  /**
+   * ⚠ A 404 WITH NO CODE IS A COURSE OR ASSISTANT THAT IS GONE — missing, archived or hidden, which
+   * the gateway deliberately does not tell apart. The code a session's later turns would get for the
+   * same thing names it.
+   */
+  const code = error.code ?? (error.status === 404 ? "assistant_not_found" : undefined)
+  return { status: "refused" as const, ...(code === undefined ? {} : { code }) }
 })
 
 export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", (handlers) =>
@@ -277,6 +421,17 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       return yield* create({ payload })
     })
 
+    const jolliStart = Effect.fn("SessionHttpApi.jolliStart")(function* (ctx: {
+      payload: typeof JolliStartPayload.Type
+    }) {
+      return yield* startJolliSession({
+        payload: ctx.payload,
+        gateway: jolli,
+        existing: (id) => session.get(id).pipe(Effect.option, Effect.map(Option.getOrUndefined)),
+        create: shareSvc.create,
+      }).pipe(Effect.provide(FetchHttpClient.layer))
+    })
+
     const remove = Effect.fn("SessionHttpApi.remove")(function* (ctx: { params: { sessionID: SessionID } }) {
       yield* SessionError.mapStorageNotFound(session.remove(ctx.params.sessionID))
       return true
@@ -297,8 +452,11 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       const metadata =
         ctx.payload.metadata !== undefined ? preserveBinding(current.metadata, ctx.payload.metadata) : undefined
       if (metadata !== undefined) {
-        yield* refuseRebindingAfterFirstMessage(current.metadata, metadata, () =>
-          session.hasMessages({ sessionID: ctx.params.sessionID }),
+        yield* refuseRebindingAfterFirstMessage(
+          current.metadata,
+          metadata,
+          () => session.hasMessages({ sessionID: ctx.params.sessionID }),
+          ctx.params.sessionID,
         )
       }
 
@@ -550,6 +708,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("messages", messages)
       .handle("message", message)
       .handleRaw("create", createRaw)
+      .handle("jolliStart", jolliStart)
       .handle("remove", remove)
       .handle("update", update)
       .handleRaw("fork", forkRaw)
@@ -570,3 +729,12 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("updatePart", updatePart)
   }),
 )
+
+/**
+ * A gateway course or assistant id: a positive integer, spelled the one way `metadata.jolli` and the
+ * catalogue spell it. `Number()` alone also takes "1e1", " 10" and "0xA", and the binding stored
+ * would then name a course no catalogue lookup finds.
+ */
+function isGatewayId(value: string) {
+  return /^[1-9]\d{0,14}$/.test(value)
+}

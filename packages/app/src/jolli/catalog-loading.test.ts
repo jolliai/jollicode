@@ -1,14 +1,18 @@
-import { beforeEach, describe, expect, test } from "bun:test"
+import { beforeEach, describe, expect, setSystemTime, test } from "bun:test"
 import {
   assistantById,
   catalogGeneration,
+  catalogRefreshed,
   courseById,
   ensureCatalog,
   enrolledCourses,
   ready,
+  recheckCatalog,
+  refreshCatalog,
   resetCatalog,
   viewer,
 } from "./catalog"
+import { Lookup } from "@opencode-ai/core/jolli/lookup"
 import { modelTier } from "./model-tier"
 import type { Catalog } from "./types"
 
@@ -231,5 +235,45 @@ describe("resetCatalog", () => {
     await pending
     expect(enrolledCourses().length).toBe(1)
     expect(modelTier("jolli/uuid-opus")).toBe("premium")
+  })
+})
+
+/**
+ * ⚠ ONLY A REFRESH ASKS PAST THE SERVER'S CACHE. Its callers — a refused Start, a picker opening, the
+ * sidebar's button — are somebody told the list is wrong, and `/jolli/course` otherwise answers with
+ * a snapshot up to five minutes old. A reset or a first load is content with that snapshot.
+ */
+describe("refreshCatalog", () => {
+  test("marks its own generation as the one that asks for a fresh catalogue", () => {
+    expect(catalogRefreshed(catalogGeneration())).toBe(false)
+    refreshCatalog()
+    expect(catalogRefreshed(catalogGeneration())).toBe(true)
+  })
+
+  test("a reset after it goes back to the cached answer", () => {
+    refreshCatalog()
+    resetCatalog()
+    expect(catalogRefreshed(catalogGeneration())).toBe(false)
+  })
+})
+
+/** ⚠ A PICKER OPENED AND CLOSED A FEW TIMES MUST NOT COST A FULL GATEWAY LOAD EACH TIME. */
+describe("recheckCatalog", () => {
+  test("lets a recent refresh stand, and asks again once it is old", () => {
+    const start = Date.now()
+    try {
+      setSystemTime(start)
+      refreshCatalog()
+      const asked = catalogGeneration()
+      recheckCatalog()
+      expect(catalogGeneration()).toBe(asked)
+
+      setSystemTime(start + Lookup.RECHECK_INTERVAL_MS)
+      recheckCatalog()
+      expect(catalogGeneration()).toBe(asked + 1)
+      expect(catalogRefreshed(catalogGeneration())).toBe(true)
+    } finally {
+      setSystemTime()
+    }
   })
 })

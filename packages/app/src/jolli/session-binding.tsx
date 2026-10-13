@@ -35,10 +35,11 @@ import { useParams } from "@solidjs/router"
 import { createEffect, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLayout } from "@/context/layout"
-import { assistantById, canStartSession, courseById, defaultAssistantFor, enrolledCourses, ready } from "./catalog"
+import { assistantById, canStartSession, courseById, draftBinding, enrolledCourses, ready, windowNow } from "./catalog"
 import { useJolliCatalog } from "./catalog-fetch"
 import { CourseIntent, courseIntentRouteKey } from "./course-intent"
 import { ModelGrant } from "./model-grant"
+import type { StartErrorKey } from "./start-session"
 import { useSync } from "@/context/sync"
 import { courseBindingOf, type CourseBinding } from "@opencode-ai/core/jolli/binding"
 import type { Assistant, Course } from "./types"
@@ -88,7 +89,23 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
 
     const [store, setStore] = createStore<{
       draft?: CourseBinding
-    }>({})
+      /**
+       * WHY THE LAST START ON THIS DRAFT FAILED, AS A DICTIONARY KEY. Kept here rather than beside
+       * the Start button because the refusal outlives what it refused: the catalogue is refreshed
+       * after one, the assistant may then be re-picked below, and the student still needs to read
+       * why their choice changed. A choice of their own clears it.
+       */
+      startError?: StartErrorKey
+      /**
+       * A Start is out with the gateway. The draft is frozen meanwhile — the course row turns to
+       * text — because the session that comes back is bound to what was sent, not to what the
+       * picker says by then.
+       */
+      starting: boolean
+    }>({ starting: false })
+
+    /** The app's one window clock — see `windowNow`. */
+    const now = windowNow
 
     /**
      * THE BINDING IN FORCE RIGHT NOW: the open session's, or the draft being composed.
@@ -114,12 +131,9 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
     const course = createMemo<Course | undefined>(() => courseById(current()?.courseId))
     const assistant = createMemo<Assistant | undefined>(() => assistantById(current()?.assistantId))
 
-    const draftFor = (courseId: string, assistantId?: string): CourseBinding | undefined => {
-      if (!courseById(courseId)) return undefined
-      const chosen = (assistantId ? assistantById(assistantId) : undefined) ?? defaultAssistantFor(courseId)
-      if (!chosen) return undefined
-      return { courseId, assistantId: chosen.id }
-    }
+    /** ⚠ PICKED FROM WHAT MAY START NOW, NOT FROM THE WHOLE COURSE — see `draftBinding`. */
+    const draftFor = (courseId: string, assistantId?: string): CourseBinding | undefined =>
+      draftBinding(courseId, assistantId, now())
 
     /**
      * THE FIRST STARTABLE COURSE IS PRE-SELECTED, SO A STUDENT WHO JUST SIGNED IN CAN TYPE.
@@ -157,7 +171,13 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
      */
     let autoSelected = false
     createEffect(() => {
-      if (!ready() || id()) return
+      /**
+       * ⚠ NOT WHILE A START IS OUTSTANDING, ON EITHER BRANCH. The session that comes back is bound to
+       * what was sent; re-applying the sidebar's request at a window boundary meanwhile could stage an
+       * assistant that does not open the conversation, bring back the prompt box, and with it a
+       * second session. The effect re-runs when `starting` clears.
+       */
+      if (!ready() || id() || store.starting) return
 
       /**
        * ⚠ `claim`, NOT `pending`. The request belongs to one new session — see `course-intent.ts`.
@@ -212,6 +232,30 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
     })
 
     /**
+     * THE DRAFT'S ASSISTANT STOPPED BEING STARTABLE — ITS WINDOW CLOSED, OR A REFRESHED CATALOGUE
+     * DROPPED IT — SO ANOTHER ONE IN THE SAME COURSE TAKES ITS PLACE.
+     *
+     * ⚠ THE DRAFT IS CLEARED WHEN NOTHING IN THE COURSE MAY START. The course picker then shows that
+     * course refused, with its reason, which is the only honest thing left to say.
+     *
+     * ⚠ NOT WHILE THE CATALOGUE IS UNLOADED. A reset empties it on the way to the next answer, and
+     * judging the draft against an empty catalogue would throw away a choice that is about to be
+     * valid again.
+     *
+     * ⚠ NOR WHILE A START IS OUTSTANDING. It can wait up to 45 seconds on the gateway; re-picking under
+     * it would re-render the composer for an assistant nobody pressed Start on — one that does not
+     * open the conversation brings back the prompt box, and a second session with it. The effect
+     * re-runs when `starting` clears, so a refused Start still moves the draft on.
+     */
+    createEffect(() => {
+      const draft = store.draft
+      if (id() || !draft || !ready() || store.starting) return
+      const next = draftBinding(draft.courseId, draft.assistantId, now())
+      if (next?.assistantId === draft.assistantId) return
+      setStore("draft", next)
+    })
+
+    /**
      * PUBLISH WHAT THE ASSISTANT DECIDES ABOUT MODELS so the models context can narrow its list and
      * the selection chain can honour the professor's default. See `model-grant.ts` for why this
      * crosses a module signal rather than a context.
@@ -231,6 +275,8 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
       assistant,
       /** True once a session exists, which is what makes the binding unchangeable. */
       locked: createMemo(() => !!id()),
+      /** The time assistant windows are judged by; changes only when one opens or closes. */
+      now,
       /** The session on screen, or undefined on the new-session screen. */
       sessionID: id,
 
@@ -250,16 +296,36 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
            * request re-apply CS 310 the next time the effect ran.
            */
           CourseIntent.clear()
-          setStore("draft", draftFor(courseId))
+          setStore({ draft: draftFor(courseId), startError: undefined })
         },
         setAssistant(assistantId: string) {
           const courseId = store.draft?.courseId ?? assistantById(assistantId)?.courseId
           if (!courseId) return
-          setStore("draft", draftFor(courseId, assistantId))
+          /**
+           * ⚠ A HAND-PICKED ASSISTANT ANSWERS A PENDING "+" REQUEST TOO, as a hand-picked course
+           * overrules one. The request effect tracks the catalogue and the window clock, so left
+           * standing it would re-apply the course — and with it the default assistant — over this
+           * choice on the next refresh or tick.
+           */
+          CourseIntent.clear()
+          setStore({ draft: draftFor(courseId, assistantId), startError: undefined })
         },
         clear() {
           CourseIntent.clear()
-          setStore("draft", undefined)
+          setStore({ draft: undefined, startError: undefined })
+        },
+        /** Why the last Start on this draft failed; undefined once it succeeds or the student re-chooses. */
+        get startError() {
+          return store.startError
+        },
+        setStartError(key: StartErrorKey | undefined) {
+          setStore("startError", key)
+        },
+        get starting() {
+          return store.starting
+        },
+        setStarting(value: boolean) {
+          setStore("starting", value)
         },
       },
 
@@ -275,7 +341,7 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
         const next = binding ?? store.draft
         if (!next) return
         handoff.set(session, { ...next })
-        setStore("draft", undefined)
+        setStore({ draft: undefined, startError: undefined })
         /**
          * ⚠ THE "+" REQUEST IS ANSWERED HERE, WHICH IS THE ONLY MOMENT IT CAN BE. It has to outlive
          * the two providers that read it — that is why it is not consumed on read — so the thing

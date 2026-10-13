@@ -4,6 +4,9 @@ import type { Prompt, PromptStore } from "@/context/prompt"
 import type { ModelSelection } from "@/context/local"
 
 let createPromptSubmit: typeof import("./submit").createPromptSubmit
+let createSessionStart: typeof import("./submit").createSessionStart
+let catalogGeneration: typeof import("@/jolli/catalog").catalogGeneration
+let catalogRefreshed: typeof import("@/jolli/catalog").catalogRefreshed
 
 const createdClients: string[] = []
 const createdSessions: string[] = []
@@ -31,10 +34,24 @@ const promoted: Array<{ directory: string; sessionID: string }> = []
 let courseBinding: { courseId: string; assistantId: string } | undefined
 /** The resolved course behind that binding — its `code` is the prefix a new session is named with. */
 let course: { id: string; code: string } | undefined
-const coursePromoted: Array<{ directory: string; sessionID: string }> = []
+const coursePromoted: Array<{ directory: string; sessionID: string; binding?: unknown }> = []
+/** What a Start sent to the sidecar, and what the sidecar answers it with. */
+const jolliStartInputs: unknown[] = []
+/** Every `session.update` the submit sent — only the first message of a started session renames it. */
+const sessionUpdates: unknown[] = []
+let jolliStartAnswer: () => Promise<{ data: unknown }> = async () => ({ data: { status: "unreachable" } })
+/** The draft's Start state, as `session-binding.tsx` keeps it. */
+const draftState: { starting: boolean; startError?: string; startingSeen: boolean[] } = {
+  starting: false,
+  startingSeen: [],
+}
 const sentShell: Array<{ sessionID: string; id?: string; command: string }> = []
 const syncedDirectories: string[] = []
 const promotedDrafts: Array<{ draftID: string; server: string; sessionId: string }> = []
+/** Session tabs added without a draft to promote — what a Start answered after its draft closed gets. */
+const addedTabs: Array<{ server: string; sessionId: string }> = []
+/** The open tabs, when a test sets them; otherwise the draft in the route is the only one open. */
+let openTabs: Array<{ type: "draft"; draftID: string; server: string; directory: string }> | undefined
 const sentPrompts: string[] = []
 const promptInputs: unknown[] = []
 const sentCommands: unknown[] = []
@@ -49,6 +66,8 @@ let permissionServer = "server-a"
 let createSessionGate: Promise<void> | undefined
 /** Flip to walk the paths that leave a submit with no session to hand its history to. */
 let worktreeCreateFails = false
+/** Every worktree `worktree.create` made, by directory. */
+let worktreesCreated = 0
 let sessionCreateFails = false
 /** The one of those paths that raises instead of returning — nothing downstream gets to clean up. */
 let childSyncFails = false
@@ -121,9 +140,22 @@ const clientFor = (directory: string) => {
     session: {
       command: async () => ({ data: undefined }),
       abort: async () => ({ data: undefined }),
+      update: async (input: unknown) => {
+        sessionUpdates.push(input)
+        return { data: undefined }
+      },
+      jolliStart: async (input: unknown) => {
+        jolliStartInputs.push(input)
+        draftState.startingSeen.push(draftState.starting)
+        return jolliStartAnswer()
+      },
     },
     worktree: {
-      create: async () => (worktreeCreateFails ? { data: undefined } : { data: { directory: `${directory}/new` } }),
+      create: async () => {
+        if (worktreeCreateFails) return { data: undefined }
+        worktreesCreated++
+        return { data: { directory: `${directory}/new` } }
+      },
     },
   }
 }
@@ -189,8 +221,22 @@ beforeAll(async () => {
       current: () => courseBinding,
       /** Read for the title a new session is born with — see `jolli/session-title.ts`. */
       course: () => course,
-      promote(directory: string, sessionID: string) {
-        coursePromoted.push({ directory, sessionID })
+      promote(directory: string, sessionID: string, binding?: unknown) {
+        coursePromoted.push({ directory, sessionID, ...(binding ? { binding } : {}) })
+      },
+      draft: {
+        get starting() {
+          return draftState.starting
+        },
+        setStarting(value: boolean) {
+          draftState.starting = value
+        },
+        get startError() {
+          return draftState.startError
+        },
+        setStartError(key: string | undefined) {
+          draftState.startError = key
+        },
       },
     }),
   }))
@@ -210,7 +256,17 @@ beforeAll(async () => {
 
   mock.module("@/context/tabs", () => ({
     useTabs: () => ({
-      draft: () => ({ server: "project-server" }),
+      get store() {
+        return (
+          openTabs ??
+          (search.draftId
+            ? [{ type: "draft", draftID: search.draftId, server: "project-server", directory: "/repo/main" }]
+            : [])
+        )
+      },
+      addSessionTab: (tab: { server: string; sessionId: string }) => {
+        addedTabs.push(tab)
+      },
       promoteDraft: (draftID: string, session: { server: string; sessionId: string }) => {
         promotedDrafts.push({ draftID, ...session })
       },
@@ -321,6 +377,10 @@ beforeAll(async () => {
 
   const mod = await import("./submit")
   createPromptSubmit = mod.createPromptSubmit
+  createSessionStart = mod.createSessionStart
+  const catalog = await import("@/jolli/catalog")
+  catalogGeneration = catalog.catalogGeneration
+  catalogRefreshed = catalog.catalogRefreshed
 })
 
 beforeEach(() => {
@@ -334,7 +394,15 @@ beforeEach(() => {
   courseBinding = undefined
   course = undefined
   coursePromoted.length = 0
+  jolliStartInputs.length = 0
+  sessionUpdates.length = 0
+  jolliStartAnswer = async () => ({ data: { status: "unreachable" } })
+  draftState.starting = false
+  draftState.startError = undefined
+  draftState.startingSeen.length = 0
   promotedDrafts.length = 0
+  addedTabs.length = 0
+  openTabs = undefined
   sentPrompts.length = 0
   promptInputs.length = 0
   sentCommands.length = 0
@@ -349,6 +417,7 @@ beforeEach(() => {
   permissionServer = "server-a"
   createSessionGate = undefined
   worktreeCreateFails = false
+  worktreesCreated = 0
   sessionCreateFails = false
   childSyncFails = false
   serverSessionSyncs = 0
@@ -748,7 +817,9 @@ describe("prompt submit session title", () => {
 describe("prompt submit history handoff", () => {
   const history = { promoted: [] as string[], discarded: 0 }
 
-  const submitWithHistory = (info: () => { id: string } | undefined = () => undefined) =>
+  const submitWithHistory = (
+    info: () => { id: string; title?: string; metadata?: Record<string, unknown> } | undefined = () => undefined,
+  ) =>
     createPromptSubmit({
       prompt,
       info,
@@ -854,5 +925,316 @@ describe("prompt submit history handoff", () => {
     // Nothing to create or promote here — the point is that neither submit was swallowed.
     expect(createdSessions).toEqual([])
     expect(sentShell).toHaveLength(2)
+  })
+
+  /**
+   * ⚠ START MAKES THE SESSION BEFORE ANYTHING IS TYPED, so it is born with the server's default
+   * title; the student's first message names it as a typed first message would have.
+   */
+  test("the first message into a started session names it after the course and the message", async () => {
+    params.id = "ses_started"
+    course = { id: "7", code: "CS 310" }
+    const metadata = { jolli: { courseId: "7", assistantId: "42" }, jolliOpener: { sessionID: "ses_started" } }
+
+    await submitWithHistory(() => ({
+      id: "ses_started",
+      title: "New session - 2026-10-14T08:00:00.000Z",
+      metadata,
+    })).handleSubmit(event())
+    expect(sessionUpdates).toEqual([{ sessionID: "ses_started", title: "CS 310 · ls" }])
+
+    // Named already, or never started on the gateway: left alone.
+    await submitWithHistory(() => ({ id: "ses_started", title: "CS 310 · ls", metadata })).handleSubmit(event())
+    await submitWithHistory(() => ({
+      id: "ses_started",
+      title: "New session - 2026-10-14T08:00:00.000Z",
+      metadata: { jolli: metadata.jolli },
+    })).handleSubmit(event())
+    expect(sessionUpdates).toHaveLength(1)
+  })
+})
+
+/**
+ * START: THE SHARED NEW-SESSION PATH WITH `session.jolliStart` AS ITS CREATE STEP.
+ *
+ * What matters is the order — the sidecar answers first, and only a started session is promoted,
+ * routed to and bound. A refusal or an unreachable gateway must leave the draft exactly as it was,
+ * with a sentence to say why.
+ */
+describe("session start", () => {
+  const binding = { courseId: "7", assistantId: "42" }
+  const startSession = () =>
+    createSessionStart({
+      newSessionWorktree: () => "main",
+      autoAccept: () => false,
+    })
+  const started = (metadata?: Record<string, unknown>) => ({
+    data: {
+      status: "started",
+      opener: !!metadata?.["jolliOpener"],
+      session: { id: "ses_started", directory: "/repo/main", title: "", time: { created: 1, updated: 1 }, metadata },
+    },
+  })
+
+  test("promotes and routes only once the sidecar answers with a session", async () => {
+    courseBinding = binding
+    jolliStartAnswer = async () => started({ jolli: binding, jolliOpener: { sessionID: "ses_started", text: "Hi" } })
+
+    const result = await startSession()()
+
+    expect(jolliStartInputs).toEqual([
+      {
+        directory: "/repo/main",
+        courseId: "7",
+        assistantId: "42",
+        sessionID: expect.stringMatching(/^ses_/),
+        agent: "agent",
+        model: { id: "model", providerID: "provider", variant: undefined },
+      },
+    ])
+    expect(result).toMatchObject({ status: "created", session: { id: "ses_started" } })
+    expect(promoted).toEqual([{ directory: "/repo/main", sessionID: "ses_started" }])
+    // The binding sent is the one promoted, whatever the picker says by the time the answer lands.
+    expect(coursePromoted).toEqual([{ directory: "/repo/main", sessionID: "ses_started", binding }])
+    expect(indexedSessions).toEqual(["ses_started"])
+    expect(draftState.startError).toBeUndefined()
+    // The flag the screen reads was up for the whole wait, and is down again.
+    expect(draftState.startingSeen).toEqual([true])
+    expect(draftState.starting).toBe(false)
+  })
+
+  // R16: a started session without an opener is a normal start, not a failure.
+  test("a session that came back without an opener is still started", async () => {
+    courseBinding = binding
+    jolliStartAnswer = async () => started({ jolli: binding })
+
+    const result = await startSession()()
+
+    expect(result).toMatchObject({ status: "created" })
+    expect(coursePromoted).toHaveLength(1)
+    expect(draftState.startError).toBeUndefined()
+  })
+
+  test("a refusal creates nothing, words the code and refreshes the catalogue", async () => {
+    courseBinding = binding
+    jolliStartAnswer = async () => ({ data: { status: "refused", code: "assistant_closed" } })
+    const generation = catalogGeneration()
+
+    const result = await startSession()()
+
+    expect(result).toMatchObject({ status: "not-created" })
+    expect(promoted).toEqual([])
+    expect(coursePromoted).toEqual([])
+    expect(indexedSessions).toEqual([])
+    expect(draftState.startError).toBe("prompt.jolli.refusal.closed")
+    expect(catalogGeneration()).toBe(generation + 1)
+    // Past the server's snapshot, which still lists the assistant that just closed.
+    expect(catalogRefreshed(catalogGeneration())).toBe(true)
+    expect(draftState.starting).toBe(false)
+  })
+
+  /**
+   * ⚠ THE WORKTREE EXISTS BEFORE THE GATEWAY ANSWERS. A refusal leaves the draft on the worktree it
+   * made, so pressing Start again — or typing instead — uses it rather than making another.
+   */
+  test("a refused Start into a new worktree leaves the draft on that worktree", async () => {
+    courseBinding = binding
+    jolliStartAnswer = async () => ({ data: { status: "refused", code: "assistant_closed" } })
+    let worktree = "create"
+    let resets = 0
+    const start = createSessionStart({
+      newSessionWorktree: () => worktree,
+      onNewSessionWorktreeCreated: (directory) => {
+        worktree = directory
+      },
+      onNewSessionWorktreeReset: () => {
+        resets++
+        worktree = "main"
+      },
+      autoAccept: () => false,
+    })
+
+    await start()
+    await start()
+    expect(worktreesCreated).toBe(1)
+    expect(worktree).toBe("/repo/main/new")
+    expect(resets).toBe(0)
+
+    jolliStartAnswer = async () => started({ jolli: binding })
+    expect(await start()).toMatchObject({ status: "created", directory: "/repo/main/new" })
+    expect(worktreesCreated).toBe(1)
+    expect(resets).toBe(1)
+    expect(jolliStartInputs.map((input) => (input as { directory: string }).directory)).toEqual([
+      "/repo/main/new",
+      "/repo/main/new",
+      "/repo/main/new",
+    ])
+  })
+
+  /** ⚠ THE GATEWAY IS IDEMPOTENT BY ID: AN UNANSWERED START IS RETRIED UNDER THE SAME ONE. */
+  test("a Start that got no answer is retried under the same session id, and a refused one is not", async () => {
+    courseBinding = binding
+    const start = startSession()
+    const sent = () => jolliStartInputs.map((input) => (input as { sessionID: string }).sessionID)
+
+    await start()
+    await start()
+    expect(sent()[0]).toMatch(/^ses_/)
+    expect(sent()[1]).toBe(sent()[0])
+
+    jolliStartAnswer = async () => ({ data: { status: "refused", code: "assistant_closed" } })
+    await start()
+    await start()
+    expect(sent()[2]).toBe(sent()[0])
+    expect(sent()[3]).not.toBe(sent()[2])
+  })
+
+  /**
+   * ⚠ A 4XX IS AN ANSWER: the route made nothing, so the next Start owes the id nothing. A dropped
+   * connection or a 5xx left the gateway's side unknown and keeps it. The errors are shaped as the
+   * SDK's `wrapClientError` throws them, with the status under `cause`.
+   */
+  test("a Start the sidecar rejected opens under a new id; one it failed on keeps it", async () => {
+    courseBinding = binding
+    const start = startSession()
+    const sent = () => jolliStartInputs.map((input) => (input as { sessionID: string }).sessionID)
+    const failing = (status?: number) => async () => {
+      throw new Error("failed", { cause: { body: {}, status } })
+    }
+
+    jolliStartAnswer = failing(400)
+    await start()
+    await start()
+    expect(sent()[1]).not.toBe(sent()[0])
+    expect(draftState.startError).toBe("prompt.jolli.start.failed")
+
+    jolliStartAnswer = failing(500)
+    await start()
+    await start()
+    expect(sent()[3]).toBe(sent()[2])
+
+    jolliStartAnswer = failing(undefined)
+    await start()
+    expect(sent()[4]).toBe(sent()[2])
+  })
+
+  test("a different assistant after an unanswered Start opens under a new id", async () => {
+    courseBinding = binding
+    const start = startSession()
+    await start()
+    courseBinding = { courseId: "7", assistantId: "43" }
+    await start()
+    const ids = jolliStartInputs.map((input) => (input as { sessionID: string }).sessionID)
+    expect(ids[1]).not.toBe(ids[0])
+  })
+
+  test("a refusal with no code we know says try again", async () => {
+    courseBinding = binding
+    jolliStartAnswer = async () => ({ data: { status: "refused" } })
+
+    await startSession()()
+
+    expect(draftState.startError).toBe("prompt.jolli.start.failed")
+    expect(coursePromoted).toEqual([])
+  })
+
+  test("an unreachable gateway creates nothing and says try again", async () => {
+    courseBinding = binding
+    const generation = catalogGeneration()
+
+    await startSession()()
+
+    expect(coursePromoted).toEqual([])
+    expect(draftState.startError).toBe("prompt.jolli.start.failed")
+    // Only a refusal says something about the catalogue; a network failure does not.
+    expect(catalogGeneration()).toBe(generation)
+  })
+
+  test("a sidecar that throws is a failure, never a start without an opener", async () => {
+    courseBinding = binding
+    jolliStartAnswer = async () => {
+      throw new Error("socket hang up")
+    }
+
+    const result = await startSession()()
+
+    expect(result).toMatchObject({ status: "not-created" })
+    expect(coursePromoted).toEqual([])
+    expect(draftState.startError).toBe("prompt.jolli.start.failed")
+  })
+
+  test("a second press while the first is out does nothing", async () => {
+    courseBinding = binding
+    draftState.starting = true
+
+    await startSession()()
+
+    expect(jolliStartInputs).toEqual([])
+  })
+
+  test("two overlapping presses send one Start", async () => {
+    courseBinding = binding
+    const answer = Promise.withResolvers<{ data: unknown }>()
+    jolliStartAnswer = () => answer.promise
+    const start = startSession()
+
+    const first = start()
+    await start()
+    answer.resolve(started({ jolli: binding }))
+    await first
+
+    expect(jolliStartInputs).toHaveLength(1)
+    expect(coursePromoted).toHaveLength(1)
+  })
+
+  /**
+   * ⚠ THE DRAFT IS THE ONE START WAS PRESSED ON, NOT THE ONE ON SCREEN WHEN IT ANSWERS. Read after
+   * the wait, the route named whichever draft the student had moved to, and that draft — with
+   * whatever was typed in it — became this session.
+   */
+  test("a Start answered after the student moved to another draft promotes the one it came from", async () => {
+    courseBinding = binding
+    search = { draftId: "draft-1" }
+    jolliStartAnswer = async () => {
+      search = { draftId: "draft-2" }
+      openTabs = [
+        { type: "draft", draftID: "draft-1", server: "project-server", directory: "/repo/main" },
+        { type: "draft", draftID: "draft-2", server: "project-server", directory: "/repo/main" },
+      ]
+      return started({ jolli: binding })
+    }
+
+    await startSession()()
+
+    expect(promotedDrafts).toEqual([{ draftID: "draft-1", server: "project-server", sessionId: "ses_started" }])
+    expect(addedTabs).toEqual([])
+  })
+
+  test("a Start answered after its draft was closed opens the session in a tab of its own", async () => {
+    courseBinding = binding
+    search = { draftId: "draft-1" }
+    jolliStartAnswer = async () => {
+      search = {}
+      openTabs = []
+      return started({ jolli: binding })
+    }
+
+    const result = await startSession()()
+
+    expect(result).toMatchObject({ status: "created" })
+    expect(promotedDrafts).toEqual([])
+    expect(addedTabs).toEqual([{ server: "project-server", sessionId: "ses_started" }])
+  })
+
+  // The composer is remounted whenever its tab is left; the retry must not start over with it.
+  test("a Start that got no answer is retried under the same id from a remounted composer", async () => {
+    courseBinding = binding
+
+    await startSession()()
+    await startSession()()
+
+    // Everything else about the two Starts is the same, so equal inputs mean the same session id.
+    expect(jolliStartInputs).toHaveLength(2)
+    expect(jolliStartInputs[1]).toEqual(jolliStartInputs[0])
   })
 })

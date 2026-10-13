@@ -183,6 +183,12 @@ describe("toCourse", () => {
   test("omits an absent description rather than emitting null", () => {
     expect(toCourse({ item: course(), entryState: "open", assistantIds: [] }).description).toBeUndefined()
   })
+
+  // Staff are exempt from assistant windows, so the picker needs to know who is looking.
+  test("carries whether the viewer teaches the course", () => {
+    expect(toCourse({ item: course(), entryState: "open", assistantIds: [] }).isStaff).toBe(false)
+    expect(toCourse({ item: course({ isStaff: true }), entryState: "open", assistantIds: [] }).isStaff).toBe(true)
+  })
 })
 
 describe("toAssistant", () => {
@@ -236,6 +242,39 @@ describe("toAssistant", () => {
     })
     expect(mapped.instructions).toBe("")
     expect(mapped.skills).toEqual([])
+  })
+
+  test("carries the brief, the window, and how a chat begins", () => {
+    const mapped = toAssistant({
+      choice: choice({
+        brief: "You're interviewing for a Product Analyst role.",
+        startsAt: "2026-10-01T09:00:00.000Z",
+        endsAt: "2026-10-12T23:59:00.000Z",
+        directChatEnabled: false,
+        opensConversation: true,
+      }),
+      courseId: "7",
+      isDefault: false,
+      models: catalogue,
+    })
+    expect(mapped.brief).toBe("You're interviewing for a Product Analyst role.")
+    expect(mapped.startsAt).toBe("2026-10-01T09:00:00.000Z")
+    expect(mapped.endsAt).toBe("2026-10-12T23:59:00.000Z")
+    expect(mapped.directChatEnabled).toBe(false)
+    expect(mapped.opensConversation).toBe(true)
+  })
+
+  /**
+   * ⚠ A SERVER — OR A CACHED SNAPSHOT — THAT PREDATES THE FIELDS READS AS THE PRODUCT DID BEFORE
+   * THEM: no brief, always open, chat allowed, and an agent that waits to be spoken to.
+   */
+  test("defaults every field an older server does not send", () => {
+    const mapped = toAssistant({ choice: choice(), courseId: "7", isDefault: false, models: catalogue })
+    expect(mapped.brief).toBe("")
+    expect(mapped.startsAt).toBeNull()
+    expect(mapped.endsAt).toBeNull()
+    expect(mapped.directChatEnabled).toBe(true)
+    expect(mapped.opensConversation).toBe(false)
   })
 })
 

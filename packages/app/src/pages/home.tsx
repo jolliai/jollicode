@@ -25,14 +25,14 @@ import { HomeCourseSelection } from "@/jolli/home-selection"
 
 export function NewHome() {
   const language = useLanguage()
-  const { home, projects, sessions } = useHomeData()
+  const data = useHomeData()
   /**
    * ⚠ NAMED SO THE FILTER IS LEGIBLE FROM THE MAIN PANE. With a course selected the sidebar's
    * session list is narrowed to it, and an unexplained short list is the kind of thing a student
    * reads as lost work.
    */
   const course = () => courseById(HomeCourseSelection.courseId())
-  const noProjects = () => home.project.list().length === 0
+  const noProjects = () => data.home.project.list().length === 0
 
   return (
     /**
@@ -45,10 +45,7 @@ export function NewHome() {
      * student switching between them; leaving this one inset and rounded while the other went flush
      * would make the window jump at every transition.
      */
-    <div
-      data-component="home-empty"
-      class="min-h-0 flex-1 self-stretch overflow-hidden bg-v2-background-bg-base"
-    >
+    <div data-component="home-empty" class="min-h-0 flex-1 self-stretch overflow-hidden bg-v2-background-bg-base">
       <div class="flex size-full flex-col items-center justify-center gap-4 px-6 text-center">
         <Show when={course()}>
           {(current) => (
@@ -78,8 +75,8 @@ export function NewHome() {
                 variant="neutral"
                 size="normal"
                 icon="edit"
-                disabled={!sessions.session.canCreate()}
-                onClick={sessions.session.create}
+                disabled={!data.sessions.session.canCreate()}
+                onClick={data.sessions.session.create}
               >
                 {language.t("command.session.new")}
               </ButtonV2>
@@ -100,10 +97,10 @@ export function NewHome() {
             variant="neutral"
             size="normal"
             icon="folder-add-left"
-            disabled={!home.server.focused()}
+            disabled={!data.home.server.focused()}
             onClick={() => {
-              const conn = home.server.focused()
-              if (conn) projects.project.choose(conn)
+              const conn = data.home.server.focused()
+              if (conn) data.projects.project.choose(conn)
             }}
           >
             {language.t("home.project.add")}

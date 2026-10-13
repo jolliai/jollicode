@@ -15,7 +15,7 @@
 
 import { createEffect } from "solid-js"
 import { useServerSDK } from "@/context/server-sdk"
-import { catalogGeneration, ensureCatalog } from "./catalog"
+import { catalogGeneration, catalogRefreshed, ensureCatalog } from "./catalog"
 import type { Catalog } from "./types"
 
 export function useJolliCatalog() {
@@ -27,8 +27,11 @@ export function useJolliCatalog() {
      * sidecar restarts on the same host and port — so it cannot be the only thing this depends on,
      * and `resetCatalog()` would otherwise clear the store with nothing left to refill it.
      */
-    void ensureCatalog(`${server.url}#${catalogGeneration()}`, () =>
-      server.client.jolli.course().then((response) => response.data as Catalog),
+    const count = catalogGeneration()
+    void ensureCatalog(`${server.url}#${count}`, () =>
+      server.client.jolli
+        .course(catalogRefreshed(count) ? { fresh: true } : undefined)
+        .then((response) => response.data as Catalog),
     )
   })
 }

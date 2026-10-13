@@ -53,6 +53,8 @@ export interface PromptInputProps {
   draftID?: string
   newSessionWorktree?: string
   onNewSessionWorktreeReset?: () => void
+  /** A worktree was made for this draft; it becomes the draft's choice. See `NewSessionWorktreeInput`. */
+  onNewSessionWorktreeCreated?: (directory: string) => void
   edit?: { id: string; prompt: Prompt; context: FollowupDraft["context"] }
   onEditLoaded?: () => void
   shouldQueue?: () => boolean

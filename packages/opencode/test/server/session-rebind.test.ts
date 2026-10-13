@@ -31,7 +31,8 @@ const run = (
   before: Record<string, unknown> | undefined,
   after: Record<string, unknown>,
   hasMessages: () => Effect.Effect<boolean, unknown> = started,
-) => Effect.runPromise(Effect.exit(refuseRebindingAfterFirstMessage(before, after, hasMessages)))
+  sessionID = "ses_1",
+) => Effect.runPromise(Effect.exit(refuseRebindingAfterFirstMessage(before, after, hasMessages, sessionID)))
 
 const refused = async (...args: Parameters<typeof run>) => (await run(...args))._tag === "Failure"
 
@@ -121,6 +122,39 @@ describe("refuseRebindingAfterFirstMessage", () => {
     expect(await refused({ jolli: "nonsense" }, bound("7", "12"))).toBe(true)
   })
 
+  /**
+   * ⚠ START BINDS THE CONVERSATION ON THE GATEWAY BEFORE ANY MESSAGE, AND THE OPENER IS NOT ONE.
+   * Rebinding such a session locally would get every later turn refused as a binding conflict.
+   */
+  // A fork copies the opener but not the gateway's conversation, so it is not started by it.
+  test("an opener copied from the session a fork came from does not lock the fork", async () => {
+    const opened = { ...bound("7", "12"), jolliOpener: { sessionID: "ses_1", text: "Hi." } }
+    expect(await refused(opened, bound("8", "20"), noMessages, "ses_2")).toBe(false)
+    expect(await refused(opened, bound("8", "20"), noMessages, "ses_1")).toBe(true)
+  })
+
+  test("a session started with an opener is locked before its first message", async () => {
+    const opened = { ...bound("7", "12"), jolliOpener: { sessionID: "ses_1", text: "Hi." } }
+    expect(await refused(opened, { ...bound("8", "20"), jolliOpener: opened.jolliOpener }, noMessages)).toBe(true)
+    expect(await refused(opened, bound("7", "13"), noMessages)).toBe(true)
+    // Visibility and an identical rewrite stay free, as they do on any started session.
+    expect(
+      await refused(
+        opened,
+        { ...opened, jolli: { ...opened.jolli, sharing: { staff: true, everyone: false } } },
+        noMessages,
+      ),
+    ).toBe(false)
+    expect(await refused(opened, opened, noMessages)).toBe(false)
+  })
+
+  /** ⚠ THE GATEWAY BINDS THE CONVERSATION WHETHER OR NOT IT ANSWERED WITH AN OPENER. */
+  test("a session started without an opener is locked before its first message too", async () => {
+    const opened = { ...bound("7", "12"), jolliOpener: { sessionID: "ses_1" } }
+    expect(await refused(opened, bound("8", "20"), noMessages)).toBe(true)
+    expect(await refused(opened, bound("8", "20"), noMessages, "ses_2")).toBe(false)
+  })
+
   // Dropping the binding entirely is still a rebind, and still refused once started.
   test("refuses removing the binding from a started session", async () => {
     expect(await refused(bound("7", "12"), {})).toBe(true)
@@ -150,6 +184,31 @@ describe("preserveBinding", () => {
 
   test("a write that carries a binding is left alone, so the guard can judge it", () => {
     expect(preserveBinding(bound("7", "12"), bound("8", "20"))).toEqual(bound("8", "20"))
+  })
+
+  /**
+   * ⚠ THE OPENER IS SEPARATE FROM `jolli` BECAUSE A VISIBILITY TOGGLE REWRITES THAT WHOLE OBJECT, and
+   * it must survive that write — and every other one that does not mention it.
+   */
+  test("the opener survives a write that rewrites the binding or never mentions it", () => {
+    const opener = { sessionID: "ses_1", text: "Hi." }
+    const before = { ...bound("7", "12"), jolliOpener: opener }
+    expect(preserveBinding(before, bound("7", "12", { staff: true, everyone: false }))).toEqual({
+      ...bound("7", "12", { staff: true, everyone: false }),
+      jolliOpener: opener,
+    })
+    expect(preserveBinding(before, { other: 1 })).toEqual({ other: 1, ...before })
+  })
+
+  // Only the start route writes it, from the gateway's answer; a client cannot put words on screen.
+  test("a write cannot replace, remove or invent the opener", () => {
+    const opener = { sessionID: "ses_1", text: "Hi." }
+    const before = { ...bound("7", "12"), jolliOpener: opener }
+    expect(
+      preserveBinding(before, { ...bound("7", "12"), jolliOpener: { sessionID: "ses_1", text: "Forged." } }),
+    ).toEqual(before)
+    expect(preserveBinding(before, { ...bound("7", "12"), jolliOpener: undefined })).toEqual(before)
+    expect(preserveBinding(bound("7", "12"), { ...bound("7", "12"), jolliOpener: opener })).toEqual(bound("7", "12"))
   })
 
   test("an unbound session gains nothing", () => {

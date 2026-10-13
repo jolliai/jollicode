@@ -17,6 +17,7 @@
  * All three answer with a bare array — no envelope.
  *
  * And the session-share surface, verified against the same tree:
+ *   POST   /api/agent/convos                        AgentConvoRouter.ts   `coding_agent` origin, see openConversation
  *   GET    /api/agent/convos/:id                    AgentConvoRouter.ts   owner only, 404 otherwise
  *   PATCH  /api/agent/convos/:id                    AgentConvoRouter.ts   owner only, 404 otherwise
  *   GET    /api/agent/convos/:id/shares             ConversationShareRouter.ts   owner only, 404 otherwise
@@ -26,8 +27,8 @@
  * The shares read and the share writes answer with the conversation's composed visibility, the convo
  * read carries the same object under `visibility`, and the roster is a bare array.
  */
-import { Effect, Schedule, Schema } from "effect"
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
+import { Duration, Effect, Schedule, Schema } from "effect"
+import { HttpClient, HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 import { Brand } from "../brand"
 import { isJolliOriginAllowed, parseJolliUrl } from "./origin"
 
@@ -36,8 +37,8 @@ export class JolliApiError extends Schema.TaggedErrorClass<JolliApiError>()("Jol
   /** Absent when the request never got a response. */
   status: Schema.optional(Schema.Number),
   /**
-   * The machine-readable reason a write was refused, when the gateway sent one. Only the share
-   * writes read it today; see {@link shareConversation}.
+   * The machine-readable reason a write was refused, when the gateway sent one. Read by the share
+   * writes ({@link shareConversation}) and by {@link openConversation}.
    */
   code: Schema.optional(Schema.String),
   message: Schema.String,
@@ -149,6 +150,22 @@ export const CourseAssistantChoice = Schema.Struct({
   modelId: Schema.String,
   /** Registry UUIDs. Empty means UNRESTRICTED, not "no models". */
   allowedModelIds: Schema.Array(Schema.String),
+  /**
+   * What the teacher wrote for students to read before they start. Empty means none.
+   *
+   * ⚠ IT AND THE FOUR FIELDS AFTER IT ARE OPTIONAL BECAUSE A SERVER THAT PREDATES THEM MUST STILL
+   * DECODE. `schemaBodyJson` fails the whole array on one missing key, so requiring them would lock
+   * every student of an older tenant out over a feature they cannot use anyway. `toAssistant` fills
+   * the defaults: no brief, no window, chat allowed, the agent does not speak first.
+   */
+  /** Null is the same as absent: a teacher who wrote no brief may be stored either way. */
+  brief: Schema.optional(Schema.NullOr(Schema.String)),
+  /** ISO instants bounding when a new chat may start; null on a side means unbounded. */
+  startsAt: Schema.optional(Schema.NullOr(Schema.String)),
+  endsAt: Schema.optional(Schema.NullOr(Schema.String)),
+  directChatEnabled: Schema.optional(Schema.Boolean),
+  /** Whether the agent speaks first. Only newer servers send it. */
+  opensConversation: Schema.optional(Schema.Boolean),
 }).annotate({ identifier: "JolliApi.CourseAssistantChoice" })
 export interface CourseAssistantChoice extends Schema.Schema.Type<typeof CourseAssistantChoice> {}
 
@@ -234,6 +251,20 @@ export interface ConversationVisibility extends Schema.Schema.Type<typeof Conver
  */
 const ConversationDetail = Schema.Struct({ visibility: ConversationVisibility })
 
+/**
+ * The one field of the detail `POST /api/agent/convos` answers with that this client reads: the
+ * opener, with the student's and teacher's names already put in.
+ *
+ * ⚠ EVERY LEVEL IS OPTIONAL, AND AN ABSENT OPENER IS A SUCCESS. The server still creates the
+ * conversation without one when the school has AI switched off, the generator is saturated, or it
+ * failed — and the student then simply starts typing, as on the web.
+ */
+const OpenedConversation = Schema.Struct({
+  config: Schema.optional(
+    Schema.NullOr(Schema.Struct({ opener: Schema.optional(Schema.NullOr(Schema.Struct({ text: Schema.String }))) })),
+  ),
+})
+
 /** jolliedu `common/src/types/SpaceMember.ts` — `SpaceMemberWithUser`, trimmed to what a picker reads. */
 export const SpaceMember = Schema.Struct({
   userId: Schema.Number,
@@ -303,6 +334,7 @@ const send = Effect.fn("Jolli.send")(function* <A, I>(
   path: string,
   schema: Schema.Codec<A, I>,
   body?: unknown,
+  timeout: Duration.Input = "15 seconds",
 ) {
   const http = yield* HttpClient.HttpClient
   const url = new URL(path, request.origin).toString()
@@ -320,7 +352,7 @@ const send = Effect.fn("Jolli.send")(function* <A, I>(
     request.tenantSlug ? HttpClientRequest.setHeader("x-tenant-slug", request.tenantSlug) : (r) => r,
     body === undefined ? Effect.succeed : HttpClientRequest.bodyJson(body),
     Effect.flatMap((r) => http.execute(r)),
-    Effect.timeout("15 seconds"),
+    Effect.timeout(timeout),
     Effect.mapError((cause) => failed(cause)),
   )
   if (response.status >= 200 && response.status < 300) {
@@ -464,3 +496,52 @@ export const unshareConversation = (request: GatewayRequest, sessionID: string, 
     `/api/agent/convos/${encodeURIComponent(sessionID)}/shares/${subject}`,
     ConversationVisibility,
   )
+
+/**
+ * CREATE THE CONVERSATION ON THE GATEWAY BEFORE THE STUDENT HAS SAID ANYTHING, UNDER THE ID THIS
+ * CLIENT WILL USE LOCALLY, AND ANSWER WITH THE AGENT'S OPENER WHEN IT HAS ONE.
+ *
+ * ⚠ 45 SECONDS, NOT `send`'S 15. A dynamic opener is a model call the server budgets twenty seconds
+ * for, made before it answers; the shorter wait would give up on every one that is merely slow.
+ *
+ * ⚠ RETRIED ONCE, WITH THE SAME ID, ONLY WHEN NO RESPONSE CAME BACK AT ALL. The call is idempotent
+ * by id — a second request returns the row the first one made, opener included, without writing a
+ * new one — so a dropped connection is safe to replay. A timeout is not retried: the first request
+ * may still be generating, and stacking a second 45 seconds behind it is a wait no student sits
+ * through. An HTTP status is an answer and is never retried.
+ *
+ * ⚠ A FAILURE IS NEVER "NO OPENER". The server may have stored one the student did not see, and
+ * entering the chat as though it had not would leave the model answering a greeting nobody read.
+ * Refusals carry the gateway's `code` (`assistant_not_open`, `assistant_closed`,
+ * `session_binding_conflict`, `session_not_found`); a 404 with no code is a course or assistant
+ * that is gone.
+ *
+ * ⚠ THE ID IS SAFE TO CHOOSE CLIENT-SIDE because a session id carries far more entropy than anyone
+ * could guess, which is what makes "this id is taken" — visible as 404 versus 201 — tell nobody
+ * anything.
+ */
+export const openConversation = (
+  request: GatewayRequest,
+  input: { spaceId: number; courseAssistantId: number; publicSessionId: string },
+) =>
+  send(
+    request,
+    "POST",
+    "/api/agent/convos",
+    OpenedConversation,
+    {
+      spaceId: input.spaceId,
+      courseAssistantId: input.courseAssistantId,
+      origin: "coding_agent",
+      publicSessionId: input.publicSessionId,
+    },
+    "45 seconds",
+  ).pipe(
+    Effect.retry({ times: 1, while: (error) => error.status === undefined && isTransportFailure(error.cause) }),
+    Effect.map((detail) => ({ opener: detail.config?.opener?.text })),
+  )
+
+/** No response at all — not a timeout, not a body we could not read. */
+function isTransportFailure(cause: unknown) {
+  return HttpClientError.isHttpClientError(cause) && cause.reason._tag === "TransportError"
+}

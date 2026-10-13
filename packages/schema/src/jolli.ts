@@ -142,6 +142,13 @@ export const Course = Schema.Struct({
   entryState: CourseEntryState,
   /** `YYYY-MM-DD`, for the "ended"/"opens on" lines. Null when the course has no end date. */
   endsOn: Schema.NullOr(Schema.String),
+  /**
+   * Whether the viewer teaches this course. Staff are exempt from assistant availability windows
+   * on the gateway, so the new-session picker shows them every assistant to try ahead of time.
+   *
+   * ⚠ OPTIONAL BECAUSE A CATALOGUE CACHED BEFORE IT EXISTED STILL READS AS ONE; absent is a student.
+   */
+  isStaff: Schema.Boolean.pipe(optional),
 }).annotate({ identifier: "Jolli.Course" })
 
 /**
@@ -377,6 +384,27 @@ export const Assistant = Schema.Struct({
    */
   skills: Schema.Array(AssistantSkill),
   status: Schema.Literals(["draft", "live", "paused"]),
+  /**
+   * What the teacher wrote for students to read before starting. Empty means show nothing.
+   *
+   * ⚠ THIS AND THE FOUR FIELDS BELOW ARE OPTIONAL ONLY SO AN OLDER CACHED CATALOGUE STILL READS.
+   * `toAssistant` always writes them; a reader that finds one absent takes the same default it
+   * would have written — no brief, no window, chat allowed, the agent does not speak first.
+   */
+  brief: Schema.String.pipe(optional),
+  /**
+   * When a new chat with this assistant may start: ISO instants, start inclusive, end exclusive,
+   * null on a side meaning unbounded. See `Lookup.windowPhase`.
+   *
+   * ⚠ A HINT, NOT A GATE. The gateway refuses a chat outside the window whatever this says; the
+   * client reads it only to stop offering what would be refused.
+   */
+  startsAt: Schema.NullOr(Schema.String).pipe(optional),
+  endsAt: Schema.NullOr(Schema.String).pipe(optional),
+  /** False when a student may reach this assistant only through an assignment, not a new chat. */
+  directChatEnabled: Schema.Boolean.pipe(optional),
+  /** Whether the agent speaks first, so a new chat begins with Start rather than a prompt. */
+  opensConversation: Schema.Boolean.pipe(optional),
 }).annotate({ identifier: "Jolli.Assistant" })
 
 /**

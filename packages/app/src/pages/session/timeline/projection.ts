@@ -20,6 +20,8 @@ export function createTimelineProjection(input: {
    * materials is read off its parts.
    */
   showCitations?: Accessor<boolean | undefined>
+  /** Rows above the first turn, which belong to no message — see `constructLeadRows`. */
+  lead?: Accessor<TimelineRow.TimelineRow[]>
 }) {
   const messageByID = createMemo(() => new Map(input.messages().map((message) => [message.id, message] as const)))
   const assistantMessagesByParent = createMemo(() => {
@@ -48,9 +50,10 @@ export function createTimelineProjection(input: {
     ),
   )
   const activeMessageID = createMemo(() => projection().activeMessageID)
-  const rows = createMemo((previous: TimelineRow.TimelineRow[] | undefined) =>
-    reuseTimelineRows(previous, projection().rows),
-  )
+  const rows = createMemo((previous: TimelineRow.TimelineRow[] | undefined) => {
+    const lead = input.lead?.() ?? []
+    return reuseTimelineRows(previous, lead.length > 0 ? [...lead, ...projection().rows] : projection().rows)
+  })
   const rowByKey = createMemo(() => new Map(rows().map((row) => [TimelineRow.key(row), row] as const)))
   const messageRowIndex = createMemo(() => {
     const result = new Map<string, number>()

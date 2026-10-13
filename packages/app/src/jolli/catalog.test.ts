@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, test } from "bun:test"
 import {
   assistantsForCourse,
+  blockedReason,
   canStartSession,
+  closedForViewer,
   courseById,
   defaultAssistantFor,
+  draftBinding,
   enrolledCourses,
   listedCourses,
+  newSessionAssistants,
   ready,
   resetCatalog,
   setCatalog,
@@ -95,6 +99,14 @@ describe("listedCourses", () => {
   test("counts an open course with no assistant as unstartable", () => {
     setCatalog(catalog([course("1", "open", ["a"]), course("2", "open")], [assistant("a", "1")]))
     expect(listedCourses().map((c) => c.id)).toEqual(["1"])
+  })
+
+  // Its chats are filed under it and stay readable; only starting a new one is refused.
+  test("keeps a course whose agents have all closed, which still cannot be started", () => {
+    const closed = { ...assistant("b", "2"), endsAt: "2000-01-01T00:00:00.000Z" }
+    setCatalog(catalog([course("1", "open", ["a"]), course("2", "open", ["b"])], [assistant("a", "1"), closed]))
+    expect(listedCourses().map((c) => c.id)).toEqual(["1", "2"])
+    expect(canStartSession("2")).toBe(false)
   })
 
   test("stays empty for a student with no enrolments", () => {
@@ -200,5 +212,128 @@ describe("setCatalog with an answer that is not a catalogue", () => {
     setCatalog({} as unknown as Catalog)
     setCatalog(catalog([course("1", "open", ["a"])], [assistant("a", "1")]))
     expect(enrolledCourses().map((item) => item.id)).toEqual(["1"])
+  })
+})
+
+/**
+ * ASSISTANT WINDOWS: WHAT A NEW SESSION MAY OFFER, AND WHAT A LIVE ONE MAY STILL DO.
+ *
+ * The gateway is the gate; these only keep the picker from offering what it would refuse. The rule
+ * is the web's — start inclusive, end exclusive, `directChatEnabled: false` never startable — and
+ * staff are exempt so they can try an assistant before it opens.
+ */
+describe("assistant windows", () => {
+  const now = new Date("2026-10-13T12:00:00Z")
+  const earlier = "2026-10-13T11:00:00Z"
+  const later = "2026-10-13T13:00:00Z"
+  const windowed = (id: string, window: Partial<Assistant>) => ({ ...assistant(id, "1", id === "a"), ...window })
+  const load = (assistants: Assistant[], isStaff = false) =>
+    setCatalog(
+      catalog(
+        [
+          {
+            ...course(
+              "1",
+              "open",
+              assistants.map((item) => item.id),
+            ),
+            isStaff,
+          },
+        ],
+        assistants,
+      ),
+    )
+
+  describe("newSessionAssistants", () => {
+    test("offers a student only what is open now, in the course's order", () => {
+      load([
+        windowed("a", { startsAt: later }),
+        windowed("b", { endsAt: earlier }),
+        windowed("c", {}),
+        windowed("d", { directChatEnabled: false }),
+        windowed("e", { startsAt: earlier, endsAt: later }),
+      ])
+      expect(newSessionAssistants("1", now).map((item) => item.id)).toEqual(["c", "e"])
+    })
+
+    test("offers staff every assistant, to try one before it opens", () => {
+      load([windowed("a", { startsAt: later }), windowed("b", { endsAt: earlier })], true)
+      expect(newSessionAssistants("1", now).map((item) => item.id)).toEqual(["a", "b"])
+    })
+
+    // R4: the filter is for new sessions only. A live session bound to a closed one keeps its name.
+    test("leaves the catalogue whole", () => {
+      load([windowed("a", { endsAt: earlier })])
+      expect(newSessionAssistants("1", now)).toEqual([])
+      expect(assistantsForCourse("1").map((item) => item.id)).toEqual(["a"])
+    })
+  })
+
+  describe("draftBinding", () => {
+    test("keeps the preferred assistant while it may start", () => {
+      load([windowed("a", {}), windowed("b", {})])
+      expect(draftBinding("1", "b", now)).toEqual({ courseId: "1", assistantId: "b" })
+    })
+
+    test("re-picks the first that may start when the preferred one has closed", () => {
+      load([windowed("a", { endsAt: earlier }), windowed("b", {}), windowed("c", {})])
+      expect(draftBinding("1", "a", now)).toEqual({ courseId: "1", assistantId: "b" })
+    })
+
+    // The default keeps its flag; the one standing in for it is selected, not relabelled.
+    test("stands the next one in for a closed default without moving the default", () => {
+      load([windowed("a", { endsAt: earlier }), windowed("b", {})])
+      expect(draftBinding("1", undefined, now)?.assistantId).toBe("b")
+      expect(defaultAssistantFor("1")?.id).toBe("a")
+    })
+
+    test("is nothing when no assistant in the course may start", () => {
+      load([windowed("a", { endsAt: earlier }), windowed("b", { startsAt: later })])
+      expect(draftBinding("1", "a", now)).toBeUndefined()
+    })
+
+    test("re-evaluates as the clock crosses a boundary", () => {
+      load([windowed("a", { endsAt: later }), windowed("b", {})])
+      expect(draftBinding("1", "a", now)?.assistantId).toBe("a")
+      expect(draftBinding("1", "a", new Date(later))?.assistantId).toBe("b")
+    })
+  })
+
+  describe("a course with assistants but none open", () => {
+    test("cannot start, and says why, for a student", () => {
+      load([windowed("a", { endsAt: earlier })])
+      expect(canStartSession("1", now)).toBe(false)
+      expect(blockedReason(courseById("1")!, now)).toBe("no-open-assistants")
+    })
+
+    test("can still start for staff", () => {
+      load([windowed("a", { endsAt: earlier })], true)
+      expect(canStartSession("1", now)).toBe(true)
+      expect(blockedReason(courseById("1")!, now)).toBeUndefined()
+    })
+  })
+
+  // R7: only a student, only after the window — before it opens, an existing chat may continue.
+  describe("closedForViewer", () => {
+    test("is true for a student once the window has closed", () => {
+      load([windowed("a", { endsAt: earlier })])
+      expect(closedForViewer(courseById("1"), assistantsForCourse("1")[0], now)).toBe(true)
+    })
+
+    test("is false for staff", () => {
+      load([windowed("a", { endsAt: earlier })], true)
+      expect(closedForViewer(courseById("1"), assistantsForCourse("1")[0], now)).toBe(false)
+    })
+
+    test("is false before the window opens and while it is open", () => {
+      load([windowed("a", { startsAt: later }), windowed("b", { endsAt: later })])
+      const [before, open] = assistantsForCourse("1")
+      expect(closedForViewer(courseById("1"), before, now)).toBe(false)
+      expect(closedForViewer(courseById("1"), open, now)).toBe(false)
+    })
+
+    test("is false with nothing bound", () => {
+      expect(closedForViewer(undefined, undefined, now)).toBe(false)
+    })
   })
 })
