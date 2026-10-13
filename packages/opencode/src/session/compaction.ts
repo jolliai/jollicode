@@ -5,6 +5,9 @@ import { Session } from "./session"
 import { SessionID, MessageID, PartID } from "./schema"
 import { Provider } from "@/provider/provider"
 import { MessageV2 } from "./message-v2"
+import { JolliInput } from "./jolli-input"
+import { TypedText } from "./typed-text"
+import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
 import { Token } from "@/util/token"
 import { SessionProcessor } from "./processor"
 import { Agent } from "@/agent/agent"
@@ -20,7 +23,7 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
-import { buildPrompt } from "@opencode-ai/core/session/compaction"
+import { buildPrompt, CONVERSATION_OPEN } from "@opencode-ai/core/session/compaction"
 import { SessionCompactionEvent } from "@opencode-ai/schema/session-compaction-event"
 
 export const Event = SessionCompactionEvent
@@ -48,40 +51,100 @@ type CompletedCompaction = {
   summary: string | undefined
 }
 
-const truncate = (value: string) =>
-  value.length <= TOOL_OUTPUT_MAX_CHARS ? value : `${value.slice(0, TOOL_OUTPUT_MAX_CHARS)}\n[truncated]`
+/** A tool's output cut to the length the compaction prompt quotes, the ranges of it kept to what is left. */
+const truncate = (value: TypedText.Info) =>
+  value.text.length <= TOOL_OUTPUT_MAX_CHARS
+    ? value
+    : TypedText.join([TypedText.slice(value, 0, TOOL_OUTPUT_MAX_CHARS), "\n[truncated]"])
 
-const serialize = (message: SessionV1.WithParts) => {
+/** What of a message the compaction declares as the student's: nothing, its tool results, or every stamp. */
+type Declares = "none" | "results" | "all"
+
+/**
+ * A tool call as the compaction prompt quotes it, its arguments as JSON: an argument the student wrote is
+ * declared where its encoded form lands in that JSON. The JSON is written key by key as `JSON.stringify`
+ * writes an object, so where each argument lands is counted rather than searched for.
+ */
+function quotedCall(part: SessionV1.ToolPart, declares: Declares): TypedText.Info {
+  function quoted(value: unknown, path: ReadonlyArray<string | number>): TypedText.Info {
+    if (typeof value === "string") {
+      const encoded = JSON.stringify(value)
+      const ranges = JolliInput.callSpans(part, path, declares !== "all").map(
+        ([start, end]) =>
+          [JSON.stringify(value.slice(0, start)).length - 1, JSON.stringify(value.slice(0, end)).length - 1] as const,
+      )
+      return { text: encoded, ranges }
+    }
+    if (Array.isArray(value))
+      return TypedText.join([
+        "[",
+        TypedText.join(
+          value.map((entry, index) => quoted(entry, [...path, index])),
+          ",",
+        ),
+        "]",
+      ])
+    if (typeof value === "object" && value !== null)
+      return TypedText.join([
+        "{",
+        TypedText.join(
+          Object.entries(value).flatMap(([key, entry]) =>
+            entry === undefined ? [] : [TypedText.join([`${JSON.stringify(key)}:`, quoted(entry, [...path, key])])],
+          ),
+          ",",
+        ),
+        "}",
+      ])
+    return { text: JSON.stringify(value) ?? "null", ranges: [] }
+  }
+  return TypedText.join([`[Assistant tool call]: ${part.tool}(`, quoted(part.state.input, []), ")"])
+}
+
+/**
+ * A message as the compaction prompt quotes it, with the ranges of what the student wrote that no request has
+ * carried yet: what `declares` says of it.
+ */
+function serialize(message: SessionV1.WithParts, declares: Declares): TypedText.Info {
   if (message.info.role === "user") {
-    const text = message.parts
-      .filter((part): part is SessionV1.TextPart => part.type === "text" && !part.ignored)
-      .map((part) => part.text)
-      .filter(Boolean)
-      .join("\n")
+    const text = TypedText.join(
+      message.parts
+        .filter((part): part is SessionV1.TextPart => part.type === "text" && !part.ignored)
+        .map((part) => ({
+          text: part.text,
+          ranges: JolliInput.spans(part.text, part.metadata, declares !== "all"),
+        })),
+      "\n",
+    )
     const files = message.parts.flatMap((part) =>
       part.type === "file" ? [`[Attached ${part.mime}: ${part.filename ?? "file"}]`] : [],
     )
-    return [...(text ? [`[User]: ${text}`] : []), ...files].join("\n")
+    return TypedText.join([text.text ? TypedText.join(["[User]: ", text]) : "", ...files], "\n")
   }
-  return message.parts
-    .flatMap((part) => {
+  return TypedText.join(
+    message.parts.flatMap((part): Array<string | TypedText.Info> => {
       if (part.type === "text") return part.text ? [`[Assistant]: ${part.text}`] : []
       if (part.type === "reasoning") return part.text ? [`[Assistant reasoning]: ${part.text}`] : []
       if (part.type !== "tool") return []
-      const call = `[Assistant tool call]: ${part.tool}(${JSON.stringify(part.state.input)})`
+      const call = quotedCall(part, declares)
       if (part.state.status === "completed") {
+        if (part.state.time.compacted) return [call, "[Tool result]: [Old tool result content cleared]"]
         const attachments = (part.state.attachments ?? []).map(
           (item) => `[Attached ${item.mime}: ${item.filename ?? "file"}]`,
         )
-        const output = part.state.time.compacted
-          ? "[Old tool result content cleared]"
-          : truncate([part.state.output, ...attachments].join("\n"))
-        return [call, `[Tool result]: ${output}`]
+        const output = truncate({
+          text: [part.state.output, ...attachments].join("\n"),
+          ranges: JolliInput.spans(part.state.output, part.state.metadata, declares === "none"),
+        })
+        return [call, TypedText.join(["[Tool result]: ", output])]
       }
-      if (part.state.status === "error") return [call, `[Tool error]: ${part.state.error}`]
+      if (part.state.status === "error") {
+        const ranges = JolliInput.spans(part.state.error, part.state.metadata, declares === "none")
+        return [call, TypedText.join(["[Tool error]: ", { text: part.state.error, ranges }])]
+      }
       return [call]
-    })
-    .join("\n")
+    }),
+    "\n",
+  )
 }
 
 function summaryText(message: SessionV1.WithParts) {
@@ -217,7 +280,8 @@ const layer = Layer.effect(
       model: Provider.Model
     }) {
       const msgs = yield* MessageV2.toModelMessagesEffect(input.messages, input.model)
-      return Token.estimate(JSON.stringify(msgs))
+      // The Jolli gateway reads its declaration of what the student typed off the request; the model never sees it.
+      return Token.estimate(JSON.stringify(msgs, (key, value) => (key === JolliInput.OPTIONS_KEY ? undefined : value)))
     })
 
     const select = Effect.fn("SessionCompaction.select")(function* (input: {
@@ -377,18 +441,51 @@ const layer = Layer.effect(
       )
       const msgs = structuredClone(selected.head)
       yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
-      const conversation = msgs.map(serialize).filter(Boolean).join("\n\n")
+      // What the student wrote that no request has carried yet: everything after the model's last turn — a
+      // message they sent that compaction runs ahead of, a command they ran — and that turn's tool results.
+      // A turn that failed with nothing to show for it is never replayed, so it is no turn of the model's
+      // here either: the message it failed on may never have been checked.
+      const lastModel = history.findLastIndex(
+        (message) =>
+          message.info.role === "assistant" && MessageV2.replayed(message) && !JolliInput.recordedForStudent(message),
+      )
+      const declares = new Map(
+        history.map((message, index) => [
+          message.info.id,
+          index > lastModel ? ("all" as const) : index === lastModel ? ("results" as const) : ("none" as const),
+        ]),
+      )
+      const conversation = TypedText.join(
+        msgs.map((message) => serialize(message, declares.get(message.info.id) ?? "none")),
+        "\n\n",
+      )
       const nextPrompt =
         compacting.prompt ??
         [
           buildPrompt({
             previousSummary,
-            context: [conversation],
+            context: [conversation.text],
           }),
           ...compacting.context,
         ]
           .filter(Boolean)
           .join("\n\n")
+      const text = [
+        nextPrompt,
+        ...(compacting.prompt ? ["The following is the conversation history:", conversation.text] : []),
+      ]
+        .filter(Boolean)
+        .join("\n\n")
+      // Where the conversation lands in the prompt, counted from what is joined before it: straight after the
+      // opening of the prompt `buildPrompt` builds, which comes first, or at the end of a plugin's own prompt,
+      // whose text leaves it out when the prompt is empty.
+      const at = !conversation.text
+        ? -1
+        : compacting.prompt === undefined
+          ? CONVERSATION_OPEN.length
+          : compacting.prompt
+            ? text.length - conversation.text.length
+            : -1
       const ctx = yield* InstanceState.context
       const msg: SessionV1.Assistant = {
         id: MessageID.ascending(),
@@ -426,6 +523,7 @@ const layer = Layer.effect(
         user: userMessage,
         agent,
         sessionID: input.sessionID,
+        requestKind: "compaction",
         tools: {},
         system: [],
         messages: [
@@ -434,12 +532,19 @@ const layer = Layer.effect(
             content: [
               {
                 type: "text",
-                text: [
-                  nextPrompt,
-                  ...(compacting.prompt ? ["The following is the conversation history:", conversation] : []),
-                ]
-                  .filter(Boolean)
-                  .join("\n\n"),
+                text,
+                // Declared to the Jolli gateway, which checks the student's words for personal data and
+                // reads none of the rest of a compaction.
+                ...(isJolliProviderId(model.providerID)
+                  ? {
+                      providerOptions: {
+                        [JolliInput.OPTIONS_KEY]: {
+                          input: true,
+                          ranges: at === -1 ? [] : conversation.ranges.map(([start, end]) => [start + at, end + at]),
+                        },
+                      },
+                    }
+                  : {}),
               },
             ],
           },

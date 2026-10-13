@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
+import { createHash } from "node:crypto"
 import { Effect } from "effect"
 import { ProviderTransform } from "@/provider/transform"
+import { JolliInput } from "@/session/jolli-input"
 import { LLMRequestPrep } from "@/session/llm/request"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
@@ -2192,6 +2194,49 @@ describe("ProviderTransform.message - Mistral tool call IDs", () => {
       ])
     },
   )
+
+  test("writes a reply between a tool result and a user message that the Jolli gateway is not told is a turn", () => {
+    const declared = { [JolliInput.OPTIONS_KEY]: { input: true } }
+    const prompt = ProviderTransform.message(
+      [
+        { role: "user", content: [{ type: "text", text: "The following tool was executed by the user" }] },
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_1",
+              toolName: "bash",
+              input: { command: "grep 'Li Ming' notes" },
+              providerOptions: { [JolliInput.OPTIONS_KEY]: { call: { command: {} }, recorded: true } },
+            },
+          ],
+        },
+        {
+          role: "tool",
+          content: [
+            { type: "tool-result", toolCallId: "call_1", toolName: "bash", output: { type: "text", value: "a.md" } },
+          ],
+        },
+        { role: "user", content: [{ type: "text", text: "what now", providerOptions: declared }] },
+      ] as any,
+      {
+        id: "custom/devstral-small",
+        providerID: "custom",
+        api: { id: "devstral-small", url: "https://example.com/v1", npm: "@ai-sdk/openai-compatible" },
+      } as any,
+      {},
+    )
+
+    expect(prompt[3]).toMatchObject({ role: "assistant", content: [{ type: "text", text: "Done." }] })
+    // The composer command still precedes the model's last turn, so it is declared with what follows it.
+    expect(JolliInput.header(prompt)).toBe(
+      [
+        createHash("sha256").update("grep 'Li Ming' notes").digest("hex"),
+        createHash("sha256").update("what now").digest("hex"),
+      ].join(","),
+    )
+  })
 })
 
 describe("ProviderTransform.message - DeepSeek reasoning content", () => {

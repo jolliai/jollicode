@@ -24,6 +24,7 @@ import * as HttpSessionError from "../../src/server/routes/instance/httpapi/hand
 import { ExperimentalPaths } from "../../src/server/routes/instance/httpapi/groups/experimental"
 import { SessionPaths } from "../../src/server/routes/instance/httpapi/groups/session"
 import { Session } from "@/session/session"
+import { JolliInput } from "@/session/jolli-input"
 import { MessageID, PartID, SessionID, type SessionID as SessionIDType } from "../../src/session/schema"
 import { Database } from "@opencode-ai/core/database/database"
 import { SessionInputTable, SessionMessageTable, SessionTable } from "@opencode-ai/core/session/sql"
@@ -1013,6 +1014,45 @@ describe("session HttpApi", () => {
             { method: "DELETE", headers },
           ),
         ).toBe(true)
+      }),
+    { git: true, config: { formatter: false, lsp: false } },
+  )
+
+  it.instance(
+    "keeps the server's stamp of what the student typed on a part a client writes back",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-jollicode-directory": test.directory, "content-type": "application/json" }
+        const session = yield* createSession({ title: "stamps" })
+        const message = yield* createTextMessage(session.id, "Write a greeting for Li Ming.")
+        const stamp = JolliInput.stamp(message.part.text, [[21, 28]])
+        const svc = yield* Session.Service
+        yield* svc.updatePart({ ...message.part, metadata: { [JolliInput.METADATA_KEY]: stamp } })
+        const route = pathFor(SessionPaths.updatePart, {
+          sessionID: session.id,
+          messageID: message.info.id,
+          partID: message.part.id,
+        })
+
+        const forged = yield* requestJson<SessionV1.Part>(route, {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({
+            ...message.part,
+            metadata: { [JolliInput.METADATA_KEY]: { length: 29, ranges: [] } },
+          }),
+        })
+        expect(forged.type === "text" && forged.metadata).toEqual({ [JolliInput.METADATA_KEY]: stamp })
+
+        const rewritten = yield* requestJson<SessionV1.Part>(route, {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({ ...message.part, text: "Write a greeting for Wang Fang" }),
+        })
+        expect(rewritten.type === "text" && rewritten.metadata).toEqual({
+          [JolliInput.METADATA_KEY]: JolliInput.stamp("Write a greeting for Wang Fang", undefined, true),
+        })
       }),
     { git: true, config: { formatter: false, lsp: false } },
   )

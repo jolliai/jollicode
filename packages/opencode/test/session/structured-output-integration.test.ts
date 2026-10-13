@@ -24,6 +24,7 @@ describe("StructuredOutput Integration", () => {
         const session = yield* sessions.create({ title: "Structured Output Test" })
 
         const result = yield* prompt.prompt({
+          typed: "student",
           sessionID: session.id,
           parts: [
             {
@@ -74,6 +75,7 @@ describe("StructuredOutput Integration", () => {
         const session = yield* sessions.create({ title: "Nested Schema Test" })
 
         const result = yield* prompt.prompt({
+          typed: "student",
           sessionID: session.id,
           parts: [
             {
@@ -139,6 +141,7 @@ describe("StructuredOutput Integration", () => {
         const session = yield* sessions.create({ title: "Text Output Test" })
 
         const result = yield* prompt.prompt({
+          typed: "student",
           sessionID: session.id,
           parts: [
             {
@@ -177,6 +180,7 @@ describe("StructuredOutput Integration", () => {
         const session = yield* sessions.create({ title: "OutputFormat Storage Test" })
 
         yield* prompt.prompt({
+          typed: "student",
           sessionID: session.id,
           parts: [
             {

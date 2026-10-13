@@ -157,8 +157,11 @@ const select = (
   }
 }
 
+/** What a prompt {@link buildPrompt} builds opens with, the conversation it quotes following straight after. */
+export const CONVERSATION_OPEN = "Here is the conversation so far:\n\n<conversation>\n"
+
 export const buildPrompt = (input: { readonly previousSummary?: string; readonly context: readonly string[] }) => {
-  const conversation = `Here is the conversation so far:\n\n<conversation>\n${input.context.join("\n\n")}\n</conversation>`
+  const conversation = `${CONVERSATION_OPEN}${input.context.join("\n\n")}\n</conversation>`
   if (!input.previousSummary)
     return [
       conversation,

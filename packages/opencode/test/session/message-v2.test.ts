@@ -9,6 +9,9 @@ import { SessionID, MessageID, PartID } from "../../src/session/schema"
 import { Question } from "../../src/question"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
+import { providerIdFor } from "@opencode-ai/core/jolli/gateway-config"
+import { JolliInput } from "@/session/jolli-input"
+import { MAX_STEPS_PROMPT } from "@opencode-ai/core/session/runner/max-steps"
 
 const sessionID = SessionID.make("session")
 const providerID = ProviderV2.ID.make("test")
@@ -244,6 +247,262 @@ describe("session.message-v2.toModelMessage", () => {
         content: [{ type: "text", text: "assistant" }],
       },
     ])
+  })
+
+  test("declares to the Jolli gateway the user text the server stamped as the student's", async () => {
+    const messageID = "m-user"
+    const jolliModel: Provider.Model = { ...model, providerID: ProviderV2.ID.make(providerIdFor("openai")) }
+    const typed = "fix the bug Li Ming reported"
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo(messageID),
+        parts: [
+          {
+            ...basePart(messageID, "p1"),
+            type: "text",
+            text: typed,
+            metadata: JolliInput.stamped(undefined, { length: typed.length }),
+          },
+          { ...basePart(messageID, "p2"), type: "text", text: "<file the server read>", synthetic: true },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    expect(await MessageV2.toModelMessages(input, jolliModel)).toStrictEqual([
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: typed,
+            providerOptions: { [JolliInput.OPTIONS_KEY]: { input: true } },
+          },
+          { type: "text", text: "<file the server read>" },
+        ],
+      },
+    ])
+    // Nothing rides on a request to any other provider.
+    expect(JSON.stringify(await MessageV2.toModelMessages(input, model))).not.toContain(JolliInput.OPTIONS_KEY)
+  })
+
+  test("declares to the Jolli gateway what the student typed into a tool's result", async () => {
+    const userID = "m-user"
+    const assistantID = "m-assistant"
+    const jolliModel: Provider.Model = { ...model, providerID: ProviderV2.ID.make(providerIdFor("openai")) }
+    const output = `User has answered your questions: "Whose essay?"="Li Ming's".`
+    const start = output.indexOf("Li Ming's")
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo(userID),
+        parts: [{ ...basePart(userID, "u1"), type: "text", text: "ask me" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo(assistantID, userID),
+        parts: [
+          {
+            ...basePart(assistantID, "a1"),
+            type: "tool",
+            callID: "call-1",
+            tool: "question",
+            state: {
+              status: "completed",
+              input: {},
+              output,
+              title: "Asked",
+              metadata: { [JolliInput.METADATA_KEY]: JolliInput.stamp(output, [[start, start + 9]]) },
+              time: { start: 0, end: 1 },
+            },
+          },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const hash = new Bun.CryptoHasher("sha256").update(output).digest("hex")
+    expect(JolliInput.header(await MessageV2.toModelMessages(input, jolliModel))).toBe(`${hash};${start}-${start + 9}`)
+    // Nothing rides on a request to any other provider.
+    expect(JSON.stringify(await MessageV2.toModelMessages(input, model))).not.toContain(JolliInput.OPTIONS_KEY)
+  })
+
+  test("declares the text of a user-authored tool result that also carries an attachment", async () => {
+    const userID = "m-user"
+    const assistantID = "m-assistant"
+    const jolliModel: Provider.Model = { ...model, providerID: ProviderV2.ID.make(providerIdFor("openai")) }
+    const output = `User has answered your questions: "Whose essay?"="Li Ming's".`
+    const start = output.indexOf("Li Ming's")
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo(userID),
+        parts: [{ ...basePart(userID, "u1"), type: "text", text: "ask me" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo(assistantID, userID),
+        parts: [
+          {
+            ...basePart(assistantID, "a1"),
+            type: "tool",
+            callID: "call-1",
+            tool: "question",
+            state: {
+              status: "completed",
+              input: {},
+              output,
+              title: "Asked",
+              metadata: { [JolliInput.METADATA_KEY]: JolliInput.stamp(output, [[start, start + 9]]) },
+              time: { start: 0, end: 1 },
+              attachments: [
+                {
+                  ...basePart(assistantID, "image"),
+                  type: "file",
+                  mime: "image/png",
+                  url: "data:image/png;base64,AAAA",
+                },
+              ],
+            },
+          },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const hash = new Bun.CryptoHasher("sha256").update(output).digest("hex")
+    expect(JolliInput.header(await MessageV2.toModelMessages(input, jolliModel))).toBe(`${hash};${start}-${start + 9}`)
+    // Nothing rides on a request to any other provider.
+    expect(JSON.stringify(await MessageV2.toModelMessages(input, model))).not.toContain(JolliInput.OPTIONS_KEY)
+  })
+
+  test("declares to the Jolli gateway a command the student ran, reading past its call to the turn before", async () => {
+    const userID = "m-user"
+    const shellID = "m-shell"
+    const nextID = "m-next"
+    const jolliModel: Provider.Model = { ...model, providerID: ProviderV2.ID.make(providerIdFor("openai")) }
+    const command = "grep -r 'Li Ming' notes"
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo(userID),
+        parts: [
+          {
+            ...basePart(userID, "u1"),
+            type: "text",
+            text: "The following tool was executed by the user",
+            synthetic: true,
+          },
+        ] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo(shellID, userID),
+        parts: [
+          {
+            ...basePart(shellID, "a1"),
+            type: "tool",
+            callID: "call-1",
+            tool: "bash",
+            state: {
+              status: "completed",
+              input: { command },
+              output: "notes/a.md",
+              title: "",
+              metadata: {
+                output: "notes/a.md",
+                ...JolliInput.studentCall({ command: JolliInput.stamp(command) }),
+              },
+              time: { start: 0, end: 1 },
+            },
+          },
+        ] as SessionV1.Part[],
+      },
+      {
+        info: userInfo(nextID),
+        parts: [
+          {
+            ...basePart(nextID, "n1"),
+            type: "text",
+            text: "what now",
+            metadata: JolliInput.stamped(undefined, { length: 8 }),
+          },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const hash = (text: string) => new Bun.CryptoHasher("sha256").update(text).digest("hex")
+    expect(JolliInput.header(await MessageV2.toModelMessages(input, jolliModel))).toBe(
+      `${hash(command)},${hash("what now")}`,
+    )
+    const deepseek = { ...jolliModel, api: { ...jolliModel.api, id: "deepseek-chat" } }
+    expect(
+      JolliInput.header(ProviderTransform.message(await MessageV2.toModelMessages(input, deepseek), deepseek, {})),
+    ).toBe(`${hash(command)},${hash("what now")}`)
+    // Nothing rides on a request to any other provider: neither the declaration nor the stamps it is read from.
+    const other = JSON.stringify(await MessageV2.toModelMessages(input, model))
+    expect(other).not.toContain(JolliInput.OPTIONS_KEY)
+    expect(other).not.toContain(JolliInput.CALL_METADATA_KEY)
+    expect(other).not.toContain(JolliInput.RECORDED_METADATA_KEY)
+  })
+
+  test("never replays a stamp as provider options, on an assistant's text any more than on a call", async () => {
+    const userID = "m-user"
+    const assistantID = "m-assistant"
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo(userID),
+        parts: [{ ...basePart(userID, "u1"), type: "text", text: "hi" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo(assistantID, userID),
+        parts: [
+          {
+            ...basePart(assistantID, "a1"),
+            type: "text",
+            text: "hello",
+            metadata: {
+              ...JolliInput.stamped(undefined, { length: 5 }),
+              [JolliInput.OPTIONS_KEY]: { input: true, revised: true },
+              openai: { itemId: "x" },
+            },
+          },
+        ] as SessionV1.Part[],
+      },
+    ]
+
+    const sent = JSON.stringify(await MessageV2.toModelMessages(input, model))
+    expect(sent).not.toContain(JolliInput.METADATA_KEY)
+    expect(sent).not.toContain(JolliInput.OPTIONS_KEY)
+    expect(sent).toContain("itemId")
+  })
+
+  test("keeps user input declared when DeepSeek adds reasoning to the step limit prefill", async () => {
+    const target = { ...model, api: { ...model.api, id: "deepseek-chat" } }
+    const text = "Fix the bug Alice reported"
+    const messages = ProviderTransform.message(
+      [
+        {
+          role: "user",
+          content: [{ type: "text", text, providerOptions: { [JolliInput.OPTIONS_KEY]: { input: true } } }],
+        },
+        { role: "assistant", content: MAX_STEPS_PROMPT },
+      ],
+      target,
+      {},
+    )
+    expect(JolliInput.header(messages)).toBe(new Bun.CryptoHasher("sha256").update(text).digest("hex"))
+  })
+
+  test("replays no assistant turn that toModelMessages drops, a step cut off right after it started included", async () => {
+    const userID = "m-user"
+    const cutID = "m-cut"
+    const input: SessionV1.WithParts[] = [
+      {
+        info: userInfo(userID),
+        parts: [{ ...basePart(userID, "u1"), type: "text", text: "hi" }] as SessionV1.Part[],
+      },
+      {
+        info: assistantInfo(cutID, userID),
+        parts: [{ ...basePart(cutID, "c1"), type: "step-start" }] as SessionV1.Part[],
+      },
+    ]
+
+    // The one judgment a compaction finds the model's last turn by agrees with what the request carries.
+    expect(MessageV2.replayed(input[1] as SessionV1.WithParts)).toBe(false)
+    expect((await MessageV2.toModelMessages(input, model)).map((message) => message.role)).toEqual(["user"])
+    expect(MessageV2.replayed(input[0] as SessionV1.WithParts)).toBe(true)
   })
 
   test("converts user text/file parts and injects compaction/subtask prompts", async () => {

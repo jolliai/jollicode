@@ -31,6 +31,8 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { LLMEvent, Usage } from "@opencode-ai/llm"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
+import { providerIdFor } from "@opencode-ai/core/jolli/gateway-config"
+import { JolliInput } from "../../src/session/jolli-input"
 import { AppNodeBuilder } from "@opencode-ai/core/effect/app-node-builder"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 
@@ -1514,9 +1516,11 @@ describe("session.compaction.process", () => {
     () => {
       const stub = llm()
       let captured: LLM.StreamInput["messages"] = []
+      let tools: LLM.StreamInput["tools"] | undefined
       stub.push(
         reply("summary two", (input) => {
           captured = input.messages
+          tools = input.tools
         }),
       )
 
@@ -1568,6 +1572,7 @@ describe("session.compaction.process", () => {
         yield* SessionCompaction.use.process({ parentID: parent!, messages: msgs, sessionID: session.id, auto: false })
 
         expect(captured).toHaveLength(1)
+        expect(tools).toEqual({})
         expect(captured[0]?.role).toBe("user")
         expect(JSON.stringify(captured)).toContain('[Assistant tool call]: read({\\"filePath\\":\\"src/index.ts\\"})')
         expect(JSON.stringify(captured)).toContain("[Tool result]: file contents")
@@ -1659,6 +1664,248 @@ describe("session.compaction.process", () => {
       expect(part?.type).toBe("compaction")
       expect(part?.tail_start_id).toBe(keep.id)
     }).pipe(withCompaction({ config: cfg({ tail_turns: 2, preserve_recent_tokens: 500 }) })),
+  )
+
+  itCompaction.instance(
+    "declares to the Jolli gateway only what the student wrote that no request has carried yet",
+    () => {
+      const jolliModel = {
+        ...createModel({ context: 100_000, output: 32_000 }),
+        providerID: ProviderV2.ID.make(providerIdFor("anthropic")),
+      } as Provider.Model
+      const jolliRef = { providerID: jolliModel.providerID, modelID: ModelV2.ID.make(jolliModel.id) }
+      const stub = llm()
+      let captured: LLM.StreamInput | undefined
+      stub.push(reply("summary", (input) => (captured = input)))
+      return Effect.gen(function* () {
+        const test = yield* TestInstance
+        const ssn = yield* SessionNs.Service
+        const session = yield* ssn.create({})
+        const typed = Effect.fn("test.typed")(function* (text: string, revised = false) {
+          const msg = yield* ssn.updateMessage({
+            id: MessageID.ascending(),
+            role: "user",
+            sessionID: session.id,
+            agent: "build",
+            model: jolliRef,
+            time: { created: Date.now() },
+          })
+          yield* ssn.updatePart({
+            id: PartID.ascending(),
+            messageID: msg.id,
+            sessionID: session.id,
+            type: "text",
+            text,
+            metadata: JolliInput.stamped(undefined, JolliInput.stamp(text, undefined, revised)),
+          })
+          return msg
+        })
+        const first = yield* typed("earlier, from Wei Zhang")
+        yield* typed("edited history for Bob", true)
+        const answered = yield* createAssistantMessage(session.id, first.id, test.directory)
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: answered.id,
+          sessionID: session.id,
+          type: "text",
+          text: "noted",
+        })
+        const stored: SessionV1.ToolPart = {
+          id: PartID.ascending(),
+          messageID: answered.id,
+          sessionID: session.id,
+          type: "tool",
+          tool: "question",
+          callID: "nested-question",
+          state: {
+            status: "completed",
+            input: { questions: [{ question: "Old", automatic: "Template" }] },
+            output: "unchanged tool output",
+            title: "Question",
+            metadata: {},
+            time: { start: 1, end: 2 },
+          },
+        }
+        yield* ssn.updatePart(
+          JolliInput.keepStamps(
+            {
+              ...stored,
+              state: {
+                ...stored.state,
+                input: { questions: [{ question: 'Alice\n"A"', automatic: "Template" }] },
+              },
+            },
+            stored,
+            "assistant",
+          ),
+        )
+        // Sent while the context was already full, so compaction runs before any request carries it.
+        yield* typed("help Li Ming")
+        yield* SessionCompaction.use.create({ sessionID: session.id, agent: "build", model: jolliRef, auto: false })
+
+        const msgs = yield* ssn.messages({ sessionID: session.id })
+        yield* SessionCompaction.use.process({
+          parentID: msgs.at(-1)!.info.id,
+          messages: msgs,
+          sessionID: session.id,
+          auto: false,
+        })
+
+        const content = captured?.messages[0]?.content
+        const part = Array.isArray(content) ? content[0] : undefined
+        if (part?.type !== "text") throw new Error("the compaction prompt is one text block")
+        const ranges = (part.providerOptions?.[JolliInput.OPTIONS_KEY]?.ranges ?? []) as Array<[number, number]>
+        expect(part.text).toContain("earlier, from Wei Zhang")
+        expect(ranges.map(([start, end]) => part.text.slice(start, end))).toEqual([
+          "edited history for Bob",
+          'Alice\\n\\"A\\"',
+          "help Li Ming",
+        ])
+      }).pipe(
+        withCompaction({
+          llm: stub.llmLayer,
+          provider: ProviderTest.fake({ model: jolliModel }),
+          config: cfg({ tail_turns: 0 }),
+        }),
+      )
+    },
+    { git: true },
+  )
+
+  itCompaction.instance(
+    "declares what the student wrote before a turn that failed, which no request replays",
+    () => {
+      const jolliModel = {
+        ...createModel({ context: 100_000, output: 32_000 }),
+        providerID: ProviderV2.ID.make(providerIdFor("anthropic")),
+      } as Provider.Model
+      const jolliRef = { providerID: jolliModel.providerID, modelID: ModelV2.ID.make(jolliModel.id) }
+      const stub = llm()
+      let captured: LLM.StreamInput | undefined
+      stub.push(reply("summary", (input) => (captured = input)))
+      return Effect.gen(function* () {
+        const test = yield* TestInstance
+        const ssn = yield* SessionNs.Service
+        const session = yield* ssn.create({})
+        const text = "help Li Ming"
+        const sent = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "user",
+          sessionID: session.id,
+          agent: "build",
+          model: jolliRef,
+          time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: sent.id,
+          sessionID: session.id,
+          type: "text",
+          text,
+          metadata: JolliInput.stamped(undefined, { length: text.length }),
+        })
+        // Its request failed before the gateway checked it, leaving a turn with nothing in it.
+        const failed = yield* createAssistantMessage(session.id, sent.id, test.directory)
+        yield* ssn.updateMessage({
+          ...failed,
+          error: new SessionV1.APIError({ message: "network down", isRetryable: true }).toObject(),
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: failed.id,
+          sessionID: session.id,
+          type: "step-start",
+        })
+        yield* SessionCompaction.use.create({ sessionID: session.id, agent: "build", model: jolliRef, auto: false })
+
+        const msgs = yield* ssn.messages({ sessionID: session.id })
+        yield* SessionCompaction.use.process({
+          parentID: msgs.at(-1)!.info.id,
+          messages: msgs,
+          sessionID: session.id,
+          auto: false,
+        })
+
+        const content = captured?.messages[0]?.content
+        const part = Array.isArray(content) ? content[0] : undefined
+        if (part?.type !== "text") throw new Error("the compaction prompt is one text block")
+        const ranges = (part.providerOptions?.[JolliInput.OPTIONS_KEY]?.ranges ?? []) as Array<[number, number]>
+        expect(ranges.map(([start, end]) => part.text.slice(start, end))).toEqual([text])
+      }).pipe(
+        withCompaction({
+          llm: stub.llmLayer,
+          provider: ProviderTest.fake({ model: jolliModel }),
+          config: cfg({ tail_turns: 0 }),
+        }),
+      )
+    },
+    { git: true },
+  )
+
+  itCompaction.instance(
+    "declares what the student wrote before a step a crash cut off right after it started",
+    () => {
+      const jolliModel = {
+        ...createModel({ context: 100_000, output: 32_000 }),
+        providerID: ProviderV2.ID.make(providerIdFor("anthropic")),
+      } as Provider.Model
+      const jolliRef = { providerID: jolliModel.providerID, modelID: ModelV2.ID.make(jolliModel.id) }
+      const stub = llm()
+      let captured: LLM.StreamInput | undefined
+      stub.push(reply("summary", (input) => (captured = input)))
+      return Effect.gen(function* () {
+        const test = yield* TestInstance
+        const ssn = yield* SessionNs.Service
+        const session = yield* ssn.create({})
+        const text = "help Li Ming"
+        const sent = yield* ssn.updateMessage({
+          id: MessageID.ascending(),
+          role: "user",
+          sessionID: session.id,
+          agent: "build",
+          model: jolliRef,
+          time: { created: Date.now() },
+        })
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: sent.id,
+          sessionID: session.id,
+          type: "text",
+          text,
+          metadata: JolliInput.stamped(undefined, { length: text.length }),
+        })
+        // No error recorded, and nothing after the step's start: no request replays it, so it is no turn.
+        const cut = yield* createAssistantMessage(session.id, sent.id, test.directory)
+        yield* ssn.updatePart({
+          id: PartID.ascending(),
+          messageID: cut.id,
+          sessionID: session.id,
+          type: "step-start",
+        })
+        yield* SessionCompaction.use.create({ sessionID: session.id, agent: "build", model: jolliRef, auto: false })
+
+        const msgs = yield* ssn.messages({ sessionID: session.id })
+        yield* SessionCompaction.use.process({
+          parentID: msgs.at(-1)!.info.id,
+          messages: msgs,
+          sessionID: session.id,
+          auto: false,
+        })
+
+        const content = captured?.messages[0]?.content
+        const part = Array.isArray(content) ? content[0] : undefined
+        if (part?.type !== "text") throw new Error("the compaction prompt is one text block")
+        const ranges = (part.providerOptions?.[JolliInput.OPTIONS_KEY]?.ranges ?? []) as Array<[number, number]>
+        expect(ranges.map(([start, end]) => part.text.slice(start, end))).toEqual([text])
+      }).pipe(
+        withCompaction({
+          llm: stub.llmLayer,
+          provider: ProviderTest.fake({ model: jolliModel }),
+          config: cfg({ tail_turns: 0 }),
+        }),
+      )
+    },
+    { git: true },
   )
 })
 

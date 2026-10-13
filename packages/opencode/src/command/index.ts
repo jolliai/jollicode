@@ -10,6 +10,7 @@ import { Skill } from "../skill"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
+import { CommandTemplate } from "@/session/command-template"
 
 type State = {
   commands: Record<string, Info>
@@ -34,13 +35,9 @@ export const Info = Schema.Struct({
 export type Info = Omit<Schema.Schema.Type<typeof Info>, "template"> & { template: Promise<string> | string }
 
 export function hints(template: string) {
-  const result: string[] = []
-  const numbered = template.match(/\$\d+/g)
-  if (numbered) {
-    for (const match of [...new Set(numbered)].sort()) result.push(match)
-  }
-  if (template.includes("$ARGUMENTS")) result.push("$ARGUMENTS")
-  return result
+  const placeholders = Array.from(template.matchAll(CommandTemplate.PLACEHOLDER))
+  const numbered = [...new Set(placeholders.flatMap((match) => (match[1] === undefined ? [] : [match[0]])))].sort()
+  return placeholders.some((match) => match[1] === undefined) ? [...numbered, "$ARGUMENTS"] : numbered
 }
 
 export const Default = {
