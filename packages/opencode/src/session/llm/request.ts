@@ -29,6 +29,8 @@ type PrepareInput = {
   readonly courseAssistantID?: string
   /** The turn only carries on with the previous one, after compaction. */
   readonly continuesTurn?: boolean
+  /** What a request that is no step of a turn is for; see {@link jolliCodingAgentHeaders}. */
+  readonly requestKind?: "compaction"
   /** Each MCP tool's key -> the sanitized name of its server, from the same resolve that built `tools`. */
   readonly mcpToolServers?: ReadonlyMap<string, string>
   /** Names of the tools whose results this request carries for the first time and that failed. */
@@ -62,9 +64,15 @@ export type Prepared = {
   readonly headers: Record<string, string>
 }
 
+/**
+ * ⚠ A COMPACTION NAMES ITS SESSION AND NOTHING ELSE. It is no step of a turn, so it carries none of a
+ * turn's headers; the gateway reads its session only to rewrite the history it summarises with the
+ * placeholders that session's personal data already has.
+ */
 export function jolliCodingAgentHeaders(input: {
   readonly providerID: string
   readonly sessionID: string
+  readonly requestKind?: "compaction"
   readonly parentSessionID?: string
   readonly turnID?: string
   readonly clientAttemptID?: string
@@ -78,6 +86,8 @@ export function jolliCodingAgentHeaders(input: {
   readonly toolErrors?: ReadonlyArray<string>
 }): Record<string, string> {
   if (!isJolliProviderId(input.providerID)) return {}
+  if (input.requestKind === "compaction")
+    return { "x-jolli-conversation-id": input.sessionID, "x-jolli-request-kind": input.requestKind }
   if (input.turnID === undefined || input.clientAttemptID === undefined || input.stepIndex === undefined) return {}
   return {
     "x-jolli-conversation-id": input.sessionID,
@@ -328,6 +338,7 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
       ...jolliCodingAgentHeaders({
         providerID: input.model.providerID,
         sessionID: input.sessionID,
+        requestKind: input.requestKind,
         parentSessionID: input.parentSessionID,
         turnID: input.turnID,
         clientAttemptID: input.clientAttemptID,

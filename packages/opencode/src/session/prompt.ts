@@ -28,6 +28,9 @@ import { Command } from "../command"
 import { pathToFileURL, fileURLToPath } from "url"
 import { Config } from "@/config/config"
 import { ConfigMarkdown } from "@/config/markdown"
+import { CommandTemplate } from "./command-template"
+import { JolliInput } from "./jolli-input"
+import { TypedText } from "./typed-text"
 import { SessionSummary } from "./summary"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { SessionProcessor } from "./processor"
@@ -123,7 +126,7 @@ export function continuesTurn(messages: readonly SessionV1.WithParts[], userID: 
 
 export interface Interface {
   readonly cancel: (sessionID: SessionID) => Effect.Effect<void>
-  readonly prompt: (input: PromptInput) => Effect.Effect<SessionV1.WithParts, Image.Error>
+  readonly prompt: (input: PromptRequest) => Effect.Effect<SessionV1.WithParts, Image.Error>
   readonly loop: (input: LoopInput) => Effect.Effect<SessionV1.WithParts>
   readonly shell: (input: ShellInput) => Effect.Effect<SessionV1.WithParts, Session.BusyError>
   readonly command: (input: CommandInput) => Effect.Effect<SessionV1.WithParts, Image.Error>
@@ -289,6 +292,29 @@ const layer = Layer.effect(
       )
     })
 
+    /**
+     * The text a slash command expanded to and the ranges its arguments landed in, by the id of the subtask
+     * part that runs it, from `command` to the child session `handleSubtask` starts.
+     *
+     * ⚠ A SUBTASK PART CANNOT CARRY THEM, so they are handed over in memory. A subtask with nothing here — a
+     * client sent it, or the process restarted before it ran — has its whole prompt declared as the
+     * student's: one that checks the command file's own words too is better than one whose arguments go to
+     * the model unchecked. Once it runs, the task call that records it carries them, stamped on its prompt
+     * argument, for this session's own requests.
+     *
+     * ⚠ TAKEN BY THE SUBTASK, NOT DROPPED WITH ITS CALLER. The subtask runs on the session's runner, which
+     * outlives a caller that goes away; an entry dropped with that caller would leave it nothing to find.
+     *
+     * ⚠ AND GONE WITH THE RUN OF ITS SESSION. A subtask the run ended without running — the session was
+     * cancelled, or the run failed first — would otherwise keep its entry, and a skill's whole body with it,
+     * for the life of the process. The run drops what its session still holds here when it ends (`loop`); a
+     * later run that picks the subtask up declares its whole prompt, as for one with nothing here.
+     */
+    const subtaskInput = new Map<
+      PartID,
+      { readonly sessionID: SessionID; readonly text: string; readonly ranges: ReadonlyArray<TypedText.Range> }
+    >()
+
     const handleSubtask = Effect.fn("SessionPrompt.handleSubtask")(function* (input: {
       task: SessionV1.SubtaskPart
       model: Provider.Model
@@ -302,6 +328,15 @@ const layer = Layer.effect(
       const promptOps = yield* ops()
       const { task: taskTool } = yield* registry.named()
       const taskModel = task.model ? yield* getModel(task.model.providerID, task.model.modelID, sessionID) : model
+      // The prompt the student asked for, which the child runs and this session records as the task's call: the
+      // ranges the command's arguments landed in, or the whole prompt when they were taken on other text.
+      const handed = subtaskInput.get(task.id)
+      subtaskInput.delete(task.id)
+      const ranges = handed?.text === task.prompt ? handed.ranges : undefined
+      const typed = { text: task.prompt, ...(ranges ? { ranges } : {}) }
+      const studentCall = JolliInput.studentCall({
+        prompt: { length: task.prompt.length, ...(ranges ? { ranges } : {}) },
+      })
       const assistantMessage: SessionV1.Assistant = yield* sessions.updateMessage({
         id: MessageID.ascending(),
         role: "assistant",
@@ -332,6 +367,7 @@ const layer = Layer.effect(
             subagent_type: task.agent,
             command: task.command,
           },
+          metadata: studentCall,
           time: { start: Date.now() },
         },
       })
@@ -366,13 +402,20 @@ const layer = Layer.effect(
       const childOps: TaskPromptOps = {
         ...promptOps,
         prompt: (request) =>
-          promptOps.prompt(request).pipe(
-            Effect.tap(() =>
-              Effect.sync(() => {
-                if (request.command !== undefined) childCarried = true
-              }),
+          promptOps
+            .prompt(
+              // The child's prompt is the one the student asked for, not one the agent wrote. The ranges were
+              // taken on the text the command expanded to, so a plugin that rewrote it leaves the whole
+              // prompt the student's. Anything else TaskTool sends goes to this session as it was.
+              request.sessionID === sessionID ? request : { ...request, typed },
+            )
+            .pipe(
+              Effect.tap(() =>
+                Effect.sync(() => {
+                  if (request.command !== undefined) childCarried = true
+                }),
+              ),
             ),
-          ),
       }
 
       let error: Error | undefined
@@ -388,10 +431,16 @@ const layer = Layer.effect(
           messages: msgs,
           metadata: (val: { title?: string; metadata?: Record<string, any> }) =>
             Effect.gen(function* () {
+              // Created running, so never pending: the guard is for the type.
+              if (part.state.status === "pending") return
               part = yield* sessions.updatePart({
                 ...part,
                 type: "tool",
-                state: { ...part.state, ...val },
+                state: {
+                  ...part.state,
+                  ...val,
+                  metadata: { ...(val.metadata ?? part.state.metadata), ...studentCall },
+                },
               } satisfies SessionV1.ToolPart)
             }),
           ask: (req: any) =>
@@ -459,7 +508,7 @@ const layer = Layer.effect(
             status: "completed",
             input: part.state.input,
             title: result.title,
-            metadata: result.metadata,
+            metadata: { ...result.metadata, ...studentCall },
             output: result.output,
             attachments,
             time: { ...part.state.time, end: Date.now() },
@@ -506,6 +555,8 @@ const layer = Layer.effect(
     })
 
     const shellImpl = Effect.fn("SessionPrompt.shellImpl")(function* (input: ShellInput, ready?: Latch.Latch) {
+      // The command is the student's own: a call recorded in their name, whose argument they wrote.
+      const studentCommand = JolliInput.studentCall({ command: { length: input.command.length } })
       return yield* Effect.uninterruptibleMask((restore) =>
         Effect.gen(function* () {
           const markReady = ready ? ready.open.pipe(Effect.asVoid) : Effect.void
@@ -570,6 +621,8 @@ const layer = Layer.effect(
                 status: "running",
                 time: { start: started },
                 input: { command: input.command },
+                // A running command's metadata always carries its output so far, which readers rely on.
+                metadata: { ...studentCommand, output: "" },
               },
             }
             yield* sessions.updatePart(part)
@@ -598,7 +651,7 @@ const layer = Layer.effect(
                   time: { ...part.state.time, end: completed },
                   input: part.state.input,
                   title: "",
-                  metadata: { output },
+                  metadata: { ...studentCommand, output },
                   output,
                 }
                 yield* sessions.updatePart(part)
@@ -625,7 +678,7 @@ const layer = Layer.effect(
                 Effect.gen(function* () {
                   output += chunk
                   if (part.state.status === "running") {
-                    part.state.metadata = { output }
+                    part.state.metadata = { ...studentCommand, output }
                     yield* sessions.updatePart(part)
                   }
                 }),
@@ -1055,6 +1108,23 @@ const layer = Layer.effect(
           ]
         }
 
+        if (part.type === "text") {
+          // Which of the text the student typed is decided here, never by whoever sent the prompt; see
+          // `JolliInput`.
+          const ranges =
+            typeof input.typed === "object" && input.typed.text === part.text ? input.typed.ranges : undefined
+          const stamp =
+            input.typed === "agent" ? undefined : { length: part.text.length, ...(ranges ? { ranges } : {}) }
+          return [
+            {
+              ...part,
+              messageID: info.id,
+              sessionID: input.sessionID,
+              metadata: JolliInput.stamped(part.metadata, stamp),
+            },
+          ]
+        }
+
         return [{ ...part, messageID: info.id, sessionID: input.sessionID }]
       })
 
@@ -1465,7 +1535,19 @@ const layer = Layer.effect(
     const loop: (input: LoopInput) => Effect.Effect<SessionV1.WithParts> = Effect.fn("SessionPrompt.loop")(function* (
       input: LoopInput,
     ) {
-      return yield* state.ensureRunning(input.sessionID, lastAssistant(input.sessionID), runLoop(input.sessionID))
+      return yield* state.ensureRunning(
+        input.sessionID,
+        lastAssistant(input.sessionID),
+        runLoop(input.sessionID).pipe(
+          Effect.ensuring(
+            Effect.sync(() =>
+              [...subtaskInput]
+                .filter(([, entry]) => entry.sessionID === input.sessionID)
+                .forEach(([id]) => subtaskInput.delete(id)),
+            ),
+          ),
+        ),
+      )
     })
 
     const shell: (input: ShellInput) => Effect.Effect<SessionV1.WithParts, Session.BusyError> = Effect.fn(
@@ -1491,44 +1573,29 @@ const layer = Layer.effect(
       }
       const agentName = cmd.agent ?? input.agent
 
-      const raw = input.arguments.match(argsRegex) ?? []
-      const args = raw.map((arg) => arg.replace(quoteTrimRegex, ""))
       const templateCommand = yield* Effect.promise(async () => cmd.template)
-
-      const placeholders = templateCommand.match(placeholderRegex) ?? []
-      let last = 0
-      for (const item of placeholders) {
-        const value = Number(item.slice(1))
-        if (value > last) last = value
-      }
-
-      const withArgs = templateCommand.replaceAll(placeholderRegex, (_, index) => {
-        const position = Number(index)
-        const argIndex = position - 1
-        if (argIndex >= args.length) return ""
-        if (position === last) return args.slice(argIndex).join(" ")
-        return args[argIndex]
-      })
-      const usesArgumentsPlaceholder = templateCommand.includes("$ARGUMENTS")
-      let template = withArgs.replaceAll("$ARGUMENTS", input.arguments)
-
-      if (placeholders.length === 0 && !usesArgumentsPlaceholder && input.arguments.trim()) {
-        template = template + "\n\n" + input.arguments
-      }
-
-      const shellMatches = ConfigMarkdown.shell(template)
-      if (shellMatches.length > 0) {
-        const cfg = yield* config.get()
-        const sh = Shell.preferred(cfg.shell)
-        const results = yield* Effect.promise(() =>
-          Promise.all(
-            shellMatches.map(async ([, cmd]) => (await Process.text([cmd], { shell: sh, nothrow: true })).text),
-          ),
-        )
-        let index = 0
-        template = template.replace(bashRegex, () => results[index++])
-      }
-      template = template.trim()
+      const substituted = CommandTemplate.substitute(templateCommand, input.arguments)
+      const shellCommands = CommandTemplate.shellCommands(substituted)
+      const expanded = TypedText.trim(
+        CommandTemplate.withShellOutput(
+          substituted,
+          shellCommands.length > 0
+            ? yield* Effect.gen(function* () {
+                const cfg = yield* config.get()
+                const sh = Shell.preferred(cfg.shell)
+                return yield* Effect.promise(() =>
+                  Promise.all(
+                    shellCommands.map(async (shell) => ({
+                      ...shell,
+                      output: (await Process.text([shell.command], { shell: sh, nothrow: true })).text,
+                    })),
+                  ),
+                )
+              })
+            : [],
+        ),
+      )
+      const template = expanded.text
 
       const taskModel = yield* Effect.gen(function* () {
         if (cmd.model) return Provider.parseModel(cmd.model)
@@ -1559,9 +1626,11 @@ const layer = Layer.effect(
         (part) => part.type !== "file" || !inputFiles.has(fileURLToPath(part.url)),
       )
       const isSubtask = (agent.mode === "subagent" && cmd.subtask !== false) || cmd.subtask === true
+      const subtaskID = PartID.ascending()
       const parts = isSubtask
         ? [
             {
+              id: subtaskID,
               type: "subtask" as const,
               agent: agent.name,
               description: cmd.description ?? "",
@@ -1585,6 +1654,10 @@ const layer = Layer.effect(
         { parts },
       )
 
+      // Which of the command's text the student typed, for the Jolli gateway's personal-data check: the
+      // ranges its arguments landed in — in the message, or in the prompt a subtask's child runs.
+      if (isSubtask)
+        subtaskInput.set(subtaskID, { sessionID: input.sessionID, text: template, ranges: expanded.ranges })
       const result = yield* prompt({
         sessionID: input.sessionID,
         messageID: input.messageID,
@@ -1594,7 +1667,15 @@ const layer = Layer.effect(
         variant: input.variant,
         command: input.command,
         persistModelSelection: !cmd.model && !(cmd.agent && agent.model),
-      })
+        typed: { text: template, ranges: expanded.ranges },
+      }).pipe(
+        // Kept when only this caller went away: the subtask still runs on the session's runner and takes it.
+        Effect.onExit((exit) =>
+          Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)
+            ? Effect.void
+            : Effect.sync(() => subtaskInput.delete(subtaskID)),
+        ),
+      )
       yield* events.publish(Command.Event.Executed, {
         name: input.command,
         sessionID: input.sessionID,
@@ -1646,10 +1727,21 @@ export type PromptInput = Schema.Schema.Type<typeof PromptInput>
 /**
  * A prompt plus the slash command that produced it. `command` attributes Jolli gateway usage, so it
  * stays off the public PromptInput: only `command` and command subtasks set it.
+ *
+ * `typed` says which of the prompt's text the student typed, for the Jolli gateway's personal-data check,
+ * and stays off PromptInput for the same reason: a client could say anything. Every caller says it, so
+ * nothing is the student's by default. `"student"`: every text part is theirs — what a person sent. `"agent"`:
+ * none is, because the agent or this program wrote the prompt. Otherwise the part whose text is `text` is
+ * the student's only in `ranges`, where a command's arguments landed — or wholly, without them — and any
+ * other text part wholly.
  */
 export type PromptRequest = PromptInput & {
   readonly command?: string
   readonly persistModelSelection?: boolean
+  readonly typed:
+    | "student"
+    | "agent"
+    | { readonly text: string; readonly ranges?: ReadonlyArray<TypedText.Range> | undefined }
 }
 
 export class LoopInput extends Schema.Class<LoopInput>("SessionPrompt.LoopInput")({
@@ -1721,11 +1813,6 @@ export function createStructuredOutputTool(input: {
     },
   })
 }
-const bashRegex = /!`([^`]+)`/g
-// Match [Image N] as single token, quoted strings, or non-space sequences
-const argsRegex = /(?:\[Image\s+\d+\]|"[^"]*"|'[^']*'|[^\s"']+)/gi
-const placeholderRegex = /\$(\d+)/g
-const quoteTrimRegex = /^["']|["']$/g
 
 export const node = LayerNode.make({
   service: Service,

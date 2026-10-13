@@ -209,6 +209,7 @@ const runImport = Effect.fn("Cli.import.body")(function* (file: string, ctx: Ins
       .pipe(Effect.orDie)
 
     for (const part of msg.parts) {
+      // Stored as exported, the stamps of what the student wrote included, whoever wrote them; see `JolliInput`.
       const partInfo = decodePart(part) as SessionV1.Part
       const { id: partId, sessionID: _s, messageID, ...partData } = partInfo
       yield* db

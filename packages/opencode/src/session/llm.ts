@@ -30,6 +30,7 @@ import * as OtelTracer from "@effect/opentelemetry/Tracer"
 import { LLMAISDK } from "./llm/ai-sdk"
 import { LLMNativeRuntime } from "./llm/native-runtime"
 import { LLMRequestPrep } from "./llm/request"
+import { JolliInput } from "./jolli-input"
 import {
   isJolliProviderId,
   isSupportedProtocol,
@@ -97,6 +98,8 @@ export type StreamInput = PreparedModelInput & {
   courseAssistantID?: string
   /** The turn only carries on with the previous one, after compaction; see `SessionPrompt.continuesTurn`. */
   continuesTurn?: boolean
+  /** What a request that is no step of a turn is for, when the Jolli gateway needs to know. */
+  requestKind?: "compaction"
   toolErrors?: ReadonlyArray<string>
   model: Provider.Model
   agent: Agent.Info
@@ -418,6 +421,15 @@ const live: Layer.Layer<
                       prepared.messageTransformOptions,
                     )
                   }
+                  // Hashed here, after every transform, so it names the bytes the gateway receives. A step of a
+                  // turn says what the student typed, and so does a compaction, whose history can hold words no
+                  // step has carried yet; a title or a course's source selection belongs to no turn, and the
+                  // gateway checks those on its own.
+                  if ("x-jolli-turn-id" in prepared.headers || "x-jolli-request-kind" in prepared.headers)
+                    args.params.headers = {
+                      ...args.params.headers,
+                      [JolliInput.HEADER]: JolliInput.header(args.params.prompt),
+                    }
                   return args.params
                 },
                 async wrapStream({ doStream }) {
