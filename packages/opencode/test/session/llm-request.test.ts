@@ -107,6 +107,20 @@ describe("jolli coding-agent request headers", () => {
       }),
     ).toEqual({})
   })
+  test("names the session a compaction summarises, and nothing a turn would carry", () => {
+    const sessionID = SessionID.descending()
+    expect(
+      jolliCodingAgentHeaders({
+        providerID: providerIdFor("anthropic"),
+        sessionID,
+        requestKind: "compaction",
+        turnID: MessageID.ascending(),
+        clientAttemptID: "attempt-1",
+        stepIndex: 0,
+      }),
+    ).toEqual({ "x-jolli-conversation-id": sessionID, "x-jolli-request-kind": "compaction" })
+    expect(jolliCodingAgentHeaders({ providerID: "anthropic", sessionID, requestKind: "compaction" })).toEqual({})
+  })
   test("names the slash command that opened the turn", () => {
     const base = {
       providerID: providerIdFor("openai"),

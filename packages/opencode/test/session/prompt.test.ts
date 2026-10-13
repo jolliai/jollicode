@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { ConfigV1 } from "@opencode-ai/core/v1/config/config"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { Database } from "@opencode-ai/core/database/database"
@@ -37,6 +38,7 @@ import { SessionSummary } from "../../src/session/summary"
 import { Instruction } from "../../src/session/instruction"
 import { SessionProcessor } from "../../src/session/processor"
 import { SessionPrompt } from "../../src/session/prompt"
+import { JolliInput } from "../../src/session/jolli-input"
 import { SessionRevert } from "../../src/session/revert"
 import { SessionRunState } from "../../src/session/run-state"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
@@ -576,6 +578,7 @@ it.instance("loop calls LLM and returns assistant message", () =>
       permission: [{ permission: "*", pattern: "*", action: "allow" }],
     })
     yield* prompt.prompt({
+      typed: "student",
       sessionID: chat.id,
       agent: "build",
       noReply: true,
@@ -634,6 +637,7 @@ it.instance("legacy prompt emits message events without session.next events", ()
     })
 
     const first = yield* prompt.prompt({
+      typed: "student",
       sessionID: chat.id,
       agent: "build",
       model: ref,
@@ -641,6 +645,7 @@ it.instance("legacy prompt emits message events without session.next events", ()
       parts: [{ type: "text", text: "hello" }],
     })
     const second = yield* prompt.prompt({
+      typed: "student",
       sessionID: chat.id,
       agent: "build",
       noReply: true,
@@ -685,6 +690,7 @@ it.instance("loop surfaces content-filter finishes as session errors", () =>
     })
 
     yield* prompt.prompt({
+      typed: "student",
       sessionID: chat.id,
       agent: "build",
       noReply: true,
@@ -723,6 +729,7 @@ it.instance("loop stops provider overflow instead of auto-compacting when disabl
 
     yield* llm.error(413, { error: { message: "request entity too large" } })
     yield* prompt.prompt({
+      typed: "student",
       sessionID: chat.id,
       agent: "build",
       noReply: true,
@@ -750,6 +757,7 @@ noLLMServer.instance.skip(
       const chat = yield* sessions.create({ title: "Pinned" })
 
       yield* prompt.prompt({
+        typed: "student",
         sessionID: chat.id,
         agent: "build",
         noReply: true,
@@ -802,6 +810,7 @@ it.instance("static loop returns assistant text through local provider", () =>
     })
 
     yield* prompt.prompt({
+      typed: "student",
       sessionID: session.id,
       agent: "build",
       noReply: true,
@@ -829,6 +838,7 @@ it.instance("static loop consumes queued replies across turns", () =>
     })
 
     yield* prompt.prompt({
+      typed: "student",
       sessionID: session.id,
       agent: "build",
       noReply: true,
@@ -842,6 +852,7 @@ it.instance("static loop consumes queued replies across turns", () =>
     expect(first.parts.some((part) => part.type === "text" && part.text === "world one")).toBe(true)
 
     yield* prompt.prompt({
+      typed: "student",
       sessionID: session.id,
       agent: "build",
       noReply: true,
@@ -869,6 +880,7 @@ it.instance("loop continues when finish is tool-calls", () =>
       permission: [{ permission: "*", pattern: "*", action: "allow" }],
     })
     yield* prompt.prompt({
+      typed: "student",
       sessionID: session.id,
       agent: "build",
       noReply: true,
@@ -897,6 +909,7 @@ it.instance("loop continues when finish is unknown", () =>
       permission: [{ permission: "*", pattern: "*", action: "allow" }],
     })
     yield* prompt.prompt({
+      typed: "student",
       sessionID: session.id,
       agent: "build",
       noReply: true,
@@ -928,6 +941,7 @@ it.instance("glob tool keeps instance context during prompt runs", () =>
     yield* writeText(file, "probe")
 
     yield* prompt.prompt({
+      typed: "student",
       sessionID: session.id,
       agent: "build",
       noReply: true,
@@ -964,6 +978,7 @@ it.instance("loop continues when finish is stop but assistant has tool parts", (
       permission: [{ permission: "*", pattern: "*", action: "allow" }],
     })
     yield* prompt.prompt({
+      typed: "student",
       sessionID: session.id,
       agent: "build",
       noReply: true,
@@ -1068,6 +1083,7 @@ it.instance("subtask uses independent zero-based Jolli identities and inherits t
       },
     })
     const msg = yield* prompt.prompt({
+      typed: "student",
       sessionID: chat.id,
       agent: "build",
       model: jolliRef,
@@ -1105,6 +1121,7 @@ const commandSubtask = Effect.fn("test.commandSubtask")(function* (model: typeof
   const sessions = yield* Session.Service
   const chat = yield* sessions.create({ title: "Pinned", parentID })
   const msg = yield* prompt.prompt({
+    typed: "student",
     sessionID: chat.id,
     agent: "build",
     model: jolliRef,
@@ -1181,6 +1198,230 @@ it.instance("a slash-command subtask whose child never runs still attributes its
   }),
 )
 
+const sha256 = (text: string) => createHash("sha256").update(text, "utf8").digest("hex")
+
+it.instance("a Jolli turn declares every text part the client sent, whatever the part says about itself", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(jolliProviderCfg)
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const chat = yield* sessions.create({ title: "Pinned" })
+    const typed = "Fix the bug Li Ming reported"
+    yield* prompt.prompt({
+      typed: "student",
+      sessionID: chat.id,
+      agent: "build",
+      model: jolliRef,
+      noReply: true,
+      parts: [
+        // The app sends a student's comment on a file as synthetic.
+        { type: "text", text: "Comment on src/app.ts: ask Li Ming", synthetic: true },
+        // A declaration the client wrote is not one the server recorded.
+        { type: "text", text: typed, metadata: { [JolliInput.METADATA_KEY]: { length: typed.length, ranges: [] } } },
+      ],
+    })
+    yield* llm.text("done")
+
+    yield* prompt.loop({ sessionID: chat.id })
+
+    const hits = yield* llm.hits
+    expect(hits[0]?.headers["x-jolli-input-text"]).toBe(
+      `${sha256("Comment on src/app.ts: ask Li Ming")},${sha256(typed)}`,
+    )
+  }),
+)
+
+it.instance("a Jolli turn at its step limit still declares what the student typed", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig((url) => ({ ...jolliProviderCfg(url), agent: { build: { steps: 1 } } }))
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const chat = yield* sessions.create({ title: "Pinned" })
+    yield* prompt.prompt({
+      typed: "student",
+      sessionID: chat.id,
+      agent: "build",
+      model: jolliRef,
+      noReply: true,
+      parts: [{ type: "text", text: "Fix the bug Li Ming reported" }],
+    })
+    yield* llm.text("done")
+
+    yield* prompt.loop({ sessionID: chat.id })
+
+    const hits = yield* llm.hits
+    // The step budget's closing note is the request's last message, after the student's.
+    expect(JSON.stringify(hits[0]?.body).lastIndexOf("MAXIMUM STEPS REACHED")).toBeGreaterThan(
+      JSON.stringify(hits[0]?.body).lastIndexOf("Fix the bug Li Ming reported"),
+    )
+    expect(hits[0]?.headers["x-jolli-input-text"]).toBe(sha256("Fix the bug Li Ming reported"))
+  }),
+)
+
+it.instance("a subtask no command handed ranges to declares its whole prompt in the child's request", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(jolliProviderCfg)
+    const { prompt, chat } = yield* commandSubtask(jolliRef)
+    yield* llm.text("child response")
+    yield* llm.text("parent response")
+
+    yield* prompt.loop({ sessionID: chat.id })
+
+    const hits = yield* llm.hits
+    const child = hits.find((hit) => hit.headers["x-jolli-parent-session-id"] === chat.id)
+    const parent = hits.find((hit) => hit.headers["x-jolli-conversation-id"] === chat.id)
+    expect(child?.headers["x-jolli-input-text"]).toBe(sha256("review the diff"))
+    // The parent's own request carries the prompt as the task's call, declared the same way, after the
+    // message that started it, which no request had carried yet.
+    expect(parent?.headers["x-jolli-input-text"]).toBe(`${sha256("hello")},${sha256("review the diff")}`)
+  }),
+)
+
+it.instance("a slash-command subtask declares only its arguments in the child's request", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig((url) => ({
+      ...jolliProviderCfg(url),
+      command: { review: { template: "Review $ARGUMENTS carefully.", agent: "general", subtask: true } },
+    }))
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const chat = yield* sessions.create({ title: "Pinned" })
+    yield* llm.text("child response")
+    yield* llm.text("parent response")
+
+    yield* prompt.command({
+      sessionID: chat.id,
+      command: "review",
+      arguments: "Li Ming",
+      agent: "build",
+      model: `${jolliRef.providerID}/${jolliRef.modelID}`,
+    })
+
+    const hits = yield* llm.hits
+    const child = hits.find((hit) => hit.headers["x-jolli-parent-session-id"] === chat.id)
+    const parent = hits.find((hit) => hit.headers["x-jolli-conversation-id"] === chat.id)
+    expect(child?.headers["x-jolli-input-text"]).toBe(`${sha256("Review Li Ming carefully.")};7-14`)
+    // The parent's request after the subtask carries the arguments in the task's call; it declares them there.
+    expect(parent?.headers["x-jolli-input-text"]).toBe(`${sha256("Review Li Ming carefully.")};7-14`)
+  }),
+)
+;(process.platform !== "win32" ? it.instance : it.instance.skip)(
+  "a command the student ran from the composer is declared in the next request, past the call that records it",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(jolliProviderCfg)
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({ title: "Pinned" })
+      yield* prompt.shell({ sessionID: chat.id, agent: "build", model: jolliRef, command: "echo Li Ming" })
+      yield* prompt.prompt({
+        typed: "student",
+        sessionID: chat.id,
+        agent: "build",
+        model: jolliRef,
+        noReply: true,
+        parts: [{ type: "text", text: "what now" }],
+      })
+      yield* llm.text("done")
+
+      yield* prompt.loop({ sessionID: chat.id })
+
+      const hits = yield* llm.hits
+      expect(hits[0]?.headers["x-jolli-input-text"]).toBe(`${sha256("echo Li Ming")},${sha256("what now")}`)
+    }),
+)
+
+it.instance("a task the model starts declares nothing in its child, which the agent wrote", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(jolliProviderCfg)
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const chat = yield* sessions.create({ title: "Pinned" })
+    yield* prompt.prompt({
+      typed: "student",
+      sessionID: chat.id,
+      agent: "build",
+      model: jolliRef,
+      noReply: true,
+      parts: [{ type: "text", text: "Ask a subagent about Li Ming's report" }],
+    })
+    yield* llm.tool("task", {
+      description: "inspect report",
+      prompt: "look into the report Li Ming filed",
+      subagent_type: "general",
+    })
+    yield* llm.text("child response")
+    yield* llm.text("parent response")
+
+    yield* prompt.loop({ sessionID: chat.id })
+
+    const hits = yield* llm.hits
+    expect(hits[0]?.headers["x-jolli-input-text"]).toBe(sha256("Ask a subagent about Li Ming's report"))
+    const child = hits.find((hit) => hit.headers["x-jolli-parent-session-id"] === chat.id)
+    expect(child?.headers["x-jolli-input-text"]).toBe("none")
+  }),
+)
+
+it.instance("a Jolli step after the student turned a call down declares the feedback they gave", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(jolliProviderCfg)
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const permission = yield* Permission.Service
+    const chat = yield* sessions.create({
+      title: "Pinned",
+      permission: [{ permission: "bash", pattern: "*", action: "ask" }],
+    })
+    yield* prompt.prompt({
+      typed: "student",
+      sessionID: chat.id,
+      agent: "build",
+      model: jolliRef,
+      noReply: true,
+      parts: [{ type: "text", text: "Clean up the repo" }],
+    })
+    yield* llm.tool("bash", { command: "rm -rf build", description: "Remove the build output" })
+    yield* llm.text("Understood")
+
+    const run = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
+    const asked = yield* pollWithTimeout(
+      permission.list().pipe(Effect.map((items) => items.find((item) => item.sessionID === chat.id))),
+      "timed out waiting for the permission request",
+    )
+    yield* permission.reply({ requestID: asked.id, reply: "reject", message: "ask Li Ming first" })
+    yield* Fiber.join(run)
+
+    const hits = yield* llm.hits
+    const error =
+      "The user rejected permission to use this specific tool call with the following feedback: ask Li Ming first"
+    expect(hits[1]?.headers["x-jolli-input-text"]).toBe(`${sha256(error)};${error.length - 17}-${error.length}`)
+  }),
+)
+
+it.instance("a Jolli slash command declares only the arguments the student typed", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig((url) => ({
+      ...jolliProviderCfg(url),
+      command: { greet: { template: "Write a greeting for $ARGUMENTS." } },
+    }))
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const chat = yield* sessions.create({ title: "Pinned" })
+    yield* llm.text("Hello!")
+
+    yield* prompt.command({
+      sessionID: chat.id,
+      command: "greet",
+      arguments: "Li Ming",
+      agent: "build",
+      model: `${jolliRef.providerID}/${jolliRef.modelID}`,
+    })
+
+    const hits = yield* llm.hits
+    expect(hits[0]?.headers["x-jolli-input-text"]).toBe(`${sha256("Write a greeting for Li Ming.")};21-28`)
+  }),
+)
+
 withMcpServers.instance("a Jolli request names the MCP servers whose tools it offers", () =>
   Effect.gen(function* () {
     const { llm } = yield* useServerConfig(jolliProviderCfg)
@@ -1195,7 +1436,13 @@ withMcpServers.instance("a Jolli request names the MCP servers whose tools it of
     })
     yield* llm.text("done")
 
-    yield* prompt.prompt({ sessionID: chat.id, agent: "build", model: jolliRef, parts: [{ type: "text", text: "hi" }] })
+    yield* prompt.prompt({
+      typed: "student",
+      sessionID: chat.id,
+      agent: "build",
+      model: jolliRef,
+      parts: [{ type: "text", text: "hi" }],
+    })
 
     const hits = yield* llm.hits
     // "hidden" is connected, but its only tool is denied, so it is not offered or reported.
@@ -1218,6 +1465,7 @@ it.instance("a Jolli request reports each failed tool once, and not a call a per
       ],
     })
     yield* prompt.prompt({
+      typed: "student",
       sessionID: chat.id,
       agent: "build",
       model: jolliRef,
@@ -1267,6 +1515,7 @@ it.instance(
       const question = yield* Question.Service
       const chat = yield* sessions.create({ title: "Pinned" })
       const previous = yield* prompt.prompt({
+        typed: "student",
         sessionID: chat.id,
         agent: "build",
         model: jolliRef,
@@ -1305,6 +1554,7 @@ it.instance(
         text: "Earlier answer",
       })
       const current = yield* prompt.prompt({
+        typed: "student",
         sessionID: chat.id,
         agent: "build",
         model: jolliRef,
@@ -1370,6 +1620,7 @@ noLLMServer.instance("prompt tools replace previous prompt tool rules", () =>
     const session = yield* sessions.create({ title: "Prompt tools" })
 
     yield* prompt.prompt({
+      typed: "student",
       sessionID: session.id,
       agent: "build",
       noReply: true,
@@ -1377,6 +1628,7 @@ noLLMServer.instance("prompt tools replace previous prompt tool rules", () =>
       parts: [{ type: "text", text: "first" }],
     })
     yield* prompt.prompt({
+      typed: "student",
       sessionID: session.id,
       agent: "build",
       noReply: true,
@@ -1559,6 +1811,7 @@ raceNoLLMServer.instance(
       const chat = yield* sessions.create({ title: "Processor creation race" })
 
       yield* prompt.prompt({
+        typed: "student",
         sessionID: chat.id,
         agent: "build",
         noReply: true,
@@ -1585,6 +1838,7 @@ raceNoLLMServer.instance(
       }
 
       yield* prompt.prompt({
+        typed: "student",
         sessionID: chat.id,
         agent: "build",
         noReply: true,
@@ -1790,6 +2044,7 @@ it.instance("prompt submitted during an active run is included in the next LLM i
 
     const a = yield* prompt
       .prompt({
+        typed: "student",
         sessionID: chat.id,
         agent: "build",
         model: ref,
@@ -1803,6 +2058,7 @@ it.instance("prompt submitted during an active run is included in the next LLM i
     const id = MessageID.ascending()
     const b = yield* prompt
       .prompt({
+        typed: "student",
         sessionID: chat.id,
         messageID: id,
         agent: "build",
@@ -2404,6 +2660,7 @@ unix(
       })
 
       yield* prompt.prompt({
+        typed: "student",
         sessionID: chat.id,
         agent: "build",
         noReply: true,
@@ -2537,6 +2794,7 @@ noLLMServer.instance(
 
       const fiber = yield* prompt
         .prompt({
+          typed: "student",
           sessionID: chat.id,
           agent: "build",
           parts: [
@@ -2572,6 +2830,7 @@ noLLMServer.instance(
 
       const fiber = yield* prompt
         .prompt({
+          typed: "student",
           sessionID: chat.id,
           agent: "build",
           parts: [
@@ -2604,6 +2863,7 @@ noLLMServer.instance(
 
       const missing = path.join(dir, "does-not-exist.ts")
       const msg = yield* prompt.prompt({
+        typed: "student",
         sessionID: session.id,
         agent: "build",
         noReply: true,
@@ -2640,6 +2900,7 @@ noLLMServer.instance(
 
       const missing = path.join(dir, "still-missing.ts")
       const msg = yield* prompt.prompt({
+        typed: "student",
         sessionID: session.id,
         agent: "build",
         noReply: true,
@@ -2694,6 +2955,7 @@ noLLMServer.instance(
       expect(decodedPath).toBe(path.join(dir, "file#name.txt"))
 
       const message = yield* prompt.prompt({
+        typed: "student",
         sessionID: session.id,
         parts,
         noReply: true,
@@ -2720,6 +2982,7 @@ it.instance("does not loop empty assistant turns for a simple reply", () =>
     yield* llm.text("packages/opencode/src/session/processor.ts")
 
     const result = yield* prompt.prompt({
+      typed: "student",
       sessionID: session.id,
       agent: "build",
       parts: [{ type: "text", text: "Where is SessionProcessor?" }],
@@ -2745,6 +3008,7 @@ it.instance("records aborted errors when prompt is cancelled mid-stream", () =>
 
     const fiber = yield* prompt
       .prompt({
+        typed: "student",
         sessionID: session.id,
         agent: "build",
         parts: [{ type: "text", text: "Cancel me" }],
@@ -2784,6 +3048,7 @@ noLLMServer.instance(
       const session = yield* sessions.create({})
 
       const other = yield* prompt.prompt({
+        typed: "student",
         sessionID: session.id,
         agent: "build",
         model: { providerID: ProviderV2.ID.make("opencode"), modelID: ModelV2.ID.make("kimi-k2.5-free") },
@@ -2794,6 +3059,7 @@ noLLMServer.instance(
       expect(other.info.model.variant).toBeUndefined()
 
       const match = yield* prompt.prompt({
+        typed: "student",
         sessionID: session.id,
         agent: "build",
         noReply: true,
@@ -2808,6 +3074,7 @@ noLLMServer.instance(
       expect(match.info.model.variant).toBe("xhigh")
 
       const override = yield* prompt.prompt({
+        typed: "student",
         sessionID: session.id,
         agent: "build",
         noReply: true,
@@ -2855,6 +3122,7 @@ noLLMServer.instance(
       const session = yield* sessions.create({})
       const exit = yield* prompt
         .prompt({
+          typed: "student",
           sessionID: session.id,
           agent: "nonexistent-agent-xyz",
           noReply: true,
@@ -2884,6 +3152,7 @@ noLLMServer.instance(
       const session = yield* sessions.create({})
       const exit = yield* prompt
         .prompt({
+          typed: "student",
           sessionID: session.id,
           agent: "nonexistent-agent-xyz",
           noReply: true,

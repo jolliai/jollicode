@@ -212,6 +212,8 @@ export const TaskTool = Tool.define(
           parts,
           // Set by SessionPrompt for a command subtask, never from params.command, which the model can fill.
           command: typeof ctx.extra?.command === "string" ? ctx.extra.command : undefined,
+          // The model wrote this prompt. A subtask the student asked for says otherwise in SessionPrompt.
+          typed: "agent",
         })
         if (result.info.role === "assistant" && result.info.error) {
           const message =
@@ -237,6 +239,7 @@ export const TaskTool = Tool.define(
             sessionID: ctx.sessionID,
             agent: currentParent.agent ?? ctx.agent,
             variant,
+            typed: "agent",
             parts: [
               {
                 type: "text",

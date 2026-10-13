@@ -8,6 +8,7 @@ import { SessionShare } from "@/share/session"
 import { Session } from "@/session/session"
 import { SessionCompaction } from "@/session/compaction"
 import { MessageV2 } from "@/session/message-v2"
+import { JolliInput } from "@/session/jolli-input"
 import { SessionPrompt } from "@/session/prompt"
 import { SessionRevert } from "@/session/revert"
 import { SessionRunState } from "@/session/run-state"
@@ -589,6 +590,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         .prompt({
           ...ctx.payload,
           sessionID: ctx.params.sessionID,
+          typed: "student",
         })
         .pipe(Effect.mapError(() => new HttpApiError.BadRequest({})))
       return HttpServerResponse.stream(Stream.make(JSON.stringify(message)).pipe(Stream.encodeText), {
@@ -601,7 +603,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       payload: typeof PromptPayload.Type
     }) {
       yield* requireSession(ctx.params.sessionID)
-      yield* promptSvc.prompt({ ...ctx.payload, sessionID: ctx.params.sessionID }).pipe(
+      yield* promptSvc.prompt({ ...ctx.payload, sessionID: ctx.params.sessionID, typed: "student" }).pipe(
         Effect.catchCause((cause) =>
           Effect.gen(function* () {
             yield* Effect.logError("prompt_async failed", { sessionID: ctx.params.sessionID, cause })
@@ -695,7 +697,15 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       ) {
         return yield* new HttpApiError.BadRequest({})
       }
-      return yield* session.updatePart(payload)
+      // Which text the student typed is never the client's to say: the part keeps the server's stamps.
+      const stored = yield* session.getPart(ctx.params)
+      const message = yield* MessageV2.getInfo({
+        sessionID: ctx.params.sessionID,
+        messageID: ctx.params.messageID,
+      }).pipe(Effect.option)
+      return yield* session.updatePart(
+        JolliInput.keepStamps(payload, stored, Option.isSome(message) ? message.value.role : undefined),
+      )
     })
 
     return handlers

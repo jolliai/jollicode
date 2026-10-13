@@ -3,6 +3,7 @@ import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { Effect, Fiber, Queue } from "effect"
 import { QuestionTool } from "../../src/tool/question"
 import { Question } from "../../src/question"
+import { JolliInput } from "../../src/session/jolli-input"
 import { SessionID, MessageID } from "../../src/session/schema"
 import { Agent } from "../../src/agent/agent"
 import { Truncate } from "@/tool/truncate"
@@ -87,6 +88,31 @@ describe("tool.question", () => {
 
       const result = yield* Fiber.join(fiber)
       expect(result.output).toContain(`"What is your favorite animal?"="Dog"`)
+    }),
+  )
+
+  it.instance("stamps where the student's answers landed in the output, and nothing it wrote around them", () =>
+    Effect.gen(function* () {
+      const question = yield* Question.Service
+      const toolInfo = yield* QuestionTool
+      const tool = yield* toolInfo.init()
+      const questions = [
+        { question: "Whose essay?", header: "Essay", options: [{ label: "Mine", description: "My own" }] },
+        { question: "Skip this?", header: "Skip", options: [{ label: "Yes", description: "Skip it" }] },
+        { question: "Due when?", header: "Due", options: [{ label: "Friday", description: "End of week" }] },
+      ]
+
+      const fiber = yield* tool.execute({ questions }, ctx).pipe(Effect.forkScoped)
+      const item = yield* pending(question)
+      yield* question.reply({ requestID: item.id, answers: [["Li Ming's essay"], [], ["Friday", "Monday"]] })
+
+      const result = yield* Fiber.join(fiber)
+      const stamp = result.metadata[JolliInput.METADATA_KEY]
+      expect(stamp.length).toBe(result.output.length)
+      expect(stamp.ranges?.map(([start, end]) => result.output.slice(start, end))).toEqual([
+        "Li Ming's essay",
+        "Friday, Monday",
+      ])
     }),
   )
 

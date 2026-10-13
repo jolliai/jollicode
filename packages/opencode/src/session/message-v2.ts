@@ -35,6 +35,8 @@ import { isMedia } from "@/util/media"
 import type { SystemError } from "bun"
 import type { Provider } from "@/provider/provider"
 import { Effect, Schema } from "effect"
+import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
+import { JolliInput } from "./jolli-input"
 
 /** Error shape thrown by Bun's fetch() when gzip/br decompression fails mid-stream */
 interface FetchDecompressionError extends Error {
@@ -136,16 +138,62 @@ function hydrate(db: Database.Interface["db"], rows: (typeof MessageTable.$infer
  * shape alone, so a key this process adds must not hold a plain object — least of all under a
  * provider's name, which that provider would read as its own options. Giving this process's flags a
  * field of their own would end the overlap, but it changes the stored part schema and the generated
- * SDKs, which is more than replaying a part safely needs today.
+ * SDKs, which is more than replaying a part safely needs today. A text part's stamp of what the student
+ * wrote (`JolliInput.METADATA_KEY`) is such a flag, so it is left out by name; a tool part keeps its stamps
+ * in its state's metadata, which is never replayed as provider options.
  */
 function providerMeta(metadata: Record<string, any> | undefined) {
   if (!metadata) return undefined
   const rest = Object.fromEntries(
     Object.entries(metadata).filter(
-      ([, value]) => typeof value === "object" && value !== null && !Array.isArray(value),
+      ([key, value]) =>
+        typeof value === "object" && value !== null && !Array.isArray(value) && key !== JolliInput.METADATA_KEY,
     ),
   )
   return Object.keys(rest).length > 0 ? rest : undefined
+}
+
+/**
+ * A tool part's call provider metadata, with what the student wrote of it — the arguments of a call
+ * recorded in their name, a question's answers or a permission's feedback in its result — declared to the
+ * Jolli gateway, and to no other provider. The SDK sends a call's provider options with its result as well,
+ * which is the only way a result carries any.
+ *
+ * @param result - the text the result goes to the model as, when it has one.
+ */
+function toolCallMetadata(part: SessionV1.ToolPart, differentModel: boolean, declaresInput: boolean, result: unknown) {
+  const declared = declaresInput ? JolliInput.toolMarker(part, result) : undefined
+  const metadata = {
+    ...(differentModel ? {} : providerMeta(part.metadata)),
+    ...(declared ? { [JolliInput.OPTIONS_KEY]: declared } : {}),
+  }
+  return Object.keys(metadata).length > 0 ? { callProviderMetadata: metadata } : {}
+}
+
+/**
+ * Whether a stored message goes to the model at all. One with no parts does not, nor does an assistant turn
+ * that failed with nothing to show for it — an aborted one keeps whatever it got as far as writing — nor one
+ * with no text, reasoning or tool call in it, which is what a step a crash cut off right after it started
+ * leaves behind.
+ *
+ * ⚠ ONE ANSWER FOR EVERY READER OF THE MODEL'S LAST TURN. A request tells the Jolli gateway which of the
+ * student's words no request has carried yet by where that turn falls among the messages this lets through,
+ * and a compaction finds it among the stored ones. Were the two to disagree about a failed turn, the
+ * message it failed on would be declared by neither.
+ */
+export function replayed(message: WithParts) {
+  if (message.parts.length === 0) return false
+  if (message.info.role !== "assistant") return true
+  if (
+    message.info.error &&
+    !(
+      AbortedError.isInstance(message.info.error) &&
+      message.parts.some((part) => part.type !== "step-start" && part.type !== "reasoning")
+    )
+  )
+    return false
+  // The parts the model is sent anything for; a message of none of them is dropped once converted.
+  return message.parts.some((part) => part.type === "text" || part.type === "reasoning" || part.type === "tool")
 }
 
 export const toModelMessagesEffect = Effect.fnUntraced(function* (
@@ -155,6 +203,8 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
 ) {
   const result: UIMessage[] = []
   const toolNames = new Set<string>()
+  // Which blocks the student wrote rides on the request only to the Jolli gateway, which reads it.
+  const declaresInput = isJolliProviderId(model.providerID)
   // Track media from tool results that need to be injected as user messages
   // for providers that don't support that media type in tool results.
   //
@@ -217,7 +267,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
   }
 
   for (const msg of input) {
-    if (msg.parts.length === 0) continue
+    if (!replayed(msg)) continue
 
     if (msg.info.role === "user") {
       const userMessage: UIMessage = {
@@ -227,11 +277,14 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       }
       for (const part of msg.parts) {
         // User message parts should never be empty
-        if (part.type === "text" && !part.ignored && part.text !== "")
+        if (part.type === "text" && !part.ignored && part.text !== "") {
+          const declared = declaresInput ? JolliInput.marker(part.text, part.metadata) : undefined
           userMessage.parts.push({
             type: "text",
             text: part.text,
+            ...(declared ? { providerMetadata: { [JolliInput.OPTIONS_KEY]: declared } } : {}),
           })
+        }
         // text/plain and directory files are converted into text parts, ignore them
         if (part.type === "file" && part.mime !== "text/plain" && part.mime !== "application/x-directory") {
           if (options?.stripMedia && isMedia(part.mime)) {
@@ -269,15 +322,6 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
       const differentModel = `${model.providerID}/${model.id}` !== `${msg.info.providerID}/${msg.info.modelID}`
       const media: Array<{ mime: string; url: string; filename?: string }> = []
 
-      if (
-        msg.info.error &&
-        !(
-          AbortedError.isInstance(msg.info.error) &&
-          msg.parts.some((part) => part.type !== "step-start" && part.type !== "reasoning")
-        )
-      ) {
-        continue
-      }
       const assistantMessage: UIMessage = {
         id: msg.info.id,
         role: "assistant",
@@ -343,7 +387,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
               input: part.state.input,
               output,
               ...(part.metadata?.providerExecuted ? { providerExecuted: true } : {}),
-              ...(differentModel ? {} : { callProviderMetadata: providerMeta(part.metadata) }),
+              ...toolCallMetadata(part, differentModel, declaresInput, output),
             })
           }
           if (part.state.status === "error") {
@@ -356,7 +400,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
                 input: part.state.input,
                 output,
                 ...(part.metadata?.providerExecuted ? { providerExecuted: true } : {}),
-                ...(differentModel ? {} : { callProviderMetadata: providerMeta(part.metadata) }),
+                ...toolCallMetadata(part, differentModel, declaresInput, undefined),
               })
             } else {
               assistantMessage.parts.push({
@@ -366,7 +410,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
                 input: part.state.input,
                 errorText: part.state.error,
                 ...(part.metadata?.providerExecuted ? { providerExecuted: true } : {}),
-                ...(differentModel ? {} : { callProviderMetadata: providerMeta(part.metadata) }),
+                ...toolCallMetadata(part, differentModel, declaresInput, part.state.error),
               })
             }
           }
@@ -380,7 +424,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
               input: part.state.input,
               errorText: "[Tool execution was interrupted]",
               ...(part.metadata?.providerExecuted ? { providerExecuted: true } : {}),
-              ...(differentModel ? {} : { callProviderMetadata: providerMeta(part.metadata) }),
+              ...toolCallMetadata(part, differentModel, declaresInput, undefined),
             })
         }
         if (part.type === "reasoning") {
@@ -547,7 +591,11 @@ export function parts(messageID: MessageID) {
   })
 }
 
-export const get = Effect.fn("MessageV2.get")(function* (input: { sessionID: SessionID; messageID: MessageID }) {
+/** A message without its parts, for a reader that needs no more than who wrote it. */
+export const getInfo = Effect.fn("MessageV2.getInfo")(function* (input: {
+  sessionID: SessionID
+  messageID: MessageID
+}) {
   const { db } = yield* Database.Service
   const row = yield* db
     .select()
@@ -556,8 +604,12 @@ export const get = Effect.fn("MessageV2.get")(function* (input: { sessionID: Ses
     .get()
     .pipe(Effect.orDie)
   if (!row) return yield* new NotFoundError({ message: `Message not found: ${input.messageID}` })
+  return info(row)
+})
+
+export const get = Effect.fn("MessageV2.get")(function* (input: { sessionID: SessionID; messageID: MessageID }) {
   return {
-    info: info(row),
+    info: yield* getInfo(input),
     parts: yield* parts(input.messageID),
   }
 })

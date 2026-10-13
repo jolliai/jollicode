@@ -4,6 +4,7 @@ import type { JSONSchema7 } from "@ai-sdk/provider"
 import type * as Provider from "./provider"
 import type * as ModelsDev from "@opencode-ai/core/models-dev"
 import { iife } from "@/util/iife"
+import { JolliInput } from "@/session/jolli-input"
 
 type Modality = NonNullable<ModelsDev.Model["modalities"]>["input"][number]
 
@@ -294,6 +295,8 @@ function normalizeMessages(
               text: "Done.",
             },
           ],
+          // Written for the provider's sake, so no turn of the model's as far as the Jolli gateway is told.
+          providerOptions: JolliInput.FILLER_OPTIONS,
         })
       }
     }

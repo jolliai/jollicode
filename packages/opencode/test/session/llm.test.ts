@@ -2014,6 +2014,94 @@ describe("session.llm.stream", () => {
   )
 
   it.instance(
+    "tells the Jolli gateway what the student typed on a step of a turn and on a compaction, never on a title",
+    () =>
+      Effect.gen(function* () {
+        const model = loadFixture("openai", "gpt-5.2").model
+        const reply = () =>
+          createEventResponse(
+            [
+              {
+                type: "response.created",
+                response: { id: "resp-input", created_at: Math.floor(Date.now() / 1000), model: model.id },
+              },
+              {
+                type: "response.completed",
+                response: {
+                  incomplete_details: null,
+                  usage: { input_tokens: 1, input_tokens_details: null, output_tokens: 1, output_tokens_details: null },
+                },
+              },
+            ],
+            true,
+          )
+        const step = waitRequest("/responses", reply())
+        const title = waitRequest("/responses", reply())
+        const compaction = waitRequest("/responses", reply())
+        const providerID = ProviderV2.ID.make("jolli-openai")
+        const resolved = yield* Provider.use.getModel(providerID, ModelV2.ID.make(model.id))
+        const sessionID = SessionID.descending()
+        const turnID = MessageID.ascending()
+        const agent = {
+          name: "test",
+          mode: "primary",
+          options: {},
+          permission: [{ permission: "*", pattern: "*", action: "allow" }],
+        } satisfies Agent.Info
+        const base = {
+          user: {
+            id: turnID,
+            sessionID,
+            role: "user",
+            time: { created: Date.now() },
+            agent: agent.name,
+            model: { providerID, modelID: resolved.id },
+          } satisfies SessionV1.User,
+          sessionID,
+          model: resolved,
+          agent,
+          system: ["You are a helpful assistant."],
+          messages: [
+            {
+              role: "user" as const,
+              content: [
+                { type: "text" as const, text: "Hello Li Ming", providerOptions: { jolliPii: { input: true } } },
+              ],
+            },
+          ],
+          tools: {},
+        }
+
+        yield* drain({ ...base, turnID, clientAttemptID: "attempt-input", stepIndex: 0 })
+        yield* drain(base)
+        yield* drain({ ...base, requestKind: "compaction" })
+
+        const hash = new Bun.CryptoHasher("sha256").update("Hello Li Ming").digest("hex")
+        expect((yield* Effect.promise(() => step)).headers.get("x-jolli-input-text")).toBe(hash)
+        expect((yield* Effect.promise(() => title)).headers.get("x-jolli-input-text")).toBeNull()
+        const compacted = (yield* Effect.promise(() => compaction)).headers
+        expect(compacted.get("x-jolli-request-kind")).toBe("compaction")
+        expect(compacted.get("x-jolli-input-text")).toBe(hash)
+      }),
+    {
+      config: () => {
+        const model = loadFixture("openai", "gpt-5.2").model
+        return {
+          enabled_providers: ["jolli-openai"],
+          provider: {
+            "jolli-openai": {
+              name: "Jolli",
+              npm: "@ai-sdk/openai",
+              models: { [model.id]: configModel(model) as ConfigModel },
+              options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` },
+            },
+          },
+        }
+      },
+    },
+  )
+
+  it.instance(
     "keeps supported OpenAI models on AI SDK path when native flag is off",
     () =>
       Effect.gen(function* () {

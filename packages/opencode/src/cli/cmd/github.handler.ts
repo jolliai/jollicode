@@ -865,7 +865,8 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
 
     async function summarize(response: string) {
       try {
-        return await chat(`Summarize the following in less than 40 characters:\n\n${response}`)
+        // The model's own reply, not anything someone wrote on the issue or pull request.
+        return await chat(`Summarize the following in less than 40 characters:\n\n${response}`, [], "agent")
       } catch {
         const title = issueEvent
           ? issueEvent.issue.title
@@ -874,7 +875,8 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       }
     }
 
-    async function chat(message: string, files: PromptFiles = []) {
+    /** @param typed - who wrote `message`: someone on the issue or pull request, or this program. */
+    async function chat(message: string, files: PromptFiles = [], typed: "student" | "agent" = "student") {
       console.log("Sending message to Jolli Code...")
 
       return runLocalEffect(
@@ -884,6 +886,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
             sessionID: session.id,
             messageID: MessageID.ascending(),
             variant,
+            typed,
             model: {
               providerID,
               modelID,
@@ -932,6 +935,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
             sessionID: session.id,
             messageID: MessageID.ascending(),
             variant,
+            typed: "agent",
             model: {
               providerID,
               modelID,

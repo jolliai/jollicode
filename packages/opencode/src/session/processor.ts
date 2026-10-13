@@ -10,6 +10,7 @@ import { Permission } from "@/permission"
 import { Plugin } from "@/plugin"
 import { Snapshot } from "@/snapshot"
 import { Session } from "./session"
+import { JolliInput } from "./jolli-input"
 import { LLM } from "./llm"
 import { MessageV2 } from "./message-v2"
 import { isOverflow } from "./overflow"
@@ -195,14 +196,24 @@ const layer = Layer.effect(
           error instanceof PermissionV1.CorrectedError ||
           error instanceof PermissionV1.DeniedError ||
           error instanceof Question.RejectedError
+        const text = errorMessage(error)
+        // The feedback a student gave when they turned the call down is theirs, and the Jolli gateway is
+        // told where it landed in the error the model reads.
+        const feedback =
+          error instanceof PermissionV1.CorrectedError && error.feedback !== "" && text.endsWith(error.feedback)
+            ? { length: text.length, ranges: [[text.length - error.feedback.length, text.length] as const] }
+            : undefined
         yield* session.updatePart({
           ...match.part,
           state: {
             status: "error",
             input: match.part.state.input,
-            error: errorMessage(error),
+            error: text,
             // Keep metadata streamed while running so failures retain progress detail (e.g. execute's child calls).
-            metadata: rejected ? { ...match.part.state.metadata, rejected: true } : match.part.state.metadata,
+            metadata: JolliInput.stamped(
+              rejected ? { ...match.part.state.metadata, rejected: true } : match.part.state.metadata,
+              feedback,
+            ),
             time: { start: match.part.state.time.start, end: Date.now() },
           },
         })
