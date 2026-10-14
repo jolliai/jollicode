@@ -91,6 +91,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Pordi hankimine ebaõnnestus",
   "desktop.picker.error.notSelected": "Valija ei valinud faili",
   "desktop.picker.error.sizeLimit": "Valitud manused ületavad {{limit}} MB piirangut",
+  "desktop.menu.thirdPartyLicenses": "Kolmandate osapoolte litsentsid",
+  "desktop.licenses.openFailed": "Kolmandate osapoolte litsentside faili ei õnnestunud avada",
   "command.category.suggested": "Soovitatud",
   "command.category.view": "Vaade",
   "command.category.project": "Projekt",

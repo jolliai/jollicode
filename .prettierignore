@@ -2,3 +2,5 @@ sst-env.d.ts
 packages/desktop/src/bindings.ts
 packages/client/src/generated/
 packages/client/src/generated-effect/
+# Vendored verbatim (license notices); reformatting would alter the text.
+packages/script/vendor/

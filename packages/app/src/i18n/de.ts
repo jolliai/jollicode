@@ -1200,6 +1200,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Port konnte nicht abgerufen werden",
   "desktop.picker.error.notSelected": "Im Auswahldialog wurde keine Datei ausgewählt",
   "desktop.picker.error.sizeLimit": "Die ausgewählten Anhänge überschreiten das Limit von {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Lizenzen von Drittanbietern",
+  "desktop.licenses.openFailed": "Die Datei mit den Lizenzen von Drittanbietern konnte nicht geöffnet werden",
   "command.logs.export": "Protokolle exportieren",
   "help.tabs.toast.ariaLabel": "Neu: Tabs. Organisieren Sie Ihre Arbeit und aktiven Sitzungen mithilfe von Tabs",
   "help.tabs.toast.dismiss": "Informationen zu Tabs schließen",

@@ -97,6 +97,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "В средстве выбора не выбран файл",
   "desktop.picker.error.sizeLimit": "Размер выбранных вложений превышает лимит {{limit}} МБ",
+  "desktop.menu.thirdPartyLicenses": "Лицензии сторонних компонентов",
+  "desktop.licenses.openFailed": "Не удалось открыть файл с лицензиями сторонних компонентов",
 
   "command.category.suggested": "Предложено",
   "command.category.view": "Просмотр",

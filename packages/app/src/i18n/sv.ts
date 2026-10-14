@@ -92,6 +92,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Det gick inte att hämta porten",
   "desktop.picker.error.notSelected": "Ingen fil valdes i filväljaren",
   "desktop.picker.error.sizeLimit": "De valda bilagorna överskrider gränsen på {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Licenser från tredje part",
+  "desktop.licenses.openFailed": "Det gick inte att öppna filen med licenser från tredje part",
   "command.category.suggested": "Föreslagna",
   "command.category.view": "Visa",
   "command.category.project": "Projekt",

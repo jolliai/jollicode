@@ -96,6 +96,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "ピッカーでファイルが選択されませんでした",
   "desktop.picker.error.sizeLimit": "選択した添付ファイルが上限の{{limit}} MBを超えています",
+  "desktop.menu.thirdPartyLicenses": "サードパーティライセンス",
+  "desktop.licenses.openFailed": "サードパーティライセンスのファイルを開けませんでした",
 
   "command.category.suggested": "おすすめ",
   "command.category.view": "表示",

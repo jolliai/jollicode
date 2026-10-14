@@ -91,6 +91,8 @@ const desktop = [
   "Nepavyko gauti prievado",
   "Failas nebuvo pasirinktas failų parinkiklyje",
   "Pasirinkti priedai viršija {{limit}} MB ribą",
+  "Trečiųjų šalių licencijos",
+  "Nepavyko atidaryti trečiųjų šalių licencijų failo",
 ]
 
 export const dict = {

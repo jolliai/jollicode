@@ -96,6 +96,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "لم يحدد منتقي الملفات ملفًا",
   "desktop.picker.error.sizeLimit": "تتجاوز المرفقات المحددة الحد البالغ {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "تراخيص الجهات الخارجية",
+  "desktop.licenses.openFailed": "تعذّر فتح ملف تراخيص الجهات الخارجية",
 
   "command.category.suggested": "مقترح",
   "command.category.view": "عرض",

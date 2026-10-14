@@ -36,6 +36,8 @@ await $`mkdir -p ./dist/${pkg.name}`
 await $`mkdir -p ./dist/${pkg.name}/bin`
 await $`cp ./script/postinstall.mjs ./dist/${pkg.name}/postinstall.mjs`
 await Bun.file(`./dist/${pkg.name}/LICENSE`).write(await Bun.file("../../LICENSE").text())
+// The wrapper bundles no third-party code; each platform package carries its own THIRD-PARTY-LICENSES.
+await Bun.file(`./dist/${pkg.name}/NOTICE`).write(await Bun.file("../../NOTICE").text())
 await Bun.file(`./dist/${pkg.name}/README.md`).write(await Bun.file("../../README.md").text())
 await Bun.file(`./dist/${pkg.name}/bin/${Brand.bin}.exe`).write(
   [

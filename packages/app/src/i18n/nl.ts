@@ -91,6 +91,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Kan poort niet ophalen",
   "desktop.picker.error.notSelected": "Er is geen bestand geselecteerd in de bestandskiezer",
   "desktop.picker.error.sizeLimit": "De geselecteerde bijlagen overschrijden de limiet van {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Licenties van derden",
+  "desktop.licenses.openFailed": "Kan het bestand met licenties van derden niet openen",
   "command.category.suggested": "Voorgesteld",
   "command.category.view": "Weergave",
   "command.category.project": "Project",

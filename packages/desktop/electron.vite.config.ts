@@ -1,6 +1,7 @@
 import { sentryVitePlugin } from "@sentry/vite-plugin"
 import { defineConfig } from "electron-vite"
 import appPlugin from "@opencode-ai/app/vite"
+import { modulesPlugin } from "@opencode-ai/script/bundle-modules"
 import * as fs from "node:fs/promises"
 
 const OPENCODE_SERVER_DIST = "../opencode/dist/node"
@@ -86,9 +87,11 @@ const require = __cjs_mod__.createRequire(import.meta.url);
           }
         },
       },
+      modulesPlugin(),
     ],
   },
   preload: {
+    plugins: [modulesPlugin()],
     build: {
       rollupOptions: {
         input: { index: "src/preload/index.ts" },
@@ -100,7 +103,7 @@ const require = __cjs_mod__.createRequire(import.meta.url);
     },
   },
   renderer: {
-    plugins: [appPlugin, sentry],
+    plugins: [appPlugin, sentry, modulesPlugin()],
     publicDir: "../../../app/public",
     root: "src/renderer",
     build: {

@@ -92,6 +92,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "није успело преузимање порта",
   "desktop.picker.error.notSelected": "Бирач није изабрао датотеку",
   "desktop.picker.error.sizeLimit": "Изабрани прилози премашују ограничење од {{limit}} МБ",
+  "desktop.menu.thirdPartyLicenses": "Лиценце трећих страна",
+  "desktop.licenses.openFailed": "Није могуће отворити датотеку са лиценцама трећих страна",
   "command.category.suggested": "Предложено",
   "command.category.view": "Приказ",
   "command.category.project": "Пројекат",

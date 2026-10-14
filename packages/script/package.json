@@ -3,7 +3,8 @@
   "name": "@opencode-ai/script",
   "license": "UNLICENSED",
   "scripts": {
-    "test": "bun test --only-failures"
+    "test": "bun test --only-failures",
+    "update-bun-license": "bun ./src/update-bun-license.ts"
   },
   "dependencies": {
     "@opencode-ai/core": "workspace:*",
@@ -14,6 +15,8 @@
     "@types/semver": "^7.5.8"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./bundle-modules": "./src/bundle-modules.ts",
+    "./licenses": "./src/licenses.ts"
   }
 }

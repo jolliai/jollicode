@@ -91,6 +91,8 @@ const desktop = [
   "Ekki tókst að sækja gátt",
   "Skráin var ekki valin í skráavalinu",
   "Valin viðhengi fara yfir {{limit}} MB hámarkið",
+  "Leyfi þriðju aðila",
+  "Ekki tókst að opna skrána með leyfum þriðju aðila",
 ]
 
 export const dict = {

@@ -93,6 +93,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Портыг авч чадсангүй",
   "desktop.picker.error.notSelected": "Файлыг сонгогч сонгоогүй",
   "desktop.picker.error.sizeLimit": "Сонгосон хавсралтууд {{limit}} МБ хязгаараас хэтэрсэн",
+  "desktop.menu.thirdPartyLicenses": "Гуравдагч талын лиценз",
+  "desktop.licenses.openFailed": "Гуравдагч талын лицензийн файлыг нээж чадсангүй",
   "command.category.suggested": "Санал болгосон",
   "command.category.view": "Харах",
   "command.category.project": "Төсөл",

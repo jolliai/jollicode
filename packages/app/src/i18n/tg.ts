@@ -92,6 +92,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Ба даст овардани порт муяссар нашуд",
   "desktop.picker.error.notSelected": "Файлро интихобкунанда интихоб накардааст",
   "desktop.picker.error.sizeLimit": "Замимаҳои интихобшуда аз ҳадди {{limit}} МБ зиёданд",
+  "desktop.menu.thirdPartyLicenses": "Литсензияҳои шахсони сеюм",
+  "desktop.licenses.openFailed": "Файли литсензияҳои шахсони сеюмро кушодан ғайриимкон аст",
   "command.category.suggested": "Тавсия дода мешавад",
   "command.category.view": "Намоиш",
   "command.category.project": "Лоиҳа",

@@ -98,6 +98,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "Datoteka nije odabrana u izborniku",
   "desktop.picker.error.sizeLimit": "Odabrani prilozi premašuju ograničenje od {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Licence trećih strana",
+  "desktop.licenses.openFailed": "Nije moguće otvoriti datoteku s licencama trećih strana",
 
   "command.category.suggested": "Predloženo",
   "command.category.view": "Prikaz",

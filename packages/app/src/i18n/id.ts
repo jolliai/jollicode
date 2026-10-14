@@ -98,6 +98,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "Berkas tidak dipilih melalui pemilih",
   "desktop.picker.error.sizeLimit": "Lampiran yang dipilih melebihi batas {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Lisensi Pihak Ketiga",
+  "desktop.licenses.openFailed": "Tidak dapat membuka file lisensi pihak ketiga",
 
   "command.category.suggested": "Disarankan",
   "command.category.view": "Tampilan",

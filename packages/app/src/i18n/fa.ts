@@ -92,6 +92,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "پورت دریافت نشد",
   "desktop.picker.error.notSelected": "فایل توسط انتخاب کننده انتخاب نشده است",
   "desktop.picker.error.sizeLimit": "پیوست های انتخابی بیش از حد مجاز {{limit}} مگابایت است",
+  "desktop.menu.thirdPartyLicenses": "مجوزهای شخص ثالث",
+  "desktop.licenses.openFailed": "باز کردن فایل مجوزهای شخص ثالث ممکن نشد",
   "command.category.suggested": "پیشنهاد شده است",
   "command.category.view": "مشاهده کنید",
   "command.category.project": "پروژه",

@@ -50,8 +50,10 @@ const getBase = (appId: string): Configuration => ({
   extraMetadata: {
     desktopName: `${appId}.desktop`,
   },
-  files: ["out/**/*", "resources/**/*", "!resources/jollicode-cli*"],
+  files: ["out/**/*", "!out/licenses", "!out/**/.bundle-modules.json", "resources/**/*", "!resources/jollicode-cli*"],
   extraResources: [
+    // THIRD-PARTY-LICENSES.txt and Electron's own notices, written by scripts/licenses.ts.
+    { from: "out/licenses/", to: "" },
     ...(channel === "dev"
       ? [
           {

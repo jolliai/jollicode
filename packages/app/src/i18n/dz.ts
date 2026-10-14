@@ -94,6 +94,8 @@ export const dict: Record<string, string> = {
   "desktop.wsl.error.failedPort": "འདྲེན་ལམ་ཐོབ་ནི་ལུ་འཐུས་ཤོར་འབྱུང་ཡོདཔ།",
   "desktop.picker.error.notSelected": "ཡིག་སྣོད་འདི་ སེལ་འཐུ་འབད་མི་གིས་ སེལ་འཐུ་མ་འབད་བས།",
   "desktop.picker.error.sizeLimit": "སེལ་འཐུ་འབད་ཡོད་པའི་མཉམ་སྦྲགས་ཚུ་གིས་ {{limit}} ཨེམ་བི་ཚད་ལས་བརྒལཝ་ཨིན།",
+  "desktop.menu.thirdPartyLicenses": "ཕྱི་ཁའི་ཆོག་ཐམ།",
+  "desktop.licenses.openFailed": "ཕྱི་ཁའི་ཆོག་ཐམ་གྱི་ཡིག་སྣོད་ཁ་ཕྱེ་མ་ཚུགས།",
   "command.category.suggested": "བསམ་འཆར།",
   "command.category.view": "བསམ༌འཆར",
   "command.category.project": "ལས༌འགུལ",

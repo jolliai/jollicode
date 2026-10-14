@@ -79,6 +79,7 @@
       },
       "devDependencies": {
         "@happy-dom/global-registrator": "20.12.0",
+        "@opencode-ai/script": "workspace:*",
         "@playwright/test": "catalog:",
         "@sentry/vite-plugin": "catalog:",
         "@tailwindcss/vite": "catalog:",
@@ -399,6 +400,7 @@
         "@lydell/node-pty": "catalog:",
         "@opencode-ai/app": "workspace:*",
         "@opencode-ai/core": "workspace:*",
+        "@opencode-ai/script": "workspace:*",
         "@opencode-ai/ui": "workspace:*",
         "@sentry/solid": "catalog:",
         "@sentry/vite-plugin": "catalog:",
@@ -644,7 +646,7 @@
         "immer": "11.1.4",
         "jsonc-parser": "3.3.1",
         "mime-types": "3.0.2",
-        "minimatch": "10.0.3",
+        "minimatch": "10.2.3",
         "npm-package-arg": "13.0.2",
         "open": "10.1.2",
         "opencode-gitlab-auth": "2.1.0",
@@ -1724,10 +1726,6 @@
     "@internationalized/number": ["@internationalized/number@3.6.7", "https://registry.npmmirror.com/@internationalized/number/-/number-3.6.7.tgz", { "dependencies": { "@swc/helpers": "^0.5.0" } }, "sha512-3ji1fcrT+FPAK86UqEhB/psHixYo6niWPJtt7+qRaYFynt/BaJG8GhAPimtWUpEiVSTq8ZM8L5psMxGquiB/Vg=="],
 
     "@ioredis/commands": ["@ioredis/commands@1.10.0", "https://registry.npmmirror.com/@ioredis/commands/-/commands-1.10.0.tgz", {}, "sha512-UmeW7z4LfctwoQ5wkhVzgq8tXkreED2xZGpX+Bg+zA+WJFZCT6c062AfCK/Dfk81xZnnwdhJCUMkitihRaoC2Q=="],
-
-    "@isaacs/balanced-match": ["@isaacs/balanced-match@4.0.1", "https://registry.npmmirror.com/@isaacs/balanced-match/-/balanced-match-4.0.1.tgz", {}, "sha512-yzMTt9lEb8Gv7zRioUilSglI0c0smZ9k5D65677DLWLtWJaXIS3CqcGyUFByYKlnUj6TkjLVs54fBl6+TiGQDQ=="],
-
-    "@isaacs/brace-expansion": ["@isaacs/brace-expansion@5.0.1", "https://registry.npmmirror.com/@isaacs/brace-expansion/-/brace-expansion-5.0.1.tgz", { "dependencies": { "@isaacs/balanced-match": "^4.0.1" } }, "sha512-WMz71T1JS624nWj2n2fnYAuPovhv7EUhk69R6i9dsVyzxt5eM3bjwvgk9L+APE1TRscGysAVMANkB0jh0LQZrQ=="],
 
     "@isaacs/cliui": ["@isaacs/cliui@9.0.0", "https://registry.npmmirror.com/@isaacs/cliui/-/cliui-9.0.0.tgz", {}, "sha512-AokJm4tuBHillT+FpMtxQ60n8ObyXBatq7jD2/JA9dxbDDokKQm8KMht5ibGzLVU9IJDIKK4TPKgMHEYMn3lMg=="],
 
@@ -6333,7 +6331,7 @@
 
     "jollicode/@solid-primitives/scheduled": ["@solid-primitives/scheduled@1.5.2", "https://registry.npmmirror.com/@solid-primitives/scheduled/-/scheduled-1.5.2.tgz", { "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-/j2igE0xyNaHhj6kMfcUQn5rAVSTLbAX+CDEBm25hSNBmNiHLu2lM7Usj2kJJ5j36D67bE8wR1hBNA8hjtvsQA=="],
 
-    "jollicode/minimatch": ["minimatch@10.0.3", "https://registry.npmmirror.com/minimatch/-/minimatch-10.0.3.tgz", { "dependencies": { "@isaacs/brace-expansion": "^5.0.0" } }, "sha512-IPZ167aShDZZUMdRk66cyQAW3qr0WzbHkPdMYa8bzZhlHhO3jALbKdxcaak7W9FfT2rZNpQuUu4Od7ILEpXSaw=="],
+    "jollicode/minimatch": ["minimatch@10.2.3", "", { "dependencies": { "brace-expansion": "^5.0.2" } }, "sha512-Rwi3pnapEqirPSbWbrZaa6N3nmqq4Xer/2XooiOKyV3q12ML06f7MOuc5DVH8ONZIFhwIYQ3yzPH4nt7iWHaTg=="],
 
     "jollicode/semver": ["semver@7.8.5", "https://registry.npmmirror.com/semver/-/semver-7.8.5.tgz", { "bin": { "semver": "bin/semver.js" } }, "sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA=="],
 

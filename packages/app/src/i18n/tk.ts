@@ -92,6 +92,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Port alyp bilmedi",
   "desktop.picker.error.notSelected": "Faýl saýlaýjy tarapyndan saýlanmady",
   "desktop.picker.error.sizeLimit": "Saýlanan goşundylar {{limit}} MB çäginden ýokary",
+  "desktop.menu.thirdPartyLicenses": "Üçünji tarap ygtyýarnamalary",
+  "desktop.licenses.openFailed": "Üçünji tarap ygtyýarnamalarynyň faýlyny açyp bolmady",
   "command.category.suggested": "Teklip edilýär",
   "command.category.view": "Gör",
   "command.category.project": "Taslama",

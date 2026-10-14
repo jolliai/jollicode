@@ -91,6 +91,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Gagal mendapatkan port",
   "desktop.picker.error.notSelected": "Fail tidak dipilih oleh pemilih",
   "desktop.picker.error.sizeLimit": "Lampiran yang dipilih melebihi had {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Lesen Pihak Ketiga",
+  "desktop.licenses.openFailed": "Tidak dapat membuka fail lesen pihak ketiga",
   "command.category.suggested": "Dicadangkan",
   "command.category.view": "Paparan",
   "command.category.project": "Projek",

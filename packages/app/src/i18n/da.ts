@@ -1259,6 +1259,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "Filen blev ikke valgt i filvælgeren",
   "desktop.picker.error.sizeLimit": "De valgte vedhæftede filer overskrider grænsen på {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Tredjepartslicenser",
+  "desktop.licenses.openFailed": "Filen med tredjepartslicenser kunne ikke åbnes",
 
   "command.logs.export": "Eksportér logfiler",
 

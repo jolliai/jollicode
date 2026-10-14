@@ -91,6 +91,8 @@ const desktop = [
   "A port lekérése sikertelen",
   "A fájl nem lett kiválasztva a választóban",
   "A kiválasztott mellékletek meghaladják a(z) {{limit}} MB-os korlátot",
+  "Harmadik féltől származó licencek",
+  "Nem sikerült megnyitni a harmadik féltől származó licencek fájlját",
 ]
 
 export const dict = {

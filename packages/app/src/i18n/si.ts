@@ -91,6 +91,8 @@ export const dict: Record<string, string> = {
   "desktop.wsl.error.failedPort": "වරාය ලබා ගැනීමට අසමත් විය",
   "desktop.picker.error.notSelected": "ගොනුව තෝරන්නා විසින් තෝරාගෙන නොමැත",
   "desktop.picker.error.sizeLimit": "තෝරාගත් ඇමුණුම් {{limit}} MB සීමාව ඉක්මවයි",
+  "desktop.menu.thirdPartyLicenses": "තෙවන පාර්ශ්ව බලපත්‍ර",
+  "desktop.licenses.openFailed": "තෙවන පාර්ශ්ව බලපත්‍ර ගොනුව විවෘත කළ නොහැකි විය",
   "command.category.suggested": "යෝජනා කර ඇත",
   "command.category.view": "බලන්න",
   "command.category.project": "ව්යාපෘතිය",

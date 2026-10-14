@@ -93,6 +93,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Portu əldə etmək mümkün olmadı",
   "desktop.picker.error.notSelected": "Seçim vasitəsində fayl seçilməyib",
   "desktop.picker.error.sizeLimit": "Seçilmiş əlavələr {{limit}} MB limitini aşır",
+  "desktop.menu.thirdPartyLicenses": "Üçüncü tərəf lisenziyaları",
+  "desktop.licenses.openFailed": "Üçüncü tərəf lisenziyaları faylını açmaq mümkün olmadı",
   "command.category.suggested": "Təklif olunan",
   "command.category.view": "Görünüş",
   "command.category.project": "Layihə",

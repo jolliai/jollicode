@@ -91,6 +91,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Nepodařilo se získat port",
   "desktop.picker.error.notSelected": "Soubor nebyl vybrán nástrojem pro výběr",
   "desktop.picker.error.sizeLimit": "Vybrané přílohy překračují limit {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Licence třetích stran",
+  "desktop.licenses.openFailed": "Soubor s licencemi třetích stran se nepodařilo otevřít",
   "command.category.suggested": "Doporučeno",
   "command.category.view": "Zobrazit",
   "command.category.project": "Projekt",

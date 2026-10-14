@@ -28,6 +28,8 @@ const version = Object.values(binaries)[0]
 
 await $`mkdir -p ./dist/${pkg.name}/bin`
 await $`cp ./bin/lildax.cjs ./dist/${pkg.name}/bin/lildax`
+// The wrapper bundles no third-party code; each platform package carries its own THIRD-PARTY-LICENSES.
+await Bun.file(`./dist/${pkg.name}/NOTICE`).write(await Bun.file("../../NOTICE").text())
 await Bun.file(`./dist/${pkg.name}/package.json`).write(
   JSON.stringify(
     {

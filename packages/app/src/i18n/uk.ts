@@ -98,6 +98,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "Засіб вибору не повернув вибраний файл",
   "desktop.picker.error.sizeLimit": "Вибрані вкладення перевищують обмеження в {{limit}} МБ",
+  "desktop.menu.thirdPartyLicenses": "Ліцензії сторонніх компонентів",
+  "desktop.licenses.openFailed": "Не вдалося відкрити файл із ліцензіями сторонніх компонентів",
 
   "command.category.suggested": "Рекомендовані",
   "command.category.view": "Вигляд",

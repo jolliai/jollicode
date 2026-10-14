@@ -100,6 +100,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "Ingen fil ble valgt i filvelgeren",
   "desktop.picker.error.sizeLimit": "De valgte vedleggene overskrider grensen på {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Tredjepartslisenser",
+  "desktop.licenses.openFailed": "Kunne ikke åpne filen med tredjepartslisenser",
 
   "command.category.suggested": "Foreslått",
   "command.category.view": "Visning",

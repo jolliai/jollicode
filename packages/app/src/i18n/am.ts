@@ -91,6 +91,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "ወደብ ማግኘት አልተሳካም",
   "desktop.picker.error.notSelected": "ፋይሉ በመራጭው አልተመረጠም",
   "desktop.picker.error.sizeLimit": "የተመረጡት ዓባሪዎች ከ{{limit}}ሜባ ገደቡ በላይ",
+  "desktop.menu.thirdPartyLicenses": "የሶስተኛ ወገን ፈቃዶች",
+  "desktop.licenses.openFailed": "የሶስተኛ ወገን ፈቃዶች ፋይልን መክፈት አልተቻለም",
   "command.category.suggested": "የሚመከር",
   "command.category.view": "እይታ",
   "command.category.project": "ፕሮጀክት",

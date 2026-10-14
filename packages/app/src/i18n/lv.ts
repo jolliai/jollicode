@@ -91,6 +91,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Neizdevās iegūt portu",
   "desktop.picker.error.notSelected": "Fails netika izvēlēts ar atlasītāju",
   "desktop.picker.error.sizeLimit": "Izvēlētie pielikumi pārsniedz {{limit}} MB ierobežojumu",
+  "desktop.menu.thirdPartyLicenses": "Trešo pušu licences",
+  "desktop.licenses.openFailed": "Neizdevās atvērt trešo pušu licenču failu",
   "command.category.suggested": "Ieteikts",
   "command.category.view": "Skats",
   "command.category.project": "Projekts",

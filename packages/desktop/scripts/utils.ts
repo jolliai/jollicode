@@ -62,6 +62,9 @@ export function getCurrentCli(target = RUST_TARGET ?? nativeTarget()) {
   return binaryConfig
 }
 
+// The dev-channel CLI's own license manifest, shipped beside it by the `jollicode-cli*` extraResources filter.
+export const CLI_LICENSES = "resources/jollicode-cli-THIRD-PARTY-LICENSES.txt"
+
 export async function buildCliToResources() {
   const cli = getCurrentCli()
   // Build from this repo rather than installing a published tarball: the bundled daemon has to
@@ -70,6 +73,7 @@ export async function buildCliToResources() {
   const dest = windowsify("resources/jollicode-cli")
   await $`bun script/build.ts ${`--only=${cli.dist}`}`.cwd("../cli")
   await copyFile(join("../cli/dist", cli.dist, "bin", cli.os === "win32" ? "lildax.exe" : "lildax"), dest)
+  await copyFile(join("../cli/dist", cli.dist, "bin", "THIRD-PARTY-LICENSES"), CLI_LICENSES)
   if (process.platform !== "win32") await chmod(dest, 0o755)
   if (process.platform === "win32" && process.env.GITHUB_ACTIONS === "true") {
     await $`pwsh -NoLogo -NoProfile -ExecutionPolicy Bypass -File ../../script/sign-windows.ps1 ${dest}`
