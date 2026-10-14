@@ -93,6 +93,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "No s'ha pogut obtenir el port",
   "desktop.picker.error.notSelected": "El selector no ha seleccionat el fitxer",
   "desktop.picker.error.sizeLimit": "Els fitxers adjunts seleccionats superen el límit de {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Llicències de tercers",
+  "desktop.licenses.openFailed": "No s'ha pogut obrir el fitxer de llicències de tercers",
   "command.category.suggested": "Suggerit",
   "command.category.view": "Veure",
   "command.category.project": "Projecte",

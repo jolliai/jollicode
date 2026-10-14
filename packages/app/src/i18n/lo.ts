@@ -91,6 +91,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "ລົ້ມເຫລວໃນການເອົາພອດ",
   "desktop.picker.error.notSelected": "ໄຟລ໌ບໍ່ໄດ້ຖືກເລືອກໂດຍຕົວເລືອກ",
   "desktop.picker.error.sizeLimit": "ໄຟລ໌ແນບທີ່ເລືອກເກີນຂີດຈຳກັດ {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "ໃບອະນຸຍາດຂອງພາກສ່ວນທີສາມ",
+  "desktop.licenses.openFailed": "ບໍ່ສາມາດເປີດໄຟລ໌ໃບອະນຸຍາດຂອງພາກສ່ວນທີສາມໄດ້",
   "command.category.suggested": "ແນະນຳ",
   "command.category.view": "ເບິ່ງ",
   "command.category.project": "ໂຄງການ",

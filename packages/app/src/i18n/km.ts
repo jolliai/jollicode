@@ -91,6 +91,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "បរាជ័យក្នុងការទទួលបានច្រក",
   "desktop.picker.error.notSelected": "ឯកសារមិនត្រូវបានជ្រើសរើសដោយអ្នកជ្រើសរើសទេ។",
   "desktop.picker.error.sizeLimit": "ឯកសារភ្ជាប់ដែលបានជ្រើសរើសលើសពីដែនកំណត់ {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "អាជ្ញាប័ណ្ណភាគីទីបី",
+  "desktop.licenses.openFailed": "មិនអាចបើកឯកសារអាជ្ញាប័ណ្ណភាគីទីបីបានទេ",
   "command.category.suggested": "បានស្នើ",
   "command.category.view": "មើល",
   "command.category.project": "គម្រោង",

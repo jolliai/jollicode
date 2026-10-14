@@ -98,6 +98,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "فائل چنندہ میں کوئی فائل منتخب نہیں کی گئی",
   "desktop.picker.error.sizeLimit": "منتخب منسلکات {{limit}} MB کی حد سے زیادہ ہیں",
+  "desktop.menu.thirdPartyLicenses": "تھرڈ پارٹی لائسنس",
+  "desktop.licenses.openFailed": "تھرڈ پارٹی لائسنس کی فائل نہیں کھولی جا سکی",
 
   "command.category.suggested": "تجویز کردہ",
   "command.category.view": "دیکھیں",

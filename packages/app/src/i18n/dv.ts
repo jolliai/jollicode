@@ -94,6 +94,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "ބަނދަރު ހޯދުމަށް ނާކާމިޔާބުވިއެވެ",
   "desktop.picker.error.notSelected": "ފައިލް ހޮވާފައިވަނީ ޕިކަރ އިން ނޫނެވެ",
   "desktop.picker.error.sizeLimit": "ހޮވާލެވޭ އެޓޭޗްމަންޓްތައް {{limit}} MB ލިމިޓަށްވުރެ މަތިވެއެވެ",
+  "desktop.menu.thirdPartyLicenses": "ތިންވަނަ ފަރާތުގެ ލައިސަންސްތައް",
+  "desktop.licenses.openFailed": "ތިންވަނަ ފަރާތުގެ ލައިސަންސްތަކުގެ ފައިލް ހުޅުވިނުގެން",
   "command.category.suggested": "ލަފާދީފިއެވެ",
   "command.category.view": "މަންޒަރު",
   "command.category.project": "ޕްރޮޖެކްޓް",

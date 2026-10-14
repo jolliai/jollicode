@@ -93,6 +93,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Port olinmadi",
   "desktop.picker.error.notSelected": "Fayl tanlovchi tomonidan tanlanmagan",
   "desktop.picker.error.sizeLimit": "Tanlangan biriktirmalar {{limit}} MB chegarasidan oshib ketadi",
+  "desktop.menu.thirdPartyLicenses": "Uchinchi tomon litsenziyalari",
+  "desktop.licenses.openFailed": "Uchinchi tomon litsenziyalari faylini ochib boʻlmadi",
   "command.category.suggested": "Tavsiya etilgan",
   "command.category.view": "Ko'rish",
   "command.category.project": "Loyiha",

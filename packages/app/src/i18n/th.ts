@@ -96,6 +96,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "ไม่ได้เลือกไฟล์จากตัวเลือกไฟล์",
   "desktop.picker.error.sizeLimit": "ไฟล์แนบที่เลือกมีขนาดเกินขีดจำกัด {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "สัญญาอนุญาตของบุคคลที่สาม",
+  "desktop.licenses.openFailed": "ไม่สามารถเปิดไฟล์สัญญาอนุญาตของบุคคลที่สามได้",
 
   "command.category.suggested": "แนะนำ",
   "command.category.view": "มุมมอง",

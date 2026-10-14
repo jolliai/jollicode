@@ -98,6 +98,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "O arquivo não foi selecionado pelo seletor",
   "desktop.picker.error.sizeLimit": "Os anexos selecionados excedem o limite de {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Licenças de terceiros",
+  "desktop.licenses.openFailed": "Não foi possível abrir o arquivo de licenças de terceiros",
 
   "command.category.suggested": "Sugerido",
   "command.category.view": "Visualizar",

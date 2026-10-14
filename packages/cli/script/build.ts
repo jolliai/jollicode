@@ -3,7 +3,9 @@
 import { $ } from "bun"
 import { rm } from "fs/promises"
 import path from "path"
+import { Brand } from "@opencode-ai/core/brand"
 import { Script } from "@opencode-ai/script"
+import { Licenses } from "@opencode-ai/script/licenses"
 import { createSolidTransformPlugin } from "@opentui/solid/bun-plugin"
 import pkg from "../package.json"
 import { modelsData } from "./generate"
@@ -74,6 +76,7 @@ function selectTargets() {
 const targets = selectTargets()
 
 if (!skipInstall) await $`bun install --os="*" --cpu="*" @opentui/core@${pkg.dependencies["@opentui/core"]}`
+const bun = await Licenses.bunRuntime()
 
 for (const item of targets) {
   const name = distName(item)
@@ -87,6 +90,7 @@ for (const item of targets) {
     minify: true,
     sourcemap: sourcemapsFlag ? "linked" : "none",
     splitting: true,
+    metafile: true,
     compile: {
       autoloadBunfig: false,
       autoloadDotenv: false,
@@ -113,6 +117,14 @@ for (const item of targets) {
     for (const log of result.logs) console.error(log)
     process.exit(1)
   }
+
+  // Next to the binary, so the platform package and the desktop's dev build (which ships this binary,
+  // see packages/desktop/scripts/utils.ts) carry them. The binary embeds the Bun runtime too.
+  const roots = Licenses.packageRoots(Licenses.metafileModules(result.metafile))
+  await Licenses.write(
+    `./dist/${name}/bin`,
+    Licenses.render([bun, ...(await Licenses.manifest(roots))], { product: `${Brand.name} CLI (${binary})` }),
+  )
 
   await Bun.write(
     `./dist/${name}/package.json`,

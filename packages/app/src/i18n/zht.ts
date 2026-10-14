@@ -100,6 +100,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "檔案選擇器未選取檔案",
   "desktop.picker.error.sizeLimit": "所選附件超過 {{limit}} MB 的限制",
+  "desktop.menu.thirdPartyLicenses": "第三方授權條款",
+  "desktop.licenses.openFailed": "無法開啟第三方授權條款檔案",
 
   "command.category.suggested": "建議",
   "command.category.view": "檢視",

@@ -97,6 +97,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "पिकर में फ़ाइल नहीं चुनी गई",
   "desktop.picker.error.sizeLimit": "चुने गए अटैचमेंट {{limit}} MB की सीमा से अधिक हैं",
+  "desktop.menu.thirdPartyLicenses": "तृतीय-पक्ष लाइसेंस",
+  "desktop.licenses.openFailed": "तृतीय-पक्ष लाइसेंस फ़ाइल नहीं खोली जा सकी",
 
   "command.category.suggested": "सुझाए गए",
   "command.category.view": "दृश्य",

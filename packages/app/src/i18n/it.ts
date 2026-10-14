@@ -1208,6 +1208,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Impossibile ottenere la porta",
   "desktop.picker.error.notSelected": "Il file non è stato selezionato nella finestra di selezione",
   "desktop.picker.error.sizeLimit": "Gli allegati selezionati superano il limite di {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Licenze di terze parti",
+  "desktop.licenses.openFailed": "Impossibile aprire il file delle licenze di terze parti",
   "prompt.model.noCourse": "Nessun corso",
   "prompt.course.bar.label": "Corso e assistente",
   "prompt.session.noCourse.notice":

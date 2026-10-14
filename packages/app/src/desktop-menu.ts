@@ -5,6 +5,7 @@ export type DesktopMenuPlatform = "macos" | "windows"
 
 export type DesktopMenuAction =
   | "app.checkForUpdates"
+  | "app.openLicenses"
   | "app.relaunch"
   | "edit.undo"
   | "edit.redo"
@@ -309,6 +310,8 @@ export const DESKTOP_MENU: DesktopMenu[] = [
       //   href: `${Brand.url}/desktop-feedback`,
       // },
       { type: "item", labelKey: "desktop.menu.contactSupport", href: `mailto:${Brand.supportEmail}` },
+      { type: "separator" },
+      { type: "item", labelKey: "desktop.menu.thirdPartyLicenses", action: "app.openLicenses" },
     ],
   },
 ]

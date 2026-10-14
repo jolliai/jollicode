@@ -35,6 +35,7 @@
   "license": "UNLICENSED",
   "devDependencies": {
     "@happy-dom/global-registrator": "20.12.0",
+    "@opencode-ai/script": "workspace:*",
     "@playwright/test": "catalog:",
     "@sentry/vite-plugin": "catalog:",
     "@tailwindcss/vite": "catalog:",

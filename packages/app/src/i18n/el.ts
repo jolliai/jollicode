@@ -92,6 +92,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Αποτυχία λήψης θύρας",
   "desktop.picker.error.notSelected": "Το αρχείο δεν επιλέχθηκε από τον επιλογέα",
   "desktop.picker.error.sizeLimit": "Τα επιλεγμένα συνημμένα υπερβαίνουν το όριο των {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Άδειες τρίτων",
+  "desktop.licenses.openFailed": "Δεν ήταν δυνατό το άνοιγμα του αρχείου αδειών τρίτων",
   "command.category.suggested": "Προτεινόμενο",
   "command.category.view": "Προβολή",
   "command.category.project": "Έργο",

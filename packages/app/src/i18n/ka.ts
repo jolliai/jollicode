@@ -91,6 +91,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "პორტის მიღება ვერ მოხერხდა",
   "desktop.picker.error.notSelected": "ფაილი არ იყო არჩეული ამომრჩევლის მიერ",
   "desktop.picker.error.sizeLimit": "არჩეული დანართები აღემატება {{limit}} MB ლიმიტს",
+  "desktop.menu.thirdPartyLicenses": "მესამე მხარის ლიცენზიები",
+  "desktop.licenses.openFailed": "მესამე მხარის ლიცენზიების ფაილის გახსნა ვერ მოხერხდა",
   "command.category.suggested": "შემოთავაზებულია",
   "command.category.view": "ნახვა",
   "command.category.project": "პროექტი",

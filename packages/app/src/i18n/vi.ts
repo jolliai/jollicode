@@ -97,6 +97,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "Không có tệp nào được chọn trong bộ chọn tệp",
   "desktop.picker.error.sizeLimit": "Các tệp đính kèm đã chọn vượt quá giới hạn {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Giấy phép của bên thứ ba",
+  "desktop.licenses.openFailed": "Không thể mở tệp giấy phép của bên thứ ba",
 
   "command.category.suggested": "Đề xuất",
   "command.category.view": "Xem",

@@ -93,6 +93,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Չհաջողվեց ստանալ միացքը",
   "desktop.picker.error.notSelected": "Ֆայլը ընտրողի կողմից ընտրված չէ",
   "desktop.picker.error.sizeLimit": "Ընտրված հավելվածները գերազանցում են {{limit}} ՄԲ սահմանաչափը",
+  "desktop.menu.thirdPartyLicenses": "Երրորդ կողմի լիցենզիաներ",
+  "desktop.licenses.openFailed": "Չհաջողվեց բացել երրորդ կողմի լիցենզիաների ֆայլը",
   "command.category.suggested": "Առաջարկված",
   "command.category.view": "Դիտել",
   "command.category.project": "Նախագիծ",

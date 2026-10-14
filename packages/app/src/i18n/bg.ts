@@ -93,6 +93,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Неуспешно получаване на порт",
   "desktop.picker.error.notSelected": "Файлът не е избран от инструмента за избор",
   "desktop.picker.error.sizeLimit": "Избраните прикачени файлове надхвърлят ограничението от {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Лицензи на трети страни",
+  "desktop.licenses.openFailed": "Файлът с лицензи на трети страни не можа да бъде отворен",
   "command.category.suggested": "Предложено",
   "command.category.view": "Преглед",
   "command.category.project": "Проект",

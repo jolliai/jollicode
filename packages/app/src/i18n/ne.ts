@@ -92,6 +92,8 @@ export const dict: Record<string, string> = {
   "desktop.wsl.error.failedPort": "पोर्ट प्राप्त गर्न असफल भयो",
   "desktop.picker.error.notSelected": "फाइल चयनकर्ता द्वारा चयन गरिएको थिएन",
   "desktop.picker.error.sizeLimit": "चयन गरिएका संलग्नहरू {{limit}} MB सीमा नाघ्छन्",
+  "desktop.menu.thirdPartyLicenses": "तेस्रो पक्षका इजाजतपत्रहरू",
+  "desktop.licenses.openFailed": "तेस्रो पक्षका इजाजतपत्रहरूको फाइल खोल्न सकिएन",
   "command.category.suggested": "सिफारिस गर्नुभयो",
   "command.category.view": "हेर्नुहोस्",
   "command.category.project": "परियोजना",

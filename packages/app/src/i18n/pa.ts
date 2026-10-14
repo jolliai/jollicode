@@ -96,6 +96,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "چونکار ولوں فائل نئیں چنی گئی",
   "desktop.picker.error.sizeLimit": "چنیاں منسلک فائلاں {{limit}} MB دی حد توں ودھ نیں",
+  "desktop.menu.thirdPartyLicenses": "تیجی دھر دے لائسنس",
+  "desktop.licenses.openFailed": "تیجی دھر دے لائسنساں دی فائل نئیں کھل سکی",
 
   "command.category.suggested": "تجویز کیتا گیا",
   "command.category.view": "نظارہ",

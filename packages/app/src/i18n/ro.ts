@@ -91,6 +91,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Nu s-a putut obține portul",
   "desktop.picker.error.notSelected": "Fișierul nu a fost selectat din selector",
   "desktop.picker.error.sizeLimit": "Atașamentele selectate depășesc limita de {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Licențe terțe",
+  "desktop.licenses.openFailed": "Fișierul cu licențe terțe nu a putut fi deschis",
   "command.category.suggested": "Sugerat",
   "command.category.view": "Vizualizare",
   "command.category.project": "Proiect",

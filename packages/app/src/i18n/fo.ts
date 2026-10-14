@@ -91,6 +91,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Tað eydnaðist ikki at fáa havn",
   "desktop.picker.error.notSelected": "Fíla varð ikki vald av veljaranum",
   "desktop.picker.error.sizeLimit": "Valdar viðheftir fara upp um {{limit}} MB markið",
+  "desktop.menu.thirdPartyLicenses": "Loyvi hjá triðjapørtum",
+  "desktop.licenses.openFailed": "Tað bar ikki til at lata fíluna við loyvum hjá triðjapørtum upp",
   "command.category.suggested": "Tillagað",
   "command.category.view": "Vís",
   "command.category.project": "Verkætlan",

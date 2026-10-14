@@ -1,5 +1,8 @@
-import { BrowserWindow } from "electron"
+import { join } from "node:path"
+import { app, BrowserWindow, dialog, shell } from "electron"
 import type { DesktopMenuAction } from "@opencode-ai/app/desktop-menu"
+import { getLogger } from "./logging"
+import { nativeT } from "./native-translations"
 import { createMainWindow, updateTitlebar } from "./windows"
 
 export type DesktopMenuActionHandlers = Partial<{
@@ -18,6 +21,9 @@ export function runDesktopMenuAction(
       return
     case "app.relaunch":
       handlers.relaunch?.()
+      return
+    case "app.openLicenses":
+      void openLicenses()
       return
     case "window.new":
       createMainWindow()
@@ -75,6 +81,27 @@ export function runDesktopMenuAction(
       win?.webContents.selectAll()
       return
   }
+}
+
+// NOTICE plus the bundled-package manifest, written by scripts/licenses.ts. Packaged builds carry it in
+// resources/; an unpackaged run opens the copy `bun run build` left in out/licenses, which
+// `electron-vite dev` never writes.
+async function openLicenses() {
+  const dir = app.isPackaged ? process.resourcesPath : join(app.getAppPath(), "out", "licenses")
+  const file = join(dir, "THIRD-PARTY-LICENSES.txt")
+  const error = await shell.openPath(file)
+  if (!error) return
+  getLogger().error("failed to open third-party licenses", { file, error })
+  await dialog.showMessageBox({
+    type: "error",
+    message: nativeT("desktop.licenses.openFailed"),
+    // The OS error is untranslated, and the build hint is for developers: only an unpackaged run is
+    // expected to get here.
+    detail: [
+      `${file}: ${error}`,
+      ...(app.isPackaged ? [] : ["Run `bun run build` in packages/desktop to write it."]),
+    ].join("\n"),
+  })
 }
 
 function setZoom(win: BrowserWindow | null, value: number) {

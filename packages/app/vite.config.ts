@@ -1,5 +1,6 @@
 import { sentryVitePlugin } from "@sentry/vite-plugin"
 import { defineConfig } from "vite"
+import { modulesPlugin } from "@opencode-ai/script/bundle-modules"
 import desktopPlugin from "./vite"
 
 const sentry =
@@ -20,7 +21,10 @@ const sentry =
     : false
 
 export default defineConfig({
-  plugins: [desktopPlugin, sentry] as any,
+  // Only the CLI build, which embeds dist/ and lists its modules in the binary's license manifest,
+  // asks for the module list. The web deploy serves dist/ publicly, and the list would expose the build
+  // machine's paths and every dependency version.
+  plugins: [desktopPlugin, sentry, ...(process.env.OPENCODE_RECORD_MODULES ? [modulesPlugin()] : [])] as any,
   server: {
     host: "0.0.0.0",
     allowedHosts: true,

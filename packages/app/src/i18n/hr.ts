@@ -91,6 +91,8 @@ const desktop = [
   "Nije uspjelo dohvaćanje priključka",
   "Datoteka nije odabrana u izborniku",
   "Odabrani prilozi premašuju ograničenje od {{limit}} MB",
+  "Licence trećih strana",
+  "Nije moguće otvoriti datoteku s licencama trećih strana",
 ]
 
 export const dict = {

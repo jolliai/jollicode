@@ -92,6 +92,8 @@ export const dict = {
   "desktop.wsl.error.failedPort": "Dështoi në marrjen e portit",
   "desktop.picker.error.notSelected": "Skedari nuk u zgjodh nga zgjedhësi",
   "desktop.picker.error.sizeLimit": "Bashkëngjitjet e zgjedhura tejkalojnë kufirin {{limit}} MB",
+  "desktop.menu.thirdPartyLicenses": "Licencat e palëve të treta",
+  "desktop.licenses.openFailed": "Skedari i licencave të palëve të treta nuk mund të hapej",
   "command.category.suggested": "Sugjeruar",
   "command.category.view": "Shiko",
   "command.category.project": "Projekti",

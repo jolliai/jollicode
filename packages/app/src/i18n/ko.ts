@@ -1199,6 +1199,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "선택기에서 파일을 선택하지 않았습니다",
   "desktop.picker.error.sizeLimit": "선택한 첨부 파일이 {{limit}} MB 제한을 초과합니다",
+  "desktop.menu.thirdPartyLicenses": "타사 라이선스",
+  "desktop.licenses.openFailed": "타사 라이선스 파일을 열 수 없습니다",
   "prompt.model.noCourse": "강좌 없음",
   "prompt.course.bar.label": "과목 및 어시스턴트",
   "prompt.session.noCourse.notice":

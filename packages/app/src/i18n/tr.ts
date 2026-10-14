@@ -102,6 +102,8 @@ export const dict = {
 
   "desktop.picker.error.notSelected": "Dosya seçici tarafından dosya seçilmedi",
   "desktop.picker.error.sizeLimit": "Seçilen ekler {{limit}} MB sınırını aşıyor",
+  "desktop.menu.thirdPartyLicenses": "Üçüncü Taraf Lisansları",
+  "desktop.licenses.openFailed": "Üçüncü taraf lisansları dosyası açılamadı",
 
   "command.category.suggested": "Önerilen",
   "command.category.view": "Görünüm",
