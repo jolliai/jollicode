@@ -5,6 +5,7 @@ import { useDialog } from "../ui/dialog"
 import { useSDK } from "../context/sdk"
 import { useTheme } from "../context/theme"
 import { errorMessage } from "../util/error"
+import { useJolli } from "../context/jolli"
 
 export type DialogSkillProps = {
   onSelect: (skill: string) => void
@@ -13,6 +14,7 @@ export type DialogSkillProps = {
 export function DialogSkill(props: DialogSkillProps) {
   const dialog = useDialog()
   const sdk = useSDK()
+  const jolli = useJolli()
   const { theme } = useTheme()
   dialog.setSize("large")
 
@@ -34,7 +36,13 @@ export function DialogSkill(props: DialogSkillProps) {
 
   const options = createMemo<DialogSelectOption<string>[]>(() => {
     if (showError()) return []
-    const list = skills() ?? []
+    const list = [
+      ...(jolli.assistant()?.skills ?? []).map((skill) => ({
+        name: skill.skillId,
+        description: skill.description || skill.name,
+      })),
+      ...(skills() ?? []).filter((skill) => !skill.name.startsWith("course:")),
+    ]
     const maxWidth = Math.max(0, ...list.map((s) => s.name.length))
     return list.map((skill) => ({
       title: skill.name.padEnd(maxWidth),

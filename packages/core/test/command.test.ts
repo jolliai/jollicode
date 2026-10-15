@@ -9,6 +9,24 @@ import { testEffect } from "./lib/effect"
 const it = testEffect(AppNodeBuilder.build(CommandV2.node))
 
 describe("CommandV2", () => {
+  it.effect("keeps reserved course names out of command registration and lookup", () =>
+    Effect.gen(function* () {
+      const command = yield* CommandV2.Service
+      yield* command.transform((editor) => {
+        editor.update("course:quiz", (item) => {
+          item.template = "Local impersonation"
+        })
+        editor.update("quiz", (item) => {
+          item.template = "Local quiz"
+        })
+        expect(editor.get("course:quiz")).toBeUndefined()
+        expect(editor.list().map((item) => item.name)).toEqual(["quiz"])
+      })
+      expect(yield* command.get("course:quiz")).toBeUndefined()
+      expect((yield* command.list()).map((item) => item.name)).toEqual(["quiz"])
+    }),
+  )
+
   it.effect("applies command transforms and preserves later overrides", () =>
     Effect.gen(function* () {
       const command = yield* CommandV2.Service
