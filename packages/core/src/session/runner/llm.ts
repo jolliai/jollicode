@@ -165,8 +165,8 @@ const layer = Layer.effect(
     const continueAfterOverflowCompaction = (step: number) =>
       new TurnTransitionError({ _tag: "ContinueAfterOverflowCompaction", step })
 
-    const loadSystemContext = (agent: AgentV2.Selection) =>
-      Effect.all([systemContext.load(), skillGuidance.load(agent), referenceGuidance.load()], {
+    const loadSystemContext = (agent: AgentV2.Selection, session: SessionSchema.Info, refresh = false) =>
+      Effect.all([systemContext.load(), skillGuidance.load(agent, session, refresh), referenceGuidance.load()], {
         concurrency: "unbounded",
       }).pipe(Effect.map(SystemContext.combine))
 
@@ -180,7 +180,7 @@ const layer = Layer.effect(
       if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)
         return yield* Effect.interrupt
       const agent = yield* agents.select(session.agent)
-      const initialized = yield* SessionContextEpoch.initialize(db, loadSystemContext(agent), session.id)
+      const initialized = yield* SessionContextEpoch.initialize(db, loadSystemContext(agent, session), session.id)
       const toolFibers = yield* FiberSet.make<void, ToolOutputStore.Error>()
       let needsContinuation = false
       let currentStep = step
@@ -195,7 +195,13 @@ const layer = Layer.effect(
         if (promoted > 0) currentStep = 1
       }
       const system =
-        initialized ?? (yield* SessionContextEpoch.prepare(db, events, loadSystemContext(agent), session.id))
+        initialized ??
+        (yield* SessionContextEpoch.prepare(
+          db,
+          events,
+          loadSystemContext(agent, session, currentStep === 1),
+          session.id,
+        ))
       const model = yield* models.resolve(session)
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)

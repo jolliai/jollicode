@@ -126,15 +126,25 @@ export const CourseListItem = Schema.Struct({
 }).annotate({ identifier: "JolliApi.CourseListItem" })
 export interface CourseListItem extends Schema.Schema.Type<typeof CourseListItem> {}
 
+/** Course skill catalog metadata, without instruction bodies. */
+export const CourseSkillChoice = Schema.Struct({
+  id: Schema.Number,
+  name: Schema.String,
+  command: Schema.String,
+  description: Schema.String,
+})
+export type CourseSkillChoice = typeof CourseSkillChoice.Type
+
+export const CourseSkill = Schema.Struct({
+  ...CourseSkillChoice.fields,
+  instructions: Schema.String,
+  updatedAt: Schema.String,
+})
+export type CourseSkill = typeof CourseSkill.Type
+
 /**
- * jolliedu `common/src/types/CourseAssistant.ts:301`.
- *
- * ⚠ THE STUDENT'S SHAPE, NOT A FILTERED STAFF ONE. jolliedu serves it from a separate route for a
- * stated reason: the staff shape carries the teacher's `instructions`, and filtering that down in a
- * client is how a sentence written about a class reaches the class.
- *
- * ⚠ ONLY `live` ASSISTANTS ARE RETURNED, AND THE DEFAULT IS FIRST. There is no `isDefault` flag —
- * the order IS the answer, so re-sorting this loses the professor's choice.
+ * Student-facing assistant choices. Only live assistants are returned, with the default first.
+ * Teacher instructions are omitted; course skill bodies use the separate coding session API.
  */
 export const CourseAssistantChoice = Schema.Struct({
   id: Schema.Number,
@@ -166,6 +176,7 @@ export const CourseAssistantChoice = Schema.Struct({
   directChatEnabled: Schema.optional(Schema.Boolean),
   /** Whether the agent speaks first. Only newer servers send it. */
   opensConversation: Schema.optional(Schema.Boolean),
+  skills: Schema.optional(Schema.Array(CourseSkillChoice)),
 }).annotate({ identifier: "JolliApi.CourseAssistantChoice" })
 export interface CourseAssistantChoice extends Schema.Schema.Type<typeof CourseAssistantChoice> {}
 
@@ -373,6 +384,13 @@ const send = Effect.fn("Jolli.send")(function* <A, I>(
 
 /** Every course the signed-in user can see. NOT only theirs — see `CourseListItem.viewerRole`. */
 export const fetchCourses = (request: GatewayRequest) => get(request, "/api/courses", Schema.Array(CourseListItem))
+
+/** Instructions are available only through the owner's bound coding session. */
+export const fetchCourseSkill = (request: GatewayRequest, sessionID: string, skillId: number) =>
+  get(request, `/api/agent/convos/${encodeURIComponent(sessionID)}/skills/${skillId}`, CourseSkill)
+
+export const fetchCourseSkills = (request: GatewayRequest, sessionID: string) =>
+  get(request, `/api/agent/convos/${encodeURIComponent(sessionID)}/skills`, Schema.Array(CourseSkillChoice))
 
 /**
  * The MCP servers the tenant wants a Jolli Code session to connect to, keyed by server name. Each

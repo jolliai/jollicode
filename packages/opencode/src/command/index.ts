@@ -11,6 +11,7 @@ import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
 import { CommandTemplate } from "@/session/command-template"
+import { CourseSkillName } from "@opencode-ai/core/jolli/skill-name"
 
 type State = {
   commands: Record<string, Info>
@@ -85,6 +86,7 @@ const layer = Layer.effect(
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {
+        if (CourseSkillName.isCourse(name)) continue
         commands[name] = {
           name,
           agent: command.agent,
@@ -100,6 +102,7 @@ const layer = Layer.effect(
       }
 
       for (const [name, prompt] of Object.entries(yield* mcp.prompts())) {
+        if (CourseSkillName.isCourse(name)) continue
         commands[name] = {
           name,
           source: "mcp",
@@ -129,6 +132,7 @@ const layer = Layer.effect(
       }
 
       for (const item of yield* skill.all()) {
+        if (CourseSkillName.isCourse(item.name)) continue
         if (commands[item.name]) continue
         const dir = item.location === "<built-in>" ? undefined : path.dirname(item.location)
         commands[item.name] = {

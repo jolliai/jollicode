@@ -624,11 +624,12 @@ describe("prompt submit worktree selection", () => {
     ])
   })
 
-  test("submits slash commands through the current session API", async () => {
+  test.each(["review", "course:quiz"])("routes /%s through the appropriate session API", async (name) => {
     params = { id: "session-1" }
     variant = "high"
-    commands.push({ name: "review" })
-    promptValue = [{ type: "text", content: "/review staged changes", start: 0, end: 22 }]
+    commands.push({ name })
+    const content = `/${name} staged changes`
+    promptValue = [{ type: "text", content, start: 0, end: content.length }]
 
     const submit = createPromptSubmit({
       prompt,
@@ -648,6 +649,13 @@ describe("prompt submit worktree selection", () => {
     })
 
     await submit.handleSubmit({ preventDefault: () => undefined } as unknown as Event)
+
+    if (name === "course:quiz") {
+      expect(sentCommands).toEqual([])
+      expect(promptInputs).toHaveLength(1)
+      expect(JSON.stringify(promptInputs[0])).toContain(content)
+      return
+    }
 
     expect(sentCommands).toEqual([
       {

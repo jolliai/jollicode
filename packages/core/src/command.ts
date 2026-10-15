@@ -4,6 +4,7 @@ import { makeLocationNode } from "./effect/app-node"
 import { Context, Effect, Layer, Types } from "effect"
 import { Command } from "@opencode-ai/schema/command"
 import { State } from "./state"
+import { CourseSkillName } from "./jolli/skill-name"
 
 export const Info = Command.Info
 export type Info = Command.Info
@@ -35,6 +36,7 @@ const layer = Layer.effect(
         list: () => Array.from(draft.commands.values()) as Info[],
         get: (name) => draft.commands.get(name),
         update: (name, update) => {
+          if (CourseSkillName.isCourse(name)) return
           const current = draft.commands.get(name) ?? ({ name, template: "" } as Types.DeepMutable<Info>)
           if (!draft.commands.has(name)) draft.commands.set(name, current)
           update(current)

@@ -17,6 +17,9 @@ import { Glob } from "@opencode-ai/core/util/glob"
 import { Discovery } from "./discovery"
 import { isRecord } from "@/util/record"
 import { escapeHtml } from "@/util/html"
+import { JolliSkills } from "@opencode-ai/core/jolli/skills"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
+import { JolliApiError } from "@opencode-ai/core/jolli/api"
 
 const CLAUDE_EXTERNAL_DIR = ".claude"
 const AGENTS_EXTERNAL_DIR = ".agents"
@@ -95,10 +98,10 @@ type ScanState = {
 
 export interface Interface {
   readonly get: (name: string) => Effect.Effect<Info | undefined>
-  readonly require: (name: string) => Effect.Effect<Info, NotFoundError>
+  readonly require: (name: string, session?: JolliSkills.Session) => Effect.Effect<Info, NotFoundError | JolliApiError>
   readonly all: () => Effect.Effect<Info[]>
   readonly dirs: () => Effect.Effect<string[]>
-  readonly available: (agent?: Agent.Info) => Effect.Effect<Info[]>
+  readonly available: (agent?: Agent.Info, session?: JolliSkills.Session, refresh?: boolean) => Effect.Effect<Info[]>
 }
 
 const add = Effect.fnUntraced(function* (state: State, match: string, events: EventV2Bridge.Service["Service"]) {
@@ -120,6 +123,7 @@ const add = Effect.fnUntraced(function* (state: State, match: string, events: Ev
   if (!md) return
 
   if (!isSkillFrontmatter(md.data)) return
+  if (JolliSkills.isCourse(md.data.name)) return
 
   if (state.skills[md.data.name]) {
     yield* Effect.logWarning("duplicate skill name", {
@@ -255,6 +259,7 @@ const layer = Layer.effect(
     const fsys = yield* FSUtil.Service
     const global = yield* Global.Service
     const flags = yield* RuntimeFlags.Service
+    const jolli = yield* JolliSession.Service
     const discovered = yield* InstanceState.make(
       Effect.fn("Skill.discovery")(function* (ctx) {
         return yield* discoverSkills(
@@ -290,7 +295,12 @@ const layer = Layer.effect(
       return s.skills[name]
     })
 
-    const require = Effect.fn("Skill.require")(function* (name: string) {
+    const require = Effect.fn("Skill.require")(function* (name: string, session?: JolliSkills.Session) {
+      if (JolliSkills.isCourse(name)) {
+        if (!session) return yield* new NotFoundError({ name, available: [] })
+        const skill = yield* JolliSkills.load(jolli, session, name)
+        return { name, description: skill.description, location: "<course>", content: JolliSkills.render(skill) }
+      }
       const s = yield* InstanceState.get(state)
       const info = s.skills[name]
       if (info) return info
@@ -306,9 +316,28 @@ const layer = Layer.effect(
       return (yield* InstanceState.get(discovered)).dirs
     })
 
-    const available = Effect.fn("Skill.available")(function* (agent?: Agent.Info) {
+    const available = Effect.fn("Skill.available")(function* (
+      agent?: Agent.Info,
+      session?: JolliSkills.Session,
+      refresh = false,
+    ) {
       const s = yield* InstanceState.get(state)
-      const list = Object.values(s.skills).toSorted((a, b) => a.name.localeCompare(b.name))
+      const course = yield* JolliSkills.list(jolli, session, refresh).pipe(
+        Effect.catch((error) =>
+          Effect.logWarning("Jolli: course skill guidance unavailable", { sessionID: session?.id, error }).pipe(
+            Effect.as([]),
+          ),
+        ),
+      )
+      const list = [
+        ...Object.values(s.skills).filter((skill) => !JolliSkills.isCourse(skill.name)),
+        ...course.map((skill) => ({
+          name: skill.toolName,
+          description: skill.description || skill.name,
+          location: "<course>",
+          content: "",
+        })),
+      ].toSorted((a, b) => a.name.localeCompare(b.name))
       if (!agent) return list
       return list.filter((skill) => Permission.evaluate("skill", skill.name, agent.permission).action !== "deny")
     })
@@ -327,9 +356,9 @@ export function fmt(list: Info[], opts: { verbose: boolean }) {
         .toSorted((a, b) => a.name.localeCompare(b.name))
         .flatMap((skill) => [
           "  <skill>",
-          `    <name>${skill.name}</name>`,
-          `    <description>${skill.description}</description>`,
-          `    <location>${escapeHtml(skill.location)}</location>`,
+          `    <name>${escapeHtml(skill.name)}</name>`,
+          `    <description>${escapeHtml(skill.description!)}</description>`,
+          ...(skill.location === "<course>" ? [] : [`    <location>${escapeHtml(skill.location)}</location>`]),
           "  </skill>",
         ]),
       "</available_skills>",
@@ -347,7 +376,15 @@ export function fmt(list: Info[], opts: { verbose: boolean }) {
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [Discovery.node, Config.node, EventV2Bridge.node, FSUtil.node, Global.node, RuntimeFlags.node],
+  deps: [
+    Discovery.node,
+    Config.node,
+    EventV2Bridge.node,
+    FSUtil.node,
+    Global.node,
+    RuntimeFlags.node,
+    JolliSession.node,
+  ],
 })
 
 export * as Skill from "."

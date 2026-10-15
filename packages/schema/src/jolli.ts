@@ -269,9 +269,7 @@ export const STANDARD_RUBRIC: CoachingRubric = {
 export interface AssistantSkill extends Schema.Schema.Type<typeof AssistantSkill> {}
 export const AssistantSkill = Schema.Struct({
   /**
-   * A STABLE HANDLE FOR THIS ROW, NOT DERIVED FROM THE NAME. The name is the professor's to edit, so
-   * a slug would change under a rename and take any join with it. It is a React key and a handle
-   * for the gateway — see `slash-groups.ts`, which is the only reader.
+   * The session-visible skill name, namespaced as `course:<command>` to avoid local skill collisions.
    */
   skillId: Schema.String,
   /**
@@ -282,10 +280,10 @@ export const AssistantSkill = Schema.Struct({
    */
   name: Schema.String,
   /**
-   * The instructor's own words for this skill on this assistant. Never shown to a student — it is
-   * the procedure the assistant follows, not a description of it.
+   * Empty in catalogs. Instructions are loaded through the authenticated coding session API.
    */
   instructions: Schema.String,
+  description: Schema.String.pipe(optional),
 }).annotate({ identifier: "Jolli.AssistantSkill" })
 
 /**
@@ -375,12 +373,10 @@ export const Assistant = Schema.Struct({
    *
    * ⚠ EMPTY MEANS EXACTLY NO SKILLS — the opposite of {@link allowedModelIds}, and a trap worth
    * saying out loud. A grant narrows a set that already exists; this one enumerates a set that does
-   * not, and there is no "all skills" an assistant could sensibly be handed. The gateway has no
-   * skills concept, so this is always empty today.
+   * not, and there is no "all skills" an assistant could sensibly be handed.
    *
-   * ⚠ CARRIED AND DISPLAYED, NOT ENFORCED HERE. opencode discovers skills from the paths the
-   * gateway declares and narrows them per agent; this surface shows a student what their assistant
-   * offers. Same posture {@link AssistantGuardrails} takes, for the same reason.
+   * The catalog carries metadata only; the native skill tool loads course instructions on demand.
+   * Local skills remain independent and retain their configured sources and permission rules.
    */
   skills: Schema.Array(AssistantSkill),
   status: Schema.Literals(["draft", "live", "paused"]),
@@ -651,4 +647,3 @@ export const SessionShare = Schema.Struct({
   roster: Schema.Literals(["ok", "unavailable"]),
   refusal: ShareRefusal.pipe(optional),
 }).annotate({ identifier: "Jolli.SessionShare" })
-

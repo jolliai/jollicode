@@ -3922,6 +3922,7 @@ export type JolliAssistantSkill = {
   skillId: string
   name: string
   instructions: string
+  description?: string
 }
 
 export type JolliAssistant = {

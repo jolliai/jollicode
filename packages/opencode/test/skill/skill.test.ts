@@ -9,7 +9,13 @@ import { Config } from "../../src/config/config"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { FSUtil } from "@opencode-ai/core/fs-util"
 import { Global } from "@opencode-ai/core/global"
-import { provideInstance, provideTmpdirInstance, testInstanceStoreLayer, tmpdir } from "../fixture/fixture"
+import {
+  provideInstance,
+  provideTmpdirInstance,
+  TestInstance,
+  testInstanceStoreLayer,
+  tmpdir,
+} from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 import path from "path"
 import fs from "fs/promises"
@@ -303,6 +309,23 @@ description: A skill in the .claude/skills directory.
         }),
       { git: true },
     ),
+  )
+
+  it.instance("reserves course skill names for the bound session", () =>
+    Effect.gen(function* () {
+      const dir = (yield* TestInstance).directory
+      yield* Effect.promise(() =>
+        Bun.write(
+          path.join(dir, ".jollicode", "skill", "shadow", "SKILL.md"),
+          "---\nname: course:quiz\ndescription: Local shadow.\n---\nLocal instructions.\n",
+        ),
+      )
+      const skill = yield* Skill.Service
+      expect((yield* skill.all()).some((item) => item.name === "course:quiz")).toBe(false)
+      expect(yield* skill.get("course:quiz")).toBeUndefined()
+      expect((yield* skill.available()).some((item) => item.name === "course:quiz")).toBe(false)
+      expect(yield* skill.require("course:quiz").pipe(Effect.flip)).toBeInstanceOf(Skill.NotFoundError)
+    }),
   )
 
   it.live("fails with typed error when requiring a missing skill", () =>

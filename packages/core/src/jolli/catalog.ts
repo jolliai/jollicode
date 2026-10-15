@@ -187,9 +187,7 @@ export function accentOf(id: number): Jolli.Accent {
  * with a hole in it").
  */
 export function assistantIconOf(icon: string): Jolli.AssistantIcon {
-  return ASSISTANT_ICONS.has(icon as Jolli.AssistantIcon)
-    ? (icon as Jolli.AssistantIcon)
-    : Jolli.DEFAULT_ASSISTANT_ICON
+  return ASSISTANT_ICONS.has(icon as Jolli.AssistantIcon) ? (icon as Jolli.AssistantIcon) : Jolli.DEFAULT_ASSISTANT_ICON
 }
 
 const ASSISTANT_ICONS: ReadonlySet<Jolli.AssistantIcon> = new Set(Jolli.AssistantIcon.literals)
@@ -296,8 +294,12 @@ export function toAssistant(input: {
     },
     // The gateway serves no rubric; every assistant rests on the shape's own default.
     coaching: Jolli.STANDARD_RUBRIC,
-    // The gateway has no skills concept. Empty means exactly none.
-    skills: [],
+    skills: (input.choice.skills ?? []).map((skill) => ({
+      skillId: `course:${skill.command}`,
+      name: skill.name,
+      description: skill.description,
+      instructions: "",
+    })),
     status: "live",
     // A server, or a cached snapshot, that predates these fields reads as no brief, no window,
     // chat allowed and an agent that waits to be spoken to.

@@ -11,6 +11,7 @@ import { PermissionV2 } from "./permission"
 import { AbsolutePath } from "./schema"
 import { SkillDiscovery } from "./skill/discovery"
 import { State } from "./state"
+import { CourseSkillName } from "./jolli/skill-name"
 
 export const DirectorySource = Skill.DirectorySource
 export type DirectorySource = Skill.DirectorySource
@@ -27,7 +28,7 @@ export type Source = typeof Source.Type
 export const Info = Skill.Info
 export type Info = Skill.Info
 
-export const available = (skills: ReadonlyArray<Info>, agent: AgentV2.Info) =>
+export const available = <A extends { readonly name: string }>(skills: ReadonlyArray<A>, agent: AgentV2.Info) =>
   skills.filter((skill) => PermissionV2.evaluate("skill", skill.name, agent.permissions).effect !== "deny")
 
 const Frontmatter = Schema.Struct({
@@ -113,7 +114,10 @@ const layer = Layer.effect(
         const key = Source.key(source)
         const loaded = cache.get(key) ?? (yield* load(source))
         cache.set(key, loaded)
-        for (const skill of loaded) skills.set(skill.name, skill)
+        for (const skill of loaded) {
+          if (CourseSkillName.isCourse(skill.name)) continue
+          skills.set(skill.name, skill)
+        }
       }
       return Array.from(skills.values())
     })

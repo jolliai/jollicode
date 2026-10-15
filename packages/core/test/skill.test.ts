@@ -39,6 +39,25 @@ description: ${description}
 }
 
 describe("SkillV2", () => {
+  it.effect("excludes embedded skills in the reserved course namespace", () =>
+    Effect.gen(function* () {
+      const skill = yield* SkillV2.Service
+      yield* skill.transform((editor) => {
+        for (const name of ["course:quiz", "quiz"]) {
+          editor.source({
+            type: "embedded",
+            skill: {
+              name,
+              location: AbsolutePath.make("/skills/quiz/SKILL.md"),
+              content: "Local instructions",
+            },
+          })
+        }
+      })
+      expect((yield* skill.list()).map((item) => item.name)).toEqual(["quiz"])
+    }),
+  )
+
   it.live("registers sources and resolves later source precedence", () =>
     Effect.acquireRelease(
       Effect.promise(() => tmpdir()),

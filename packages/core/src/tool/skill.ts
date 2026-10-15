@@ -10,6 +10,9 @@ import { PermissionV2 } from "../permission"
 import { ToolRegistry } from "./registry"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
+import { JolliSkills } from "../jolli/skills"
+import { JolliSession } from "../jolli/session"
+import { SessionStore } from "../session/store"
 
 export const name = "skill"
 const FILE_LIMIT = 10
@@ -60,6 +63,8 @@ const layer = Layer.effectDiscard(
     const fs = yield* FSUtil.Service
     const skills = yield* SkillV2.Service
     const permission = yield* PermissionV2.Service
+    const jolli = yield* JolliSession.Service
+    const sessions = yield* SessionStore.Service
     yield* tools
       .register({
         [name]: Tool.make({
@@ -69,6 +74,22 @@ const layer = Layer.effectDiscard(
           toModelOutput: ({ output }) => [{ type: "text", text: output.output }],
           execute: (input, context) =>
             Effect.gen(function* () {
+              if (JolliSkills.isCourse(input.name)) {
+                return yield* Effect.gen(function* () {
+                  yield* permission.assert({
+                    action: name,
+                    resources: [input.name],
+                    save: [input.name],
+                    sessionID: context.sessionID,
+                    agent: context.agent,
+                    source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
+                  })
+                  const session = yield* sessions.get(context.sessionID)
+                  if (!session) return yield* unableToLoad(input.name)
+                  const skill = yield* JolliSkills.load(jolli, session, input.name)
+                  return { name: input.name, directory: "", output: JolliSkills.render(skill) }
+                }).pipe(Effect.mapError((error) => unableToLoad(input.name, error)))
+              }
               const current = yield* skills.list()
               const skill = current.find((skill) => skill.name === input.name)
               if (!skill) return yield* unableToLoad(input.name)
@@ -105,5 +126,5 @@ const layer = Layer.effectDiscard(
 export const node = makeLocationNode({
   name: "tool/skill",
   layer,
-  deps: [ToolRegistry.node, FSUtil.node, SkillV2.node, PermissionV2.node],
+  deps: [ToolRegistry.node, FSUtil.node, SkillV2.node, PermissionV2.node, JolliSession.node, SessionStore.node],
 })

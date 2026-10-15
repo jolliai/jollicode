@@ -4,6 +4,8 @@ import { Ripgrep } from "@opencode-ai/core/ripgrep"
 import { Skill } from "../skill"
 import * as Tool from "./tool"
 import DESCRIPTION from "./skill.txt"
+import { JolliSkills } from "@opencode-ai/core/jolli/skills"
+import { Session } from "../session/session"
 
 export const Parameters = Schema.Struct({
   name: Schema.String.annotate({ description: "The name of the skill from available_skills" }),
@@ -14,22 +16,39 @@ export const SkillTool = Tool.define(
   Effect.gen(function* () {
     const skill = yield* Skill.Service
     const ripgrep = yield* Ripgrep.Service
+    const sessions = yield* Session.Service
 
     return {
       description: DESCRIPTION,
       parameters: Parameters,
-      execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
+      execute: (
+        params: Schema.Schema.Type<typeof Parameters>,
+        ctx: Tool.Context,
+      ): Effect.Effect<Tool.ExecuteResult<{ name: string; dir?: string; source?: string }>> =>
         Effect.gen(function* () {
-          const info = yield* skill
-            .require(params.name)
-            .pipe(Effect.catchTag("Skill.NotFoundError", (error) => Effect.die(new Error(error.message))))
-
-          yield* ctx.ask({
+          const session = yield* Effect.gen(function* () {
+            if (!JolliSkills.isCourse(params.name)) return undefined
+            return yield* sessions.get(ctx.sessionID)
+          })
+          const authorize = ctx.ask({
             permission: "skill",
             patterns: [params.name],
             always: [params.name],
             metadata: {},
           })
+          if (session) yield* authorize
+          const info = yield* skill
+            .require(params.name, session)
+            .pipe(Effect.catchTag("Skill.NotFoundError", (error) => Effect.die(new Error(error.message))))
+
+          if (!session) yield* authorize
+
+          if (info.location === "<course>")
+            return {
+              title: `Loaded skill: ${info.name}`,
+              output: info.content,
+              metadata: { name: info.name, source: "course" },
+            }
 
           const dir = path.dirname(info.location)
           const base = dir

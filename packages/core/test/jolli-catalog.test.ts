@@ -192,6 +192,18 @@ describe("toCourse", () => {
 })
 
 describe("toAssistant", () => {
+  test("projects course command metadata without exposing instructions in the catalog", () => {
+    const mapped = toAssistant({
+      choice: choice({ skills: [{ id: 8, name: "Quiz", command: "quiz", description: "Practice questions" }] }),
+      courseId: "7",
+      isDefault: false,
+      models: catalogue,
+    })
+    expect(mapped.skills).toEqual([
+      { skillId: "course:quiz", name: "Quiz", description: "Practice questions", instructions: "" },
+    ])
+  })
+
   test("prefixes grants with the provider and keeps the UUID as the model id", () => {
     const mapped = toAssistant({ choice: choice(), courseId: "7", isDefault: true, models: catalogue })
     expect(mapped.allowedModelIds).toEqual(["jolli-anthropic/uuid-opus", "jolli-anthropic/uuid-haiku"])

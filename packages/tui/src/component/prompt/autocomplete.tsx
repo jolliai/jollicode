@@ -9,6 +9,7 @@ import { useEditorContext } from "../../context/editor"
 import { useProject } from "../../context/project"
 import { useSDK } from "../../context/sdk"
 import { useSync } from "../../context/sync"
+import { useJolli } from "../../context/jolli"
 import { useData } from "../../context/data"
 import { getScrollAcceleration } from "../../util/scroll"
 import { useTuiPaths } from "../../context/runtime"
@@ -444,11 +445,26 @@ export function Autocomplete(props: {
       ),
   )
 
+  const jolli = useJolli()
   const commands = createMemo((): AutocompleteOption[] => {
     const results: AutocompleteOption[] = [...slashes()]
 
+    for (const skill of jolli.assistant()?.skills ?? []) {
+      results.push({
+        display: "/" + skill.skillId,
+        description: skill.description || skill.name,
+        onSelect: () => {
+          const text = "/" + skill.skillId + " "
+          const cursor = props.input().logicalCursor
+          props.input().deleteRange(0, 0, cursor.row, cursor.col)
+          props.input().insertText(text)
+          props.input().cursorOffset = Bun.stringWidth(text)
+        },
+      })
+    }
+
     for (const serverCommand of sync.data.command) {
-      if (serverCommand.source === "skill") continue
+      if (serverCommand.source === "skill" || serverCommand.name.startsWith("course:")) continue
       const label = serverCommand.source === "mcp" ? ":mcp" : ""
       results.push({
         display: "/" + serverCommand.name + label,

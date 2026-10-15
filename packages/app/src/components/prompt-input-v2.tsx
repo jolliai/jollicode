@@ -494,13 +494,22 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
   const slashCommands = createMemo(() =>
     groupSlashCommands(
       [
-        ...sync().data.command.map((item) => ({
-          id: `custom.${item.name}`,
-          trigger: item.name,
-          title: item.name,
-          description: item.description,
+        ...(courseSession.assistant()?.skills ?? []).map((skill) => ({
+          id: `course.${skill.skillId}`,
+          trigger: skill.skillId,
+          title: skill.name,
+          description: skill.description,
           type: "custom" as const,
         })),
+        ...sync()
+          .data.command.filter((item) => !item.name.startsWith("course:"))
+          .map((item) => ({
+            id: `custom.${item.name}`,
+            trigger: item.name,
+            title: item.name,
+            description: item.description,
+            type: "custom" as const,
+          })),
         ...command.options
           .filter((item) => !item.disabled && !item.id.startsWith("suggested.") && item.slash)
           .map((item) => ({
