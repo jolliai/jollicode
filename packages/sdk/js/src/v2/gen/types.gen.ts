@@ -623,6 +623,7 @@ export type CompactionPart = {
   auto: boolean
   overflow?: boolean
   tail_start_id?: string
+  courseSkillReferences?: Array<JolliCourseSkillReference>
 }
 
 export type Part =
@@ -3051,6 +3052,15 @@ export type SkillV2Source = SkillV2DirectorySource | SkillV2UrlSource | SkillV2E
 
 export type MoveSessionDestination = {
   directory: string
+}
+
+export type JolliCourseSkillReference = {
+  type: "course_skill_ref"
+  messageId: number
+  skillId: number
+  name: string
+  command: string
+  toolCallId: string
 }
 
 export type ModelRef = {

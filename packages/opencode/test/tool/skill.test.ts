@@ -1,3 +1,8 @@
+import { ModelV2 } from "@opencode-ai/core/model"
+import { ProviderV2 } from "@opencode-ai/core/provider"
+import { providerIdFor } from "@opencode-ai/core/jolli/gateway-config"
+import { SessionProjector } from "@opencode-ai/core/session/projector"
+import { Session } from "../../src/session/session"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
@@ -27,7 +32,11 @@ afterEach(async () => {
   await disposeAllInstances()
 })
 
-const it = testEffect(LayerNode.compile(LayerNode.group([ToolRegistry.node, CrossSpawnSpawner.node, Ripgrep.node])))
+const it = testEffect(
+  LayerNode.compile(
+    LayerNode.group([ToolRegistry.node, CrossSpawnSpawner.node, Ripgrep.node, Session.node, SessionProjector.node]),
+  ),
+)
 
 describe("tool.skill", () => {
   it.instance("execute returns skill content block with files", () =>
@@ -90,6 +99,57 @@ Use this skill.
       expect(result.output).toContain(`<skill_content name="tool-skill">`)
       expect(result.output).toContain(`Base directory for this skill: ${skill}`)
       expect(result.output).toContain(`<file>${file}</file>`)
+    }),
+  )
+
+  it.instance("rejects course skills for the actual external model before catalog lookup or approval", () =>
+    Effect.gen(function* () {
+      const sessions = yield* Session.Service
+      const session = yield* sessions.create({
+        metadata: { jolli: { courseId: "7", assistantId: "11" } },
+        model: { providerID: ProviderV2.ID.make(providerIdFor("openai")), id: ModelV2.ID.make("course-model") },
+      })
+      const dir = (yield* TestInstance).directory
+      yield* sessions.updateMessage({
+        id: baseCtx.messageID,
+        sessionID: session.id,
+        role: "assistant",
+        parentID: MessageID.make("msg_parent"),
+        modelID: ModelV2.ID.make("external"),
+        providerID: ProviderV2.ID.make("anthropic"),
+        agent: "build",
+        mode: "build",
+        path: { cwd: dir, root: dir },
+        cost: 0,
+        tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        time: { created: 0 },
+      })
+      const registry = yield* ToolRegistry.Service
+      const tool = (yield* registry.tools({
+        providerID: ProviderV2.ID.make("anthropic"),
+        modelID: ModelV2.ID.make("external"),
+        agent: { name: "build", mode: "primary", permission: [], options: {} },
+      })).find((tool) => tool.id === SkillTool.id)
+      if (!tool) throw new Error("Skill tool not found")
+      let approvals = 0
+      const result = yield* tool
+        .execute(
+          { name: "course:quiz" },
+          {
+            ...baseCtx,
+            sessionID: session.id,
+            callID: "call-external",
+            ask: () =>
+              Effect.sync(() => {
+                approvals++
+              }),
+          },
+        )
+        .pipe(Effect.exit)
+      expect(Exit.isFailure(result)).toBe(true)
+      if (Exit.isFailure(result))
+        expect(String(Cause.squash(result.cause))).toContain("Course skills require a Jolli gateway model")
+      expect(approvals).toBe(0)
     }),
   )
 

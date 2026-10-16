@@ -52,6 +52,7 @@ import { SystemContext } from "@opencode-ai/core/system-context"
 import { SystemContextRegistry } from "@opencode-ai/core/system-context/registry"
 import { providerIdFor } from "@opencode-ai/core/jolli/gateway-config"
 import { SkillGuidance } from "@opencode-ai/core/skill/guidance"
+import { CourseSkillHistory } from "@opencode-ai/core/jolli/skill-history"
 import { ReferenceGuidance } from "@opencode-ai/core/reference/guidance"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { Location } from "@opencode-ai/core/location"
@@ -649,10 +650,97 @@ describe("SessionRunnerLLM", () => {
       expect(requests.at(-1)?.http?.headers).toMatchObject({
         "x-jolli-conversation-id": sessionID,
         "x-jolli-turn-id": user?.id,
-        "x-jolli-attempt-id": user?.id,
+        "x-jolli-attempt-id": expect.any(String),
         "x-jolli-space-id": "7",
         "x-jolli-assistant-id": "11",
         "x-jolli-step-index": "0",
+      })
+      expect(requests.at(-1)?.http?.headers?.["x-jolli-attempt-id"]).not.toBe(user?.id)
+    }),
+  )
+
+  it.effect("keeps one attempt across provider steps and uses a new attempt on explicit resume", () =>
+    Effect.gen(function* () {
+      yield* setup
+      currentModel = Model.make({ id: "course-model", provider: providerIdFor("openai"), route: OpenAIChat.route })
+      const session = yield* SessionV2.Service
+      const user = yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Use a tool" }), resume: false })
+      requests.length = 0
+      responses = [
+        [
+          LLMEvent.stepStart({ index: 0 }),
+          LLMEvent.toolCall({ id: "call-identity", name: "echo", input: { text: "Continue" } }),
+          LLMEvent.stepFinish({ index: 0, reason: "tool-calls" }),
+          LLMEvent.finish({ reason: "tool-calls" }),
+        ],
+        fragmentFixture("text", "text-identity", ["Done"]).completeEvents,
+      ]
+      yield* session.resume(sessionID)
+      expect(requests).toHaveLength(2)
+      const first = requests[0].http?.headers
+      const second = requests[1].http?.headers
+      expect(first?.["x-jolli-turn-id"]).toBe(user.id)
+      expect(second?.["x-jolli-attempt-id"]).toBe(first?.["x-jolli-attempt-id"])
+      expect([first?.["x-jolli-step-index"], second?.["x-jolli-step-index"]]).toEqual(["0", "1"])
+      expect(second?.["x-jolli-request-id"]).not.toBe(first?.["x-jolli-request-id"])
+      responses = undefined
+      response = []
+      yield* session.resume(sessionID)
+      const resumed = requests.at(-1)?.http?.headers
+      expect(resumed?.["x-jolli-turn-id"]).toBe(user.id)
+      expect(resumed?.["x-jolli-attempt-id"]).not.toBe(first?.["x-jolli-attempt-id"])
+      expect(resumed?.["x-jolli-request-id"]).not.toBe(first?.["x-jolli-request-id"])
+    }),
+  )
+
+  it.effect("keeps durable turn headers after compaction hides every user message", () =>
+    Effect.gen(function* () {
+      yield* setup
+      currentModel = Model.make({ id: "course-model", provider: providerIdFor("openai"), route: OpenAIChat.route })
+      const session = yield* SessionV2.Service
+      const events = yield* EventV2.Service
+      const user = yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Original task" }), resume: false })
+      yield* session.resume(sessionID)
+      const compactionID = SessionMessage.ID.create()
+      yield* events.publish(SessionEvent.Compaction.Started, {
+        sessionID,
+        messageID: compactionID,
+        timestamp: DateTime.makeUnsafe(1),
+        reason: "manual",
+      })
+      yield* events.publish(
+        SessionEvent.Compaction.Ended,
+        {
+          sessionID,
+          messageID: compactionID,
+          timestamp: DateTime.makeUnsafe(2),
+          reason: "manual",
+          text: "summary",
+          recent: "",
+        },
+        {
+          metadata: CourseSkillHistory.metadata([
+            {
+              type: "course_skill_ref",
+              messageId: 42,
+              skillId: 8,
+              name: "Quiz",
+              command: "quiz",
+              toolCallId: "call-quiz",
+            },
+          ]),
+        },
+      )
+      expect((yield* session.context(sessionID)).some((message) => message.type === "user")).toBe(false)
+      requests.length = 0
+      yield* session.resume(sessionID)
+      expect(requests[0].http?.headers).toMatchObject({
+        "x-jolli-conversation-id": sessionID,
+        "x-jolli-turn-id": user.id,
+        "x-jolli-attempt-id": expect.any(String),
+        "x-jolli-step-index": "0",
+        "x-jolli-turn-continues": "1",
+        "x-jolli-skill-message-ids": "42",
       })
     }),
   )
@@ -1239,6 +1327,7 @@ describe("SessionRunnerLLM", () => {
   it.effect("forces one compaction and retries after provider context overflow", () =>
     Effect.gen(function* () {
       const session = yield* setupOverflowRecovery
+      currentModel = Model.make({ ...recoveryModel, provider: providerIdFor("openai") })
       responses = [
         [
           LLMEvent.stepStart({ index: 0 }),
@@ -1253,6 +1342,15 @@ describe("SessionRunnerLLM", () => {
       expect(requests).toHaveLength(3)
       expect(userTexts(requests[1])[0]).toContain("## Objective")
       expect(userTexts(requests[2])[0]).toContain("<summary>\n## Objective\n- Recover overflow\n</summary>")
+      const original = requests[0].http?.headers
+      const retried = requests[2].http?.headers
+      expect(original?.["x-jolli-turn-id"]).toBeDefined()
+      expect(requests[1].http?.headers?.["x-jolli-request-kind"]).toBe("compaction")
+      expect(requests[1].http?.headers).not.toHaveProperty("x-jolli-request-id")
+      expect(retried?.["x-jolli-conversation-id"]).toBe(sessionID)
+      expect(retried?.["x-jolli-turn-id"]).toBe(original?.["x-jolli-turn-id"])
+      expect(retried?.["x-jolli-attempt-id"]).not.toBe(original?.["x-jolli-attempt-id"])
+      expect(retried?.["x-jolli-request-id"]).not.toBe(original?.["x-jolli-request-id"])
       expect(yield* session.context(sessionID)).toMatchObject([
         { type: "compaction", summary: "## Objective\n- Recover overflow" },
         { type: "assistant", finish: "stop" },

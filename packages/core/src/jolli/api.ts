@@ -31,6 +31,7 @@ import { Duration, Effect, Schedule, Schema } from "effect"
 import { HttpClient, HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 import { Brand } from "../brand"
 import { isJolliOriginAllowed, parseJolliUrl } from "./origin"
+import { Jolli } from "@opencode-ai/schema/jolli"
 
 export class JolliApiError extends Schema.TaggedErrorClass<JolliApiError>()("Jolli.ApiError", {
   path: Schema.String,
@@ -135,14 +136,7 @@ export const CourseSkillChoice = Schema.Struct({
 })
 export type CourseSkillChoice = typeof CourseSkillChoice.Type
 
-export const CourseSkillReference = Schema.Struct({
-  type: Schema.Literal("course_skill_ref"),
-  messageId: Schema.Number,
-  skillId: Schema.Number,
-  name: Schema.String,
-  command: Schema.String,
-  toolCallId: Schema.String,
-})
+export const CourseSkillReference = Jolli.CourseSkillReference
 export type CourseSkillReference = typeof CourseSkillReference.Type
 
 /**
@@ -389,19 +383,49 @@ const send = Effect.fn("Jolli.send")(function* <A, I>(
 export const fetchCourses = (request: GatewayRequest) => get(request, "/api/courses", Schema.Array(CourseListItem))
 
 /** The server stores private instructions and returns only an immutable message reference. */
+export type SkillInvocationSource = { readonly messageId: string; readonly toolIndex: number }
+
 export const createCourseSkillReference = (
   request: GatewayRequest,
-  sessionID: string,
-  skillId: number,
-  toolCallId: string,
-  name: string,
+  input: {
+    readonly sessionID: string
+    readonly skillId: number
+    readonly toolCallId: string
+    readonly name: string
+    readonly turnId?: string
+    readonly source?: SkillInvocationSource
+  },
 ) =>
   send(
     request,
     "POST",
-    `/api/agent/convos/${encodeURIComponent(sessionID)}/skills/${skillId}/invocations`,
+    `/api/agent/convos/${encodeURIComponent(input.sessionID)}/skills/${input.skillId}/invocations`,
     CourseSkillReference,
-    { toolCallId, name },
+    {
+      toolCallId: input.toolCallId,
+      name: input.name,
+      ...(input.turnId === undefined ? {} : { turnId: input.turnId }),
+      ...(input.source ? { source: input.source } : {}),
+    },
+  )
+
+export const ForkedSkillReference = Schema.Struct({ sourceMessageId: Schema.Number, reference: CourseSkillReference })
+export type ForkedSkillReference = typeof ForkedSkillReference.Type
+
+export const forkCourseSkills = (
+  request: GatewayRequest,
+  input: {
+    readonly sourceSessionID: string
+    readonly sessionID: string
+    readonly references: ReadonlyArray<CourseSkillReference>
+  },
+) =>
+  send(
+    request,
+    "POST",
+    `/api/agent/convos/${encodeURIComponent(input.sourceSessionID)}/skills/fork`,
+    Schema.Array(ForkedSkillReference),
+    { publicSessionId: input.sessionID, references: input.references },
   )
 
 export const fetchCourseSkills = (request: GatewayRequest, sessionID: string) =>

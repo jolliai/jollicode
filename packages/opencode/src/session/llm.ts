@@ -14,7 +14,6 @@ import { GitLabWorkflowLanguageModel } from "gitlab-ai-provider"
 import { ProviderTransform } from "@/provider/transform"
 import { Config } from "@/config/config"
 import type { Agent } from "@/agent/agent"
-import type { MessageV2 } from "./message-v2"
 import { Plugin } from "@/plugin"
 import { Permission } from "@/permission"
 import { EventV2Bridge } from "@/event-v2-bridge"
@@ -94,6 +93,7 @@ export type StreamInput = PreparedModelInput & {
   turnID?: string
   clientAttemptID?: string
   stepIndex?: number
+  assistantMessageID?: string
   courseID?: string
   courseAssistantID?: string
   /** The turn only carries on with the previous one, after compaction; see `SessionPrompt.continuesTurn`. */
@@ -101,6 +101,7 @@ export type StreamInput = PreparedModelInput & {
   /** What a request that is no step of a turn is for, when the Jolli gateway needs to know. */
   requestKind?: "compaction"
   toolErrors?: ReadonlyArray<string>
+  skillMessageIds?: ReadonlyArray<number>
   model: Provider.Model
   agent: Agent.Info
   permission?: PermissionV1.Ruleset

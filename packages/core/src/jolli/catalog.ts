@@ -1,4 +1,3 @@
-import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 /**
  * TURNING WHAT JOLLI EDU RETURNS INTO WHAT THIS PRODUCT RENDERS.
  *
@@ -10,6 +9,7 @@ import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
  * ⚠ EVERYTHING HERE IS PURE. Fetching is `api.ts`, caching is `cache.ts`; this module only decides.
  * That is what makes the rules below testable without a gateway.
  */
+import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 import { Jolli } from "@opencode-ai/schema/jolli"
 import type { CatalogModel, CourseAssistantChoice, CourseListItem } from "./api"
 import { isSupportedProtocol, providerIdFor, type JolliModel, type SupportedProtocol } from "./gateway-config"

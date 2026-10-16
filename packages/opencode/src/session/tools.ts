@@ -14,12 +14,10 @@ import { Plugin } from "@/plugin"
 import type { TaskPromptOps } from "@/tool/task"
 import { type Tool as AITool, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
 import { Effect } from "effect"
-import { MessageV2 } from "./message-v2"
 import { Session } from "./session"
 import { SessionProcessor } from "./processor"
 import { PartID } from "./schema"
 import { EffectBridge } from "@/effect/bridge"
-import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { isRecord } from "@/util/record"
 import { RuntimeFlags } from "@/effect/runtime-flags"
@@ -59,12 +57,37 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   const truncate = yield* Truncate.Service
   const flags = yield* RuntimeFlags.Service
 
+  const toolIndices = new Map<string, number>()
+  // Ordinals count calls within one provider response. A retried stream reuses these tools, but the
+  // AI SDK hands each stream step a fresh `messages` array, so counting per array restarts them.
+  const toolCounts = new WeakMap<object, Map<string, number>>()
+  const preparedTools = () => {
+    for (const [name, definition] of Object.entries(tools)) {
+      const onInputStart = definition.onInputStart
+      definition.onInputStart = async (options) => {
+        if (!toolIndices.has(options.toolCallId)) {
+          const counts = toolCounts.get(options.messages) ?? new Map<string, number>()
+          const index = counts.get(name) ?? 0
+          counts.set(name, index + 1)
+          toolCounts.set(options.messages, counts)
+          toolIndices.set(options.toolCallId, index)
+        }
+        await onInputStart?.(options)
+      }
+    }
+    return { tools, mcpToolServers }
+  }
   const context = (args: Record<string, unknown>, options: ToolExecutionOptions): Tool.Context => ({
     sessionID: input.session.id,
     abort: options.abortSignal!,
     messageID: input.processor.message.id,
     callID: options.toolCallId,
-    extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck, promptOps: input.promptOps },
+    extra: {
+      model: input.model,
+      bypassAgentCheck: input.bypassAgentCheck,
+      promptOps: input.promptOps,
+      codingToolIndex: toolIndices.get(options.toolCallId),
+    },
     agent: input.agent.name,
     messages: input.messages,
     metadata: (val) =>
@@ -394,7 +417,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     })
   }
 
-  if (flags.experimentalCodeMode) return { tools, mcpToolServers }
+  if (flags.experimentalCodeMode) return preparedTools()
 
   for (const [key, entry] of Object.entries(yield* mcp.tools())) {
     if (withheld.has(key)) continue
@@ -506,7 +529,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     mcpToolServers.set(key, McpCatalog.sanitize(entry.server))
   }
 
-  return { tools, mcpToolServers }
+  return preparedTools()
 })
 
 function toRecord(value: unknown) {

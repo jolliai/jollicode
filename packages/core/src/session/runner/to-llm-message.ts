@@ -7,6 +7,8 @@ import {
   type Model,
   type ProviderMetadata,
 } from "@opencode-ai/llm"
+import { isJolliProviderId } from "../../jolli/gateway-config"
+import { CODING_CONTINUATION } from "../../jolli/coding-headers"
 import { SessionMessage } from "../message"
 import type { FileAttachment } from "../prompt"
 
@@ -162,6 +164,7 @@ ${message.recent}
 </conversation-checkpoint>`,
           metadata: message.metadata,
         }),
+        ...(isJolliProviderId(model.provider) ? [Message.user(CODING_CONTINUATION)] : []),
       ]
   }
 }

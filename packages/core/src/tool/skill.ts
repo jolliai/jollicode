@@ -1,5 +1,6 @@
 export * as SkillTool from "./skill"
 
+import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 import path from "path"
 import { ToolFailure } from "@opencode-ai/llm"
 import { Effect, Layer, Schema } from "effect"
@@ -10,9 +11,12 @@ import { PermissionV2 } from "../permission"
 import { ToolRegistry } from "./registry"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
+import { isJolliProviderId } from "../jolli/gateway-config"
 import { JolliSkills } from "../jolli/skills"
 import { JolliSession } from "../jolli/session"
 import { SessionStore } from "../session/store"
+import { SessionInput } from "../session/input"
+import { Database } from "../database/database"
 
 export const name = "skill"
 const FILE_LIMIT = 10
@@ -65,6 +69,7 @@ const layer = Layer.effectDiscard(
     const permission = yield* PermissionV2.Service
     const jolli = yield* JolliSession.Service
     const sessions = yield* SessionStore.Service
+    const db = (yield* Database.Service).db
     yield* tools
       .register({
         [name]: Tool.make({
@@ -74,11 +79,14 @@ const layer = Layer.effectDiscard(
           toModelOutput: ({ output }) => [{ type: "text", text: output.output }],
           execute: (input, context) =>
             Effect.gen(function* () {
-              if (JolliSkills.isCourse(input.name)) {
+              if (CourseSkillName.isCourse(input.name)) {
                 return yield* Effect.gen(function* () {
                   const session = yield* sessions.get(context.sessionID)
                   if (!session) return yield* unableToLoad(input.name)
-                  yield* JolliSkills.select(jolli, session, input.name)
+                  const current = yield* sessions.message(context.assistantMessageID)
+                  if (current?.message.type !== "assistant" || !isJolliProviderId(current.message.model.providerID))
+                    return yield* new ToolFailure({ message: "Course skills require a Jolli gateway model" })
+                  const selected = yield* JolliSkills.select(jolli, session, input.name)
                   yield* permission.assert({
                     action: name,
                     resources: [input.name],
@@ -87,7 +95,8 @@ const layer = Layer.effectDiscard(
                     agent: context.agent,
                     source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
                   })
-                  const skill = yield* JolliSkills.load(jolli, session, input.name, context.toolCallID)
+                  const turnId = yield* SessionInput.currentTurnID(db, session.id)
+                  const skill = yield* JolliSkills.invoke(jolli, session, selected, context.toolCallID, turnId)
                   return { name: input.name, directory: "", output: JolliSkills.render(skill) }
                 }).pipe(Effect.mapError((error) => unableToLoad(input.name, error)))
               }
@@ -127,5 +136,13 @@ const layer = Layer.effectDiscard(
 export const node = makeLocationNode({
   name: "tool/skill",
   layer,
-  deps: [ToolRegistry.node, FSUtil.node, SkillV2.node, PermissionV2.node, JolliSession.node, SessionStore.node],
+  deps: [
+    ToolRegistry.node,
+    FSUtil.node,
+    SkillV2.node,
+    PermissionV2.node,
+    JolliSession.node,
+    SessionStore.node,
+    Database.node,
+  ],
 })

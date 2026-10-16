@@ -7,6 +7,8 @@ import { SessionMessage } from "@opencode-ai/core/session/message"
 import { AgentAttachment, FileAttachment } from "@opencode-ai/core/session/prompt"
 import { toLLMMessages } from "@opencode-ai/core/session/runner/to-llm-message"
 import { SessionV2 } from "@opencode-ai/core/session"
+import { providerIdFor } from "../src/jolli/gateway-config"
+import { CODING_CONTINUATION } from "../src/jolli/coding-headers"
 import { DateTime } from "effect"
 
 const created = DateTime.makeUnsafe(0)
@@ -14,6 +16,32 @@ const id = (value: string) => SessionMessage.ID.make(`msg_${value}`)
 const model = Model.make({ id: "model", provider: "provider", route: OpenAIChat.route })
 
 describe("toLLMMessages", () => {
+  test("keeps one continuation after the checkpoint before later assistant and tool history", () => {
+    const checkpoint = SessionMessage.Compaction.make({
+      id: id("checkpoint"),
+      type: "compaction",
+      reason: "auto",
+      summary: "Earlier work",
+      recent: "",
+      time: { created },
+    })
+    const reply = SessionMessage.Assistant.make({
+      id: id("reply"),
+      type: "assistant",
+      agent: "build",
+      content: [{ type: "text", id: "reply", text: "Working" }],
+      model: { id: ModelV2.ID.make("model"), providerID: ProviderV2.ID.make(providerIdFor("openai")) },
+      time: { created },
+    })
+    const course = Model.make({ id: "model", provider: providerIdFor("openai"), route: OpenAIChat.route })
+    const first = toLLMMessages([checkpoint], course)
+    const later = toLLMMessages([checkpoint, reply, { ...reply, id: id("later") }], course)
+    expect(later.slice(0, first.length)).toEqual(first)
+    expect(later.filter((message) => JSON.stringify(message.content).includes(CODING_CONTINUATION))).toHaveLength(1)
+    expect(later.at(-1)?.role).toBe("assistant")
+    expect(toLLMMessages([checkpoint], model)).toHaveLength(1)
+  })
+
   test("omits empty assistant turns", () => {
     const assistant = (value: string, content: SessionMessage.Assistant["content"]) =>
       SessionMessage.Assistant.make({

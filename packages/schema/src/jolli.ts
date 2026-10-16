@@ -3,6 +3,25 @@ export * as Jolli from "./jolli"
 import { Schema } from "effect"
 import { optional } from "./schema"
 
+/** Public identity of a private server snapshot; instruction bodies never cross this contract. */
+export const CourseSkillReference = Schema.Struct({
+  type: Schema.Literal("course_skill_ref"),
+  messageId: Schema.Number.check(
+    Schema.isInt(),
+    Schema.isGreaterThan(0),
+    Schema.isLessThanOrEqualTo(Number.MAX_SAFE_INTEGER),
+  ),
+  skillId: Schema.Number.check(
+    Schema.isInt(),
+    Schema.isGreaterThan(0),
+    Schema.isLessThanOrEqualTo(Number.MAX_SAFE_INTEGER),
+  ),
+  name: Schema.String,
+  command: Schema.String,
+  toolCallId: Schema.String,
+}).annotate({ identifier: "Jolli.CourseSkillReference" })
+export type CourseSkillReference = typeof CourseSkillReference.Type
+
 /**
  * THE COURSE AND ASSISTANT SHAPES THE JOLLI GATEWAY SERVES, AS THIS REPO'S OWN DOMAIN TYPES.
  *

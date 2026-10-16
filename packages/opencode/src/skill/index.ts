@@ -1,3 +1,4 @@
+import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import path from "path"
 import { Effect, Layer, Context, Schema } from "effect"
@@ -19,7 +20,6 @@ import { isRecord } from "@/util/record"
 import { escapeHtml } from "@/util/html"
 import { JolliSkills } from "@opencode-ai/core/jolli/skills"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
-import { JolliApiError } from "@opencode-ai/core/jolli/api"
 
 const CLAUDE_EXTERNAL_DIR = ".claude"
 const AGENTS_EXTERNAL_DIR = ".agents"
@@ -98,11 +98,7 @@ type ScanState = {
 
 export interface Interface {
   readonly get: (name: string) => Effect.Effect<Info | undefined>
-  readonly require: (
-    name: string,
-    session?: JolliSkills.Session,
-    toolCallId?: string,
-  ) => Effect.Effect<Info, NotFoundError | JolliApiError>
+  readonly require: (name: string) => Effect.Effect<Info, NotFoundError>
   readonly all: () => Effect.Effect<Info[]>
   readonly dirs: () => Effect.Effect<string[]>
   readonly available: (agent?: Agent.Info, session?: JolliSkills.Session, refresh?: boolean) => Effect.Effect<Info[]>
@@ -127,7 +123,7 @@ const add = Effect.fnUntraced(function* (state: State, match: string, events: Ev
   if (!md) return
 
   if (!isSkillFrontmatter(md.data)) return
-  if (JolliSkills.isCourse(md.data.name)) return
+  if (CourseSkillName.isCourse(md.data.name)) return
 
   if (state.skills[md.data.name]) {
     yield* Effect.logWarning("duplicate skill name", {
@@ -299,16 +295,7 @@ const layer = Layer.effect(
       return s.skills[name]
     })
 
-    const require = Effect.fn("Skill.require")(function* (
-      name: string,
-      session?: JolliSkills.Session,
-      toolCallId?: string,
-    ) {
-      if (JolliSkills.isCourse(name)) {
-        if (!session || !toolCallId) return yield* new NotFoundError({ name, available: [] })
-        const skill = yield* JolliSkills.load(jolli, session, name, toolCallId)
-        return { name, location: "<course>", content: JolliSkills.render(skill) }
-      }
+    const require = Effect.fn("Skill.require")(function* (name: string) {
       const s = yield* InstanceState.get(state)
       const info = s.skills[name]
       if (info) return info
@@ -330,6 +317,7 @@ const layer = Layer.effect(
       refresh = false,
     ) {
       const s = yield* InstanceState.get(state)
+      // Shared catalog loading retains this account's warm metadata on transient failures.
       const course = yield* JolliSkills.list(jolli, session, refresh).pipe(
         Effect.catch((error) =>
           Effect.logWarning("Jolli: course skill guidance unavailable", { sessionID: session?.id, error }).pipe(

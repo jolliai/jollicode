@@ -6,8 +6,39 @@ import { MessageID, PartID, SessionID } from "@/session/schema"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
+import { SessionCompaction } from "@/session/compaction"
 
 describe("jolli coding-agent request headers", () => {
+  test("carries compacted legacy skill snapshots without including their instruction bodies", () => {
+    const reference = {
+      type: "course_skill_ref" as const,
+      messageId: 42,
+      skillId: 8,
+      name: "Quiz",
+      command: "quiz",
+      toolCallId: "call-quiz",
+    }
+    const history = [
+      { parts: [{ type: "tool", tool: "skill", state: { status: "completed", output: JSON.stringify(reference) } }] },
+    ] as unknown as SessionV1.WithParts[]
+    const references = SessionCompaction.courseSkillReferences(history, true)
+    const compacted = [
+      { parts: [{ type: "compaction", courseSkillReferences: references }] },
+    ] as unknown as SessionV1.WithParts[]
+    const replayed = SessionCompaction.courseSkillReferences(compacted)
+    expect(replayed).toEqual([reference])
+    expect(
+      jolliCodingAgentHeaders({
+        providerID: providerIdFor("openai"),
+        sessionID: "ses_test",
+        turnID: "turn",
+        clientAttemptID: "attempt",
+        stepIndex: 0,
+        skillMessageIds: replayed.map((item) => item.messageId),
+      })["x-jolli-skill-message-ids"],
+    ).toBe("42")
+    expect(SessionCompaction.courseSkillReferences(history)).toEqual([])
+  })
   test("binds every supported Jolli provider request to the Jollicode session", () => {
     const sessionID = SessionID.descending()
     const turnID = MessageID.ascending()
@@ -69,7 +100,12 @@ describe("jolli coding-agent request headers", () => {
       clientAttemptID: "attempt-1",
     }
 
-    const firstStep = jolliCodingAgentHeaders({ ...base, sessionID: firstSessionID, stepIndex: 0 })
+    const firstStep = jolliCodingAgentHeaders({
+      ...base,
+      sessionID: firstSessionID,
+      stepIndex: 0,
+      assistantMessageID: "msg_source",
+    })
     const secondStep = jolliCodingAgentHeaders({ ...base, sessionID: firstSessionID, stepIndex: 1 })
     const otherSession = jolliCodingAgentHeaders({ ...base, sessionID: secondSessionID, stepIndex: 0 })
 
@@ -78,6 +114,7 @@ describe("jolli coding-agent request headers", () => {
     expect(secondStep["x-jolli-conversation-id"]).toBe(firstSessionID)
     expect(otherSession["x-jolli-conversation-id"]).toBe(secondSessionID)
     expect(firstStep["x-jolli-request-id"]).toBe("attempt-1:0")
+    expect(firstStep["x-jolli-assistant-message-id"]).toBe("msg_source")
     expect(secondStep["x-jolli-request-id"]).toBe("attempt-1:1")
   })
 

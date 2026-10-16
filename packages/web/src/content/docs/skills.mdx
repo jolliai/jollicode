@@ -14,6 +14,8 @@ The catalog includes names and descriptions only. The native `skill` tool record
 
 Each new user message refreshes the catalog, while automatic tool steps reuse metadata. Temporary gateway failures preserve the previous catalog; an initial failure keeps local skills available. Authorization refusals invalidate only the affected session's catalog. The `course:` prefix is reserved, so local skills, custom commands and MCP prompts cannot register names in that namespace.
 
+Compaction preserves snapshot references separately from the generated summary. The gateway restores the original bodies after admitting the next turn, including when the catalog is now empty or skills have been disabled. Resuming a turn can retain snapshots from an earlier attempt; rolling back an entire turn excludes its snapshots. A skill applies only to the task that loaded it and that task's continuing exchange.
+
 ---
 
 ## Place files
