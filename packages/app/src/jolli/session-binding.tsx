@@ -36,7 +36,7 @@ import { createEffect, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLayout } from "@/context/layout"
 import { assistantById, canStartSession, courseById, draftBinding, enrolledCourses, ready, windowNow } from "./catalog"
-import { useJolliCatalog } from "./catalog-fetch"
+import { useJolliCatalog, useRefusalRefresh } from "./catalog-fetch"
 import { CourseIntent, courseIntentRouteKey } from "./course-intent"
 import { ModelGrant } from "./model-grant"
 import type { StartErrorKey } from "./start-session"
@@ -86,6 +86,7 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
      * `ensureCatalog` makes the duplicates free.
      */
     useJolliCatalog()
+    useRefusalRefresh()
 
     const [store, setStore] = createStore<{
       draft?: CourseBinding

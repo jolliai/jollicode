@@ -22,7 +22,7 @@ import { Flag } from "@opencode-ai/core/flag/flag"
 import { courseBindingOf, type CourseBinding } from "@opencode-ai/core/jolli/binding"
 import { isJolliConnected } from "@opencode-ai/core/jolli/gateway-config"
 import { Lookup } from "@opencode-ai/core/jolli/lookup"
-import { startRefusalMessage } from "@opencode-ai/core/jolli/refusal"
+import { refusalCodeOf, startRefusalMessage } from "@opencode-ai/core/jolli/refusal"
 import { Jolli } from "@opencode-ai/schema/jolli"
 import type { JolliStartResult } from "@opencode-ai/sdk/v2"
 import { createEffect, createMemo, createSignal, on, onCleanup } from "solid-js"
@@ -31,6 +31,7 @@ import { createSimpleContext } from "./helper"
 import { useRoute } from "./route"
 import { useKV } from "./kv"
 import { useSDK } from "./sdk"
+import { useEvent } from "./event"
 import { useSync } from "./sync"
 import { Locale } from "../util/locale"
 
@@ -162,6 +163,20 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
       refreshedAt = Date.now()
       setGeneration((value) => value + 1)
     }
+
+    /**
+     * ⚠ A TURN THE GATEWAY REFUSED ASKS FOR THE CATALOGUE AGAIN, AS A REFUSED START DOES. The sidecar
+     * records a closure and serves that assistant closed from then on, but the list held here was
+     * fetched before; without asking again the next new chat stages the same assistant and is
+     * refused the same way.
+     */
+    const event = useEvent()
+    onCleanup(
+      event.on("session.error", (evt) => {
+        const error = evt.properties.error
+        if (error?.name === "APIError" && refusalCodeOf(error.data.responseBody)) refresh()
+      }),
+    )
 
     /**
      * WHETHER THE REMEMBERED COURSE HAS BEEN LOOKED UP YET — NOT WHETHER THERE WAS ONE.

@@ -11,6 +11,7 @@ import { Auth } from "@/auth"
 import type { EffectBridge } from "@/effect/bridge"
 import { Plugin } from "@/plugin"
 import { JolliCourseChatPlugin } from "@/plugin/jolli-course-chat"
+import { JolliClosedAssistants } from "@opencode-ai/core/jolli/closed-assistants"
 import { Session } from "@/session/session"
 import { AccountTest } from "../fake/account"
 import { AuthTest } from "../fake/auth"
@@ -85,6 +86,38 @@ function failingSessionBridge() {
 }
 
 describe("plugin.jolli-course-chat", () => {
+  /**
+   * ⚠ A TURN REFUSED AS CLOSED IS REMEMBERED LIKE A REFUSED START. An assistant that waits to be
+   * spoken to is offered by the same clock, so the catalogue this process serves next has to close it.
+   */
+  test("remembers an assistant whose turn the gateway refused as closed, and nothing else", async () => {
+    const catalog = { status: "ok" as const, courses: [], assistants: [], modelTiers: {} }
+    const refused = (code: string, sessionID?: string) =>
+      ({
+        event: {
+          type: "session.error",
+          properties: {
+            sessionID,
+            error: {
+              name: "APIError",
+              data: { message: "", isRetryable: false, responseBody: JSON.stringify({ code }) },
+            },
+          },
+        },
+      }) as never
+    JolliClosedAssistants.reset()
+
+    await (await plugin()).hooks.event?.(refused("assistant_closed", "ses_1"))
+    await (await plugin(BOUND)).hooks.event?.(refused("course_archived", "ses_1"))
+    await (await plugin(BOUND)).hooks.event?.(refused("assistant_closed"))
+    // Unbound, another code, no session: nothing to remember, so the catalogue is served as it came.
+    expect(JolliClosedAssistants.apply(catalog)).toBe(catalog)
+
+    await (await plugin(BOUND)).hooks.event?.(refused("assistant_closed", "ses_1"))
+    expect(JolliClosedAssistants.apply(catalog)).not.toBe(catalog)
+    JolliClosedAssistants.reset()
+  })
+
   test("hides the server-owned binding from model-facing course tool schemas", async () => {
     const { hooks } = await plugin()
     const output: { description: string; parameters: Record<string, unknown> } = {

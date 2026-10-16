@@ -3,6 +3,7 @@ import { Effect } from "effect"
 import { HttpApiError } from "effect/unstable/httpapi"
 import {
   preserveBinding,
+  refuseBindingOutsideStart,
   refuseRebindingAfterFirstMessage,
 } from "../../src/server/routes/instance/httpapi/handlers/session"
 
@@ -166,6 +167,42 @@ describe("refuseRebindingAfterFirstMessage", () => {
     if (exit._tag === "Failure") {
       expect(String(exit.cause)).toContain(HttpApiError.BadRequest.name ?? "BadRequest")
     }
+  })
+})
+
+describe("refuseBindingOutsideStart", () => {
+  // Assistant 12 speaks first; 13 waits to be spoken to; anything else the catalogue cannot say.
+  const opens = (binding: { assistantId: string }) =>
+    Effect.succeed(binding.assistantId === "12" ? true : binding.assistantId === "13" ? false : undefined)
+  const refused = async (before: Record<string, unknown> | undefined, after: Record<string, unknown> | undefined) =>
+    (await Effect.runPromise(Effect.exit(refuseBindingOutsideStart(before, after, opens))))._tag === "Failure"
+
+  test("refuses creating a session bound to an assistant that speaks first", async () => {
+    expect(await refused(undefined, bound("7", "12"))).toBe(true)
+    expect(await refused(undefined, bound("7", "13"))).toBe(false)
+  })
+
+  test("refuses binding an unbound session to one, or moving a session onto one", async () => {
+    expect(await refused({}, bound("7", "12"))).toBe(true)
+    expect(await refused(bound("7", "13"), bound("7", "12"))).toBe(true)
+  })
+
+  /**
+   * ⚠ ONLY A NEW BINDING IS JUDGED. A Start-made session and one bound before its assistant was
+   * switched to speak first both rewrite the binding they have — a visibility toggle — and must pass.
+   */
+  test("lets a session keep the binding it already has", async () => {
+    const opened = { ...bound("7", "12"), jolliOpener: { sessionID: "ses_1" } }
+    expect(
+      await refused(opened, { ...opened, jolli: { ...opened.jolli, sharing: { staff: true, everyone: false } } }),
+    ).toBe(false)
+    expect(await refused(bound("7", "12"), bound("7", "12"))).toBe(false)
+  })
+
+  test("permits what the catalogue cannot judge, and anything unbound", async () => {
+    expect(await refused(undefined, bound("7", "99"))).toBe(false)
+    expect(await refused(undefined, undefined)).toBe(false)
+    expect(await refused(bound("7", "12"), {})).toBe(false)
   })
 })
 

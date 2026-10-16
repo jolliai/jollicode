@@ -33,7 +33,7 @@ beforeAll(async () => {
     useLayout: () => ({ route: () => ({ type: "draft", draftID: "d1" }) }),
   }))
   mock.module("@/context/sync", () => ({ useSync: () => () => ({ data: { session: [] } }) }))
-  mock.module("@/jolli/catalog-fetch", () => ({ useJolliCatalog: () => undefined }))
+  mock.module("@/jolli/catalog-fetch", () => ({ useJolliCatalog: () => undefined, useRefusalRefresh: () => undefined }))
 })
 
 beforeEach(() => {

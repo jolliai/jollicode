@@ -18,6 +18,7 @@ import {
   type JolliApiError,
 } from "@opencode-ai/core/jolli/api"
 import { loadCatalog } from "@opencode-ai/core/jolli/cache"
+import { JolliClosedAssistants } from "@opencode-ai/core/jolli/closed-assistants"
 import { projectCatalog, today } from "@opencode-ai/core/jolli/catalog"
 import { viewerFromToken } from "@opencode-ai/core/jolli/identity"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
@@ -123,8 +124,10 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
        * ⚠ `today` IS READ PER REQUEST, NOT PER CACHE WRITE. A course's `entryState` depends on the
        * date as much as on its own fields, so a snapshot cached last night must not be allowed to
        * assert this morning that a course is still running.
+       *
+       * ⚠ AN ASSISTANT A CHAT WAS REFUSED AS CLOSED IS SERVED CLOSED — see `closed-assistants.ts`.
        */
-      return { ...projectCatalog(loaded.snapshot, today()), ...identity }
+      return { ...JolliClosedAssistants.apply(projectCatalog(loaded.snapshot, today())), ...identity }
     })
 
     /**

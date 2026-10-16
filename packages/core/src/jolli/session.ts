@@ -6,6 +6,7 @@ import { Flock } from "../util/flock"
 import { Hash } from "../util/hash"
 import { gatewayRequest, type GatewayRequest } from "./api"
 import { clearCatalogCache } from "./cache"
+import { JolliClosedAssistants } from "./closed-assistants"
 import { JolliRefreshError, refreshCliToken, type JolliCredentials } from "./exchange"
 import { jolliAuthOrigin } from "./origin"
 import { JolliStore } from "./store"
@@ -158,8 +159,11 @@ const layer = Layer.effect(
         return injected ? Effect.succeed(injected) : store.active()
       })
 
+    // The refusals go first: they are this process's memory, and a row that will not delete is no
+    // reason to hand them to whoever signs in next.
     const forget = (row: JolliStore.Row) =>
-      store.remove(row.id).pipe(
+      Effect.sync(JolliClosedAssistants.reset).pipe(
+        Effect.andThen(store.remove(row.id)),
         Effect.andThen(clearCatalogCache),
         Effect.catchCause(() => Effect.void),
       )
@@ -344,6 +348,8 @@ const layer = Layer.effect(
         // Seconds on the wire, absolute milliseconds in the row — resolved against a clock the
         // tests can control, which is why `exchange.ts` deliberately does not do it.
         const expiry = expiryFor(credentials.expiresIn, credentials.refreshToken, now)
+        // A sign-in may replace another student's without a sign-out between them.
+        JolliClosedAssistants.reset()
         return yield* store.persist({
           accessToken: credentials.token,
           ...(credentials.refreshToken ? { refreshToken: credentials.refreshToken } : {}),

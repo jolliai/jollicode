@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, mock, test } from "bun:test"
+import { afterEach, beforeAll, beforeEach, describe, expect, mock, setSystemTime, spyOn, test } from "bun:test"
 import { createStore } from "solid-js/store"
 import type { Prompt, PromptStore } from "@/context/prompt"
 import type { ModelSelection } from "@/context/local"
@@ -68,7 +68,8 @@ let createSessionGate: Promise<void> | undefined
 let worktreeCreateFails = false
 /** Every worktree `worktree.create` made, by directory. */
 let worktreesCreated = 0
-let sessionCreateFails = false
+/** Whether `session.create` throws, and with what under `cause` — the SDK puts the HTTP status there. */
+let sessionCreateFails: boolean | { status: number } = false
 /** The one of those paths that raises instead of returning — nothing downstream gets to clean up. */
 let childSyncFails = false
 
@@ -108,7 +109,11 @@ const clientFor = (directory: string) => {
       session: {
         create: async (input: (typeof sessionCreateInputs)[number]) => {
           await createSessionGate
-          if (sessionCreateFails) throw new Error("session create failed")
+          if (sessionCreateFails)
+            throw new Error(
+              "session create failed",
+              typeof sessionCreateFails === "object" ? { cause: sessionCreateFails } : {},
+            )
           const location = input.location?.directory ?? directory
           createdSessions.push(location)
           sessionCreateInputs.push(input)
@@ -879,6 +884,26 @@ describe("prompt submit history handoff", () => {
   })
 
   /**
+   * ⚠ THE SERVER JUDGES A NEW BINDING BY A LIST THAT CAN BE NEWER THAN THIS SCREEN'S. An assistant
+   * switched to speak first is refused with a bare 400, and only a fresh list puts Start in its place.
+   */
+  test("a bound create refused as a bad request refreshes the catalogue, and nothing else does", async () => {
+    const generation = catalogGeneration()
+
+    sessionCreateFails = { status: 400 }
+    await submitWithHistory().handleSubmit(event())
+    courseBinding = { courseId: "7", assistantId: "42" }
+    sessionCreateFails = { status: 500 }
+    await submitWithHistory().handleSubmit(event())
+    expect(catalogGeneration()).toBe(generation)
+
+    sessionCreateFails = { status: 400 }
+    await submitWithHistory().handleSubmit(event())
+    expect(catalogGeneration()).toBe(generation + 1)
+    expect(catalogRefreshed(catalogGeneration())).toBe(true)
+  })
+
+  /**
    * ⚠ THE WAY OUT THAT RAISES SKIPS BOTH HANDOFFS. The two misses above end in a `return` that
    * discards on its way past. Anything that throws between staging the entry and promoting it —
    * here the per-directory store the worktree path opens — reaches neither, and the bucket would
@@ -963,6 +988,14 @@ describe("prompt submit history handoff", () => {
  */
 describe("session start", () => {
   const binding = { courseId: "7", assistantId: "42" }
+  // A Start that throws after it was answered is logged; kept out of the test output, and counted.
+  let logged: ReturnType<typeof spyOn<Console, "error">>
+  beforeEach(() => {
+    logged = spyOn(console, "error").mockImplementation(() => {})
+  })
+  afterEach(() => {
+    logged.mockRestore()
+  })
   const startSession = () =>
     createSessionStart({
       newSessionWorktree: () => "main",
@@ -1116,6 +1149,181 @@ describe("session start", () => {
     jolliStartAnswer = failing(undefined)
     await start()
     expect(sent()[4]).toBe(sent()[2])
+  })
+
+  /**
+   * ⚠ THE SESSION CAN EXIST WHEN THE SCREEN FAILS TO MOVE ONTO IT. A Start that was answered and then
+   * threw in the promote keeps its id, so the next press reattaches to that session rather than
+   * making a second conversation on the gateway; only a Start that ended on its session lets it go.
+   */
+  test("a Start that throws after it was answered keeps its id until one ends on the session", async () => {
+    courseBinding = binding
+    jolliStartAnswer = async () => started({ jolli: binding })
+    childSyncFails = true
+    const start = startSession()
+    const sent = () => jolliStartInputs.map((input) => (input as { sessionID: string }).sessionID)
+
+    expect(await start()).toMatchObject({ status: "not-created" })
+    expect(draftState.startError).toBe("prompt.jolli.start.failed")
+    expect(draftState.starting).toBe(false)
+    expect(logged).toHaveBeenCalledTimes(1)
+
+    childSyncFails = false
+    expect(await start()).toMatchObject({ status: "created" })
+    await start()
+    expect(sent()[1]).toBe(sent()[0])
+    expect(sent()[2]).not.toBe(sent()[1])
+  })
+
+  /**
+   * ⚠ THAT SESSION IS ALREADY IN THE SIDEBAR. Another draft handed its id would land in a
+   * conversation the student may have carried on with, so only the draft that pressed Start reuses it.
+   */
+  test("a Start that threw after it was answered is not reused by another draft", async () => {
+    courseBinding = binding
+    jolliStartAnswer = async () => started({ jolli: binding })
+    childSyncFails = true
+    const sent = () => jolliStartInputs.map((input) => (input as { sessionID: string }).sessionID)
+    // Each draft has a composer of its own, mounted while that draft is on screen.
+    const composerOn = (draftId: string) => {
+      search = { draftId }
+      return startSession()
+    }
+
+    await composerOn("draft-1")()
+    await composerOn("draft-1")()
+    await composerOn("draft-2")()
+
+    expect(sent()[1]).toBe(sent()[0])
+    expect(sent()[2]).not.toBe(sent()[1])
+  })
+
+  /**
+   * ⚠ A RETRY THAT GOT NO ANSWER HAS NOT UNMADE THE SESSION. Recording it as unanswered handed the
+   * id — and the conversation already in the sidebar — to the next draft with the same binding.
+   */
+  test("an answered Start stays answered when its retry gets no answer", async () => {
+    courseBinding = binding
+    jolliStartAnswer = async () => started({ jolli: binding })
+    childSyncFails = true
+    const sent = () => jolliStartInputs.map((input) => (input as { sessionID: string }).sessionID)
+    const composerOn = (draftId: string) => {
+      search = { draftId }
+      return startSession()
+    }
+
+    await composerOn("draft-1")()
+    childSyncFails = false
+    jolliStartAnswer = async () => ({ data: { status: "unreachable" } })
+    await composerOn("draft-1")()
+    await composerOn("draft-2")()
+
+    expect(sent()[1]).toBe(sent()[0])
+    expect(sent()[2]).not.toBe(sent()[0])
+  })
+
+  /**
+   * ⚠ THE DRAFT'S WORKTREE CHOICE IS RESET ONCE THE SESSION EXISTS, before the screen moves onto it.
+   * A retry that followed the choice asked from the main checkout, and the session the sidecar
+   * answered with — made in the worktree — was filed there.
+   */
+  test("an answered Start is retried in the worktree it was made in", async () => {
+    // An assistant no earlier test started, so no retry they left behind is adopted here.
+    const fresh = { courseId: "7", assistantId: "44" }
+    courseBinding = fresh
+    let worktree = "create"
+    const start = createSessionStart({
+      newSessionWorktree: () => worktree,
+      onNewSessionWorktreeCreated: (directory) => {
+        worktree = directory
+      },
+      onNewSessionWorktreeReset: () => {
+        worktree = "main"
+      },
+      autoAccept: () => false,
+    })
+    // Answered, and then the screen fails to move onto the session.
+    jolliStartAnswer = async () => {
+      childSyncFails = true
+      return started({ jolli: fresh })
+    }
+
+    expect(await start()).toMatchObject({ status: "not-created" })
+    expect(worktree).toBe("main")
+
+    childSyncFails = false
+    jolliStartAnswer = async () => started({ jolli: fresh })
+    expect(await start()).toMatchObject({ status: "created", directory: "/repo/main/new" })
+    expect(worktreesCreated).toBe(1)
+    expect(jolliStartInputs.map((input) => (input as { directory: string }).directory)).toEqual([
+      "/repo/main/new",
+      "/repo/main/new",
+    ])
+  })
+
+  /**
+   * ⚠ ONE RETRY PER ID. With a single slot per server, another draft's Start took the place of an
+   * answered one still waiting on its draft, and that draft's next press made a second conversation.
+   */
+  test("an answered Start keeps its id while another draft starts", async () => {
+    const own = { courseId: "7", assistantId: "45" }
+    courseBinding = own
+    jolliStartAnswer = async () => started({ jolli: own })
+    childSyncFails = true
+    const sent = () => jolliStartInputs.map((input) => (input as { sessionID: string }).sessionID)
+    const composerOn = (draftId: string) => {
+      search = { draftId }
+      return startSession()
+    }
+
+    await composerOn("draft-1")()
+    childSyncFails = false
+    jolliStartAnswer = async () => ({ data: { status: "refused", code: "assistant_closed" } })
+    await composerOn("draft-2")()
+    jolliStartAnswer = async () => started({ jolli: own })
+    await composerOn("draft-1")()
+
+    expect(sent()[1]).not.toBe(sent()[0])
+    expect(sent()[2]).toBe(sent()[0])
+  })
+
+  /** ⚠ AN UNANSWERED START MADE NOTHING WHERE IT WAS TRIED, so the draft that adopts it decides where. */
+  test("an unanswered Start adopted by another draft goes in that draft's directory", async () => {
+    const own = { courseId: "7", assistantId: "46" }
+    courseBinding = own
+    const composerOn = (draftId: string, directory: string) => {
+      search = { draftId }
+      return createSessionStart({ newSessionWorktree: () => directory, autoAccept: () => false })
+    }
+
+    await composerOn("draft-1", "/repo/other")()
+    jolliStartAnswer = async () => started({ jolli: own })
+    await composerOn("draft-2", "main")()
+
+    const inputs = jolliStartInputs as Array<{ sessionID: string; directory: string }>
+    expect(inputs[1]?.sessionID).toBe(inputs[0]?.sessionID)
+    expect(inputs.map((input) => input.directory)).toEqual(["/repo/other", "/repo/main"])
+  })
+
+  /** ⚠ A START LEFT FOR LONGER THAN THE RETRY WINDOW IS NOT ADOPTED: the next press starts over. */
+  test("an unanswered Start is not adopted once its retry window has passed", async () => {
+    const own = { courseId: "7", assistantId: "47" }
+    courseBinding = own
+    const sent = () => jolliStartInputs.map((input) => (input as { sessionID: string }).sessionID)
+    const composerOn = (draftId: string) => {
+      search = { draftId }
+      return startSession()
+    }
+
+    await composerOn("draft-1")()
+    setSystemTime(new Date(Date.now() + 11 * 60_000))
+    try {
+      await composerOn("draft-2")()
+    } finally {
+      setSystemTime()
+    }
+
+    expect(sent()[1]).not.toBe(sent()[0])
   })
 
   test("a different assistant after an unanswered Start opens under a new id", async () => {

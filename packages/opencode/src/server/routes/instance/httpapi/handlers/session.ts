@@ -19,7 +19,9 @@ import { MessageID, PartID, SessionID } from "@/session/schema"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
 import { JolliApiError, openConversation } from "@opencode-ai/core/jolli/api"
-import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
+import { courseBindingOf, type CourseBinding } from "@opencode-ai/core/jolli/binding"
+import { JolliClosedAssistants } from "@opencode-ai/core/jolli/closed-assistants"
+import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
 import { openedOnGateway, openerTextOf } from "@opencode-ai/core/jolli/opener"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { syncTitle } from "@opencode-ai/core/jolli/title"
@@ -174,6 +176,45 @@ export const refuseRebindingAfterFirstMessage = Effect.fn("SessionHttpApi.refuse
 })
 
 /**
+ * A CHAT WHOSE AGENT SPEAKS FIRST IS BOUND BY START, NEVER BY A WRITE.
+ *
+ * ⚠ THE COMPOSER'S START BUTTON IS A SCREEN, NOT A RULE. Both renderers put Start where the input
+ * would be for such an assistant, but `session.create` or a metadata `PATCH` carrying its binding
+ * would still make a session the gateway opens on the student's first message — with no opener, so
+ * the greeting the teacher wrote is skipped and nobody is told.
+ *
+ * ⚠ ONLY A NEW BINDING IS JUDGED. Rewriting the binding a session already has — a visibility toggle,
+ * an idempotent retry — passes, so a session bound before its assistant was switched to speak first
+ * keeps working. A session Start made never reaches the lookup for the same reason.
+ *
+ * ⚠ "CANNOT TELL" PERMITS. The answer comes from the catalogue on disk; without one there is nothing
+ * to judge by, and refusing would stop a plain chat being made over a check that is about an opener.
+ * The gateway still applies the course to every turn either way.
+ *
+ * ⚠ A FORK IS NOT JUDGED HERE. It copies a conversation that already went past its opener, so the
+ * greeting this protects was either read in the original or never written.
+ *
+ * ⚠ A BARE 400, WHICH THE DESKTOP READS AS "YOUR LIST IS OLD". The snapshot judged here can be newer
+ * than the renderer's copy, so a composer may offer typing for an assistant that now speaks first;
+ * `createPromptSubmit` refreshes the catalogue on a 400 for a bound create, and the fresh list puts
+ * Start there. A reason in the body would need an error schema on the public `HttpApi` and both
+ * SDKs regenerated, for a case the refresh already covers.
+ */
+export const refuseBindingOutsideStart = Effect.fn("SessionHttpApi.refuseBindingOutsideStart")(function* (
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown> | undefined,
+  opens: (binding: CourseBinding) => Effect.Effect<boolean | undefined>,
+) {
+  const next = boundTo(after)
+  if (!next) return
+  const previous = boundTo(before)
+  if (previous?.courseId === next.courseId && previous.assistantId === next.assistantId) return
+  if (!(yield* opens(next))) return
+  yield* Effect.logWarning("Jolli: refused to bind a session to an assistant that speaks first", { binding: next })
+  return yield* Effect.fail(new HttpApiError.BadRequest({}))
+})
+
+/**
  * START A SESSION WHOSE AGENT SPEAKS FIRST: THE GATEWAY BEFORE THE LOCAL SESSION.
  *
  * ⚠ THE ORDER IS THE WHOLE DESIGN. The opener exists only once the gateway has created the
@@ -210,6 +251,8 @@ const startLock = KeyedMutex.makeUnsafe<SessionID>()
 
 type StartInput = {
   payload: typeof JolliStartPayload.Type
+  /** The directory this Start was asked in — where a session it creates would live. */
+  directory: string
   gateway: Pick<JolliSession.Interface, "request" | "refused">
   existing: (id: SessionID) => Effect.Effect<Session.Info | undefined>
   create: (input: Session.CreateInput & { id: SessionID }) => Effect.Effect<Session.Info>
@@ -217,7 +260,7 @@ type StartInput = {
 
 const startUnder = Effect.fn("SessionHttpApi.startUnder")(function* (id: SessionID, input: StartInput) {
   const previous = input.payload.sessionID ? yield* input.existing(id) : undefined
-  if (previous) return yield* alreadyStarted(previous, input.payload)
+  if (previous) return yield* alreadyStarted(previous, input)
   const request = yield* input.gateway.request().pipe(Effect.catch(() => Effect.succeed(undefined)))
   if (!request) return { status: "unreachable" as const }
   const opened = yield* openConversation(request, {
@@ -225,7 +268,8 @@ const startUnder = Effect.fn("SessionHttpApi.startUnder")(function* (id: Session
     courseAssistantId: Number(input.payload.assistantId),
     publicSessionId: id,
   }).pipe(Effect.catch((error) => Effect.succeed(error)))
-  if (opened instanceof JolliApiError) return yield* startRefused(input.gateway, opened, request.token)
+  if (opened instanceof JolliApiError)
+    return yield* startRefused(input.gateway, opened, request.token, input.payload.assistantId)
   const session = yield* input.create({
     id,
     title: input.payload.title,
@@ -252,13 +296,31 @@ const startUnder = Effect.fn("SessionHttpApi.startUnder")(function* (id: Session
  * ⚠ ANYTHING ELSE UNDER THAT ID IS A BAD REQUEST. Another session, or this one under a different
  * binding, is not something a retry can have produced.
  */
+/**
+ * ⚠ THE SESSION A KNOWN ID ANSWERS WITH MUST LIVE WHERE THE RETRY WAS ASKED. A Start whose answer
+ * was lost may have made its session already, and the client may then retry it from a draft in
+ * another project; answering with that session would have the client file it under the project it
+ * asked from and route there. Refused, the client lets the id go and starts over under a new one.
+ */
 const alreadyStarted = Effect.fn("SessionHttpApi.alreadyStarted")(function* (
   session: Session.Info,
-  payload: typeof JolliStartPayload.Type,
+  input: Pick<StartInput, "payload" | "directory">,
 ) {
   const bound = courseBindingOf(session)
-  if (!openedOnGateway(session) || bound?.courseId !== payload.courseId || bound.assistantId !== payload.assistantId)
+  if (
+    !openedOnGateway(session) ||
+    bound?.courseId !== input.payload.courseId ||
+    bound.assistantId !== input.payload.assistantId
+  )
     return yield* new HttpApiError.BadRequest({})
+  if (session.directory !== input.directory) {
+    yield* Effect.logWarning("Jolli: refused a Start retried from another directory", {
+      sessionID: session.id,
+      session: session.directory,
+      asked: input.directory,
+    })
+    return yield* new HttpApiError.BadRequest({})
+  }
   return { status: "started" as const, session, opener: openerTextOf(session) !== undefined }
 })
 
@@ -270,6 +332,7 @@ const startRefused = Effect.fn("SessionHttpApi.startRefused")(function* (
   gateway: Pick<JolliSession.Interface, "refused">,
   error: JolliApiError,
   token: string,
+  assistantId: string,
 ) {
   if (error.status === 401) yield* gateway.refused(token).pipe(Effect.catch(() => Effect.void))
   /**
@@ -288,6 +351,11 @@ const startRefused = Effect.fn("SessionHttpApi.startRefused")(function* (
    * same thing names it.
    */
   const code = error.code ?? (error.status === 404 ? "assistant_not_found" : undefined)
+  /**
+   * ⚠ A CLOSED REFUSAL IS REMEMBERED, so the catalogue the renderer asks for next stops offering the
+   * assistant even when its clock still reads the window as open.
+   */
+  if (code === "assistant_closed") JolliClosedAssistants.record(assistantId)
   return { status: "refused" as const, ...(code === undefined ? {} : { code }) }
 })
 
@@ -399,7 +467,11 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       )
     })
 
+    const opensConversation = (binding: CourseBinding) =>
+      JolliCourseGuardrails.opensConversation(binding).pipe(Effect.provideService(JolliSession.Service, jolli))
+
     const create = Effect.fn("SessionHttpApi.create")(function* (ctx: { payload?: Session.CreateInput }) {
+      yield* refuseBindingOutsideStart(undefined, ctx.payload?.metadata, opensConversation)
       return yield* shareSvc.create(ctx.payload)
     })
 
@@ -425,8 +497,10 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const jolliStart = Effect.fn("SessionHttpApi.jolliStart")(function* (ctx: {
       payload: typeof JolliStartPayload.Type
     }) {
+      const instance = yield* InstanceState.context
       return yield* startJolliSession({
         payload: ctx.payload,
+        directory: instance.directory,
         gateway: jolli,
         existing: (id) => session.get(id).pipe(Effect.option, Effect.map(Option.getOrUndefined)),
         create: shareSvc.create,
@@ -459,6 +533,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
           () => session.hasMessages({ sessionID: ctx.params.sessionID }),
           ctx.params.sessionID,
         )
+        yield* refuseBindingOutsideStart(current.metadata, metadata, opensConversation)
       }
 
       if (ctx.payload.title !== undefined) {

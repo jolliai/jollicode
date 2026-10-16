@@ -441,6 +441,12 @@ export const loadCatalog = (request: GatewayRequest, options?: LoadOptions) =>
   loadCatalogEffect(request, options).pipe(Effect.provide(FetchHttpClient.layer))
 
 /**
+ * THE SNAPSHOT ON DISK FOR THIS CREDENTIAL, HOWEVER OLD, WITHOUT ASKING THE GATEWAY; undefined when
+ * there is none. For a check that something a student is waiting on must not be held up by.
+ */
+export const readCatalog = (request: GatewayRequest) => readSnapshot(catalogCachePath(request))
+
+/**
  * DROP EVERY CACHED CATALOGUE ON THIS MACHINE.
  *
  * ⚠ IT TAKES NO REQUEST, DELIBERATELY. The caller is signing out, and the point is that the next
