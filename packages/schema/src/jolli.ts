@@ -280,7 +280,7 @@ export const AssistantSkill = Schema.Struct({
    */
   name: Schema.String,
   /**
-   * Empty in catalogs. Instructions are loaded through the authenticated coding session API.
+   * Always empty for course skills. Private instructions are restored by the gateway from server messages.
    */
   instructions: Schema.String,
   description: Schema.String.pipe(optional),
@@ -375,7 +375,7 @@ export const Assistant = Schema.Struct({
    * saying out loud. A grant narrows a set that already exists; this one enumerates a set that does
    * not, and there is no "all skills" an assistant could sensibly be handed.
    *
-   * The catalog carries metadata only; the native skill tool loads course instructions on demand.
+   * The catalog carries metadata only; the native skill tool records a private server-message reference.
    * Local skills remain independent and retain their configured sources and permission rules.
    */
   skills: Schema.Array(AssistantSkill),

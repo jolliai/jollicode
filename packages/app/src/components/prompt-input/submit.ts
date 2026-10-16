@@ -1,3 +1,4 @@
+import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 import type { Message, Session } from "@opencode-ai/sdk/v2/client"
 import { showToast } from "@/utils/toast"
 import { base64Encode } from "@opencode-ai/core/util/encode"
@@ -83,7 +84,7 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
 
   const [head, ...tail] = text.split(" ")
   const cmd = head?.startsWith("/") ? head.slice(1) : undefined
-  if (cmd && !cmd.startsWith("course:") && input.sync.data.command.find((item) => item.name === cmd)) {
+  if (cmd && !CourseSkillName.isCourse(cmd) && input.sync.data.command.find((item) => item.name === cmd)) {
     setBusy()
     try {
       if (!(await wait())) {
@@ -898,7 +899,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       const [cmdName, ...args] = text.split(" ")
       const commandName = cmdName.slice(1)
       const customCommand =
-        !commandName.startsWith("course:") && sync().data.command.find((c) => c.name === commandName)
+        !CourseSkillName.isCourse(commandName) && sync().data.command.find((c) => c.name === commandName)
       if (customCommand) {
         clearInput()
         const messageID = Identifier.ascending("message")

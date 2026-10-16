@@ -135,16 +135,19 @@ export const CourseSkillChoice = Schema.Struct({
 })
 export type CourseSkillChoice = typeof CourseSkillChoice.Type
 
-export const CourseSkill = Schema.Struct({
-  ...CourseSkillChoice.fields,
-  instructions: Schema.String,
-  updatedAt: Schema.String,
+export const CourseSkillReference = Schema.Struct({
+  type: Schema.Literal("course_skill_ref"),
+  messageId: Schema.Number,
+  skillId: Schema.Number,
+  name: Schema.String,
+  command: Schema.String,
+  toolCallId: Schema.String,
 })
-export type CourseSkill = typeof CourseSkill.Type
+export type CourseSkillReference = typeof CourseSkillReference.Type
 
 /**
  * Student-facing assistant choices. Only live assistants are returned, with the default first.
- * Teacher instructions are omitted; course skill bodies use the separate coding session API.
+ * Teacher and skill instructions never reach this client.
  */
 export const CourseAssistantChoice = Schema.Struct({
   id: Schema.Number,
@@ -385,9 +388,21 @@ const send = Effect.fn("Jolli.send")(function* <A, I>(
 /** Every course the signed-in user can see. NOT only theirs — see `CourseListItem.viewerRole`. */
 export const fetchCourses = (request: GatewayRequest) => get(request, "/api/courses", Schema.Array(CourseListItem))
 
-/** Instructions are available only through the owner's bound coding session. */
-export const fetchCourseSkill = (request: GatewayRequest, sessionID: string, skillId: number) =>
-  get(request, `/api/agent/convos/${encodeURIComponent(sessionID)}/skills/${skillId}`, CourseSkill)
+/** The server stores private instructions and returns only an immutable message reference. */
+export const createCourseSkillReference = (
+  request: GatewayRequest,
+  sessionID: string,
+  skillId: number,
+  toolCallId: string,
+  name: string,
+) =>
+  send(
+    request,
+    "POST",
+    `/api/agent/convos/${encodeURIComponent(sessionID)}/skills/${skillId}/invocations`,
+    CourseSkillReference,
+    { toolCallId, name },
+  )
 
 export const fetchCourseSkills = (request: GatewayRequest, sessionID: string) =>
   get(request, `/api/agent/convos/${encodeURIComponent(sessionID)}/skills`, Schema.Array(CourseSkillChoice))

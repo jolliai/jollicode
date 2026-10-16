@@ -1,3 +1,4 @@
+import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 import { TextAttributes } from "@opentui/core"
 import { DialogSelect, type DialogSelectOption } from "../ui/dialog-select"
 import { createResource, createMemo, createSignal } from "solid-js"
@@ -41,7 +42,7 @@ export function DialogSkill(props: DialogSkillProps) {
         name: skill.skillId,
         description: skill.description || skill.name,
       })),
-      ...(skills() ?? []).filter((skill) => !skill.name.startsWith("course:")),
+      ...(skills() ?? []).filter((skill) => !CourseSkillName.isCourse(skill.name)),
     ]
     const maxWidth = Math.max(0, ...list.map((s) => s.name.length))
     return list.map((skill) => ({

@@ -36,9 +36,14 @@ export const SkillTool = Tool.define(
             always: [params.name],
             metadata: {},
           })
-          if (session) yield* authorize
+          if (session) {
+            const available = yield* skill.available(undefined, session)
+            if (!available.some((entry) => entry.name === params.name))
+              return yield* Effect.die(new Error(`Skill "${params.name}" is not available`))
+            yield* authorize
+          }
           const info = yield* skill
-            .require(params.name, session)
+            .require(params.name, session, ctx.callID)
             .pipe(Effect.catchTag("Skill.NotFoundError", (error) => Effect.die(new Error(error.message))))
 
           if (!session) yield* authorize

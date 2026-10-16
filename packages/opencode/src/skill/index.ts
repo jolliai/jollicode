@@ -98,7 +98,11 @@ type ScanState = {
 
 export interface Interface {
   readonly get: (name: string) => Effect.Effect<Info | undefined>
-  readonly require: (name: string, session?: JolliSkills.Session) => Effect.Effect<Info, NotFoundError | JolliApiError>
+  readonly require: (
+    name: string,
+    session?: JolliSkills.Session,
+    toolCallId?: string,
+  ) => Effect.Effect<Info, NotFoundError | JolliApiError>
   readonly all: () => Effect.Effect<Info[]>
   readonly dirs: () => Effect.Effect<string[]>
   readonly available: (agent?: Agent.Info, session?: JolliSkills.Session, refresh?: boolean) => Effect.Effect<Info[]>
@@ -295,11 +299,15 @@ const layer = Layer.effect(
       return s.skills[name]
     })
 
-    const require = Effect.fn("Skill.require")(function* (name: string, session?: JolliSkills.Session) {
+    const require = Effect.fn("Skill.require")(function* (
+      name: string,
+      session?: JolliSkills.Session,
+      toolCallId?: string,
+    ) {
       if (JolliSkills.isCourse(name)) {
-        if (!session) return yield* new NotFoundError({ name, available: [] })
-        const skill = yield* JolliSkills.load(jolli, session, name)
-        return { name, description: skill.description, location: "<course>", content: JolliSkills.render(skill) }
+        if (!session || !toolCallId) return yield* new NotFoundError({ name, available: [] })
+        const skill = yield* JolliSkills.load(jolli, session, name, toolCallId)
+        return { name, location: "<course>", content: JolliSkills.render(skill) }
       }
       const s = yield* InstanceState.get(state)
       const info = s.skills[name]
@@ -330,7 +338,7 @@ const layer = Layer.effect(
         ),
       )
       const list = [
-        ...Object.values(s.skills).filter((skill) => !JolliSkills.isCourse(skill.name)),
+        ...Object.values(s.skills),
         ...course.map((skill) => ({
           name: skill.toolName,
           description: skill.description || skill.name,
