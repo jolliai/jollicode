@@ -129,6 +129,26 @@ describe("SystemContext", () => {
     }),
   )
 
+  it.effect("uses an optional initial value without erasing an admitted snapshot on later failures", () =>
+    Effect.gen(function* () {
+      const context = SystemContext.make({
+        key: key("core/optional"),
+        codec: Schema.toCodecJson(Schema.String),
+        load: Effect.succeed(SystemContext.unavailable),
+        initial: () => "No remote skills",
+        baseline: String,
+        update: (_before, current) => current,
+      })
+      expect((yield* SystemContext.initialize(context)).baseline).toBe("No remote skills")
+      expect(
+        yield* SystemContext.reconcile(context, { "core/optional": { value: "Previously available skills" } }),
+      ).toEqual({ _tag: "Unchanged" })
+      expect(
+        yield* SystemContext.replace(context, { "core/optional": { value: "Previously available skills" } }),
+      ).toEqual({ _tag: "ReplacementBlocked" })
+    }),
+  )
+
   it.effect("blocks initialization while a source is unavailable", () =>
     Effect.gen(function* () {
       const exit = yield* SystemContext.initialize(

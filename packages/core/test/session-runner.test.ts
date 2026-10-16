@@ -50,6 +50,7 @@ import {
 import { SessionStore } from "@opencode-ai/core/session/store"
 import { SystemContext } from "@opencode-ai/core/system-context"
 import { SystemContextRegistry } from "@opencode-ai/core/system-context/registry"
+import { providerIdFor } from "@opencode-ai/core/jolli/gateway-config"
 import { SkillGuidance } from "@opencode-ai/core/skill/guidance"
 import { ReferenceGuidance } from "@opencode-ai/core/reference/guidance"
 import { ModelV2 } from "@opencode-ai/core/model"
@@ -627,6 +628,32 @@ describe("SessionRunnerLLM", () => {
       expect(yield* session.messages({ sessionID })).toMatchObject([
         { id: message.id, type: "user", text: "Run automatically" },
       ])
+    }),
+  )
+
+  it.effect("reports the bound V2 session and stable user turn to the native gateway", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const database = yield* Database.Service
+      yield* database.db
+        .update(SessionTable)
+        .set({ metadata: { jolli: { courseId: "7", assistantId: "11" } } })
+        .where(eq(SessionTable.id, sessionID))
+        .run()
+        .pipe(Effect.orDie)
+      currentModel = Model.make({ id: "course-model", provider: providerIdFor("openai"), route: OpenAIChat.route })
+      const session = yield* SessionV2.Service
+      yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Use course:quiz" }), resume: false })
+      yield* session.resume(sessionID)
+      const user = (yield* session.messages({ sessionID })).find((message) => message.type === "user")
+      expect(requests.at(-1)?.http?.headers).toMatchObject({
+        "x-jolli-conversation-id": sessionID,
+        "x-jolli-turn-id": user?.id,
+        "x-jolli-attempt-id": user?.id,
+        "x-jolli-space-id": "7",
+        "x-jolli-assistant-id": "11",
+        "x-jolli-step-index": "0",
+      })
     }),
   )
 

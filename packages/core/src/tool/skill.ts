@@ -76,6 +76,9 @@ const layer = Layer.effectDiscard(
             Effect.gen(function* () {
               if (JolliSkills.isCourse(input.name)) {
                 return yield* Effect.gen(function* () {
+                  const session = yield* sessions.get(context.sessionID)
+                  if (!session) return yield* unableToLoad(input.name)
+                  yield* JolliSkills.select(jolli, session, input.name)
                   yield* permission.assert({
                     action: name,
                     resources: [input.name],
@@ -84,9 +87,7 @@ const layer = Layer.effectDiscard(
                     agent: context.agent,
                     source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
                   })
-                  const session = yield* sessions.get(context.sessionID)
-                  if (!session) return yield* unableToLoad(input.name)
-                  const skill = yield* JolliSkills.load(jolli, session, input.name)
+                  const skill = yield* JolliSkills.load(jolli, session, input.name, context.toolCallID)
                   return { name: input.name, directory: "", output: JolliSkills.render(skill) }
                 }).pipe(Effect.mapError((error) => unableToLoad(input.name, error)))
               }

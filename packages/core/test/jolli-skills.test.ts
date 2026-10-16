@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { Effect, Layer, DateTime } from "effect"
+import { Cause, Effect, Layer, DateTime } from "effect"
 import { LLM, Message, ToolCallPart } from "@opencode-ai/llm"
 import { AnthropicMessages } from "@opencode-ai/llm/protocols/anthropic-messages"
 import { OpenAIChat } from "@opencode-ai/llm/protocols/openai-chat"
@@ -34,6 +34,14 @@ import { SessionTable } from "../src/session/sql"
 import { eq } from "drizzle-orm"
 
 const choice = { id: 8, name: "Quiz", command: "quiz", description: "Practice with one question at a time" }
+const reference = {
+  type: "course_skill_ref" as const,
+  messageId: 42,
+  skillId: 8,
+  name: "Quiz",
+  command: "quiz",
+  toolCallId: "course-call",
+}
 const session = { id: "ses_course_a", metadata: { jolli: { courseId: "7", assistantId: "11" } } }
 
 function gateway(handler: (path: string, request: Request) => Response | Promise<Response>) {
@@ -117,16 +125,16 @@ describe("course skill loading", () => {
     }
   })
 
-  test("reports a cold catalog failure instead of inventing an empty catalog", async () => {
-    const remote = gateway(() => Response.json({}, { status: 503 }))
+  test("retries a transient cold failure after the gateway recovers", async () => {
+    let failed = true
+    const remote = gateway(() => (failed ? Response.json({}, { status: 503 }) : Response.json([choice])))
     try {
       const result = await Effect.runPromise(JolliSkills.list(remote.jolli, session).pipe(Effect.result))
       expect(result._tag).toBe("Failure")
       const requests = remote.seen.length
-      expect((await Effect.runPromise(JolliSkills.list(remote.jolli, session).pipe(Effect.result)))._tag).toBe(
-        "Failure",
-      )
-      expect(remote.seen).toHaveLength(requests)
+      failed = false
+      expect(await Effect.runPromise(JolliSkills.list(remote.jolli, session))).toHaveLength(1)
+      expect(remote.seen.length).toBeGreaterThan(requests)
     } finally {
       await remote.server.stop(true)
     }
@@ -164,7 +172,11 @@ describe("course skill loading", () => {
       }
       expect(remote.seen.some((path) => path.includes("assistant-choices"))).toBe(false)
       expect(
-        (await Effect.runPromise(JolliSkills.load(remote.jolli, session, "course:quiz").pipe(Effect.result)))._tag,
+        (
+          await Effect.runPromise(
+            JolliSkills.load(remote.jolli, session, "course:quiz", "course-call").pipe(Effect.result),
+          )
+        )._tag,
       ).toBe("Failure")
       expect(remote.seen.some((path) => path.endsWith("/8"))).toBe(false)
     } finally {
@@ -236,18 +248,11 @@ describe("course skill loading", () => {
     }
   })
 
-  test("escapes skill metadata without rewriting instruction text", () => {
-    const text = JolliSkills.render({
-      ...choice,
-      name: "Quiz <advanced> & 'tips'",
-      command: 'quiz"/><other',
-      instructions: "Use <T> in the example.",
-      updatedAt: "v1",
-    })
-    expect(text).toContain('name="course:quiz&quot;/&gt;&lt;other"')
-    expect(text).toContain("Quiz &lt;advanced&gt;")
-    expect(text).toContain("&amp; &#39;tips&#39;")
-    expect(text).toContain("Use <T> in the example.")
+  test("stores only a private server-message reference in tool history", () => {
+    const text = JolliSkills.render(reference)
+    expect(JSON.parse(text)).toEqual(reference)
+    expect(text).not.toContain("instructions")
+    expect(text).not.toContain("skill_content")
   })
 
   test("publishes the calling session's course catalog through native guidance", async () => {
@@ -257,21 +262,7 @@ describe("course skill loading", () => {
       [
         SkillV2.node,
         Layer.mock(SkillV2.Service, {
-          list: () =>
-            Effect.succeed([
-              {
-                name: "course:quiz",
-                description: "Local shadow",
-                location: AbsolutePath.make("/skills/quiz.md"),
-                content: "Local",
-              },
-              {
-                name: "course:other",
-                description: "Local impersonation",
-                location: AbsolutePath.make("/skills/other.md"),
-                content: "Local",
-              },
-            ]),
+          list: () => Effect.succeed([]),
         }),
       ],
     ])
@@ -313,53 +304,40 @@ describe("course skill loading", () => {
     }
   })
 
-  test("discovers a new session through its bound assistant before the first model request", async () => {
-    const remote = gateway((path) =>
-      path.includes("/convos/")
-        ? Response.json({}, { status: 404 })
-        : Response.json([
-            {
-              id: 11,
-              name: "Tutor",
-              blurb: "",
-              icon: "Sparkles",
-              accent: 0,
-              worksThroughProblems: false,
-              answersFromMaterialsOnly: false,
-              showCitations: false,
-              modelId: "model",
-              allowedModelIds: [],
-              skills: [choice],
-            },
-          ]),
-    )
+  test("creates an unsynced remote session before reading its authorized catalog", async () => {
+    let opened = false
+    const remote = gateway((path, request) => {
+      if (request.method === "POST" && path === "/api/agent/convos") {
+        opened = true
+        return Response.json({})
+      }
+      return opened ? Response.json([choice]) : Response.json({}, { status: 404 })
+    })
     try {
       expect(await Effect.runPromise(JolliSkills.list(remote.jolli, session))).toEqual([
         { ...choice, toolName: "course:quiz" },
       ])
-      expect(remote.seen).toContain("/api/courses/7/assistant-choices")
-      expect(
-        await Effect.runPromise(
-          JolliSkills.list(remote.jolli, { ...session, metadata: { jolli: { courseId: "7", assistantId: "99" } } }),
-        ),
-      ).toEqual([])
+      expect(remote.seen).toEqual([
+        "/api/agent/convos/ses_course_a/skills",
+        "/api/agent/convos",
+        "/api/agent/convos/ses_course_a/skills",
+      ])
+      expect(remote.seen.some((path) => path.includes("assistant-choices"))).toBe(false)
     } finally {
       await remote.server.stop(true)
     }
   })
 
-  test("renews a refused credential and loads the body only on invocation", async () => {
+  test("renews a refused credential and records an invocation without downloading instructions", async () => {
     const remote = gateway((path, request) => {
       if (request.headers.get("authorization") === "Bearer test-token") return Response.json({}, { status: 401 })
-      return Response.json(
-        path.endsWith("/8") ? { ...choice, instructions: "Ask one question.", updatedAt: "v1" } : [choice],
-      )
+      return Response.json(path.endsWith("/invocations") ? reference : [choice])
     })
     try {
-      const loaded = await Effect.runPromise(JolliSkills.load(remote.jolli, session, "course:quiz"))
-      expect(loaded.instructions).toBe("Ask one question.")
+      const loaded = await Effect.runPromise(JolliSkills.load(remote.jolli, session, "course:quiz", "course-call"))
+      expect(loaded).toEqual(reference)
       expect(JolliSkills.render(loaded)).not.toContain("Base directory")
-      expect(remote.seen.filter((path) => path.endsWith("/8"))).toHaveLength(2)
+      expect(remote.seen.filter((path) => path.endsWith("/invocations"))).toHaveLength(2)
     } finally {
       await remote.server.stop(true)
     }
@@ -369,7 +347,7 @@ describe("course skill loading", () => {
     const remote = gateway(() => Response.json([]))
     try {
       const result = await Effect.runPromise(
-        JolliSkills.load(remote.jolli, session, "course:other").pipe(Effect.result),
+        JolliSkills.load(remote.jolli, session, "course:other", "course-call").pipe(Effect.result),
       )
       expect(result._tag).toBe("Failure")
       expect(remote.seen).toEqual(["/api/agent/convos/ses_course_a/skills"])
@@ -378,11 +356,11 @@ describe("course skill loading", () => {
     }
   })
 
-  test("returns native skill results whose earlier content survives later edits", async () => {
-    let instructions = "Ask one question."
+  test("returns native reference results whose earlier snapshot identity survives later invocations", async () => {
+    let messageId = 42
     let permitted = true
     const remote = gateway((path) =>
-      Response.json(path.endsWith("/8") ? { ...choice, instructions, updatedAt: "v1" } : [choice]),
+      Response.json(path.endsWith("/invocations") ? { ...reference, messageId } : [choice]),
     )
     await using directory = await tmpdir()
     const info = SessionV2.Info.make({
@@ -419,10 +397,11 @@ describe("course skill loading", () => {
           const first = yield* settleTool(registry, input)
           const snapshot = JSON.stringify(first.output)
           expect(first.result).toMatchObject({ type: "text" })
-          expect(snapshot).toContain("Ask one question.")
-          instructions = "Ask ten questions."
+          expect(snapshot).toContain("42")
+          expect(snapshot).not.toContain("instructions")
+          messageId = 43
           const second = yield* settleTool(registry, { ...input, call: { ...input.call, id: "course-call-two" } })
-          expect(JSON.stringify(second.output)).toContain("Ask ten questions.")
+          expect(JSON.stringify(second.output)).toContain("43")
           expect(JSON.stringify(first.output)).toBe(snapshot)
           const requests = remote.seen.length
           permitted = false
@@ -437,7 +416,7 @@ describe("course skill loading", () => {
   })
 
   test("replays the same saved body through all supported text protocols", async () => {
-    const body = JolliSkills.render({ ...choice, instructions: "Ask one question.", updatedAt: "v1" })
+    const body = JolliSkills.render(reference)
     for (const route of [
       AnthropicMessages.route,
       OpenAIChat.route,
@@ -462,8 +441,128 @@ describe("course skill loading", () => {
           }),
         ),
       )
-      expect(JSON.stringify(prepared.body)).toContain("Ask one question.")
+      expect(JSON.stringify(prepared.body)).toContain("course_skill_ref")
+      expect(JSON.stringify(prepared.body)).not.toContain("instructions")
       expect(JSON.stringify(prepared.body)).toContain("call-quiz")
+    }
+  })
+  test("isolates concurrent callers from the first caller's authentication deadline", async () => {
+    const release = Promise.withResolvers<void>()
+    const remote = gateway(async () => {
+      await release.promise
+      return Response.json([choice])
+    })
+    const jolli = {
+      ...remote.jolli,
+      request: () => Effect.sleep("250 millis").pipe(Effect.andThen(remote.jolli.request())),
+    }
+    try {
+      const first = Effect.runPromiseExit(JolliSkills.list(jolli, session))
+      await Bun.sleep(300)
+      const second = Effect.runPromiseExit(JolliSkills.list(jolli, session))
+      const exits = await Promise.all([first, second])
+      for (const exit of exits) {
+        expect(exit._tag).toBe("Failure")
+        if (exit._tag === "Failure") expect(Cause.hasInterrupts(exit.cause)).toBe(false)
+      }
+      expect(remote.seen).toHaveLength(1)
+    } finally {
+      release.resolve()
+      await remote.server.stop(true)
+    }
+  }, 10000)
+
+  test("initializes with local guidance when the first course catalog request fails", async () => {
+    const remote = gateway(() => Response.json({}, { status: 502 }))
+    const layer = AppNodeBuilder.build(SkillGuidance.node, [
+      [JolliSession.node, Layer.succeed(JolliSession.Service, remote.jolli)],
+      [
+        SkillV2.node,
+        Layer.mock(SkillV2.Service, {
+          list: () =>
+            Effect.succeed([
+              {
+                name: "local",
+                description: "Local guidance",
+                location: AbsolutePath.make("/skills/local.md"),
+                content: "Local",
+              },
+            ]),
+        }),
+      ],
+    ])
+    const agent = AgentV2.Info.empty(AgentV2.ID.make("build"))
+    try {
+      const initialized = await Effect.runPromise(
+        Effect.gen(function* () {
+          const guidance = yield* SkillGuidance.Service
+          return yield* guidance
+            .load({ id: agent.id, info: agent }, session)
+            .pipe(Effect.flatMap(SystemContext.initialize))
+        }).pipe(Effect.provide(layer), Effect.scoped),
+      )
+      expect(initialized.baseline).toContain("Local guidance")
+      expect(initialized.baseline).not.toContain("course:quiz")
+    } finally {
+      await remote.server.stop(true)
+    }
+  })
+
+  test("does not contact the gateway when all skills are denied", async () => {
+    const remote = gateway(() => Response.json({}, { status: 502 }))
+    const layer = AppNodeBuilder.build(SkillGuidance.node, [
+      [JolliSession.node, Layer.succeed(JolliSession.Service, remote.jolli)],
+      [
+        SkillV2.node,
+        Layer.mock(SkillV2.Service, {
+          list: () =>
+            Effect.succeed([
+              {
+                name: "local",
+                description: "Local guidance",
+                location: AbsolutePath.make("/skills/local.md"),
+                content: "Local",
+              },
+            ]),
+        }),
+      ],
+    ])
+    const agent = {
+      ...AgentV2.Info.empty(AgentV2.ID.make("build")),
+      permissions: [{ action: "skill", resource: "*", effect: "deny" as const }],
+    }
+    try {
+      const initialized = await Effect.runPromise(
+        Effect.gen(function* () {
+          const guidance = yield* SkillGuidance.Service
+          return yield* guidance
+            .load({ id: agent.id, info: agent }, session)
+            .pipe(Effect.flatMap(SystemContext.initialize))
+        }).pipe(Effect.provide(layer), Effect.scoped),
+      )
+      expect(initialized.baseline).toBe("")
+      expect(remote.seen).toEqual([])
+    } finally {
+      await remote.server.stop(true)
+    }
+  })
+
+  test("a refused invocation invalidates only its own session catalog", async () => {
+    const remote = gateway((path) =>
+      path.endsWith("/invocations") ? Response.json({}, { status: 403 }) : Response.json([choice]),
+    )
+    const other = { ...session, id: "ses_other" }
+    try {
+      await Effect.runPromise(JolliSkills.list(remote.jolli, session))
+      await Effect.runPromise(JolliSkills.list(remote.jolli, other))
+      await Effect.runPromiseExit(JolliSkills.load(remote.jolli, session, "course:quiz", "course-call"))
+      const before = remote.seen.length
+      expect(await Effect.runPromise(JolliSkills.list(remote.jolli, other))).toHaveLength(1)
+      expect(remote.seen).toHaveLength(before)
+      await Effect.runPromise(JolliSkills.list(remote.jolli, session))
+      expect(remote.seen).toHaveLength(before + 1)
+    } finally {
+      await remote.server.stop(true)
     }
   })
 })

@@ -1,3 +1,4 @@
+import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 import { ImagePreview } from "@opencode-ai/ui/image-preview"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { ProviderIcon } from "@opencode-ai/ui/provider-icon"
@@ -502,7 +503,7 @@ export function usePromptInputV2Controller(props: PromptInputV2ControllerProps):
           type: "custom" as const,
         })),
         ...sync()
-          .data.command.filter((item) => !item.name.startsWith("course:"))
+          .data.command.filter((item) => !CourseSkillName.isCourse(item.name))
           .map((item) => ({
             id: `custom.${item.name}`,
             trigger: item.name,

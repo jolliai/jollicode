@@ -1,3 +1,4 @@
+import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 import type { BoxRenderable, TextareaRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { pathToFileURL } from "bun"
 import fuzzysort from "fuzzysort"
@@ -464,7 +465,7 @@ export function Autocomplete(props: {
     }
 
     for (const serverCommand of sync.data.command) {
-      if (serverCommand.source === "skill" || serverCommand.name.startsWith("course:")) continue
+      if (serverCommand.source === "skill" || CourseSkillName.isCourse(serverCommand.name)) continue
       const label = serverCommand.source === "mcp" ? ":mcp" : ""
       results.push({
         display: "/" + serverCommand.name + label,

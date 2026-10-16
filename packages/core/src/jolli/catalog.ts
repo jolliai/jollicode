@@ -1,3 +1,4 @@
+import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 /**
  * TURNING WHAT JOLLI EDU RETURNS INTO WHAT THIS PRODUCT RENDERS.
  *
@@ -295,7 +296,7 @@ export function toAssistant(input: {
     // The gateway serves no rubric; every assistant rests on the shape's own default.
     coaching: Jolli.STANDARD_RUBRIC,
     skills: (input.choice.skills ?? []).map((skill) => ({
-      skillId: `course:${skill.command}`,
+      skillId: CourseSkillName.nameOf(skill.command),
       name: skill.name,
       description: skill.description,
       instructions: "",

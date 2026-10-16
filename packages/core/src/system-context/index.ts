@@ -33,6 +33,8 @@ export interface Source<A> {
   readonly key: Key
   readonly codec: Schema.Codec<A, Schema.Json, never, never>
   readonly load: Effect.Effect<A | Unavailable>
+  /** An optional baseline value when the first observation is unavailable. */
+  readonly initial?: () => A
   readonly baseline: (current: A) => string
   readonly update: (previous: A, current: A) => string
   readonly removed?: (previous: A) => string
@@ -97,6 +99,7 @@ export class DuplicateKeyError extends Schema.TaggedErrorClass<DuplicateKeyError
 }
 
 interface PackedSource {
+  readonly initial?: () => Loaded
   readonly key: Key
   readonly load: Effect.Effect<Loaded | Unavailable>
 }
@@ -136,38 +139,34 @@ export function make<A>(source: Source<A>): SystemContext {
   const decode = Schema.decodeUnknownOption(source.codec)
   const encode = Schema.encodeSync(source.codec)
   const equivalent = Schema.toEquivalence(source.codec)
+  const pack = (value: A): Loaded => {
+    const snapshot = (): SourceSnapshot => ({
+      value: encode(value),
+      ...(source.removed ? { removed: requireText(source.key, "removal", source.removed(value)) } : {}),
+    })
+    return {
+      baseline: () => ({ text: requireText(source.key, "baseline", source.baseline(value)), snapshot: snapshot() }),
+      compare: (previous) =>
+        Option.match(decode(previous), {
+          onNone: (): Compared => ({ _tag: "Incompatible" }),
+          onSome: (decoded): Compared =>
+            equivalent(decoded, value)
+              ? { _tag: "Unchanged" }
+              : {
+                  _tag: "Updated",
+                  render: () => ({
+                    text: requireText(source.key, "update", source.update(decoded, value)),
+                    snapshot: snapshot(),
+                  }),
+                },
+        }),
+    }
+  }
   return context([
     {
       key: source.key,
-      load: source.load.pipe(
-        Effect.map((value) => {
-          if (isUnavailable(value)) return value
-          const snapshot = (): SourceSnapshot => ({
-            value: encode(value),
-            ...(source.removed ? { removed: requireText(source.key, "removal", source.removed(value)) } : {}),
-          })
-          return {
-            baseline: (): Rendered => ({
-              text: requireText(source.key, "baseline", source.baseline(value)),
-              snapshot: snapshot(),
-            }),
-            compare: (previous): Compared =>
-              Option.match(decode(previous), {
-                onNone: (): Compared => ({ _tag: "Incompatible" }),
-                onSome: (decoded): Compared =>
-                  equivalent(decoded, value)
-                    ? { _tag: "Unchanged" }
-                    : {
-                        _tag: "Updated",
-                        render: () => ({
-                          text: requireText(source.key, "update", source.update(decoded, value)),
-                          snapshot: snapshot(),
-                        }),
-                      },
-              }),
-          }
-        }),
-      ),
+      ...(source.initial ? { initial: () => pack(source.initial!()) } : {}),
+      load: source.load.pipe(Effect.map((value) => (isUnavailable(value) ? value : pack(value)))),
     },
   ])
 }
@@ -179,24 +178,24 @@ export function combine(values: ReadonlyArray<SystemContext>): SystemContext {
   return context(sources)
 }
 
-const observe = (value: SystemContext) =>
+const observe = (value: SystemContext, initializing = false) =>
   Effect.forEach(
     value[ContextTypeId],
     (source) =>
       source.load.pipe(
-        Effect.map(
-          (result): Entry =>
-            result === unavailable
-              ? { _tag: "Unavailable", key: source.key }
-              : { _tag: "Available", key: source.key, ...result },
-        ),
+        Effect.map((result): Entry => {
+          const loaded = result === unavailable && initializing && source.initial ? source.initial() : result
+          return loaded === unavailable
+            ? { _tag: "Unavailable", key: source.key }
+            : { _tag: "Available", key: source.key, ...loaded }
+        }),
       ),
     { concurrency: "unbounded" },
   )
 
 /** Creates the immutable baseline and durable snapshot for a new generation. */
 export function initialize(value: SystemContext): Effect.Effect<Generation, InitializationBlocked> {
-  return observe(value).pipe(
+  return observe(value, true).pipe(
     Effect.flatMap((entries) => {
       const unavailable = entries.flatMap((entry) => (entry._tag === "Unavailable" ? [entry.key] : []))
       if (unavailable.length > 0) return new InitializationBlocked({ keys: unavailable })

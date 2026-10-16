@@ -10,7 +10,9 @@ Skills are loaded on-demand via the native `skill` tool—agents see available s
 
 A session bound to a Jolli Edu course assistant also offers that assistant's skills. These use names such as `course:quiz` to keep them separate from project and personal skills. Type `/course:quiz` or ask the agent to use the listed skill.
 
-The catalog includes names and descriptions only. The native `skill` tool fetches instructions over the authenticated Jolli Edu session API when invoked, then stores the returned text in ordinary tool history. Course skills require no MCP server and create no local skill files. Their instructions are present in the coding client's history; referenced local scripts or assets are not supplied by this feature. Each new user message refreshes the catalog, while automatic tool steps reuse its metadata. Temporary gateway failures preserve the previous catalog; authorization refusals invalidate it. Loading instructions always checks current session access. The `course:` prefix is reserved, so local skills, custom commands and MCP prompts cannot register names in that namespace.
+The catalog includes names and descriptions only. The native `skill` tool records an invocation through the authenticated Jolli Edu session API and stores only the returned server-message reference in ordinary tool history. The gateway restores the private instructions from that immutable `AgentMessage` snapshot when it forwards a model request. Instructions never reach the coding client, and edits or deletion do not rewrite earlier snapshots. Course skills require no MCP server and create no local skill files.
+
+Each new user message refreshes the catalog, while automatic tool steps reuse metadata. Temporary gateway failures preserve the previous catalog; an initial failure keeps local skills available. Authorization refusals invalidate only the affected session's catalog. The `course:` prefix is reserved, so local skills, custom commands and MCP prompts cannot register names in that namespace.
 
 ---
 

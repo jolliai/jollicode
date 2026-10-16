@@ -8,6 +8,8 @@ import {
   isContextOverflowFailure,
   type ProviderErrorEvent,
 } from "@opencode-ai/llm"
+import { courseBindingOf } from "../../jolli/binding"
+import { jolliCodingAgentHeaders } from "../../jolli/coding-headers"
 import { Cause, DateTime, Effect, FiberSet, Layer, Option, Semaphore, Stream } from "effect"
 import { AgentV2 } from "../../agent"
 import { Config } from "../../config"
@@ -205,6 +207,8 @@ const layer = Layer.effect(
       const model = yield* models.resolve(session)
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)
+      const user = context.findLast((message) => message.type === "user")
+      const binding = courseBindingOf(session)
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
       const toolMaterialization = isLastStep ? undefined : yield* tools.materialize(agent.info?.permissions)
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
@@ -214,6 +218,17 @@ const layer = Layer.effect(
           headers: {
             "x-session-affinity": session.id,
             "X-Session-Id": session.id,
+            ...jolliCodingAgentHeaders({
+              providerID: model.provider,
+              sessionID: session.id,
+              parentSessionID: session.parentID,
+              turnID: user?.id,
+              clientAttemptID: user?.id,
+              stepIndex: currentStep - 1,
+              courseID: binding?.courseId,
+              courseAssistantID: binding?.assistantId,
+              modelID: session.model?.id,
+            }),
             ...(session.parentID ? { "x-parent-session-id": session.parentID } : {}),
           },
         },

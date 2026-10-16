@@ -57,8 +57,17 @@ const layer = Layer.effect(
       load: Effect.fn("SkillGuidance.load")(function* (selection, session, refresh = false) {
         const agent = selection.info
         if (!agent) return SystemContext.empty
-        const local = (yield* skills.list()).filter((skill) => !JolliSkills.isCourse(skill.name))
-        if (local.length === 0 && PermissionV2.evaluate("skill", "*", agent.permissions).effect === "deny")
+        const local = SkillV2.available(yield* skills.list(), agent)
+        const exceptions = agent.permissions.some(
+          (rule) =>
+            rule.effect !== "deny" &&
+            PermissionV2.evaluate("skill", rule.resource, agent.permissions).effect !== "deny",
+        )
+        if (
+          local.length === 0 &&
+          !exceptions &&
+          PermissionV2.evaluate("skill", "*", agent.permissions).effect === "deny"
+        )
           return SystemContext.empty
         const available = (course: JolliSkills.Summary[]) =>
           SkillV2.available(
@@ -75,6 +84,7 @@ const layer = Layer.effect(
         return SystemContext.make({
           key: SystemContext.Key.make("core/skill-guidance"),
           codec: Schema.toCodecJson(Schema.Array(Summary)),
+          initial: () => available([]),
           load: JolliSkills.list(jolli, session, refresh).pipe(
             Effect.map(available),
             Effect.catch((error) =>

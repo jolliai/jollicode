@@ -1,3 +1,4 @@
+import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 import {
   BoxRenderable,
   RGBA,
@@ -1199,7 +1200,7 @@ export function Prompt(props: PromptProps) {
       setStore("mode", "normal")
     } else if (
       inputText.startsWith("/") &&
-      !inputText.startsWith("/course:") &&
+      !CourseSkillName.isCourse(inputText.slice(1)) &&
       sync.data.command.some((x) => x.name === inputText.split("\n")[0].split(" ")[0].slice(1))
     ) {
       move.startSubmit()
