@@ -197,6 +197,7 @@ async function mount(
   return {
     app,
     state,
+    events,
     get jolli() {
       return jolli
     },
@@ -219,6 +220,45 @@ async function until(fn: () => boolean, timeout = 2000) {
 }
 
 const ids = (list: readonly { id: string }[]) => list.map((item) => item.id)
+
+/** A turn the provider failed, as the session reports it, carrying `responseBody` from the gateway. */
+const turnFailed = (responseBody: string) => ({
+  directory,
+  project: "proj_test",
+  payload: {
+    id: "evt_error",
+    type: "session.error" as const,
+    properties: {
+      sessionID: SESSION_ID,
+      error: { name: "APIError" as const, data: { message: "Forbidden", isRetryable: false, responseBody } },
+    },
+  },
+})
+
+/**
+ * ⚠ THE SIDECAR LEARNED OF THE CLOSURE FROM THE TURN; THE LIST HERE DID NOT. Asking again past the
+ * server's cache is what stops the next new chat being staged on the same closed assistant.
+ */
+test("a turn the gateway refused asks for the catalogue again, and nothing else does", async () => {
+  let fresh = 0
+  const view = await mount({
+    catalogFor: (url) => {
+      if (url.searchParams.get("fresh") === "true") fresh++
+      return catalog()
+    },
+  })
+  try {
+    view.events.emit(turnFailed(JSON.stringify({ error: "Too many requests", code: "rate_limited" })))
+    view.events.emit(turnFailed("Bad Gateway"))
+    await Bun.sleep(50)
+    expect(fresh).toBe(0)
+
+    view.events.emit(turnFailed(JSON.stringify({ error: "This agent has closed.", code: "assistant_closed" })))
+    await until(() => fresh === 1)
+  } finally {
+    view.close()
+  }
+})
 
 test("a student is offered only the assistants open right now", async () => {
   const view = await mount()

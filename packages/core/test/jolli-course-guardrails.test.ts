@@ -104,6 +104,40 @@ describe("JolliCourseGuardrails.ofBinding", () => {
     expect(guardrails).toMatchObject({ showCitations: true })
   })
 
+  /**
+   * ⚠ OFF THE STORED ROW, NEVER `request()`. That renews a token near its expiry — a round trip to
+   * the auth hub in front of creating the session a student's first message goes into.
+   */
+  test("reads whether the bound assistant speaks first, without asking for a fresh token", async () => {
+    const origin = "https://course-guardrails-opens.jolli.dev"
+    await seedCatalog(origin, { "7": [{ ...choice(12, false), opensConversation: true }, choice(13, false)] })
+    const session = JolliSession.Service.of({
+      ...signedIn(() => Effect.die("a fresh token was asked for")),
+      current: () =>
+        Effect.succeed({
+          id: "row",
+          subject: null,
+          email: null,
+          base_url: origin,
+          access_token: "expiring-jwt",
+          refresh_token: "refresh",
+          token_expiry: Date.now(),
+          cache_key: "student-a",
+          time_created: 0,
+          time_updated: 0,
+        }),
+    })
+    const opens = (assistantId: string) =>
+      Effect.runPromise(
+        JolliCourseGuardrails.opensConversation({ courseId: "7", assistantId }).pipe(
+          Effect.provideService(JolliSession.Service, session),
+        ),
+      )
+    expect(await opens("12")).toBe(true)
+    expect(await opens("13")).toBe(false)
+    expect(await opens("99")).toBeUndefined()
+  })
+
   test("does not know anything, and does not fail, when the credential cannot be read", async () => {
     const guardrails = await Effect.runPromise(
       JolliCourseGuardrails.ofBinding(binding).pipe(

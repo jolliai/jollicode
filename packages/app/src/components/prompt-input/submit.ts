@@ -229,6 +229,8 @@ export type NewSessionRequest<Failure> = {
   autoAccept: boolean
   /** The binding the session was made under, for a caller whose draft may change while it waits. */
   binding?: CourseBinding
+  /** Where an earlier try already made the session, in place of the draft's worktree choice. */
+  directory?: string
   /**
    * Makes the session in `target.directory`, or says why it did not. Nothing is promoted without a
    * session, and the reason comes back on the `not-created` result.
@@ -307,7 +309,7 @@ export function createNewSession(input: NewSessionWorktreeInput) {
   return async <Failure>(request: NewSessionRequest<Failure>): Promise<NewSessionResult<Failure>> => {
     const projectDirectory = sdk().directory
     const permissionState = permission.currentServerState()
-    const worktreeSelection = input.newSessionWorktree?.() || "main"
+    const worktreeSelection = request.directory ?? (input.newSessionWorktree?.() || "main")
     /**
      * ⚠ THE SCREEN THE REQUEST CAME FROM IS READ NOW, BEFORE ANYTHING IS AWAITED. A Start can wait
      * up to 45 seconds on the gateway; read afterwards, the route answers with wherever the student
@@ -393,16 +395,55 @@ export function createNewSession(input: NewSessionWorktreeInput) {
 }
 
 /**
- * ⚠ A START THAT GOT NO ANSWER IS RETRIED UNDER THE SAME ID. The gateway may have made the
- * conversation all the same, and asked again under that id it answers with it; a fresh id would
- * leave that one orphaned. A refusal or a rejected request made nothing, and a different binding is
- * a different conversation, so each starts over with a new one — see `settleStart`.
+ * ⚠ A START NOT SEEN THROUGH IS RETRIED UNDER THE SAME ID. One that got no answer may have made the
+ * conversation on the gateway all the same, and one that was answered may have made the session and
+ * then failed to move the screen onto it; asked again under that id, the sidecar answers with what
+ * it already made, where a fresh id would make a second conversation beside it. A refusal or a
+ * rejected request made nothing, and a different binding is a different conversation, so each starts
+ * over with a new one — see `settleStart`. Only a Start that ended on its session lets the id go.
+ *
+ * ⚠ AN ANSWERED ONE IS RETRIED ONLY FROM THE DRAFT THAT PRESSED IT. Its session is already in the
+ * sidebar, where the student may open it and carry on; another draft — a second tab, or a new chat
+ * later — handed that id would land in the old conversation instead of a new one. An unanswered one
+ * made nothing the student can see, so any draft with the same binding may adopt it. Once answered,
+ * an id stays answered: a retry that then got no answer has not unmade the session.
+ *
+ * ⚠ AND AN ANSWERED ONE IN THE DIRECTORY IT WAS MADE IN. The sidecar answers a known id with the
+ * session it already made, wherever that lives, and a draft's worktree choice is reset once a session
+ * exists — so a retry that followed the choice would file a worktree's session under the main
+ * checkout. An unanswered one follows the draft that adopts it, which may be in another project.
+ *
+ * ⚠ ONE PER ID, NOT ONE PER SERVER. A draft whose answered Start awaits its retry keeps its id when
+ * another draft presses Start meanwhile; a single slot handed that id's place to the other draft.
  *
  * ⚠ KEPT PER SERVER AT MODULE SCOPE, NOT IN THE COMPOSER. A composer is remounted whenever its tab
  * is left and reopened, and a retry from the remounted one under a fresh id was exactly the orphan
  * this exists to prevent.
+ *
+ * ⚠ AND FOR {@link RETRY_TTL_MS} AFTER THE LAST TRY. Nothing else retires an id whose draft was closed,
+ * and an unanswered one left for hours would be adopted by a new chat long after anyone pressed
+ * Start for it. Past that a press starts over: at worst one more conversation on the gateway.
+ *
+ * ⚠ TWO MISSING DRAFT IDS NEVER MEET, SO THEY ARE NOT GUARDED AGAINST. Start is only ever on a draft
+ * at `/new-session?draftId=…`; the old interface, whose `/:dir/session` had none, is pinned off
+ * (`newLayoutDesigns` in context/settings.tsx) and that route redirects to a draft. Should it come
+ * back, "the draft that pressed it" needs a key of its own there.
  */
-const unanswered = new Map<string, CourseBinding & { sessionID: string }>()
+const unfinished = new Map<
+  string,
+  Array<CourseBinding & { sessionID: string; answered: boolean; draftID?: string; directory: string; at: number }>
+>()
+
+/** How long a Start not seen through is kept for a retry. */
+const RETRY_TTL_MS = 10 * 60_000
+
+/** Let `sessionID` go: it ended on its session, or made nothing to come back to. */
+function settled(scope: string, sessionID: string) {
+  unfinished.set(
+    scope,
+    (unfinished.get(scope) ?? []).filter((entry) => entry.sessionID !== sessionID),
+  )
+}
 
 /**
  * START A CHAT WHOSE AGENT SPEAKS FIRST: WHAT THE COMPOSER'S START BUTTON DOES.
@@ -429,6 +470,7 @@ export function createSessionStart(
   const courseSession = useCourseSession()
   const language = useLanguage()
   const sdk = useSDK()
+  const [search] = useSearchParams<{ draftId?: string }>()
   const newSession = createNewSession(input)
 
   return async () => {
@@ -449,14 +491,21 @@ export function createSessionStart(
     courseSession.draft.setStartError(undefined)
     courseSession.draft.setStarting(true)
     const scope = sdk().scope
-    const retry = unanswered.get(scope)
-    const sessionID = sameBinding(retry, binding) ? retry.sessionID : Identifier.descending("session")
+    const draftID = search.draftId
+    const now = Date.now()
+    const retries = (unfinished.get(scope) ?? []).filter((entry) => now - entry.at < RETRY_TTL_MS)
+    unfinished.set(scope, retries)
+    const reused =
+      retries.find((entry) => entry.draftID === draftID && sameBinding(entry, binding)) ??
+      retries.find((entry) => !entry.answered && sameBinding(entry, binding))
+    const sessionID = reused?.sessionID ?? Identifier.descending("session")
     const result = await newSession({
       agent: currentAgent.name,
       model: { providerID: currentModel.provider.id, modelID: currentModel.id },
       variant,
       autoAccept: input.autoAccept(),
       binding,
+      directory: reused?.answered ? reused.directory : undefined,
       create: async (target) => {
         const answer = await settleStart(
           target.client.session.jolliStart({
@@ -468,23 +517,47 @@ export function createSessionStart(
             model: { id: currentModel.id, providerID: currentModel.provider.id, variant },
           }),
         )
-        if (answer.unanswered) unanswered.set(scope, { ...binding, sessionID })
-        else unanswered.delete(scope)
+        const before = (unfinished.get(scope) ?? []).find((entry) => entry.sessionID === sessionID)
+        settled(scope, sessionID)
+        if (answer.unanswered || answer.result?.status === "started")
+          unfinished.get(scope)?.push({
+            ...binding,
+            sessionID,
+            answered: !answer.unanswered || !!before?.answered,
+            draftID,
+            directory: target.directory,
+            at: Date.now(),
+          })
         if (answer.result?.status === "started") return { session: normalizeSessionInfo(answer.result.session) }
         if (answer.result?.status === "refused") refreshCatalog()
         return { failure: startErrorKey(answer.result?.status === "refused" ? answer.result.code : undefined) }
       },
     })
+      .then((result) => {
+        if (result.status === "created") settled(scope, sessionID)
+        return result
+      })
       /**
        * ⚠ A THROW AFTER THE SIDECAR ANSWERED IS STILL A FAILED START ON SCREEN. `settleStart` catches
        * the request itself; this catches the promote around it, which otherwise only reset
-       * `starting` and left the student looking at a Start row that had silently done nothing.
+       * `starting` and left the student looking at a Start row that had silently done nothing. The
+       * session may exist by then, which is why its id is still kept: the next press reattaches to
+       * it rather than making another.
        */
-      .catch(() => ({ status: "not-created" as const, directory: sdk().directory, failure: startErrorKey(undefined) }))
+      .catch((err) => {
+        console.error("Starting the chat failed", err)
+        return { status: "not-created" as const, directory: sdk().directory, failure: startErrorKey(undefined) }
+      })
       .finally(() => courseSession.draft.setStarting(false))
     if (result.status === "not-created") courseSession.draft.setStartError(result.failure)
     return result
   }
+}
+
+/** The HTTP status the SDK put under `cause` when it threw, or undefined when it got no answer. */
+function httpStatus(err: unknown) {
+  if (!(err instanceof Error) || typeof err.cause !== "object" || err.cause === null) return undefined
+  return "status" in err.cause && typeof err.cause.status === "number" ? err.cause.status : undefined
 }
 
 /** The message on whatever was thrown, or `fallback` when it carries none. */
@@ -699,6 +772,14 @@ export function createPromptSubmit(input: PromptSubmitInput) {
             })
             .then((info) => ({ session: normalizeSessionInfo(info) }))
             .catch((err) => {
+              /**
+               * ⚠ A BOUND CREATE REFUSED AS A BAD REQUEST REFRESHES THE CATALOGUE. The server judges a
+               * new binding by the snapshot on disk, which can be newer than the list on screen: an
+               * assistant switched to speak first is refused here, and only a fresh list puts Start
+               * where this composer is. The 400 carries no reason (`HttpApiError.BadRequest` has no
+               * body), so any 400 for a bound create is taken as that — a spare refresh at worst.
+               */
+              if (courseSession.current() && httpStatus(err) === 400) refreshCatalog()
               showToast({
                 title: language.t("prompt.toast.sessionCreateFailed.title"),
                 description: errorMessage(err),

@@ -15,6 +15,8 @@
  * words. "No longer available" and "archived" have no web counterpart yet.
  */
 
+import { Option, Schema } from "effect"
+
 /** A turn refused in a chat that already exists — what the provider error says. */
 export const TURN_REFUSAL = {
   assistant_not_open: "This agent isn't open yet.",
@@ -47,4 +49,12 @@ export function startRefusalMessage(code: unknown) {
 
 export function isRefusalCode(code: unknown): code is RefusalCode {
   return typeof code === "string" && Object.hasOwn(TURN_REFUSAL, code)
+}
+
+const decodeCode = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Struct({ code: Schema.String })))
+
+/** The refusal code a gateway error body carries, or undefined for any other body. */
+export function refusalCodeOf(body: unknown) {
+  const code = Option.getOrUndefined(decodeCode(body))?.code
+  return isRefusalCode(code) ? code : undefined
 }

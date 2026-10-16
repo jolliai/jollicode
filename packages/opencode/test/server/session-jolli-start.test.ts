@@ -1,12 +1,19 @@
-import { describe, expect, test } from "bun:test"
+import { afterEach, describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
 import { HttpClient, HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 import type { GatewayRequest } from "@opencode-ai/core/jolli/api"
+import { projectCatalog } from "@opencode-ai/core/jolli/catalog"
+import { JolliClosedAssistants } from "@opencode-ai/core/jolli/closed-assistants"
 import type { Session } from "../../src/session/session"
 import { SessionID } from "../../src/session/schema"
 import { startJolliSession } from "../../src/server/routes/instance/httpapi/handlers/session"
 
+// A refusal is process memory; one left behind would close the same assistant for every later test.
+afterEach(() => JolliClosedAssistants.reset())
+
 const REQUEST: GatewayRequest = { origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }
+/** The directory every Start here is asked in, unless a test says otherwise. */
+const DIRECTORY = "/repo/main"
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } })
@@ -41,9 +48,11 @@ function harness(
   const start = (
     payload: { courseId: string; assistantId: string; agent?: string; sessionID?: SessionID },
     request = REQUEST,
+    directory = DIRECTORY,
   ) =>
     startJolliSession({
       payload,
+      directory,
       gateway: {
         request: () => Effect.succeed(request),
         refused: (token) => Effect.sync(() => renewed.push(token)).pipe(Effect.as(token)),
@@ -52,8 +61,8 @@ function harness(
       create: (input) =>
         Effect.sync(() => {
           created.push(input)
-          // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- only `id` and `metadata` are read back.
-          const session = { id: input.id, metadata: input.metadata } as unknown as Session.Info
+          // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- only `id`, `directory` and `metadata` are read back.
+          const session = { id: input.id, directory, metadata: input.metadata } as unknown as Session.Info
           sessions.push(session)
           return session
         }),
@@ -109,6 +118,58 @@ describe("startJolliSession", () => {
     expect(h.created).toEqual([])
   })
 
+  /**
+   * ⚠ A CLOSED REFUSAL OUTLIVES THE REQUEST. A clock behind the gateway's reads the same window as
+   * open after every refresh, so the catalogue this process serves next has to say it is closed.
+   */
+  test("an assistant refused as closed is served closed from then on", async () => {
+    const catalog = () =>
+      JolliClosedAssistants.apply(
+        projectCatalog(
+          {
+            courses: [
+              {
+                id: 7,
+                name: "Systems Programming",
+                description: "",
+                code: "CS 310",
+                status: "published",
+                requiresCoding: true,
+                endsOn: null,
+                viewerRole: "course-student",
+                isStaff: false,
+              },
+            ],
+            assistants: {
+              "7": [
+                {
+                  id: 4012,
+                  name: "Tutor",
+                  blurb: "",
+                  icon: "Terminal",
+                  accent: 0,
+                  worksThroughProblems: false,
+                  answersFromMaterialsOnly: false,
+                  showCitations: false,
+                  modelId: "",
+                  allowedModelIds: [],
+                  endsAt: "2999-01-01T00:00:00.000Z",
+                },
+              ],
+            },
+            models: [],
+          },
+          "2026-10-15",
+        ),
+      ).assistants[0]?.endsAt
+    expect(catalog()).toBe("2999-01-01T00:00:00.000Z")
+
+    const h = harness(() => json({ error: "This agent has closed.", code: "assistant_closed" }, 409))
+    await Effect.runPromise(h.start({ courseId: "7", assistantId: "4012" }))
+
+    expect(Date.parse(catalog()!)).toBeLessThanOrEqual(Date.now())
+  })
+
   test("a 404 with no code is an assistant that is gone", async () => {
     const h = harness(() => json({ error: "Not found" }, 404))
     expect(await Effect.runPromise(h.start({ courseId: "7", assistantId: "12" }))).toEqual({
@@ -155,6 +216,7 @@ describe("startJolliSession", () => {
     const result = await Effect.runPromise(
       startJolliSession({
         payload: { courseId: "7", assistantId: "12" },
+        directory: DIRECTORY,
         gateway: { request: () => Effect.succeed(undefined), refused: (token) => Effect.succeed(token) },
         existing: () => Effect.succeed(undefined),
         create: () => Effect.die("must not create"),
@@ -196,14 +258,34 @@ describe("startJolliSession", () => {
   // The first try got as far as the local session, and only its answer was lost.
   test("a retry whose session already exists answers with it and asks nobody", async () => {
     const sessionID = SessionID.descending()
-    // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- only `id` and `metadata` are read.
+    // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- only `id`, `directory` and `metadata` are read.
     const existing = {
       id: sessionID,
+      directory: DIRECTORY,
       metadata: { jolli: { courseId: "7", assistantId: "12" }, jolliOpener: { sessionID, text: "Hi." } },
     } as unknown as Session.Info
     const h = harness(() => json({}), [existing])
     const result = await Effect.runPromise(h.start({ courseId: "7", assistantId: "12", sessionID }))
     expect(result).toEqual({ status: "started", session: existing, opener: true })
+    expect(h.sent).toEqual([])
+    expect(h.created).toEqual([])
+  })
+
+  /**
+   * ⚠ ANSWERED FROM ANOTHER PROJECT, THE CLIENT WOULD FILE THE SESSION THERE. The id was adopted by a
+   * draft elsewhere after the first answer was lost; refused, the client starts over under a new id.
+   */
+  test("a retry from another directory than its session's is a bad request, asked of nobody", async () => {
+    const sessionID = SessionID.descending()
+    // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- only `id`, `directory` and `metadata` are read.
+    const existing = {
+      id: sessionID,
+      directory: "/repo/other",
+      metadata: { jolli: { courseId: "7", assistantId: "12" }, jolliOpener: { sessionID, text: "Hi." } },
+    } as unknown as Session.Info
+    const h = harness(() => json({}), [existing])
+    const exit = await Effect.runPromise(Effect.exit(h.start({ courseId: "7", assistantId: "12", sessionID })))
+    expect(exit._tag).toBe("Failure")
     expect(h.sent).toEqual([])
     expect(h.created).toEqual([])
   })

@@ -45,7 +45,9 @@
  */
 import type { Hooks, PluginInput } from "@opencode-ai/plugin"
 import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
+import { JolliClosedAssistants } from "@opencode-ai/core/jolli/closed-assistants"
 import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
+import { refusalCodeOf } from "@opencode-ai/core/jolli/refusal"
 import { JolliSources } from "@opencode-ai/core/jolli/sources"
 import { Effect, Option, Schema } from "effect"
 import type { EffectBridge } from "@/effect/bridge"
@@ -207,6 +209,23 @@ export async function JolliCourseChatPlugin(
   }
 
   return {
+    /**
+     * ⚠ A TURN REFUSED AS CLOSED IS REMEMBERED THE WAY A REFUSED START IS — see `closed-assistants.ts`.
+     * An assistant that waits to be spoken to is offered by the same clock as one that speaks first,
+     * so a student whose clock trails the gateway's would be handed it, and refused, on every new chat.
+     */
+    event: async ({ event }) => {
+      if (event.type !== "session.error" || event.properties.error?.name !== "APIError") return
+      const sessionID = event.properties.sessionID
+      if (refusalCodeOf(event.properties.error.data.responseBody) !== "assistant_closed" || !sessionID) return
+      const binding = await options.bridge.promise(
+        Effect.gen(function* () {
+          const sessions = yield* Session.Service
+          return courseBindingOf(yield* sessions.get(SessionID.make(sessionID)))
+        }).pipe(Effect.catchCause(() => Effect.succeed(undefined))),
+      )
+      if (binding) JolliClosedAssistants.record(binding.assistantId)
+    },
     "tool.definition": async (input, output) => {
       const projected = projectJolliToolDefinition(input.toolID, output.description, output.parameters)
       output.parameters = projected.parameters

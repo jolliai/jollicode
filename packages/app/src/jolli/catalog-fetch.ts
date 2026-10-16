@@ -13,9 +13,10 @@
  * by that caller's lifecycle.
  */
 
-import { createEffect } from "solid-js"
+import { createEffect, onCleanup } from "solid-js"
 import { useServerSDK } from "@/context/server-sdk"
-import { catalogGeneration, catalogRefreshed, ensureCatalog } from "./catalog"
+import { refusalCodeOf } from "@opencode-ai/core/jolli/refusal"
+import { catalogGeneration, catalogRefreshed, ensureCatalog, refreshCatalog } from "./catalog"
 import type { Catalog } from "./types"
 
 export function useJolliCatalog() {
@@ -35,3 +36,30 @@ export function useJolliCatalog() {
     )
   })
 }
+
+/**
+ * ASK FOR THE CATALOGUE AGAIN WHEN THE GATEWAY REFUSES A TURN, AS A REFUSED START DOES.
+ *
+ * ⚠ THE SIDECAR HAS LEARNED SOMETHING THIS SCREEN HAS NOT. It records a closure and serves that
+ * assistant closed from then on, but the copy held here was fetched before; without asking again the
+ * next new chat is offered the same assistant and refused the same way.
+ *
+ * ⚠ ONE REFRESH PER EVENT, HOWEVER MANY LISTEN. `CourseSessionProvider` calls this, and the draft
+ * route nests two of them — `DirectoryDataProvider`'s and `DraftProviders`' — under one server SDK.
+ * Unlike the fetch above a refresh is not de-duplicated, so each would ask the gateway again; the
+ * SDK hands every listener the same event object, which is what marks it answered.
+ */
+export function useRefusalRefresh() {
+  const serverSDK = useServerSDK()
+  const stop = serverSDK().event.listen((e) => {
+    const event = e.details
+    if (event.type !== "session.error" || event.properties.error?.name !== "APIError") return
+    if (answered.has(event)) return
+    answered.add(event)
+    if (refusalCodeOf(event.properties.error.data.responseBody)) refreshCatalog()
+  })
+  onCleanup(stop)
+}
+
+/** Events {@link useRefusalRefresh} has already looked at. */
+const answered = new WeakSet<object>()

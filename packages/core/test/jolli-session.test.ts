@@ -6,6 +6,7 @@ import { Global } from "@opencode-ai/core/global"
 import { Database } from "@opencode-ai/core/database/database"
 import { AppNodeBuilder } from "@opencode-ai/core/effect/app-node-builder"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import { JolliClosedAssistants } from "@opencode-ai/core/jolli/closed-assistants"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { JolliStore } from "@opencode-ai/core/jolli/store"
 
@@ -549,5 +550,40 @@ describe("JolliSession", () => {
 
     expect(row).toBeUndefined()
     expect(existsSync(snapshot)).toBe(false)
+  })
+
+  // A closure learned for one student is not the next one's to inherit.
+  test("signing out forgets the assistants the gateway refused as closed", async () => {
+    const catalog = { status: "ok" as const, courses: [], assistants: [], modelTiers: {} }
+    JolliClosedAssistants.record("signout-probe")
+    expect(JolliClosedAssistants.apply(catalog)).not.toBe(catalog)
+
+    await run(
+      Effect.gen(function* () {
+        const store = yield* JolliStore.Service
+        const session = yield* JolliSession.Service
+        yield* signedIn(store, Date.now() + 30 * MINUTE)
+        yield* session.signOut()
+      }),
+    )
+
+    // Nothing remembered, so the catalogue is served exactly as it came.
+    expect(JolliClosedAssistants.apply(catalog)).toBe(catalog)
+  })
+
+  // Signing in as somebody else replaces the row without a sign-out ever running.
+  test("signing in forgets the assistants the gateway refused as closed", async () => {
+    const catalog = { status: "ok" as const, courses: [], assistants: [], modelTiers: {} }
+    JolliClosedAssistants.record("signin-probe")
+    expect(JolliClosedAssistants.apply(catalog)).not.toBe(catalog)
+
+    await run(
+      Effect.gen(function* () {
+        const session = yield* JolliSession.Service
+        yield* session.signIn({ token: "access-2", refreshToken: "refresh-2", subject: "usr_2", baseUrl: TENANT })
+      }),
+    )
+
+    expect(JolliClosedAssistants.apply(catalog)).toBe(catalog)
   })
 })
