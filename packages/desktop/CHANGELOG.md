@@ -5,6 +5,13 @@
 ## 0.0.3
 
 - **Windows and Linux installers.** The desktop app is available for Windows and Linux again, alongside macOS. Windows installers are signed.
+- **Assistants that open the conversation.** When a course assistant is set to speak first, press Start and the assistant writes the opening message.
+- **Your teacher's brief** for an assistant shows above the composer before you start a chat.
+- **Closed assistants.** When your teacher closes an assistant, you can still read the chat, and the app tells you it has closed. The course picker shows when no assistant is open right now.
+- **Course skills.** A course assistant's skills show up as `/course:<name>` commands. The assistant loads one only when it needs it.
+- **Sources under answers.** When your course shows citations, the course materials and web pages an answer draws on are listed under it.
+- **OpenRouter models.** Models your course provides through OpenRouter now work, and are no longer listed under Anthropic.
+- **Third-party licenses.** Help > Third-Party Licenses opens the license notices for the third-party code the app bundles.
 - **Contact Support.** Help > Contact Support, the help buttons and the error page now open an email to support@jolli.ai.
 - **Prompt history per chat.** Pressing Up in the composer recalls the prompts from the current chat only. A new chat starts with an empty history.
 - **Translated course picker and share panel.** The course and assistant picker and the session share panel are now translated into every supported language.
