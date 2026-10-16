@@ -11,7 +11,7 @@ import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
 import { CommandTemplate } from "@/session/command-template"
-import { CourseSkillName } from "@opencode-ai/core/jolli/skill-name"
+import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 
 type State = {
   commands: Record<string, Info>

@@ -1371,7 +1371,7 @@ const layer = Layer.effect(
             yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
 
             const [skills, instructions, mcpInstructions] = yield* Effect.all([
-              sys.skills(agent, session, step === 1),
+              sys.skills(agent, session, step === 1, model.providerID),
               instruction.system().pipe(Effect.orDie),
               sys.mcp(agent, session.permission),
             ])
@@ -1442,6 +1442,7 @@ const layer = Layer.effect(
               courseAssistantID: courseBinding?.assistantId,
               continuesTurn: continuesTurn(msgs, lastUser.id),
               toolErrors: LLMRequestPrep.jolliToolErrors(msgs),
+              skillMessageIds: SessionCompaction.courseSkillReferences(msgs).map((reference) => reference.messageId),
               model,
               toolChoice: format.type === "json_schema" ? "required" : undefined,
               onModelSwitchPrepare: prepareForModel,

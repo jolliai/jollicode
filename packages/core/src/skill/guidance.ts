@@ -1,5 +1,6 @@
 export * as SkillGuidance from "./guidance"
 
+import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 import { makeLocationNode } from "../effect/app-node"
 import { Context, Effect, Layer, Schema } from "effect"
 import { AgentV2 } from "../agent"
@@ -8,6 +9,7 @@ import { SkillV2 } from "../skill"
 import { SystemContext } from "../system-context/index"
 import { JolliSkills } from "../jolli/skills"
 import { JolliSession } from "../jolli/session"
+import { isJolliProviderId } from "../jolli/gateway-config"
 import { escapeHtml } from "../util/html"
 
 const Summary = Schema.Struct({
@@ -20,7 +22,7 @@ const render = (skills: ReadonlyArray<Summary>) =>
   [
     "Skills provide specialized instructions and workflows for specific tasks.",
     "Use the skill tool to load a skill when a task matches its description.",
-    ...(skills.some((skill) => JolliSkills.isCourse(skill.name))
+    ...(skills.some((skill) => CourseSkillName.isCourse(skill.name))
       ? ["When the user names a /course: command, load that course skill before carrying out the request."]
       : []),
     ...(skills.length === 0
@@ -42,6 +44,7 @@ export interface Interface {
     agent: AgentV2.Selection,
     session?: JolliSkills.Session,
     refresh?: boolean,
+    providerID?: string,
   ) => Effect.Effect<SystemContext.SystemContext>
 }
 
@@ -54,7 +57,7 @@ const layer = Layer.effect(
     const jolli = yield* JolliSession.Service
 
     return Service.of({
-      load: Effect.fn("SkillGuidance.load")(function* (selection, session, refresh = false) {
+      load: Effect.fn("SkillGuidance.load")(function* (selection, session, refresh = false, providerID) {
         const agent = selection.info
         if (!agent) return SystemContext.empty
         const local = SkillV2.available(yield* skills.list(), agent)
@@ -70,13 +73,13 @@ const layer = Layer.effect(
         )
           return SystemContext.empty
         const available = (course: JolliSkills.Summary[]) =>
-          SkillV2.available(
-            [
-              ...local,
-              ...course.map((skill) => ({ name: skill.toolName, description: skill.description || skill.name })),
-            ],
-            agent,
-          )
+          [
+            ...local,
+            ...SkillV2.available(
+              course.map((skill) => ({ name: skill.toolName, description: skill.description || skill.name })),
+              agent,
+            ),
+          ]
             .flatMap((skill) =>
               skill.description === undefined ? [] : [{ name: skill.name, description: skill.description }],
             )
@@ -85,7 +88,10 @@ const layer = Layer.effect(
           key: SystemContext.Key.make("core/skill-guidance"),
           codec: Schema.toCodecJson(Schema.Array(Summary)),
           initial: () => available([]),
-          load: JolliSkills.list(jolli, session, refresh).pipe(
+          load: (isJolliProviderId(providerID ?? "")
+            ? JolliSkills.list(jolli, session, refresh)
+            : Effect.succeed([])
+          ).pipe(
             Effect.map(available),
             Effect.catch((error) =>
               Effect.logWarning("Jolli: course skill guidance unavailable", { sessionID: session?.id, error }).pipe(

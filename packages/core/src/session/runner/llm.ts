@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import {
   LLM,
   LLMClient,
@@ -10,6 +11,8 @@ import {
 } from "@opencode-ai/llm"
 import { courseBindingOf } from "../../jolli/binding"
 import { jolliCodingAgentHeaders } from "../../jolli/coding-headers"
+import { CourseSkillHistory } from "../../jolli/skill-history"
+import { isJolliProviderId } from "../../jolli/gateway-config"
 import { Cause, DateTime, Effect, FiberSet, Layer, Option, Semaphore, Stream } from "effect"
 import { AgentV2 } from "../../agent"
 import { Config } from "../../config"
@@ -167,22 +170,38 @@ const layer = Layer.effect(
     const continueAfterOverflowCompaction = (step: number) =>
       new TurnTransitionError({ _tag: "ContinueAfterOverflowCompaction", step })
 
-    const loadSystemContext = (agent: AgentV2.Selection, session: SessionSchema.Info, refresh = false) =>
-      Effect.all([systemContext.load(), skillGuidance.load(agent, session, refresh), referenceGuidance.load()], {
-        concurrency: "unbounded",
-      }).pipe(Effect.map(SystemContext.combine))
+    const loadSystemContext = (
+      agent: AgentV2.Selection,
+      session: SessionSchema.Info,
+      providerID: string,
+      refresh = false,
+    ) =>
+      Effect.all(
+        [systemContext.load(), skillGuidance.load(agent, session, refresh, providerID), referenceGuidance.load()],
+        {
+          concurrency: "unbounded",
+        },
+      ).pipe(Effect.map(SystemContext.combine))
+
+    type RequestIdentity = { turnID?: string; attemptID: string; stepIndex: number }
 
     const runTurnAttempt = Effect.fn("SessionRunner.runTurn")(function* (
       sessionID: SessionSchema.ID,
       promotion: SessionInput.Delivery | undefined,
       step: number,
+      identity: RequestIdentity,
       recoverOverflow?: typeof compaction.compactAfterOverflow,
     ) {
       const session = yield* getSession(sessionID)
       if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)
         return yield* Effect.interrupt
       const agent = yield* agents.select(session.agent)
-      const initialized = yield* SessionContextEpoch.initialize(db, loadSystemContext(agent, session), session.id)
+      const model = yield* models.resolve(session)
+      const initialized = yield* SessionContextEpoch.initialize(
+        db,
+        loadSystemContext(agent, session, model.provider),
+        session.id,
+      )
       const toolFibers = yield* FiberSet.make<void, ToolOutputStore.Error>()
       let needsContinuation = false
       let currentStep = step
@@ -201,14 +220,22 @@ const layer = Layer.effect(
         (yield* SessionContextEpoch.prepare(
           db,
           events,
-          loadSystemContext(agent, session, currentStep === 1),
+          loadSystemContext(agent, session, model.provider, currentStep === 1),
           session.id,
         ))
-      const model = yield* models.resolve(session)
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)
-      const user = context.findLast((message) => message.type === "user")
+      const turnID = yield* SessionInput.currentTurnID(db, session.id)
+      if (identity.turnID !== turnID) {
+        identity.turnID = turnID
+        identity.attemptID = randomUUID()
+        identity.stepIndex = 0
+      }
       const binding = courseBindingOf(session)
+      const continuesTurn =
+        isJolliProviderId(model.provider) &&
+        context.some((message) => message.type === "compaction") &&
+        !context.some((message) => message.type === "user")
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
       const toolMaterialization = isLastStep ? undefined : yield* tools.materialize(agent.info?.permissions)
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
@@ -222,12 +249,18 @@ const layer = Layer.effect(
               providerID: model.provider,
               sessionID: session.id,
               parentSessionID: session.parentID,
-              turnID: user?.id,
-              clientAttemptID: user?.id,
-              stepIndex: currentStep - 1,
+              turnID,
+              clientAttemptID: identity.attemptID,
+              stepIndex: identity.stepIndex,
               courseID: binding?.courseId,
               courseAssistantID: binding?.assistantId,
               modelID: session.model?.id,
+              continuesTurn,
+              skillMessageIds: CourseSkillHistory.merge(
+                context
+                  .filter((message) => message.type === "compaction")
+                  .map((message) => CourseSkillHistory.read(message.metadata)),
+              ).map((reference) => reference.messageId),
             }),
             ...(session.parentID ? { "x-parent-session-id": session.parentID } : {}),
           },
@@ -257,6 +290,7 @@ const layer = Layer.effect(
       const publish = (event: LLMEvent, outputPaths: ReadonlyArray<string> = []) =>
         withPublication(publisher.publish(event, outputPaths))
       let overflowFailure: ProviderErrorEvent | undefined
+      identity.stepIndex++
       const providerStream = llm.stream(request).pipe(
         Stream.runForEach((event) =>
           Effect.gen(function* () {
@@ -378,31 +412,35 @@ const layer = Layer.effect(
       sessionID: SessionSchema.ID,
       promotion: SessionInput.Delivery | undefined,
       step: number,
+      identity: RequestIdentity,
     ) => Effect.Effect<{ readonly needsContinuation: boolean; readonly step: number }, RunError>
 
-    const runAfterOverflowCompaction: RunTurn = Effect.fnUntraced(function* (sessionID, promotion, step) {
-      return yield* runTurnAttempt(sessionID, promotion, step).pipe(
+    const runAfterOverflowCompaction: RunTurn = Effect.fnUntraced(function* (sessionID, promotion, step, identity) {
+      return yield* runTurnAttempt(sessionID, promotion, step, identity).pipe(
         Effect.catchDefect(
           Effect.fnUntraced(function* (defect) {
             if (!(defect instanceof TurnTransitionError)) return yield* Effect.die(defect)
             if (defect.transition._tag === "ContinueAfterOverflowCompaction")
               return yield* Effect.die("Post-compaction provider attempt cannot recover another overflow")
             yield* Effect.yieldNow
-            return yield* runAfterOverflowCompaction(sessionID, undefined, defect.transition.step)
+            return yield* runAfterOverflowCompaction(sessionID, undefined, defect.transition.step, identity)
           }),
         ),
       )
     })
 
-    const runTurn: RunTurn = Effect.fnUntraced(function* (sessionID, promotion, step) {
-      return yield* runTurnAttempt(sessionID, promotion, step, compaction.compactAfterOverflow).pipe(
+    const runTurn: RunTurn = Effect.fnUntraced(function* (sessionID, promotion, step, identity) {
+      return yield* runTurnAttempt(sessionID, promotion, step, identity, compaction.compactAfterOverflow).pipe(
         Effect.catchDefect(
           Effect.fnUntraced(function* (defect) {
             if (!(defect instanceof TurnTransitionError)) return yield* Effect.die(defect)
             yield* Effect.yieldNow
-            if (defect.transition._tag === "ContinueAfterOverflowCompaction")
-              return yield* runAfterOverflowCompaction(sessionID, undefined, defect.transition.step)
-            return yield* runTurn(sessionID, undefined, defect.transition.step)
+            if (defect.transition._tag === "ContinueAfterOverflowCompaction") {
+              identity.attemptID = randomUUID()
+              identity.stepIndex = 0
+              return yield* runAfterOverflowCompaction(sessionID, undefined, defect.transition.step, identity)
+            }
+            return yield* runTurn(sessionID, undefined, defect.transition.step, identity)
           }),
         ),
       )
@@ -416,13 +454,14 @@ const layer = Layer.effect(
       const hasQueue = hasSteer ? false : yield* SessionInput.hasPending(db, input.sessionID, "queue")
       if (!input.force && !hasSteer && !hasQueue) return
       yield* failInterruptedTools(input.sessionID)
+      const identity: RequestIdentity = { attemptID: randomUUID(), stepIndex: 0 }
       let promotion: SessionInput.Delivery | undefined = hasSteer ? "steer" : hasQueue ? "queue" : undefined
       let shouldRun = input.force || hasSteer || hasQueue
       while (shouldRun) {
         let needsContinuation = true
         let step = 1
         while (needsContinuation) {
-          const result = yield* runTurn(input.sessionID, promotion, step)
+          const result = yield* runTurn(input.sessionID, promotion, step, identity)
           needsContinuation = result.needsContinuation
           step = result.step + 1
           promotion = "steer"

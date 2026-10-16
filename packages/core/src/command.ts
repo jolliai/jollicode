@@ -4,7 +4,7 @@ import { makeLocationNode } from "./effect/app-node"
 import { Context, Effect, Layer, Types } from "effect"
 import { Command } from "@opencode-ai/schema/command"
 import { State } from "./state"
-import { CourseSkillName } from "./jolli/skill-name"
+import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 
 export const Info = Command.Info
 export type Info = Command.Info

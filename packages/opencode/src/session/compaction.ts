@@ -25,8 +25,23 @@ import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { buildPrompt, CONVERSATION_OPEN } from "@opencode-ai/core/session/compaction"
 import { SessionCompactionEvent } from "@opencode-ai/schema/session-compaction-event"
+import { CourseSkillHistory } from "@opencode-ai/core/jolli/skill-history"
+import { CODING_CONTINUATION } from "@opencode-ai/core/jolli/coding-headers"
 
 export const Event = SessionCompactionEvent
+
+export function courseSkillReferences(messages: readonly SessionV1.WithParts[], includeTools = false) {
+  return CourseSkillHistory.merge(
+    messages.flatMap((message) =>
+      message.parts.map((part) => {
+        if (part.type === "compaction") return part.courseSkillReferences ?? []
+        if (includeTools && part.type === "tool" && part.tool === "skill" && part.state.status === "completed")
+          return CourseSkillHistory.parse(part.state.output)
+        return []
+      }),
+    ),
+  )
+}
 
 export const PRUNE_MINIMUM = 20_000
 export const PRUNE_PROTECT = 40_000
@@ -408,6 +423,14 @@ const layer = Layer.effect(
         : yield* provider.getModel(userMessage.model.providerID, userMessage.model.modelID).pipe(Effect.orDie)
       const cfg = yield* config.get()
       const history = compactionPart && messages.at(-1)?.info.id === input.parentID ? messages.slice(0, -1) : messages
+      const retainedSkills = courseSkillReferences(history, true)
+      if (compactionPart) {
+        // Commit references before publishing a summary that can hide their original tool results.
+        yield* session.updatePart({
+          ...compactionPart,
+          courseSkillReferences: retainedSkills,
+        })
+      }
       const prior = completedCompactions(history)
       const hidden = new Set(prior.flatMap((item) => [item.userIndex, item.assistantIndex]))
       const previousSummary = prior.at(-1)?.summary
@@ -550,6 +573,7 @@ const layer = Layer.effect(
         yield* session.updatePart({
           ...compactionPart,
           tail_start_id: selected.tail_start_id,
+          courseSkillReferences: retainedSkills,
         })
       }
 
@@ -615,8 +639,7 @@ const layer = Layer.effect(
             const text =
               (input.overflow
                 ? "The previous request exceeded the provider's size limit due to large media attachments. The conversation was compacted and media files were removed from context. If the user was asking about attached images or files, explain that the attachments were too large to process and suggest they try again with smaller or fewer files.\n\n"
-                : "") +
-              "Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed."
+                : "") + CODING_CONTINUATION
             yield* session.updatePart({
               id: PartID.ascending(),
               messageID: continueMsg.id,

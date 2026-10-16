@@ -1,5 +1,6 @@
+import { Jolli } from "@opencode-ai/schema/jolli"
 import { describe, expect, test } from "bun:test"
-import { Cause, Effect, Layer, DateTime } from "effect"
+import { Cause, Effect, Layer, DateTime, Schema } from "effect"
 import { LLM, Message, ToolCallPart } from "@opencode-ai/llm"
 import { AnthropicMessages } from "@opencode-ai/llm/protocols/anthropic-messages"
 import { OpenAIChat } from "@opencode-ai/llm/protocols/openai-chat"
@@ -9,6 +10,7 @@ import { Auth, LLMClient } from "@opencode-ai/llm/route"
 import { AppNodeBuilder } from "../src/effect/app-node-builder"
 import { LayerNode } from "../src/effect/layer-node"
 import { JolliSession } from "../src/jolli/session"
+import { JolliStore } from "../src/jolli/store"
 import { JolliSkills } from "../src/jolli/skills"
 import { AgentV2 } from "../src/agent"
 import { SkillGuidance } from "../src/skill/guidance"
@@ -16,6 +18,10 @@ import { SystemContext } from "../src/system-context"
 import { PermissionV2 } from "../src/permission"
 import { ProjectV2 } from "../src/project"
 import { AbsolutePath } from "../src/schema"
+import { SessionMessage } from "../src/session/message"
+import { ModelV2 } from "../src/model"
+import { ProviderV2 } from "../src/provider"
+import { providerIdFor } from "../src/jolli/gateway-config"
 import { SessionV2 } from "../src/session"
 import { SessionStore } from "../src/session/store"
 import { SkillV2 } from "../src/skill"
@@ -44,6 +50,21 @@ const reference = {
 }
 const session = { id: "ses_course_a", metadata: { jolli: { courseId: "7", assistantId: "11" } } }
 
+function credential(baseUrl: string, identity = "student-a"): JolliStore.Row {
+  return {
+    id: identity,
+    subject: null,
+    email: null,
+    base_url: baseUrl,
+    access_token: "test-token",
+    refresh_token: null,
+    token_expiry: null,
+    cache_key: identity,
+    time_created: 0,
+    time_updated: 0,
+  }
+}
+
 function gateway(handler: (path: string, request: Request) => Response | Promise<Response>) {
   const seen: string[] = []
   const server = Bun.serve({
@@ -55,18 +76,84 @@ function gateway(handler: (path: string, request: Request) => Response | Promise
     },
   })
   const unused = () => Effect.die("Unexpected credential operation")
+  const authentication = { calls: 0 }
   const jolli = JolliSession.Service.of({
-    current: unused,
+    current: () => Effect.succeed(credential(server.url.origin)),
     token: unused,
-    request: () => Effect.succeed({ origin: server.url.origin, token: "test-token", identity: "student-a" }),
+    request: () =>
+      Effect.sync(() => {
+        authentication.calls++
+        return { origin: server.url.origin, token: "test-token", identity: "student-a" }
+      }),
     refused: () => Effect.succeed("renewed-token"),
     signIn: unused,
     signOut: unused,
   })
-  return { server, jolli, seen }
+  return { server, jolli, seen, authentication }
 }
 
 describe("course skill loading", () => {
+  test("retains warm metadata when renewing a refused token fails transiently", async () => {
+    let refused = false
+    const remote = gateway(() => (refused ? Response.json({}, { status: 401 }) : Response.json([choice])))
+    const jolli = {
+      ...remote.jolli,
+      refused: () => Effect.fail(new JolliSession.JolliUnavailable({ message: "Refresh unavailable" })),
+    }
+    try {
+      expect(await Effect.runPromise(JolliSkills.list(jolli, session))).toHaveLength(1)
+      refused = true
+      expect(await Effect.runPromise(JolliSkills.list(jolli, session, true))).toHaveLength(1)
+    } finally {
+      await remote.server.stop(true)
+    }
+  })
+
+  test("does not republish a catalog after an invocation invalidates its pending refresh", async () => {
+    const started = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    let refreshing = false
+    const remote = gateway(async (path) => {
+      if (path.endsWith("/invocations")) return Response.json({}, { status: 403 })
+      if (refreshing) {
+        started.resolve()
+        await release.promise
+      }
+      return Response.json([choice])
+    })
+    try {
+      const [selected] = await Effect.runPromise(JolliSkills.list(remote.jolli, session))
+      refreshing = true
+      const pending = Effect.runPromiseExit(JolliSkills.list(remote.jolli, session, true))
+      await started.promise
+      await Effect.runPromiseExit(JolliSkills.invoke(remote.jolli, session, selected, "course-call"))
+      release.resolve()
+      expect((await pending)._tag).toBe("Failure")
+      refreshing = false
+      const count = remote.seen.length
+      expect(await Effect.runPromise(JolliSkills.list({ ...remote.jolli }, session))).toHaveLength(1)
+      expect(remote.seen.length).toBeGreaterThan(count)
+    } finally {
+      release.resolve()
+      await remote.server.stop(true)
+    }
+  })
+  test("does not recover stale catalog metadata from disk after service recreation", async () => {
+    const remote = gateway(() => Response.json([choice]))
+    const restarted = {
+      ...remote.jolli,
+      request: () => Effect.fail(new JolliSession.JolliUnavailable({ message: "Offline" })),
+    }
+    try {
+      expect(await Effect.runPromise(JolliSkills.list(remote.jolli, session))).toHaveLength(1)
+      expect((await Effect.runPromiseExit(JolliSkills.list(restarted, session, true)))._tag).toBe("Failure")
+      const refused = { ...remote.jolli, request: () => Effect.succeed(undefined) }
+      await Effect.runPromiseExit(JolliSkills.list(refused, session, true))
+      expect((await Effect.runPromiseExit(JolliSkills.list({ ...restarted }, session, true)))._tag).toBe("Failure")
+    } finally {
+      await remote.server.stop(true)
+    }
+  })
   test("reuses a catalog until the next user turn refreshes it", async () => {
     let description = "First version"
     const remote = gateway(() => Response.json([{ ...choice, description }]))
@@ -75,6 +162,7 @@ describe("course skill loading", () => {
       description = "Edited version"
       expect((await Effect.runPromise(JolliSkills.list(remote.jolli, session)))[0]?.description).toBe("First version")
       expect(remote.seen).toHaveLength(1)
+      expect(remote.authentication.calls).toBe(1)
       expect((await Effect.runPromise(JolliSkills.list(remote.jolli, session, true)))[0]?.description).toBe(
         "Edited version",
       )
@@ -108,17 +196,141 @@ describe("course skill loading", () => {
     }
   })
 
+  test("discards an in-flight catalog response after the account changes", async () => {
+    const started = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    const remote = gateway(async () => {
+      started.resolve()
+      await release.promise
+      return Response.json([choice])
+    })
+    let identity = "student-a"
+    const jolli = { ...remote.jolli, current: () => Effect.succeed(credential(remote.server.url.origin, identity)) }
+    try {
+      const pending = Effect.runPromise(JolliSkills.list(jolli, session))
+      await started.promise
+      identity = "student-b"
+      release.resolve()
+      expect(await pending).toEqual([])
+    } finally {
+      release.resolve()
+      await remote.server.stop(true)
+    }
+  })
+
   test("does not reuse metadata after the authenticated account changes", async () => {
     let identity = "student-a"
     const remote = gateway(() => Response.json(identity === "student-a" ? [choice] : []))
     const jolli = {
       ...remote.jolli,
+      current: () => Effect.succeed(credential(remote.server.url.origin, identity)),
       request: () => Effect.succeed({ origin: remote.server.url.origin, token: identity, identity }),
     }
     try {
       expect(await Effect.runPromise(JolliSkills.list(jolli, session))).toHaveLength(1)
       identity = "student-b"
       expect(await Effect.runPromise(JolliSkills.list(jolli, session))).toEqual([])
+      expect(remote.seen).toHaveLength(2)
+    } finally {
+      await remote.server.stop(true)
+    }
+  })
+
+  test("retains metadata across transient authentication failures for the same account", async () => {
+    const remote = gateway(() => Response.json([choice]))
+    let unavailable = false
+    const jolli = {
+      ...remote.jolli,
+      request: () =>
+        unavailable
+          ? Effect.fail(new JolliSession.JolliUnavailable({ message: "Authentication temporarily unavailable" }))
+          : remote.jolli.request(),
+    }
+    try {
+      const first = await Effect.runPromise(JolliSkills.list(jolli, session))
+      unavailable = true
+      expect(await Effect.runPromise(JolliSkills.list(jolli, session, true))).toEqual(first)
+      expect(await Effect.runPromise(JolliSkills.list(jolli, session))).toEqual(first)
+      expect(remote.seen).toHaveLength(1)
+      unavailable = false
+      expect(await Effect.runPromise(JolliSkills.list(jolli, session, true))).toEqual(first)
+      expect(remote.seen).toHaveLength(2)
+    } finally {
+      await remote.server.stop(true)
+    }
+  })
+
+  test("does not return a cached catalog after sign-out", async () => {
+    const remote = gateway(() => Response.json([choice]))
+    let signedIn = true
+    const jolli = {
+      ...remote.jolli,
+      current: () => Effect.succeed(signedIn ? credential(remote.server.url.origin) : undefined),
+    }
+    try {
+      await Effect.runPromise(JolliSkills.list(jolli, session))
+      signedIn = false
+      const result = await Effect.runPromise(JolliSkills.list(jolli, session).pipe(Effect.result))
+      expect(result._tag).toBe("Failure")
+      expect(remote.authentication.calls).toBe(1)
+    } finally {
+      await remote.server.stop(true)
+    }
+  })
+
+  test("keeps a tenant's cached metadata isolated from another tenant", async () => {
+    const remote = gateway((path, request) =>
+      Response.json(request.headers.get("x-tenant-slug") === "second" ? [] : [choice]),
+    )
+    let tenantSlug = "first"
+    const jolli = {
+      ...remote.jolli,
+      current: () => Effect.succeed(credential(`${remote.server.url.origin}/${tenantSlug}`)),
+      request: () =>
+        Effect.succeed({ origin: remote.server.url.origin, tenantSlug, token: "test-token", identity: "student-a" }),
+    }
+    try {
+      expect(await Effect.runPromise(JolliSkills.list(jolli, session))).toHaveLength(1)
+      tenantSlug = "second"
+      expect(await Effect.runPromise(JolliSkills.list(jolli, session))).toEqual([])
+      expect(remote.seen).toHaveLength(2)
+    } finally {
+      await remote.server.stop(true)
+    }
+  })
+
+  test("gives authentication and catalog I/O separate time budgets", async () => {
+    const remote = gateway(async () => {
+      await Bun.sleep(3000)
+      return Response.json([choice])
+    })
+    const jolli = {
+      ...remote.jolli,
+      request: () => Effect.sleep("2500 millis").pipe(Effect.andThen(remote.jolli.request())),
+    }
+    try {
+      expect(await Effect.runPromise(JolliSkills.list(jolli, session))).toHaveLength(1)
+    } finally {
+      await remote.server.stop(true)
+    }
+  }, 10000)
+
+  test("invokes selected metadata without a second catalog lookup", async () => {
+    const remote = gateway((path) => Response.json(path.endsWith("/invocations") ? reference : [choice]))
+    let reads = 0
+    const jolli = {
+      ...remote.jolli,
+      current: () =>
+        Effect.sync(() => {
+          reads++
+          return credential(remote.server.url.origin)
+        }),
+    }
+    try {
+      const selected = await Effect.runPromise(JolliSkills.select(jolli, session, "course:quiz"))
+      const readsBeforeInvocation = reads
+      expect(await Effect.runPromise(JolliSkills.invoke(jolli, session, selected, "course-call"))).toEqual(reference)
+      expect(reads).toBe(readsBeforeInvocation)
       expect(remote.seen).toHaveLength(2)
     } finally {
       await remote.server.stop(true)
@@ -170,7 +382,7 @@ describe("course skill loading", () => {
           "Failure",
         )
       }
-      expect(remote.seen.some((path) => path.includes("assistant-choices"))).toBe(false)
+      expect(remote.seen.some((path) => path.includes("assistant-choices"))).toBe(true)
       expect(
         (
           await Effect.runPromise(
@@ -217,7 +429,7 @@ describe("course skill loading", () => {
             .run()
             .pipe(Effect.orDie)
           const agent = AgentV2.Info.empty(AgentV2.ID.make("build"))
-          const context = guidance.load({ id: agent.id, info: agent }, session, true)
+          const context = guidance.load({ id: agent.id, info: agent }, session, true, providerIdFor("openai"))
           yield* SessionContextEpoch.prepare(database.db, events, context, id)
           status = 503
           yield* SessionContextEpoch.prepare(database.db, events, context, id)
@@ -248,6 +460,41 @@ describe("course skill loading", () => {
     }
   })
 
+  test("caches real refusals until the next user turn and never creates remote sessions", async () => {
+    for (const status of [401, 403, 404]) {
+      const remote = gateway((_path, request) => {
+        expect(request.method).toBe("GET")
+        return Response.json({}, { status })
+      })
+      try {
+        expect((await Effect.runPromiseExit(JolliSkills.list(remote.jolli, session)))._tag).toBe("Failure")
+        const calls = remote.seen.length
+        for (let step = 0; step < 5; step++)
+          expect((await Effect.runPromiseExit(JolliSkills.list(remote.jolli, session)))._tag).toBe("Failure")
+        expect(remote.seen).toHaveLength(calls)
+        await Effect.runPromiseExit(JolliSkills.list(remote.jolli, session, true))
+        expect(remote.seen.length).toBeGreaterThan(calls)
+      } finally {
+        await remote.server.stop(true)
+      }
+    }
+  })
+
+  test("a missing invocation does not revoke the catalog for every other skill", async () => {
+    const remote = gateway((path) =>
+      path.endsWith("/invocations") ? Response.json({}, { status: 404 }) : Response.json([choice]),
+    )
+    try {
+      const [selected] = await Effect.runPromise(JolliSkills.list(remote.jolli, session))
+      await Effect.runPromiseExit(JolliSkills.invoke(remote.jolli, session, selected, "missing"))
+      const count = remote.seen.length
+      expect(await Effect.runPromise(JolliSkills.list(remote.jolli, session))).toHaveLength(1)
+      expect(remote.seen).toHaveLength(count)
+    } finally {
+      await remote.server.stop(true)
+    }
+  })
+
   test("stores only a private server-message reference in tool history", () => {
     const text = JolliSkills.render(reference)
     expect(JSON.parse(text)).toEqual(reference)
@@ -272,14 +519,20 @@ describe("course skill loading", () => {
         Effect.gen(function* () {
           const guidance = yield* SkillGuidance.Service
           const first = yield* guidance
-            .load({ id: agent.id, info: agent }, session)
+            .load({ id: agent.id, info: agent }, session, false, providerIdFor("openai"))
             .pipe(Effect.flatMap(SystemContext.initialize))
           expect(first.baseline).toContain("course:quiz")
           expect(first.baseline).toContain(choice.description)
           expect(first.baseline).not.toContain("Local shadow")
           expect(first.baseline).not.toContain("course:other")
+          const calls = remote.seen.length
+          const external = yield* guidance
+            .load({ id: agent.id, info: agent }, session, true, "anthropic")
+            .pipe(Effect.flatMap(SystemContext.initialize))
+          expect(external.baseline).not.toContain("course:quiz")
+          expect(remote.seen).toHaveLength(calls)
           const second = yield* guidance
-            .load({ id: agent.id, info: agent }, { ...session, id: "ses_course_b" })
+            .load({ id: agent.id, info: agent }, { ...session, id: "ses_course_b" }, false, providerIdFor("openai"))
             .pipe(Effect.flatMap(SystemContext.initialize))
           expect(second.baseline).not.toContain("course:quiz")
         }).pipe(Effect.provide(layer), Effect.scoped),
@@ -304,25 +557,33 @@ describe("course skill loading", () => {
     }
   })
 
-  test("creates an unsynced remote session before reading its authorized catalog", async () => {
-    let opened = false
+  test("reads unsynced session metadata without creating a conversation or discarding an opener", async () => {
     const remote = gateway((path, request) => {
-      if (request.method === "POST" && path === "/api/agent/convos") {
-        opened = true
-        return Response.json({})
-      }
-      return opened ? Response.json([choice]) : Response.json({}, { status: 404 })
+      expect(request.method).toBe("GET")
+      if (path.includes("assistant-choices"))
+        return Response.json([
+          {
+            id: 11,
+            name: "Tutor",
+            blurb: "",
+            icon: "book",
+            accent: 0,
+            worksThroughProblems: true,
+            answersFromMaterialsOnly: false,
+            showCitations: false,
+            modelId: "model",
+            allowedModelIds: [],
+            opensConversation: true,
+            skills: [choice],
+          },
+        ])
+      return Response.json({}, { status: 404 })
     })
     try {
       expect(await Effect.runPromise(JolliSkills.list(remote.jolli, session))).toEqual([
         { ...choice, toolName: "course:quiz" },
       ])
-      expect(remote.seen).toEqual([
-        "/api/agent/convos/ses_course_a/skills",
-        "/api/agent/convos",
-        "/api/agent/convos/ses_course_a/skills",
-      ])
-      expect(remote.seen.some((path) => path.includes("assistant-choices"))).toBe(false)
+      expect(remote.seen).toEqual(["/api/agent/convos/ses_course_a/skills", "/api/courses/7/assistant-choices"])
     } finally {
       await remote.server.stop(true)
     }
@@ -359,6 +620,7 @@ describe("course skill loading", () => {
   test("returns native reference results whose earlier snapshot identity survives later invocations", async () => {
     let messageId = 42
     let permitted = true
+    let providerID = providerIdFor("openai")
     const remote = gateway((path) =>
       Response.json(path.endsWith("/invocations") ? { ...reference, messageId } : [choice]),
     )
@@ -375,7 +637,25 @@ describe("course skill loading", () => {
     })
     const layer = AppNodeBuilder.build(LayerNode.group([ToolRegistry.node, ToolRegistry.toolsNode, SkillTool.node]), [
       [JolliSession.node, Layer.succeed(JolliSession.Service, remote.jolli)],
-      [SessionStore.node, Layer.mock(SessionStore.Service, { get: () => Effect.succeed(info) })],
+      [
+        SessionStore.node,
+        Layer.mock(SessionStore.Service, {
+          get: () => Effect.succeed(info),
+          context: () => Effect.succeed([]),
+          message: () =>
+            Effect.succeed({
+              sessionID: info.id,
+              message: SessionMessage.Assistant.make({
+                id: toolIdentity.assistantMessageID,
+                type: "assistant",
+                agent: "build",
+                model: { id: ModelV2.ID.make("model"), providerID: ProviderV2.ID.make(providerID) },
+                content: [],
+                time: { created: DateTime.makeUnsafe(0) },
+              }),
+            }),
+        }),
+      ],
       [
         PermissionV2.node,
         Layer.mock(PermissionV2.Service, {
@@ -404,6 +684,11 @@ describe("course skill loading", () => {
           expect(JSON.stringify(second.output)).toContain("43")
           expect(JSON.stringify(first.output)).toBe(snapshot)
           const requests = remote.seen.length
+          providerID = "anthropic"
+          const external = yield* settleTool(registry, { ...input, call: { ...input.call, id: "external" } })
+          expect(external.result.type).toBe("error")
+          expect(remote.seen).toHaveLength(requests)
+          providerID = providerIdFor("openai")
           permitted = false
           const denied = yield* settleTool(registry, { ...input, call: { ...input.call, id: "course-call-denied" } })
           expect(denied.result.type).toBe("error")
@@ -435,7 +720,7 @@ describe("course skill loading", () => {
               Message.assistant([
                 ToolCallPart.make({ id: "call-quiz", name: "skill", input: { name: "course:quiz" } }),
               ]),
-              Message.tool({ id: "call-quiz", name: "skill", result: body }),
+              Message.tool({ id: "call-quiz", name: "skill", result: body, resultType: "text" }),
               Message.user("My answer is O(log n)."),
             ],
           }),
@@ -446,7 +731,7 @@ describe("course skill loading", () => {
       expect(JSON.stringify(prepared.body)).toContain("call-quiz")
     }
   })
-  test("isolates concurrent callers from the first caller's authentication deadline", async () => {
+  test("shares a bounded catalog producer without propagating caller interruption", async () => {
     const release = Promise.withResolvers<void>()
     const remote = gateway(async () => {
       await release.promise
@@ -497,7 +782,7 @@ describe("course skill loading", () => {
         Effect.gen(function* () {
           const guidance = yield* SkillGuidance.Service
           return yield* guidance
-            .load({ id: agent.id, info: agent }, session)
+            .load({ id: agent.id, info: agent }, session, false, providerIdFor("openai"))
             .pipe(Effect.flatMap(SystemContext.initialize))
         }).pipe(Effect.provide(layer), Effect.scoped),
       )
@@ -536,7 +821,7 @@ describe("course skill loading", () => {
         Effect.gen(function* () {
           const guidance = yield* SkillGuidance.Service
           return yield* guidance
-            .load({ id: agent.id, info: agent }, session)
+            .load({ id: agent.id, info: agent }, session, false, providerIdFor("openai"))
             .pipe(Effect.flatMap(SystemContext.initialize))
         }).pipe(Effect.provide(layer), Effect.scoped),
       )
@@ -559,8 +844,82 @@ describe("course skill loading", () => {
       const before = remote.seen.length
       expect(await Effect.runPromise(JolliSkills.list(remote.jolli, other))).toHaveLength(1)
       expect(remote.seen).toHaveLength(before)
-      await Effect.runPromise(JolliSkills.list(remote.jolli, session))
+      expect((await Effect.runPromiseExit(JolliSkills.list(remote.jolli, session)))._tag).toBe("Failure")
+      expect(remote.seen).toHaveLength(before)
+      expect(await Effect.runPromise(JolliSkills.list(remote.jolli, session, true))).toHaveLength(1)
       expect(remote.seen).toHaveLength(before + 1)
+    } finally {
+      await remote.server.stop(true)
+    }
+  })
+  test("transfers every fork snapshot in bounded batches without downloading instructions", async () => {
+    const batches: number[] = []
+    const remote = gateway(async (path, request) => {
+      expect(path).toBe("/api/agent/convos/ses_course_a/skills/fork")
+      const body = Schema.decodeUnknownSync(Schema.Struct({ references: Schema.Array(Jolli.CourseSkillReference) }))(
+        await request.json(),
+      )
+      batches.push(body.references.length)
+      return Response.json(
+        body.references.map((item) => ({
+          sourceMessageId: item.messageId,
+          reference: { ...item, messageId: item.messageId + 1000 },
+        })),
+      )
+    })
+    try {
+      const refs = Array.from({ length: 101 }, (_, index) => ({ ...reference, messageId: index + 1 }))
+      const copies = await Effect.runPromise(
+        JolliSkills.fork(remote.jolli, { sourceSessionID: session.id, sessionID: "ses_fork", references: refs }),
+      )
+      expect(copies).toHaveLength(101)
+      expect(batches).toEqual([100, 1])
+      expect(copies[0].reference.messageId).toBe(1001)
+      expect(copies[100].reference.messageId).toBe(1101)
+    } finally {
+      await remote.server.stop(true)
+    }
+  })
+
+  test("reports the exact source response and ordinal for an anonymous course invocation", async () => {
+    const remote = gateway(async (path, request) => {
+      if (!path.endsWith("/invocations")) return Response.json([choice])
+      expect(await request.json()).toMatchObject({ source: { messageId: "msg_response", toolIndex: 1 } })
+      return Response.json(reference)
+    })
+    try {
+      const [selected] = await Effect.runPromise(JolliSkills.list(remote.jolli, session))
+      expect(
+        await Effect.runPromise(
+          JolliSkills.invoke(remote.jolli, session, selected, "course-call", "turn", {
+            messageId: "msg_response",
+            toolIndex: 1,
+          }),
+        ),
+      ).toEqual(reference)
+    } finally {
+      await remote.server.stop(true)
+    }
+  })
+
+  test("records the source turn with a course invocation to disambiguate reused provider ids", async () => {
+    const remote = gateway(async (path, request) => {
+      if (path.endsWith("/invocations")) {
+        expect(await request.json()).toEqual({
+          toolCallId: "course-call",
+          name: "course:quiz",
+          turnId: "msg-source-turn",
+        })
+        return Response.json(reference)
+      }
+      return Response.json([choice])
+    })
+    try {
+      expect(
+        await Effect.runPromise(
+          JolliSkills.load(remote.jolli, session, "course:quiz", "course-call", "msg-source-turn"),
+        ),
+      ).toEqual(reference)
     } finally {
       await remote.server.stop(true)
     }

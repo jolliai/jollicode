@@ -1,11 +1,16 @@
+import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 import path from "path"
 import { Effect, Schema } from "effect"
 import { Ripgrep } from "@opencode-ai/core/ripgrep"
 import { Skill } from "../skill"
 import * as Tool from "./tool"
 import DESCRIPTION from "./skill.txt"
+import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
+import { MessageV2 } from "../session/message-v2"
+import { Database } from "@opencode-ai/core/database/database"
 import { JolliSkills } from "@opencode-ai/core/jolli/skills"
 import { Session } from "../session/session"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
 
 export const Parameters = Schema.Struct({
   name: Schema.String.annotate({ description: "The name of the skill from available_skills" }),
@@ -17,6 +22,8 @@ export const SkillTool = Tool.define(
     const skill = yield* Skill.Service
     const ripgrep = yield* Ripgrep.Service
     const sessions = yield* Session.Service
+    const jolli = yield* JolliSession.Service
+    const database = yield* Database.Service
 
     return {
       description: DESCRIPTION,
@@ -27,7 +34,7 @@ export const SkillTool = Tool.define(
       ): Effect.Effect<Tool.ExecuteResult<{ name: string; dir?: string; source?: string }>> =>
         Effect.gen(function* () {
           const session = yield* Effect.gen(function* () {
-            if (!JolliSkills.isCourse(params.name)) return undefined
+            if (!CourseSkillName.isCourse(params.name)) return undefined
             return yield* sessions.get(ctx.sessionID)
           })
           const authorize = ctx.ask({
@@ -37,23 +44,36 @@ export const SkillTool = Tool.define(
             metadata: {},
           })
           if (session) {
-            const available = yield* skill.available(undefined, session)
-            if (!available.some((entry) => entry.name === params.name))
-              return yield* Effect.die(new Error(`Skill "${params.name}" is not available`))
+            const callID = ctx.callID
+            if (!callID) return yield* Effect.die(new Error("Course skill invocation requires a tool call ID"))
+            const current = yield* MessageV2.getInfo({ sessionID: ctx.sessionID, messageID: ctx.messageID }).pipe(
+              Effect.provideService(Database.Service, database),
+            )
+            if (current.role !== "assistant" || !isJolliProviderId(current.providerID))
+              return yield* Effect.die(new Error("Course skills require a Jolli gateway model"))
+            const selected = yield* JolliSkills.select(jolli, session, params.name)
             yield* authorize
+            const reference = yield* JolliSkills.invoke(
+              jolli,
+              session,
+              selected,
+              callID,
+              ctx.messages.findLast((message) => message.info.role === "user")?.info.id,
+              typeof ctx.extra?.codingToolIndex === "number"
+                ? { messageId: ctx.messageID, toolIndex: ctx.extra.codingToolIndex }
+                : undefined,
+            )
+            return {
+              title: `Loaded skill: ${params.name}`,
+              output: JolliSkills.render(reference),
+              metadata: { name: params.name, source: "course" },
+            }
           }
           const info = yield* skill
-            .require(params.name, session, ctx.callID)
+            .require(params.name)
             .pipe(Effect.catchTag("Skill.NotFoundError", (error) => Effect.die(new Error(error.message))))
 
-          if (!session) yield* authorize
-
-          if (info.location === "<course>")
-            return {
-              title: `Loaded skill: ${info.name}`,
-              output: info.content,
-              metadata: { name: info.name, source: "course" },
-            }
+          yield* authorize
 
           const dir = path.dirname(info.location)
           const base = dir

@@ -24,6 +24,7 @@ type PrepareInput = {
   readonly turnID?: string
   readonly clientAttemptID?: string
   readonly stepIndex?: number
+  readonly assistantMessageID?: string
   readonly courseID?: string
   readonly courseAssistantID?: string
   /** The turn only carries on with the previous one, after compaction. */
@@ -34,6 +35,7 @@ type PrepareInput = {
   readonly mcpToolServers?: ReadonlyMap<string, string>
   /** Names of the tools whose results this request carries for the first time and that failed. */
   readonly toolErrors?: ReadonlyArray<string>
+  readonly skillMessageIds?: ReadonlyArray<number>
   readonly model: Provider.Model
   readonly agent: Agent.Info
   readonly permission?: PermissionV1.Ruleset
@@ -278,12 +280,14 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
         turnID: input.turnID,
         clientAttemptID: input.clientAttemptID,
         stepIndex: input.stepIndex,
+        assistantMessageID: input.assistantMessageID,
         courseID: input.courseID,
         courseAssistantID: input.courseAssistantID,
         modelID: input.model.id,
         continuesTurn: input.continuesTurn,
         command: input.user.command,
         toolErrors: input.toolErrors,
+        skillMessageIds: input.skillMessageIds,
         ...jolliMcpReport({
           toolNames: Object.keys(tools),
           mcpToolServers: input.mcpToolServers,

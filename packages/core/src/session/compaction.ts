@@ -8,6 +8,7 @@ import { SessionEvent } from "./event"
 import { SessionMessage } from "./message"
 import { SessionSchema } from "./schema"
 import { Token } from "../util/token"
+import { CourseSkillHistory } from "../jolli/skill-history"
 
 const DEFAULT_BUFFER = 20_000
 const DEFAULT_KEEP_TOKENS = 8_000
@@ -201,11 +202,23 @@ export const make = (dependencies: Dependencies) => {
 
     const chunks: string[] = []
     let failed = false
+    const headers = Object.fromEntries(
+      Object.entries(input.request.http?.headers ?? {}).filter(([key]) => !key.toLowerCase().startsWith("x-jolli-")),
+    )
+    const conversation = input.request.http?.headers?.["x-jolli-conversation-id"]
     const summarized = yield* dependencies.llm
       .stream(
         LLM.request({
           model: input.model,
-          http: input.request.http,
+          http: {
+            ...input.request.http,
+            headers: {
+              ...headers,
+              ...(conversation
+                ? { "x-jolli-conversation-id": conversation, "x-jolli-request-kind": "compaction" }
+                : {}),
+            },
+          },
           messages: [Message.user(summaryPrompt)],
           tools: [],
           generation: { maxTokens: summaryOutput },
@@ -222,14 +235,30 @@ export const make = (dependencies: Dependencies) => {
       )
     const summary = chunks.join("")
     if (!summarized || failed || !summary.trim()) return false
-    yield* dependencies.events.publish(SessionEvent.Compaction.Ended, {
-      sessionID: input.sessionID,
-      messageID,
-      timestamp: yield* DateTime.now,
-      reason: "auto",
-      text: summary,
-      recent: selected.recent,
-    })
+    const references = CourseSkillHistory.merge(
+      input.entries.flatMap(({ message }) => [
+        CourseSkillHistory.read(message.metadata),
+        ...(message.type !== "assistant"
+          ? []
+          : message.content.flatMap((part) =>
+              part.type === "tool" && part.name === "skill" && part.state.status === "completed"
+                ? [CourseSkillHistory.parse(serializeToolContent(part.state.content))]
+                : [],
+            )),
+      ]),
+    )
+    yield* dependencies.events.publish(
+      SessionEvent.Compaction.Ended,
+      {
+        sessionID: input.sessionID,
+        messageID,
+        timestamp: yield* DateTime.now,
+        reason: "auto",
+        text: summary,
+        recent: selected.recent,
+      },
+      references.length ? { metadata: CourseSkillHistory.metadata(references) } : undefined,
+    )
     return true
   })
   const compactIfNeeded = Effect.fn("SessionCompaction.compactIfNeeded")(function* (input: Input) {

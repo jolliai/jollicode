@@ -11,7 +11,7 @@ import { PermissionV2 } from "./permission"
 import { AbsolutePath } from "./schema"
 import { SkillDiscovery } from "./skill/discovery"
 import { State } from "./state"
-import { CourseSkillName } from "./jolli/skill-name"
+import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 
 export const DirectorySource = Skill.DirectorySource
 export type DirectorySource = Skill.DirectorySource

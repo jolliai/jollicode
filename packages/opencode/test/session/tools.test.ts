@@ -1,4 +1,5 @@
 import { expect } from "bun:test"
+import { ProjectV2 } from "@opencode-ai/core/project"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
@@ -16,7 +17,8 @@ import { Truncate } from "@/tool/truncate"
 import { Plugin } from "@/plugin"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Effect, Layer, Schema } from "effect"
-import { asSchema } from "ai"
+import { asSchema, streamText } from "ai"
+import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { testEffect } from "../lib/effect"
 
 const callID = "call-test"
@@ -86,7 +88,7 @@ function createLayer(plugin: Plugin.Interface = fakePlugin, mcp: MCP.Interface =
                 Effect.gen(function* () {
                   yield* ctx.metadata({ metadata: { output: "first" } })
                   yield* ctx.metadata({ metadata: { output: "second" } })
-                  return { title: "timing", metadata: {}, output: "done" }
+                  return { title: "timing", metadata: { sourceIndex: ctx.extra?.codingToolIndex }, output: "done" }
                 }),
             } satisfies Tool.Def,
           ]),
@@ -147,10 +149,18 @@ it.effect("preserves running tool start time across metadata updates", () =>
       messages: [],
       promptOps: {} as never,
     })
+    // One stream step: the AI SDK passes the same `messages` array for every call in it.
+    const messages: never[] = []
+    const options = (toolCallId: string) => ({ toolCallId, messages, abortSignal: new AbortController().signal })
+    yield* Effect.promise(async () => {
+      await tools.timing.onInputStart?.(options("call-first"))
+      await tools.timing.onInputStart?.(options(callID))
+      await tools.timing.onInputStart?.(options(callID))
+    })
     const execute = tools.timing.execute
     if (!execute) throw new Error("timing tool is missing execute")
 
-    yield* Effect.promise(() =>
+    const result = yield* Effect.promise(() =>
       execute(
         {},
         {
@@ -161,10 +171,86 @@ it.effect("preserves running tool start time across metadata updates", () =>
       ),
     )
 
+    expect(result).toMatchObject({ metadata: { sourceIndex: 1 } })
     expect(updates).toEqual([100, 100])
     expect(state.state.status).toBe("running")
     if (state.state.status === "running") {
       expect(state.state.time.start).toBe(100)
+    }
+  }),
+)
+
+it.effect("assigns per-response source ordinals through real Gemini parallel tool execution", () =>
+  Effect.gen(function* () {
+    const resolved = yield* SessionTools.resolve({
+      agent,
+      model,
+      session: {
+        id: sessionID,
+        slug: "test",
+        projectID: ProjectV2.ID.make("project-test"),
+        directory: "/tmp",
+        title: "Test",
+        version: "test",
+        time: { created: 1, updated: 1 },
+        permission: [],
+      },
+      processor: {
+        message: {
+          id: messageID,
+          sessionID,
+          role: "assistant",
+          parentID: MessageID.ascending(),
+          agent: "build",
+          mode: "build",
+          path: { cwd: "/tmp", root: "/tmp" },
+          cost: 0,
+          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+          modelID: ModelV2.ID.make("test-model"),
+          providerID: ProviderV2.ID.make("test"),
+          time: { created: 1 },
+        },
+        updateToolCall: () => Effect.succeed(undefined),
+        completeToolCall: () => Effect.void,
+      },
+      bypassAgentCheck: false,
+      messages: [],
+      promptOps: {} as never,
+    })
+    const server = yield* Effect.acquireRelease(
+      Effect.sync(() =>
+        Bun.serve({
+          port: 0,
+          fetch: () =>
+            new Response(
+              `data: ${JSON.stringify({ candidates: [{ content: { role: "model", parts: [0, 1].map(() => ({ functionCall: { name: "timing", args: {} } })) }, finishReason: "STOP" }], usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 } })}\n\n`,
+              { headers: { "content-type": "text/event-stream" } },
+            ),
+        }),
+      ),
+      (server) => Effect.promise(() => server.stop(true)),
+    )
+    const google = createGoogleGenerativeAI({ apiKey: "test-key", baseURL: server.url.origin })
+    const stream = () =>
+      Effect.promise(async () => {
+        const result = streamText({
+          model: google("gemini-2.5-flash"),
+          tools: resolved.tools,
+          prompt: "Call timing twice",
+          maxRetries: 0,
+        })
+        await result.consumeStream()
+        return result.toolResults
+      })
+    // The processor retries a failed stream with the same tools; its ordinals must start over.
+    for (const outputs of [yield* stream(), yield* stream()]) {
+      expect(outputs).toHaveLength(2)
+      expect(outputs.map((output) => output.output)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ metadata: { sourceIndex: 0 } }),
+          expect.objectContaining({ metadata: { sourceIndex: 1 } }),
+        ]),
+      )
     }
   }),
 )

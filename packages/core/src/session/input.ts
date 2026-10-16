@@ -1,6 +1,6 @@
 export * as SessionInput from "./input"
 
-import { and, asc, eq, isNull, lte } from "drizzle-orm"
+import { and, asc, desc, eq, isNotNull, isNull, lte } from "drizzle-orm"
 import { DateTime, Effect, Schema } from "effect"
 import { Admitted, Delivery } from "@opencode-ai/schema/session-input"
 import type { Database } from "../database/database"
@@ -32,6 +32,32 @@ const fromRow = (row: typeof SessionInputTable.$inferSelect): Admitted =>
 export const find = Effect.fn("SessionInput.find")(function* (db: DatabaseService, id: SessionMessage.ID) {
   const row = yield* db.select().from(SessionInputTable).where(eq(SessionInputTable.id, id)).get().pipe(Effect.orDie)
   return row === undefined ? undefined : fromRow(row)
+})
+
+/** Turn identity survives model-history compaction and excludes inputs not yet promoted. */
+export const currentTurnID = Effect.fn("SessionInput.currentTurnID")(function* (
+  db: DatabaseService,
+  sessionID: SessionSchema.ID,
+) {
+  const row = yield* db
+    .select({ id: SessionInputTable.id })
+    .from(SessionInputTable)
+    .where(and(eq(SessionInputTable.session_id, sessionID), isNotNull(SessionInputTable.promoted_seq)))
+    .orderBy(desc(SessionInputTable.promoted_seq))
+    .limit(1)
+    .get()
+    .pipe(Effect.orDie)
+  if (row) return row.id
+  // Older projections may predate durable input admission.
+  const projected = yield* db
+    .select({ id: SessionMessageTable.id })
+    .from(SessionMessageTable)
+    .where(and(eq(SessionMessageTable.session_id, sessionID), eq(SessionMessageTable.type, "user")))
+    .orderBy(desc(SessionMessageTable.seq))
+    .limit(1)
+    .get()
+    .pipe(Effect.orDie)
+  return projected?.id
 })
 
 export class LifecycleConflict extends Schema.TaggedErrorClass<LifecycleConflict>()("SessionInput.LifecycleConflict", {

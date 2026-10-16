@@ -1,5 +1,8 @@
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
+import { JolliSkills } from "@opencode-ai/core/jolli/skills"
+import { CourseSkillHistory } from "@opencode-ai/core/jolli/skill-history"
 import { Slug } from "@opencode-ai/core/util/slug"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { serviceUse } from "@opencode-ai/core/effect/service-use"
@@ -10,9 +13,6 @@ import type { ProviderMetadata, Usage } from "@opencode-ai/llm"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { Database } from "@opencode-ai/core/database/database"
 import { EventV2Bridge } from "@/event-v2-bridge"
-import { SessionV2 } from "@opencode-ai/core/session"
-import * as SessionExecutionLocal from "@opencode-ai/core/session/execution/local"
-import { locationServiceMapLayer } from "@opencode-ai/core/location-services"
 
 import { NotFoundError } from "@/storage/storage"
 import { eq } from "drizzle-orm"
@@ -493,7 +493,7 @@ export type Patch = Omit<Partial<Info>, "time" | "share" | "summary" | "revert" 
 const layer: Layer.Layer<
   Service,
   never,
-  BackgroundJob.Service | RuntimeFlags.Service | Database.Service | EventV2Bridge.Service
+  BackgroundJob.Service | RuntimeFlags.Service | Database.Service | EventV2Bridge.Service | JolliSession.Service
 > = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -502,6 +502,7 @@ const layer: Layer.Layer<
     const background = yield* BackgroundJob.Service
     const events = yield* EventV2Bridge.Service
     const flags = yield* RuntimeFlags.Service
+    const jolli = yield* JolliSession.Service
     const messageMutex = KeyedMutex.makeUnsafe<MessageID>()
 
     const createNext = Effect.fn("Session.createNext")(function* (input: {
@@ -714,18 +715,40 @@ const layer: Layer.Layer<
       const ctx = yield* InstanceState.context
       const original = yield* get(input.sessionID)
       const title = getForkedTitle(original.title)
+      const msgs = yield* messages({ sessionID: input.sessionID })
+      const target = input.messageID ? msgs.findIndex((msg) => msg.info.id === input.messageID) : msgs.length
+      const prefix = msgs.slice(0, target < 0 ? msgs.length : target)
+      const references = prefix.flatMap((message) =>
+        message.parts.flatMap((part) =>
+          part.type === "compaction"
+            ? (part.courseSkillReferences ?? [])
+            : part.type === "tool" && part.tool === "skill" && part.state.status === "completed"
+              ? CourseSkillHistory.parse(part.state.output)
+              : [],
+        ),
+      )
+      const id = SessionID.descending()
+      // A fork never depends on Jolli being reachable: references left uncopied stay scoped to the
+      // source session on the server, so the gateway restores them as unavailable instead.
+      const copies = yield* JolliSkills.fork(jolli, { sourceSessionID: original.id, sessionID: id, references }).pipe(
+        Effect.catch((error) =>
+          Effect.logWarning("Jolli: course skill snapshots were not copied to the fork", {
+            sessionID: original.id,
+            error,
+          }).pipe(Effect.as([])),
+        ),
+      )
       const session = yield* createNext({
+        id,
         directory: ctx.directory,
         path: sessionPath(ctx.worktree, ctx.directory),
         workspaceID: original.workspaceID,
         title,
         metadata: structuredClone(original.metadata),
       })
-      const msgs = yield* messages({ sessionID: input.sessionID })
       const idMap = new Map<string, MessageID>()
-      const target = input.messageID ? msgs.findIndex((msg) => msg.info.id === input.messageID) : msgs.length
 
-      for (const msg of msgs.slice(0, target < 0 ? msgs.length : target)) {
+      for (const msg of prefix) {
         const newID = MessageID.ascending()
         idMap.set(msg.info.id, newID)
 
@@ -743,6 +766,14 @@ const layer: Layer.Layer<
             id: PartID.ascending(),
             messageID: cloned.id,
             sessionID: session.id,
+          }
+          if (p.type === "compaction" && p.courseSkillReferences)
+            p.courseSkillReferences = p.courseSkillReferences.map((reference) =>
+              CourseSkillHistory.remap(reference, copies),
+            )
+          if (p.type === "tool" && p.tool === "skill" && p.state.status === "completed") {
+            const [reference] = CourseSkillHistory.parse(p.state.output)
+            if (reference) p.state = { ...p.state, output: JSON.stringify(CourseSkillHistory.remap(reference, copies)) }
           }
           if (p.type === "compaction" && p.tail_start_id) {
             p.tail_start_id = idMap.get(p.tail_start_id)
@@ -1040,7 +1071,7 @@ function listByProject(
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [BackgroundJob.node, RuntimeFlags.node, Database.node, EventV2Bridge.node],
+  deps: [BackgroundJob.node, RuntimeFlags.node, Database.node, EventV2Bridge.node, JolliSession.node],
 })
 
 export * as Session from "./session"

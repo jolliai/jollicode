@@ -717,6 +717,7 @@ const layer = Layer.effect(
               })
             const stream = llm.stream({
               ...attemptInput,
+              assistantMessageID: ctx.assistantMessage.id,
               onModelSwitchPrepare: prepareModelSwitch
                 ? (model) =>
                     Effect.gen(function* () {

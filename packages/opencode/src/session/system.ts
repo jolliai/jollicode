@@ -1,3 +1,4 @@
+import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { Context, Effect, Layer } from "effect"
 
@@ -18,6 +19,7 @@ import type { Provider } from "@/provider/provider"
 import type { Agent } from "@/agent/agent"
 import { Permission } from "@/permission"
 import { Skill } from "@/skill"
+import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
 import { JolliSkills } from "@opencode-ai/core/jolli/skills"
 import { AbsolutePath } from "@opencode-ai/core/schema"
 import { Location } from "@opencode-ai/core/location"
@@ -57,6 +59,7 @@ export interface Interface {
     agent: Agent.Info,
     session?: JolliSkills.Session,
     refresh?: boolean,
+    providerID?: string,
   ) => Effect.Effect<string | undefined>
   readonly mcp: (agent: Agent.Info, permission?: PermissionV1.Ruleset) => Effect.Effect<string | undefined>
 }
@@ -113,15 +116,16 @@ const layer = Layer.effect(
         agent: Agent.Info,
         session?: JolliSkills.Session,
         refresh = false,
+        providerID?: string,
       ) {
         if (Permission.disabled(["skill"], agent.permission).has("skill")) return
 
-        const list = yield* skill.available(agent, session, refresh)
+        const list = yield* skill.available(agent, isJolliProviderId(providerID ?? "") ? session : undefined, refresh)
 
         return [
           "Skills provide specialized instructions and workflows for specific tasks.",
           "Use the skill tool to load a skill when a task matches its description.",
-          ...(list.some((item) => JolliSkills.isCourse(item.name))
+          ...(list.some((item) => CourseSkillName.isCourse(item.name))
             ? ["When the user names a /course: command, load that course skill before carrying out the request."]
             : []),
           // the agents seem to ingest the information about skills a bit better if we present a more verbose

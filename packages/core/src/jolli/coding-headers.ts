@@ -1,5 +1,8 @@
 import { isJolliProviderId } from "./gateway-config"
 
+export const CODING_CONTINUATION =
+  "Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed."
+
 /**
  * ⚠ A COMPACTION NAMES ITS SESSION AND NOTHING ELSE. It is no step of a turn, so it carries none of a
  * turn's headers; the gateway reads its session only to rewrite the history it summarises with the
@@ -13,6 +16,7 @@ export function jolliCodingAgentHeaders(input: {
   readonly turnID?: string
   readonly clientAttemptID?: string
   readonly stepIndex?: number
+  readonly assistantMessageID?: string
   readonly courseID?: string
   readonly courseAssistantID?: string
   /** The catalogue id of the model this request runs on; the body carries only its name. */
@@ -22,6 +26,7 @@ export function jolliCodingAgentHeaders(input: {
   readonly mcpServers?: ReadonlyArray<string>
   readonly mcpToolOverrides?: ReadonlyArray<readonly [tool: string, server: string]>
   readonly toolErrors?: ReadonlyArray<string>
+  readonly skillMessageIds?: ReadonlyArray<number>
 }): Record<string, string> {
   if (!isJolliProviderId(input.providerID)) return {}
   if (input.requestKind === "compaction")
@@ -33,6 +38,8 @@ export function jolliCodingAgentHeaders(input: {
     "x-jolli-attempt-id": input.clientAttemptID,
     "x-jolli-request-id": `${input.clientAttemptID}:${input.stepIndex}`,
     "x-jolli-step-index": String(input.stepIndex),
+    ...(input.assistantMessageID ? { "x-jolli-assistant-message-id": input.assistantMessageID } : {}),
+    ...(input.skillMessageIds?.length ? { "x-jolli-skill-message-ids": input.skillMessageIds.join(",") } : {}),
     ...(input.courseID ? { "x-jolli-space-id": input.courseID } : {}),
     ...(input.courseAssistantID ? { "x-jolli-assistant-id": input.courseAssistantID } : {}),
     // The session remembers which catalogue row ran it, so the web chat's model picker opens on that
