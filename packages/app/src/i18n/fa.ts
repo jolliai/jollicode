@@ -692,6 +692,7 @@ export const dict = {
   "session.review.filesChanged": "فایل ها تغییر کردند {{count}}",
   "session.sources.materials": "منابع درس",
   "session.sources.web": "صفحه‌های وب",
+  "session.sources.assignments": "مشاهده تکالیف",
   "session.review.change.one": "تغییر دهید",
   "session.review.change.other": "تغییرات",
   "session.review.loadingChanges": "در حال بارگیری تغییرات...",

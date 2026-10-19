@@ -1,6 +1,10 @@
+import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
+import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
+import { courseToolRules } from "@/plugin/jolli-mcp-tools"
 import * as Tool from "./tool"
 import { CallToolResultSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js"
-import { Cause, Effect, Schema } from "effect"
+import { Cause, Effect, Option, Schema } from "effect"
 import { CodeMode, Tool as SandboxTool, toolError } from "@opencode-ai/codemode"
 import { MCP } from "@/mcp"
 import { McpCatalog } from "@/mcp/catalog"
@@ -228,6 +232,7 @@ export const CodeModeTool = Tool.define(
     const agents = yield* Agent.Service
     const sessions = yield* Session.Service
     const plugin = yield* Plugin.Service
+    const jolli = yield* Effect.serviceOption(JolliSession.Service)
 
     const init: Tool.DefWithoutID<typeof Parameters, Metadata> = {
       description: DESCRIPTION,
@@ -242,8 +247,16 @@ export const CodeModeTool = Tool.define(
         }
         const agent = yield* agents.get(ctx.agent)
         const session = yield* sessions.get(ctx.sessionID).pipe(Effect.orDie)
-        const ruleset = Permission.merge(agent.permission, session.permission ?? [])
-        const mcpTools = Permission.visibleTools(yield* mcp.tools(), ruleset)
+        const binding = courseBindingOf(session)
+        const includeAssignments =
+          binding && Option.isSome(jolli)
+            ? yield* JolliCourseGuardrails.assignmentsIncluded(binding).pipe(
+                Effect.provideService(JolliSession.Service, jolli.value),
+              )
+            : false
+        const courseRules = courseToolRules(session, includeAssignments)
+        const ruleset = Permission.merge(agent.permission, session.permission ?? [], courseRules)
+        const mcpTools = Permission.visibleTools(yield* mcp.tools({ refreshCourseTools: includeAssignments }), ruleset)
         const servers = Object.keys(yield* mcp.clients()).map(McpCatalog.sanitize)
         const catalog = [...groupByServer(mcpTools, servers).values()].flat()
 

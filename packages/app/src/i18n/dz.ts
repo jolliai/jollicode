@@ -704,6 +704,7 @@ export const dict: Record<string, string> = {
   "session.review.filesChanged": "ཡིག་སྣོད་ཚུ་བསྒྱུར་བཅོས་འབད་ཡོདཔ། {{count}}",
   "session.sources.materials": "སློབ་ཚན་གྱི་ཡིག་ཆ།",
   "session.sources.web": "ཝེབ་ཤོག་ངོས།",
+  "session.sources.assignments": "ལས་འགན་ཚུ་བལྟ།",
   "session.review.change.one": "འགྱུར་བ",
   "session.review.change.other": "བསྒྱུར་བཅོས་ཚུ།",
   "session.review.loadingChanges": "བསྒྱུར་བཅོས་ཚུ་མངོན་གསལ་འབད་དོ...",

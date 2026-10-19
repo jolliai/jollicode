@@ -309,6 +309,7 @@ export function toAssistant(input: {
     endsAt: input.choice.endsAt ?? null,
     directChatEnabled: input.choice.directChatEnabled ?? true,
     opensConversation: input.choice.opensConversation ?? false,
+    includeAssignments: input.choice.includeAssignments ?? false,
   }
 }
 

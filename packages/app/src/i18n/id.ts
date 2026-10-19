@@ -755,6 +755,7 @@ export const dict = {
   "session.review.filesChanged": "{{count}} Berkas Berubah",
   "session.sources.materials": "Materi mata kuliah",
   "session.sources.web": "Halaman web",
+  "session.sources.assignments": "Lihat tugas",
   "session.review.change.one": "Perubahan",
   "session.review.change.other": "Perubahan",
   "session.review.loadingChanges": "Memuat perubahan...",

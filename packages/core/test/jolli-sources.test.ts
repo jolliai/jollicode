@@ -7,6 +7,55 @@ const READ = "jolliedu_get_remote_material_content"
 const result = (text: string, isError = false) => ({ content: [{ type: "text", text }], isError })
 
 describe("JolliSources.materialEvidenceOf", () => {
+  test("preserves assignment worksheet links through evidence and source selection", () => {
+    const url = "https://school.jolli.ai/learn/11/assignments/5"
+    const evidence = JolliSources.materialEvidenceOf(
+      READ,
+      result(
+        JSON.stringify({
+          id: 5,
+          title: "Pointers lab",
+          docType: "assignment",
+          assignment: { courseId: 11, url },
+          lines: [{ number: 1, text: "Explain ownership." }],
+        }),
+      ),
+    )
+    expect(evidence).toEqual([
+      { kind: "material", materialId: "5", title: "Pointers lab", text: "Explain ownership.", url },
+    ])
+    const sources = JolliSources.selectedSources(["s1"], [{ ref: "s1", evidence: evidence[0]! }])
+    expect(JolliSources.answerSourcesFromMetadata({ answerSources: sources })).toEqual([
+      { kind: "material", materialId: "5", title: "Pointers lab", url },
+    ])
+  })
+
+  test("does not turn an invalid assignment URL into a source link", () => {
+    const evidence = JolliSources.materialEvidenceOf(
+      READ,
+      result(
+        JSON.stringify({
+          id: 5,
+          title: "Pointers lab",
+          assignment: { courseId: 11, url: "javascript:alert(1)" },
+          lines: [{ number: 1, text: "Explain ownership." }],
+        }),
+      ),
+    )
+    expect(evidence[0]).not.toHaveProperty("url")
+  })
+
+  // Any client can write a part's metadata: a bad link is dropped, never the material it was on.
+  test("keeps a stored material source whose link is not http(s), without the link", () => {
+    expect(
+      JolliSources.answerSourcesFromMetadata({
+        answerSources: [
+          { kind: "material", materialId: "5", title: "Pointers lab", url: "javascript:alert(1)" },
+          { kind: "web", url: "javascript:alert(1)", title: "Not a page" },
+        ],
+      }),
+    ).toEqual([{ kind: "material", materialId: "5", title: "Pointers lab" }])
+  })
   test("keeps each retrieved chunk a search returned, with its text", () => {
     const page = {
       results: [
@@ -72,5 +121,24 @@ describe("JolliSources tool names", () => {
     expect(JolliSources.isMaterialTool("jolliedu_get_conversation_context")).toBe(false)
     expect(JolliSources.isCourseTool("jolliedu_get_conversation_context")).toBe(true)
     expect(JolliSources.isCourseTool("webfetch")).toBe(false)
+  })
+})
+
+describe("JolliSources.turnAssignmentsUrl", () => {
+  const url = "https://school.jolli.ai/learn/11/assignments"
+  const text = (metadata: unknown) => ({ type: "text", text: "I cannot look up assignments.", metadata })
+
+  test("reads the link the turn's answer carries, the newest where there are two", () => {
+    expect(JolliSources.turnAssignmentsUrl([text({ assignmentsUrl: url })])).toBe(url)
+    const newer = "https://school.jolli.ai/learn/12/assignments"
+    expect(JolliSources.turnAssignmentsUrl([text({ assignmentsUrl: url }), text({ assignmentsUrl: newer })])).toBe(
+      newer,
+    )
+  })
+
+  test("draws nothing for a turn without one, or for a link that is not http(s)", () => {
+    expect(JolliSources.turnAssignmentsUrl([text(undefined), text({ answerSources: [] })])).toBeUndefined()
+    expect(JolliSources.turnAssignmentsUrl([text({ assignmentsUrl: "javascript:alert(1)" })])).toBeUndefined()
+    expect(JolliSources.turnAssignmentsUrl([{ type: "tool", metadata: { assignmentsUrl: url } }])).toBeUndefined()
   })
 })

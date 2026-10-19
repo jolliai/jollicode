@@ -728,6 +728,7 @@ export const dict = {
   "session.review.filesChanged": "{{count}} 個檔案變更",
   "session.sources.materials": "課程資料",
   "session.sources.web": "網頁",
+  "session.sources.assignments": "查看作業",
   "session.review.change.one": "變更",
   "session.review.change.other": "變更",
   "session.review.loadingChanges": "正在載入變更...",

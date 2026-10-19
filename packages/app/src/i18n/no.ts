@@ -617,6 +617,7 @@ export const dict = {
   "session.review.filesChanged": "{{count}} filer endret",
   "session.sources.materials": "Emnemateriell",
   "session.sources.web": "Nettsider",
+  "session.sources.assignments": "Vis oppgaver",
   "session.review.change.one": "Endring",
   "session.review.change.other": "Endringer",
   "session.review.loadingChanges": "Laster endringer...",

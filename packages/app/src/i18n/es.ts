@@ -740,6 +740,7 @@ export const dict = {
   "session.review.filesChanged": "Archivos modificados: {{count}}",
   "session.sources.materials": "Materiales del curso",
   "session.sources.web": "Páginas web",
+  "session.sources.assignments": "Ver tareas",
   "session.review.change.one": "Cambio",
   "session.review.change.other": "Cambios",
   "session.review.loadingChanges": "Cargando cambios...",

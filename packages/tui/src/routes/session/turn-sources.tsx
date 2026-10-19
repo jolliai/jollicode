@@ -24,53 +24,90 @@ import { Link } from "../../ui/link"
  * Gathering across the compaction would mean walking the compaction messages back here as the sidecar
  * does (`CourseSources`), for a turn that rarely ends that way.
  *
- * ⚠ EACH ROW FILTERS THE SESSION'S MESSAGES, AND THAT IS KEPT. It runs only in a course that shows
- * citations, and again only when messages are added or removed, not as a reply streams in. A grouping
- * shared by every row would have to be built above the message list and threaded down to it, which
- * costs more than the filter does.
+ * ⚠ EACH ROW FILTERS THE SESSION'S MESSAGES, AND THAT IS KEPT. It runs only in a course session, and
+ * again only when messages are added or removed, not as a reply streams in. A grouping shared by every
+ * row would have to be built above the message list and threaded down to it, which costs more than
+ * the filter does.
+ *
+ * ⚠ THE ASSIGNMENTS LINK IS NO SOURCE, so it is drawn whether or not the course shows citations: it
+ * is where the answer sends the student, when the turn asked about assignments its agent does not
+ * read (`JolliSources.turnAssignmentsUrl`).
  */
 export function TurnSources(props: { message: AssistantMessage }) {
   const { theme } = useTheme()
   const sync = useSync()
   const jolli = useJolli()
 
-  const sources = createMemo(() => {
-    if (!jolli.assistant()?.guardrails.showCitations) return undefined
+  const turnParts = createMemo(() => {
+    if (!jolli.assistant()) return undefined
     const turn = (sync.data.message[props.message.sessionID] ?? []).filter(
       (message) => message.role === "assistant" && message.parentID === props.message.parentID,
     )
     // A step can finish with "stop" and still call tools, and then a turn has two final messages;
     // only its newest one draws the row.
     if (turn.at(-1)?.id !== props.message.id) return undefined
-    return JolliSources.turnSources(turn.flatMap((message) => sync.data.part[message.id] ?? []))
+    return turn.flatMap((message) => sync.data.part[message.id] ?? [])
+  })
+  const sources = createMemo(() => {
+    const parts = turnParts()
+    return parts && jolli.assistant()?.guardrails.showCitations ? JolliSources.turnSources(parts) : undefined
+  })
+  const assignmentsUrl = createMemo(() => {
+    const parts = turnParts()
+    return parts ? JolliSources.turnAssignmentsUrl(parts) : undefined
   })
 
   return (
-    <Show when={sources()}>
-      {(turn) => (
-        <box paddingLeft={3} marginTop={1} flexDirection="column">
-          <Show when={turn().materials.length > 0}>
-            <text fg={theme.textMuted}>
-              Course materials:{" "}
-              <span style={{ fg: theme.text }}>
-                {turn()
-                  .materials.map((item) => item.title)
-                  .join(" · ")}
-              </span>
-            </text>
-          </Show>
-          <Show when={turn().web.length > 0}>
-            <text fg={theme.textMuted}>Web pages:</text>
-            <For each={turn().web}>
-              {(page) => (
-                <box paddingLeft={2}>
-                  <Link href={page.url} fg={theme.primary} />
-                </box>
-              )}
-            </For>
-          </Show>
-        </box>
-      )}
+    <Show when={sources() || assignmentsUrl()}>
+      <box paddingLeft={3} marginTop={1} flexDirection="column">
+        <Show when={sources()}>
+          {(turn) => (
+            <>
+              <Show when={turn().materials.length > 0}>
+                <text fg={theme.textMuted}>
+                  Course materials:{" "}
+                  <span style={{ fg: theme.text }}>
+                    {turn()
+                      .materials.map((item) => item.title)
+                      .join(" · ")}
+                  </span>
+                </text>
+              </Show>
+              <For each={turn().materials}>
+                {(material) => (
+                  <Show when={material.url}>
+                    {(url) => (
+                      <box paddingLeft={2}>
+                        <Link href={url()} fg={theme.primary} />
+                      </box>
+                    )}
+                  </Show>
+                )}
+              </For>
+              <Show when={turn().web.length > 0}>
+                <text fg={theme.textMuted}>Web pages:</text>
+                <For each={turn().web}>
+                  {(page) => (
+                    <box paddingLeft={2}>
+                      <Link href={page.url} fg={theme.primary} />
+                    </box>
+                  )}
+                </For>
+              </Show>
+            </>
+          )}
+        </Show>
+        <Show when={assignmentsUrl()}>
+          {(url) => (
+            <>
+              <text fg={theme.textMuted}>View assignments:</text>
+              <box paddingLeft={2}>
+                <Link href={url()} fg={theme.primary} />
+              </box>
+            </>
+          )}
+        </Show>
+      </box>
     </Show>
   )
 }

@@ -1,19 +1,20 @@
 /**
  * THE SWITCHES OF THE ASSISTANT A SESSION IS BOUND TO, AS THE STUDENT'S CATALOGUE STATES THEM.
  *
- * ⚠ FOR WHAT THIS PROCESS DRAWS OR ACCEPTS, NEVER FOR WHAT THE MODEL IS TOLD. The gateway applies the
- * course to every model request of a bound session — the assistant's briefing, its guardrails, the
- * per-turn rule — on the server, so nothing here shapes a prompt or withholds a tool. What this
- * answers is whether the student is shown something beside the answer, such as the sources it rests
- * on, and whether a session may be bound to the assistant without Start.
+ * ⚠ FOR WHAT THIS PROCESS DRAWS, ACCEPTS OR OFFERS, NEVER FOR WHAT THE MODEL IS TOLD. The gateway
+ * applies the course to every model request of a bound session — the assistant's briefing, its
+ * guardrails, the per-turn rule — on the server, so nothing here shapes a prompt. What this answers is
+ * whether the student is shown something beside the answer, such as the sources it rests on, whether
+ * a session may be bound to the assistant without Start, and whether the assignment tools are offered.
  *
  * ⚠ THE CATALOGUE MAY BE MINUTES BEHIND THE GATEWAY. It is a cached snapshot, so a teacher's edit can
  * reach the model a few minutes before it reaches what this process draws.
  */
 export * as JolliCourseGuardrails from "./course-guardrails"
 
-import { Duration, Effect } from "effect"
-import { gatewayRequest, type GatewayRequest } from "./api"
+import { Duration, Effect, Option } from "effect"
+import { FetchHttpClient } from "effect/unstable/http"
+import { fetchAssistantChoices, gatewayRequest, type GatewayRequest } from "./api"
 import type { CourseBinding } from "./binding"
 import { loadCatalog, readCatalog, type CatalogSnapshot } from "./cache"
 import { projectCatalog, today } from "./catalog"
@@ -25,6 +26,16 @@ import { JolliSession } from "./session"
  * up and answers that it does not know.
  */
 const TIMEOUT = Duration.seconds(5)
+
+/**
+ * How long one reading of an assistant's assignment switch answers for. Asked before every model step
+ * — by the runner, the tool list and each code-mode call — so a turn of many steps asks the gateway
+ * once rather than once a step; short, so a teacher turning assignments off reaches the next turn.
+ */
+const ASSIGNMENTS_TTL = Duration.seconds(30)
+
+/** The last reading of each bound assistant's assignment switch, by who read it. */
+const assignmentReadings = new Map<string, { readonly included: boolean; readonly at: number }>()
 
 /**
  * The switches of the assistant `binding` names, read with the credential this process holds, or
@@ -40,6 +51,39 @@ export const ofBinding = Effect.fn("JolliCourseGuardrails.ofBinding")(function* 
     Effect.catchCause(() => Effect.succeed(undefined)),
   )
   return (yield* lookup({ request, binding }))?.guardrails
+})
+
+/**
+ * Whether the bound assistant's assignment tools may be offered, read off the gateway rather than the
+ * catalogue snapshot, which may be minutes behind; an unknown policy withholds them.
+ *
+ * ⚠ A FAILED READ KEEPS THE LAST ANSWER. The tool list is rebuilt before every step, so falling back
+ * to "withheld" on one slow request would take the tool from the model mid-turn and hand it back on the
+ * next step. Only a binding never read yet starts out withheld.
+ */
+export const assignmentsIncluded = Effect.fn("JolliCourseGuardrails.assignmentsIncluded")(function* (
+  binding: CourseBinding,
+) {
+  const jolli = yield* Effect.serviceOption(JolliSession.Service)
+  if (Option.isNone(jolli)) return false
+  return yield* Effect.gen(function* () {
+    const request = yield* jolli.value.request().pipe(Effect.timeout(TIMEOUT))
+    if (!request) return false
+    const key = [request.origin, request.identity, binding.courseId, binding.assistantId].join("\n")
+    const known = assignmentReadings.get(key)
+    if (known && Date.now() - known.at < Duration.toMillis(ASSIGNMENTS_TTL)) return known.included
+    return yield* fetchAssistantChoices(request, Number(binding.courseId)).pipe(
+      Effect.map(
+        (choices) => choices.find((choice) => String(choice.id) === binding.assistantId)?.includeAssignments === true,
+      ),
+      Effect.tap((included) => Effect.sync(() => assignmentReadings.set(key, { included, at: Date.now() }))),
+      Effect.timeout(TIMEOUT),
+      Effect.catchCause(() => Effect.succeed(known?.included ?? false)),
+    )
+  }).pipe(
+    Effect.provide(FetchHttpClient.layer),
+    Effect.catchCause(() => Effect.succeed(false)),
+  )
 })
 
 /**

@@ -7,6 +7,7 @@ import {
   fetchConversationShares,
   fetchConversationVisibility,
   fetchCourses,
+  fetchCourseTurnLinks,
   fetchModelIndex,
   gatewayRequest,
   JolliApiError,
@@ -300,6 +301,29 @@ describe("the session-share calls", () => {
     await Effect.runPromise(unshareConversation(request, "ses_1", 9).pipe(Effect.provide(http.layer)))
     expect(http.seen[0]?.method).toBe("DELETE")
     expect(http.seen[0]?.url).toBe("https://acme.jolli.ai/api/agent/convos/ses_1/shares/9")
+  })
+})
+
+describe("fetchCourseTurnLinks", () => {
+  const request = { origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }
+
+  test("asks for one turn of one session, both ids escaped, and reads the link back", async () => {
+    const url = "https://acme.jolli.ai/learn/7/assignments"
+    const http = stub(() => json({ assignmentsUrl: url }))
+    const result = await Effect.runPromise(
+      fetchCourseTurnLinks(request, "ses_1", "msg/2").pipe(Effect.provide(http.layer)),
+    )
+    expect(result).toEqual({ assignmentsUrl: url })
+    expect(http.seen[0]?.url).toBe("https://acme.jolli.ai/api/agent/convos/ses_1/turns/msg%2F2/course-links")
+    expect(http.seen[0]?.headers.authorization).toBe("Bearer jwt")
+  })
+
+  test("reads a turn with nothing to draw as null", async () => {
+    const http = stub(() => json({ assignmentsUrl: null }))
+    const result = await Effect.runPromise(
+      fetchCourseTurnLinks(request, "ses_1", "msg_2").pipe(Effect.provide(http.layer)),
+    )
+    expect(result).toEqual({ assignmentsUrl: null })
   })
 })
 

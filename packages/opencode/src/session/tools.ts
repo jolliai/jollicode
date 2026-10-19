@@ -1,3 +1,5 @@
+import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
+import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
 import { Agent } from "@/agent/agent"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { Provider } from "@/provider/provider"
@@ -21,7 +23,7 @@ import { EffectBridge } from "@/effect/bridge"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { isRecord } from "@/util/record"
 import { RuntimeFlags } from "@/effect/runtime-flags"
-import { unboundCourseToolRules } from "@/plugin/jolli-mcp-tools"
+import { courseToolRules } from "@/plugin/jolli-mcp-tools"
 import { HAND_IN_PERMISSIONS, taskBindingOf } from "@opencode-ai/core/jolli/assignment"
 
 const MCP_RESOURCE_TOOLS = {
@@ -133,7 +135,10 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   // A session with no course binding is not offered the course tools at all: every call would be
   // refused for the missing binding. The rules reach the code-mode catalog through the ruleset it
   // already filters by; the ordinary MCP tools below skip the same names.
-  const withheldCourseTools = unboundCourseToolRules(input.session)
+  const binding = courseBindingOf(input.session)
+  const includeAssignments = binding ? yield* JolliCourseGuardrails.assignmentsIncluded(binding) : false
+  const withheldCourseTools = courseToolRules(input.session, includeAssignments)
+  if (includeAssignments) yield* mcp.tools({ refreshCourseTools: true })
   const withheld = new Set(withheldCourseTools.map((rule) => rule.permission))
   /**
    * ⚠ THE HAND-IN TOOLS EXIST ONLY IN A TASK'S OWN SESSION. A plain chat, a fork and a child session —

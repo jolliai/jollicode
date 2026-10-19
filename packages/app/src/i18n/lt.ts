@@ -699,6 +699,7 @@ export const dict = {
   "session.review.filesChanged": "Failai pakeisti {{count}}",
   "session.sources.materials": "Kurso medžiaga",
   "session.sources.web": "Tinklalapiai",
+  "session.sources.assignments": "Peržiūrėti užduotis",
   "session.review.change.one": "Keisti",
   "session.review.change.other": "Pakeitimai",
   "session.review.loadingChanges": "Įkeliami pakeitimai...",

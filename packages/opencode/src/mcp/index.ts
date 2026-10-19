@@ -174,7 +174,7 @@ export interface Interface {
   readonly status: () => Effect.Effect<Record<string, Status>>
   readonly clients: () => Effect.Effect<Record<string, MCPClient>>
   readonly instructions: () => Effect.Effect<ServerInstructions[]>
-  readonly tools: () => Effect.Effect<Record<string, McpTool>>
+  readonly tools: (options?: { refreshCourseTools?: boolean }) => Effect.Effect<Record<string, McpTool>>
   readonly prompts: () => Effect.Effect<Record<string, PromptInfo & { client: string }>>
   readonly resources: (clientName?: string) => Effect.Effect<Record<string, ResourceInfo & { client: string }>>
   readonly resourceTemplates: (
@@ -719,7 +719,7 @@ const layer = Layer.effect(
       return s.config[name]?.timeout ?? staticTimeout ?? fallback
     }
 
-    const tools = Effect.fn("MCP.tools")(function* () {
+    const tools = Effect.fn("MCP.tools")(function* (options?: { refreshCourseTools?: boolean }) {
       const result: Record<string, McpTool> = {}
       const s = yield* InstanceState.get(state)
 
@@ -730,7 +730,16 @@ const layer = Layer.effect(
       for (const [clientName, client] of Object.entries(s.clients)) {
         if (s.status[clientName]?.status !== "connected") continue
         const mcpConfig = config[clientName]
-        const listed = s.defs[clientName]
+        const cached = s.defs[clientName]
+        // An institution can enable assignments after this connection cached its manifest.
+        const listed =
+          clientName === JOLLI_MCP_SERVER &&
+          options?.refreshCourseTools &&
+          !cached?.some((tool) => tool.name === "list_remote_course_assignments")
+            ? ((yield* McpCatalog.defs(client, 5_000)) ?? cached)
+            : cached
+        if (s.clients[clientName] !== client || s.status[clientName]?.status !== "connected") continue
+        if (listed !== undefined && listed !== cached) s.defs[clientName] = listed
         if (!listed) {
           yield* Effect.logWarning("missing cached tools for connected server", { clientName })
           continue

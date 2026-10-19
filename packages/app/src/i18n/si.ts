@@ -690,6 +690,7 @@ export const dict: Record<string, string> = {
   "session.review.filesChanged": "ගොනු {{count}} වෙනස් කරන ලදී",
   "session.sources.materials": "පාඨමාලා ද්‍රව්‍ය",
   "session.sources.web": "වෙබ් පිටු",
+  "session.sources.assignments": "පැවරුම් බලන්න",
   "session.review.change.one": "වෙනස් කරන්න",
   "session.review.change.other": "වෙනස්කම්",
   "session.review.loadingChanges": "වෙනස්කම් පූරණය කරමින්...",

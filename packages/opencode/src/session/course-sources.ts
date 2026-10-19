@@ -57,27 +57,9 @@ export const attribute = Effect.fn("CourseSources.attribute")(function* (input: 
   const sessions = yield* Session.Service
   const provider = yield* Provider.Service
   const llm = yield* LLM.Service
-  const read = yield* readTurn(sessions, input)
-  if (!read) return
-  const closing = read.turn.findLast((item) => item.info.parentID === input.userMessageID)
-  const last = closing?.info
-  // A summary a compaction wrote is not an answer, and no source is listed under one.
-  if (!last || last.error || last.summary) return
-  /**
-   * ⚠ THE TURN'S PARTS ARE READ ONCE, FOR ALL THREE USES: the answer that is judged, the evidence it is
-   * judged against, and the part its sources are written onto, so the three cannot disagree on what
-   * the turn was. A summary compaction wrote in the middle of the turn is none of them.
-   *
-   * ⚠ THE ANSWER IS THE TURN'S LAST TEXT, WHEREVER IT IS. A model can write its answer beside a tool
-   * call and end on a step that writes nothing more, and a turn compaction cut in two can end that
-   * way after the compaction too. The desktop timeline draws the sources under the steps the answer
-   * sits among; the TUI draws them under the turn's final steps only, so an answer left before a
-   * compaction shows its sources on the desktop alone.
-   */
-  const parts = read.turn.flatMap((item) => (item.info.summary ? [] : item.parts))
-  const answerPart = parts.findLast(
-    (part): part is SessionV1.TextPart => part.type === "text" && JolliSources.isAnswerText(part),
-  )
+  const turn = yield* answerOf(sessions, input)
+  if (!turn) return
+  const answerPart = turn.answerPart
   if (!answerPart) {
     yield* Effect.logInfo("jolli course answer sources", {
       "session.id": input.sessionID,
@@ -95,8 +77,8 @@ export const attribute = Effect.fn("CourseSources.attribute")(function* (input: 
    */
   if (answerPart.metadata?.answerSources !== undefined) return
 
-  const candidates = JolliSources.turnCandidates([...parts, ...(yield* delegatedParts(sessions, parts))])
-  const answer = JolliSources.turnAnswer(parts)
+  const candidates = JolliSources.turnCandidates([...turn.parts, ...(yield* delegatedParts(sessions, turn.parts))])
+  const answer = JolliSources.turnAnswer(turn.parts)
   if (candidates.length === 0 || !answer) {
     yield* Effect.logInfo("jolli course answer sources", {
       "session.id": input.sessionID,
@@ -107,11 +89,11 @@ export const attribute = Effect.fn("CourseSources.attribute")(function* (input: 
   }
   if (!(yield* input.citationsShown)) return
 
-  const model = yield* provider.getModel(last.providerID, last.modelID)
+  const model = yield* provider.getModel(turn.last.providerID, turn.last.modelID)
   const outcome = yield* JolliSources.select({
     answer,
     candidates,
-    complete: (conversation) => round({ llm, sessionID: input.sessionID, user: read.user, model, conversation }),
+    complete: (conversation) => round({ llm, sessionID: input.sessionID, user: turn.user, model, conversation }),
   }).pipe(
     Effect.map((result) => ({ ok: true as const, ...result })),
     Effect.catch((error) =>
@@ -166,6 +148,42 @@ export const attribute = Effect.fn("CourseSources.attribute")(function* (input: 
         .map((source) => (source.kind === "material" ? `${source.materialId}:${source.title}` : source.url))
         .join(" | ") || "none",
   })
+})
+
+/**
+ * A finished course turn, read back for what is written beside its answer — its sources here, its
+ * links in `CourseLinks`: the turn's parts, its closing step, and the text part the answer is in.
+ * Undefined for a turn whose closing step is not an answer; `answerPart` is absent for one that wrote
+ * no answer text.
+ *
+ * ⚠ THE TURN'S PARTS ARE READ ONCE, FOR EVERY USE: the answer that is judged, the evidence it is judged
+ * against, and the part what sits beside it is written onto, so they cannot disagree on what the turn
+ * was. A summary compaction wrote in the middle of the turn is none of them.
+ *
+ * ⚠ THE ANSWER IS THE TURN'S LAST TEXT, WHEREVER IT IS. A model can write its answer beside a tool
+ * call and end on a step that writes nothing more, and a turn compaction cut in two can end that
+ * way after the compaction too. The desktop timeline draws the sources under the steps the answer
+ * sits among; the TUI draws them under the turn's final steps only, so an answer left before a
+ * compaction shows its sources on the desktop alone.
+ */
+export const answerOf = Effect.fnUntraced(function* (
+  sessions: Session.Interface,
+  input: { readonly sessionID: SessionID; readonly userMessageID: MessageID },
+) {
+  const read = yield* readTurn(sessions, input)
+  if (!read) return undefined
+  const last = read.turn.findLast((item) => item.info.parentID === input.userMessageID)?.info
+  // A summary a compaction wrote is not an answer, and nothing is listed under one.
+  if (!last || last.error || last.summary) return undefined
+  const parts = read.turn.flatMap((item) => (item.info.summary ? [] : item.parts))
+  return {
+    user: read.user,
+    last,
+    parts,
+    answerPart: parts.findLast(
+      (part): part is SessionV1.TextPart => part.type === "text" && JolliSources.isAnswerText(part),
+    ),
+  }
 })
 
 /**

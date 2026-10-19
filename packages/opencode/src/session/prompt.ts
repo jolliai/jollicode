@@ -63,6 +63,7 @@ import { LLMEvent } from "@opencode-ai/llm"
 import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
 import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
 import { CourseServer } from "./course-server"
+import { CourseLinks } from "./course-links"
 import { CourseSources } from "./course-sources"
 import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
@@ -1388,6 +1389,7 @@ const layer = Layer.effect(
                     messages: msgs,
                     promptOps,
                   }).pipe(
+                    Effect.provideService(JolliSession.Service, jolli),
                     Effect.provideService(Plugin.Service, plugin),
                     Effect.provideService(Permission.Service, permission),
                     Effect.provideService(ToolRegistry.Service, registry),
@@ -1507,25 +1509,41 @@ const layer = Layer.effect(
         // Not for a subagent: the student reads the parent's answer.
         if (courseBinding && !session.parentID && answered.info.role === "assistant") {
           const userMessageID = answered.info.parentID
-          yield* CourseSources.attribute({
-            sessionID,
-            userMessageID,
-            // Only where the course shows citations, as the student's catalogue states it.
-            citationsShown: JolliCourseGuardrails.ofBinding(courseBinding).pipe(
-              Effect.map((guardrails) => guardrails?.showCitations === true),
-              Effect.provideService(JolliSession.Service, jolli),
-            ),
-          }).pipe(
-            Effect.provideService(Session.Service, sessions),
-            Effect.provideService(LLM.Service, llm),
-            Effect.provideService(Provider.Service, provider),
-            Effect.timeout("60 seconds"),
+          // ⚠ ONE AFTER THE OTHER, NOT SIDE BY SIDE: both write the answer's text part, each from the
+          // copy it read, and run together the later write would drop the other's key. The links ask
+          // the gateway once and come first; the sources wait on a model call and read the part again.
+          yield* CourseLinks.attach({ sessionID, userMessageID }).pipe(
+            Effect.provide(FetchHttpClient.layer),
+            Effect.timeout("20 seconds"),
             Effect.catchCause((cause) =>
-              Effect.logWarning("jolli course answer sources failed", {
+              Effect.logWarning("jolli course answer links failed", {
                 "session.id": sessionID,
                 cause: String(cause),
               }),
             ),
+            Effect.andThen(
+              CourseSources.attribute({
+                sessionID,
+                userMessageID,
+                // Only where the course shows citations, as the student's catalogue states it.
+                citationsShown: JolliCourseGuardrails.ofBinding(courseBinding).pipe(
+                  Effect.map((guardrails) => guardrails?.showCitations === true),
+                  Effect.provideService(JolliSession.Service, jolli),
+                ),
+              }).pipe(
+                Effect.timeout("60 seconds"),
+                Effect.catchCause((cause) =>
+                  Effect.logWarning("jolli course answer sources failed", {
+                    "session.id": sessionID,
+                    cause: String(cause),
+                  }),
+                ),
+              ),
+            ),
+            Effect.provideService(Session.Service, sessions),
+            Effect.provideService(JolliSession.Service, jolli),
+            Effect.provideService(LLM.Service, llm),
+            Effect.provideService(Provider.Service, provider),
             Effect.forkIn(scope),
           )
         }

@@ -702,6 +702,7 @@ export const dict = {
   "session.review.filesChanged": "بدلیاں فائلاں {{count}}",
   "session.sources.materials": "کورس دا مواد",
   "session.sources.web": "ویب صفحے",
+  "session.sources.assignments": "اسائنمنٹاں ویکھو",
   "session.review.change.one": "تبدیلی",
   "session.review.change.other": "تبدیلیاں",
   "session.review.loadingChanges": "تبدیلیاں لوڈ ہو رہیاں نیں...",

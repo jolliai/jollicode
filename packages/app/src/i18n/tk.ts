@@ -692,6 +692,7 @@ export const dict = {
   "session.review.filesChanged": "Faýllar üýtgedildi {{count}}",
   "session.sources.materials": "Kurs materiallary",
   "session.sources.web": "Web sahypalary",
+  "session.sources.assignments": "Ýumuşlary gör",
   "session.review.change.one": "Üýtget",
   "session.review.change.other": "Üýtgeşmeler",
   "session.review.loadingChanges": "Üýtgeşmeler ýüklenýär ...",

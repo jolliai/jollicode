@@ -96,6 +96,45 @@ describe("current session timeline rows", () => {
     expect(keys("idle")).not.toContain("sources:msg_1")
   })
 
+  test("closes a finished turn that asked about excluded assignments with its link, citations or not", () => {
+    const user = { id: "msg_1", sessionID: "ses_1", role: "user", time: { created: 1 } } as UserMessage
+    const assistant = {
+      id: "msg_2",
+      sessionID: "ses_1",
+      role: "assistant",
+      parentID: "msg_1",
+      time: { created: 2, completed: 3 },
+    } as AssistantMessage
+    const answer = (assignmentsUrl: string): TextPart => ({
+      id: "prt_answer",
+      sessionID: "ses_1",
+      messageID: "msg_2",
+      type: "text",
+      text: "With this assistant's current settings I cannot look up assignments.",
+      metadata: { assignmentsUrl },
+    })
+    const rows = (status: "idle" | "busy", url: string) =>
+      Timeline.constructMessageRows(
+        user,
+        (messageID) => (messageID === "msg_2" ? [answer(url)] : []),
+        [assistant],
+        0,
+        true,
+        status,
+        true,
+        true,
+        false,
+      )
+    const url = "https://school.example.edu/learn/44/assignments"
+
+    const finished = rows("idle", url)
+    expect(finished.map(TimelineRow.key).at(-1)).toBe("assignments-link:msg_1")
+    expect(finished.at(-1)).toMatchObject({ _tag: "AssignmentsLink", url })
+    expect(rows("busy", url).map(TimelineRow.key)).not.toContain("assignments-link:msg_1")
+    // Any client can write a part's metadata; only an http(s) link is ever drawn.
+    expect(rows("idle", "javascript:alert(1)").map(TimelineRow.key)).not.toContain("assignments-link:msg_1")
+  })
+
   test("renders a current shell message as a standalone turn", () => {
     const source = [
       {

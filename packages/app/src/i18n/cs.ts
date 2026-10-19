@@ -693,6 +693,7 @@ export const dict = {
   "session.review.filesChanged": "Soubory změněny {{count}}",
   "session.sources.materials": "Materiály kurzu",
   "session.sources.web": "Webové stránky",
+  "session.sources.assignments": "Zobrazit úkoly",
   "session.review.change.one": "Změna",
   "session.review.change.other": "Změny",
   "session.review.loadingChanges": "Načítání změn...",
