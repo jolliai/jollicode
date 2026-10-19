@@ -1,4 +1,5 @@
 import type { SessionV1 } from "@opencode-ai/core/v1/session"
+import { createHash } from "node:crypto"
 import { MAX_STEPS_PROMPT } from "@opencode-ai/core/session/runner/max-steps"
 import { TypedText } from "./typed-text"
 
@@ -257,7 +258,7 @@ export function header(
     .flatMap((message) => (Array.isArray(message.content) ? message.content : []))
     .flatMap((part) => declaredBlocks(part))
     .flatMap(({ text, ranges }) => {
-      const hash = new Bun.CryptoHasher("sha256").update(text).digest("hex")
+      const hash = createHash("sha256").update(text, "utf8").digest("hex")
       if (!Array.isArray(ranges)) return [hash]
       const valid = ranges.filter(isRange)
       // Ranges nothing here could have recorded: the whole block, rather than none of it.
