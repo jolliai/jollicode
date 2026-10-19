@@ -12,7 +12,7 @@
  */
 export * as JolliCourseGuardrails from "./course-guardrails"
 
-import { Duration, Effect, Option } from "effect"
+import { Duration, Effect, Fiber, Option } from "effect"
 import { FetchHttpClient } from "effect/unstable/http"
 import { fetchAssistantChoices, gatewayRequest, type GatewayRequest } from "./api"
 import type { CourseBinding } from "./binding"
@@ -34,8 +34,23 @@ const TIMEOUT = Duration.seconds(5)
  */
 const ASSIGNMENTS_TTL = Duration.seconds(30)
 
-/** The last reading of each bound assistant's assignment switch, by who read it. */
-const assignmentReadings = new Map<string, { readonly included: boolean; readonly at: number }>()
+/** At most this many bindings' readings are kept, the oldest dropped first. */
+const MAX_ASSIGNMENT_READINGS = 128
+
+type AssignmentReading = {
+  /** When the last read settled, successfully or not. */
+  checkedAt: number
+  /** The last answer the gateway gave; absent until one has. */
+  included?: boolean
+  /** The read in flight, which every caller arriving meanwhile waits on rather than starting its own. */
+  pending?: Effect.Effect<boolean>
+}
+
+/**
+ * The last reading of each bound assistant's assignment switch, by whose credential it was read —
+ * origin, tenant and identity, as the skill catalogue is kept — and the binding.
+ */
+const assignmentReadings = new Map<string, AssignmentReading>()
 
 /**
  * The switches of the assistant `binding` names, read with the credential this process holds, or
@@ -55,36 +70,79 @@ export const ofBinding = Effect.fn("JolliCourseGuardrails.ofBinding")(function* 
 
 /**
  * Whether the bound assistant's assignment tools may be offered, read off the gateway rather than the
- * catalogue snapshot, which may be minutes behind; an unknown policy withholds them.
+ * catalogue snapshot, which may be minutes behind; an unknown policy withholds them. It never fails.
  *
- * ⚠ A FAILED READ KEEPS THE LAST ANSWER. The tool list is rebuilt before every step, so falling back
- * to "withheld" on one slow request would take the tool from the model mid-turn and hand it back on the
- * next step. Only a binding never read yet starts out withheld.
+ * ⚠ A FAILED READ KEEPS THE LAST ANSWER, whatever failed: renewing the credential, the gateway, or
+ * either's timeout. The tool list is rebuilt before every step, so falling back to "withheld" on one
+ * slow request would take the tool from the model mid-turn and hand it back on the next step. Only a
+ * binding never read yet starts out withheld.
+ *
+ * ⚠ SO A READING IS FOUND BY THE STORED CREDENTIAL, NEVER BY `request()`. That renews a token near its
+ * expiry — a round trip to the auth hub — and a key that waited on it could not be found while the
+ * renewal is slow or failing, which is exactly when the last answer is wanted.
+ *
+ * ⚠ A FAILED READ IS HELD FOR THE TTL TOO, AND ONE READ SERVES EVERY CALLER THAT ARRIVES WHILE IT RUNS.
+ * With the gateway down, each caller would otherwise wait out a timeout of its own — on every step and
+ * every code-mode call — to be told the same last answer.
  */
 export const assignmentsIncluded = Effect.fn("JolliCourseGuardrails.assignmentsIncluded")(function* (
   binding: CourseBinding,
 ) {
   const jolli = yield* Effect.serviceOption(JolliSession.Service)
   if (Option.isNone(jolli)) return false
-  return yield* Effect.gen(function* () {
-    const request = yield* jolli.value.request().pipe(Effect.timeout(TIMEOUT))
-    if (!request) return false
-    const key = [request.origin, request.identity, binding.courseId, binding.assistantId].join("\n")
-    const known = assignmentReadings.get(key)
-    if (known && Date.now() - known.at < Duration.toMillis(ASSIGNMENTS_TTL)) return known.included
-    return yield* fetchAssistantChoices(request, Number(binding.courseId)).pipe(
-      Effect.map(
-        (choices) => choices.find((choice) => String(choice.id) === binding.assistantId)?.includeAssignments === true,
+  const row = yield* jolli.value.current().pipe(Effect.catchCause(() => Effect.succeed(undefined)))
+  const scope = row?.base_url
+    ? gatewayRequest(row.base_url, { token: row.access_token, identity: row.cache_key })
+    : undefined
+  if (!scope) return false
+  const key = JSON.stringify([scope.origin, scope.tenantSlug, scope.identity, binding.courseId, binding.assistantId])
+  const entry: AssignmentReading = assignmentReadings.get(key) ?? { checkedAt: 0 }
+  assignmentReadings.set(key, entry)
+  if (assignmentReadings.size > MAX_ASSIGNMENT_READINGS)
+    assignmentReadings.delete(assignmentReadings.keys().next().value!)
+  if (Date.now() - entry.checkedAt < Duration.toMillis(ASSIGNMENTS_TTL)) return entry.included ?? false
+  if (!entry.pending) {
+    const pending: Effect.Effect<boolean> = yield* Effect.cached(
+      readAssignmentSwitch(jolli.value, scope, binding).pipe(
+        Effect.tap((included) =>
+          Effect.sync(() => {
+            entry.included = included
+          }),
+        ),
+        Effect.catchCause(() => Effect.succeed(entry.included ?? false)),
+        Effect.ensuring(
+          Effect.sync(() => {
+            entry.checkedAt = Date.now()
+            if (entry.pending === pending) entry.pending = undefined
+          }),
+        ),
       ),
-      Effect.tap((included) => Effect.sync(() => assignmentReadings.set(key, { included, at: Date.now() }))),
-      Effect.timeout(TIMEOUT),
-      Effect.catchCause(() => Effect.succeed(known?.included ?? false)),
     )
-  }).pipe(
-    Effect.provide(FetchHttpClient.layer),
-    Effect.catchCause(() => Effect.succeed(false)),
-  )
+    entry.pending = pending
+  }
+  // A caller may stop waiting without interrupting the read the others share.
+  const reader = yield* entry.pending.pipe(Effect.forkDetach)
+  return yield* Fiber.join(reader)
 })
+
+/**
+ * The switch as the gateway states it now, read with a fresh token — refused when that token is no
+ * longer for the account `scope` names, whose reading this would otherwise be filed under.
+ */
+function readAssignmentSwitch(jolli: JolliSession.Interface, scope: GatewayRequest, binding: CourseBinding) {
+  return Effect.gen(function* () {
+    const request = yield* jolli.request().pipe(Effect.timeout(TIMEOUT))
+    if (
+      !request ||
+      request.origin !== scope.origin ||
+      request.tenantSlug !== scope.tenantSlug ||
+      request.identity !== scope.identity
+    )
+      return yield* Effect.fail(new Error("The active Jolli account changed while reading the assignment switch"))
+    const choices = yield* fetchAssistantChoices(request, Number(binding.courseId)).pipe(Effect.timeout(TIMEOUT))
+    return choices.find((choice) => String(choice.id) === binding.assistantId)?.includeAssignments === true
+  }).pipe(Effect.provide(FetchHttpClient.layer))
+}
 
 /**
  * Whether the assistant `binding` names speaks first, so a chat with it is made by Start; undefined

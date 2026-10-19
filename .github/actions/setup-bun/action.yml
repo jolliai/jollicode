@@ -53,6 +53,15 @@ runs:
       run: python3 -m pip install setuptools || pip install setuptools || true
       shell: bash
 
+    # A native install script (tree-sitter-powershell's `node-gyp-build`) resolves node-gyp as a module
+    # first and falls back to PATH. Neither is guaranteed while `bun install` runs: node-gyp is only a
+    # transitive dependency, linked whenever bun gets to it, and bun's own PATH fallback (a shim running
+    # `bunx node-gyp`) has failed intermittently with `spawn node-gyp ENOENT`. Installed globally first,
+    # it is on PATH before any install script starts. Pinned to the major the lockfile resolves.
+    - name: Install node-gyp
+      run: npm install -g node-gyp@12
+      shell: bash
+
     - name: Install dependencies
       run: |
         # Workaround for patched peer variants

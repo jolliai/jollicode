@@ -1,6 +1,9 @@
 import { courseBindingOf, type SessionLike } from "@opencode-ai/core/jolli/binding"
+import { JOLLI_MCP_SERVER } from "@opencode-ai/core/jolli/mcp"
 import { JolliSources } from "@opencode-ai/core/jolli/sources"
 import type { PermissionV1 } from "@opencode-ai/core/v1/permission"
+import { Effect } from "effect"
+import type { MCP } from "@/mcp"
 import { isRecord } from "@/util/record"
 
 /**
@@ -50,11 +53,33 @@ export function unboundCourseToolRules(session: SessionLike | undefined): Permis
   return [...COURSE_TOOL_IDS].map((permission) => ({ permission, pattern: "*", action: "deny" as const }))
 }
 
-/** The same assignment switch controls ordinary MCP tools and the code-mode catalog. */
+/** The same assignment switch controls ordinary MCP tools and the code-mode catalog (`JolliSources.withheldCourseTools`). */
 export function courseToolRules(session: SessionLike | undefined, includeAssignments: boolean): PermissionV1.Rule[] {
-  if (!courseToolBindingOf(session)) return unboundCourseToolRules(session)
-  return includeAssignments ? [] : [{ permission: JolliSources.ASSIGNMENT_LIST_TOOL, pattern: "*", action: "deny" }]
+  return JolliSources.withheldCourseTools({
+    bound: courseToolBindingOf(session) !== undefined,
+    includeAssignments,
+  }).map((permission) => ({ permission, pattern: "*", action: "deny" as const }))
 }
+
+/**
+ * The connected MCP servers' tools, for a session whose bound assistant does or does not read
+ * assignments. The one read of them both the ordinary tool list and the code-mode catalog take.
+ *
+ * ⚠ LISTED AGAIN WHEN AN ASSIGNMENT READER MEETS A MANIFEST WITHOUT ITS LIST. An institution can turn
+ * assignments on after the Jolli connection cached its manifest, and the server does not announce
+ * the change, so that manifest would hide the tool for as long as the connection lives. The MCP layer
+ * lists it again at most once a minute, so a server that never comes to offer the tool is not asked
+ * on every step.
+ */
+export const listMcpTools = Effect.fn("JolliMcpTools.listMcpTools")(function* (
+  mcp: MCP.Interface,
+  includeAssignments: boolean,
+) {
+  const listed = yield* mcp.tools()
+  if (!includeAssignments || JolliSources.ASSIGNMENT_LIST_TOOL in listed) return listed
+  yield* mcp.relist(JOLLI_MCP_SERVER)
+  return yield* mcp.tools()
+})
 
 export function kindOf(tool: string): ListKind | undefined {
   if (tool === JolliSources.ASSIGNMENT_LIST_TOOL) return "assignments"

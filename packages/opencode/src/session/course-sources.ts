@@ -53,6 +53,8 @@ export const attribute = Effect.fn("CourseSources.attribute")(function* (input: 
    * itself, which this has already read.
    */
   readonly citationsShown: Effect.Effect<boolean>
+  /** Runs the read-and-write of the answer part, so a caller can keep it from interleaving with another's. */
+  readonly serialize?: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
 }) {
   const sessions = yield* Session.Service
   const provider = yield* Provider.Service
@@ -122,23 +124,27 @@ export const attribute = Effect.fn("CourseSources.attribute")(function* (input: 
    * table's foreign key refuses it, inside the transaction that would have published the update, so
    * nothing is stored or sent and the failure ends in the caller's warning.
    */
-  const current = yield* sessions.getPart({
-    sessionID: input.sessionID,
-    messageID: answerPart.messageID,
-    partID: answerPart.id,
-  })
-  if (current?.type !== "text") {
-    yield* Effect.logInfo("jolli course answer sources", {
-      "session.id": input.sessionID,
-      skipped: "the answer was removed while its sources were being picked",
+  const write = Effect.gen(function* () {
+    const current = yield* sessions.getPart({
+      sessionID: input.sessionID,
+      messageID: answerPart.messageID,
+      partID: answerPart.id,
     })
-    return
-  }
-  if (current.metadata?.answerSources !== undefined) return
-  yield* sessions.updatePart({
-    ...current,
-    metadata: { ...current.metadata, answerSources: outcome.sources },
+    if (current?.type !== "text") {
+      yield* Effect.logInfo("jolli course answer sources", {
+        "session.id": input.sessionID,
+        skipped: "the answer was removed while its sources were being picked",
+      })
+      return false
+    }
+    if (current.metadata?.answerSources !== undefined) return false
+    yield* sessions.updatePart({
+      ...current,
+      metadata: { ...current.metadata, answerSources: outcome.sources },
+    })
+    return true
   })
+  if (!(yield* input.serialize ? input.serialize(write) : write)) return
   yield* Effect.logInfo("jolli course answer sources", {
     "session.id": input.sessionID,
     candidates: candidates.length,

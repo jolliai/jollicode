@@ -135,6 +135,7 @@ function makeMcp(instructions: MCP.ServerInstructions[] = [], servers: string[] 
       clients: () => Effect.succeed(clients),
       instructions: () => Effect.succeed(instructions),
       tools: () => Effect.succeed(tools),
+      relist: () => Effect.void,
       prompts: () => Effect.succeed({}),
       resources: () => Effect.succeed({}),
       resourceTemplates: () => Effect.succeed({}),

@@ -43,6 +43,23 @@ export const COURSE_TOOLS = [
   ...MATERIAL_TOOLS,
 ] as const
 
+/**
+ * The course tools a session is not offered: every one of them without a course binding, where each
+ * call would be refused for the missing binding, and the assignment list where the bound assistant
+ * does not read assignments.
+ *
+ * ⚠ THE ONE COPY OF THIS RULE. The v2 runner and the v1 tool list and code-mode catalog each turn it
+ * into the deny rules of their own permission model; written out at each, a change to the gating
+ * would reach one runtime and not the other.
+ */
+export function withheldCourseTools(input: {
+  readonly bound: boolean
+  readonly includeAssignments: boolean
+}): readonly string[] {
+  if (!input.bound) return COURSE_TOOLS
+  return input.includeAssignments ? [] : [ASSIGNMENT_LIST_TOOL]
+}
+
 /** The built-in tools that reach the web. */
 export const WEB_TOOLS = ["webfetch", "websearch"] as const
 
@@ -119,7 +136,14 @@ export function isCourseTool(tool: string) {
 const MaterialRef = Schema.Struct({
   id: Schema.Union([Schema.Number, Schema.String]),
   title: Schema.String,
-  assignment: Schema.optional(Schema.Struct({ courseId: Schema.Number, url: Schema.optional(Schema.String) })),
+  /**
+   * An assignment's binding, which only ever adds the worksheet's link (`materialEvidence`).
+   *
+   * ⚠ UNKNOWN HERE, READ FIELD BY FIELD WHERE IT IS USED. Declared as a struct, a binding a gateway
+   * wrote differently — null, or without a field nothing here reads — failed the whole chunk or read, so
+   * the material lost its evidence and every citation of it, all for a link it can do without.
+   */
+  assignment: Schema.optional(Schema.Unknown),
 })
 /**
  * ⚠ ONLY A RETRIEVED CHUNK IS EVIDENCE. A search preview locates a candidate the model still has to
@@ -398,25 +422,34 @@ export function judgeSelection(reply: SelectionReply): SelectionVerdict {
 /**
  * The candidates a selection named, kept only when they were offered, in the order named, once each.
  * A material named through several of its passages is one source.
+ *
+ * ⚠ A MATERIAL'S LINK IS ITS OWN, NOT ITS PASSAGE'S. Only some of a material's evidence carries it —
+ * a worksheet's read does, a search passage of the same material need not — so the link is taken from
+ * whichever offered passage carries one, rather than from the first passage named, which may not.
  */
 export function selectedSources(refs: readonly string[], candidates: readonly Candidate[]): AnswerSource[] {
   const offered = new Map(candidates.map((candidate) => [candidate.ref, candidate.evidence]))
+  const links = new Map(
+    candidates.flatMap(({ evidence }) =>
+      evidence.kind === "material" && evidence.url !== undefined ? [[sourceKey(evidence), evidence.url] as const] : [],
+    ),
+  )
   const listed = new Set<string>()
-  return [...new Set(refs)].flatMap((ref) => {
+  return [...new Set(refs)].flatMap((ref): AnswerSource[] => {
     const evidence = offered.get(ref)
     if (!evidence) return []
     const key = sourceKey(evidence)
     if (listed.has(key)) return []
     listed.add(key)
+    if (evidence.kind === "web") return [{ kind: "web", url: evidence.url, title: evidence.title }]
+    const url = links.get(key)
     return [
-      evidence.kind === "material"
-        ? {
-            kind: "material" as const,
-            materialId: evidence.materialId,
-            title: evidence.title,
-            ...(evidence.url === undefined ? {} : { url: evidence.url }),
-          }
-        : { kind: "web" as const, url: evidence.url, title: evidence.title },
+      {
+        kind: "material",
+        materialId: evidence.materialId,
+        title: evidence.title,
+        ...(url === undefined ? {} : { url }),
+      },
     ]
   })
 }
@@ -525,18 +558,19 @@ export function turnAssignmentsUrl(parts: readonly TurnPart[]): string | undefin
 // ── helpers ───────────────────────────────────────────────────────────────────────────────────────
 
 function materialEvidence(
-  material: { readonly id: number | string; readonly title: string; readonly assignment?: { readonly url?: string } },
+  material: { readonly id: number | string; readonly title: string; readonly assignment?: unknown },
   text: string,
 ): Evidence[] {
   const trimmed = text.trim()
   if (!trimmed) return []
+  const url = isRecord(material.assignment) ? material.assignment.url : undefined
   return [
     {
       kind: "material",
       materialId: String(material.id),
       title: material.title,
       text: trimmed.slice(0, MAX_EVIDENCE_CHARS),
-      ...(material.assignment?.url && isWebUrl(material.assignment.url) ? { url: material.assignment.url } : {}),
+      ...(typeof url === "string" && isWebUrl(url) ? { url } : {}),
     },
   ]
 }

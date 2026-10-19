@@ -1,7 +1,7 @@
 import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
-import { courseToolRules } from "@/plugin/jolli-mcp-tools"
+import { courseToolRules, listMcpTools } from "@/plugin/jolli-mcp-tools"
 import * as Tool from "./tool"
 import { CallToolResultSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { Cause, Effect, Option, Schema } from "effect"
@@ -256,7 +256,7 @@ export const CodeModeTool = Tool.define(
             : false
         const courseRules = courseToolRules(session, includeAssignments)
         const ruleset = Permission.merge(agent.permission, session.permission ?? [], courseRules)
-        const mcpTools = Permission.visibleTools(yield* mcp.tools({ refreshCourseTools: includeAssignments }), ruleset)
+        const mcpTools = Permission.visibleTools(yield* listMcpTools(mcp, includeAssignments), ruleset)
         const servers = Object.keys(yield* mcp.clients()).map(McpCatalog.sanitize)
         const catalog = [...groupByServer(mcpTools, servers).values()].flat()
 

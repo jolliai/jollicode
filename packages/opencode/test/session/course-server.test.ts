@@ -43,6 +43,7 @@ const it = testEffect(
       clients: unexpected,
       instructions: unexpected,
       tools: unexpected,
+      relist: unexpected,
       prompts: unexpected,
       resources: unexpected,
       resourceTemplates: unexpected,

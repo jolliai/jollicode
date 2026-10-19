@@ -247,12 +247,10 @@ const layer = Layer.effect(
               Effect.provideService(JolliSession.Service, jolli),
             )
           : false
-      const withheld = !binding
-        ? JolliSources.COURSE_TOOLS
-        : assignmentAccess
-          ? []
-          : [JolliSources.ASSIGNMENT_LIST_TOOL]
-      const courseRules: PermissionV2.Ruleset = withheld.map((action) => ({ action, resource: "*", effect: "deny" }))
+      const courseRules: PermissionV2.Ruleset = JolliSources.withheldCourseTools({
+        bound: binding !== undefined,
+        includeAssignments: assignmentAccess,
+      }).map((action) => ({ action, resource: "*", effect: "deny" }))
       const toolMaterialization = isLastStep
         ? undefined
         : yield* tools.materialize([...(agent.info?.permissions ?? []), ...courseRules])
