@@ -37,10 +37,12 @@ import { createStore } from "solid-js/store"
 import { useLayout } from "@/context/layout"
 import { assistantById, canStartSession, courseById, draftBinding, enrolledCourses, ready, windowNow } from "./catalog"
 import { useJolliCatalog, useRefusalRefresh } from "./catalog-fetch"
+import { AssignmentIntent, type TaskDraft } from "./assignment-intent"
 import { CourseIntent, courseIntentRouteKey } from "./course-intent"
 import { ModelGrant } from "./model-grant"
 import type { StartErrorKey } from "./start-session"
 import { useSync } from "@/context/sync"
+import { taskBindingOf } from "@opencode-ai/core/jolli/assignment"
 import { courseBindingOf, type CourseBinding } from "@opencode-ai/core/jolli/binding"
 import type { Assistant, Course } from "./types"
 
@@ -98,6 +100,18 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
        */
       startError?: StartErrorKey
       /**
+       * WHY THE LAST START OF A TASK FAILED, IN THE GATEWAY'S WORDS. A task's refusal names the
+       * assignment's dates and what to do, which no dictionary key could; it is shown instead of
+       * `startError` when present.
+       */
+      startMessage?: string
+      /**
+       * THE TASK THIS DRAFT STARTS A SESSION FOR, from the assignment dialog. It fixes the course and
+       * the agent — the task decides both, and an agent kept for assignments is offered only here —
+       * and every first message goes through Start, so the gateway records the task's attempt.
+       */
+      task?: TaskDraft
+      /**
        * A Start is out with the gateway. The draft is frozen meanwhile — the course row turns to
        * text — because the session that comes back is bound to what was sent, not to what the
        * picker says by then.
@@ -127,6 +141,13 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
       const bound = courseBindingOf(sync().data.session.find((item) => item.id === session))
       if (bound) forgetHandoff(session)
       return bound ?? handoff.get(session)
+    })
+
+    /** The task the open session was started for; undefined on a draft, and on any other session. */
+    const task = createMemo(() => {
+      const session = id()
+      if (!session) return undefined
+      return taskBindingOf(sync().data.session.find((item) => item.id === session))
     })
 
     const course = createMemo<Course | undefined>(() => courseById(current()?.courseId))
@@ -179,6 +200,25 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
        * second session. The effect re-runs when `starting` clears.
        */
       if (!ready() || id() || store.starting) return
+
+      /**
+       * ⚠ A TASK OUTRANKS A COURSE, AND STAYS ONCE TAKEN. Its binding is not picked from what may start
+       * now — an agent kept for assignments never may — so neither the default below nor a course
+       * request may replace it; only the student leaving the draft, or choosing anew, does.
+       */
+      const task = AssignmentIntent.claim(courseIntentRouteKey(layout.route()))
+      if (task) {
+        if (store.task?.assignmentId === task.assignmentId && store.task.partId === task.partId) return
+        autoSelected = true
+        setStore({
+          draft: { courseId: task.courseId, assistantId: task.assistantId },
+          task,
+          startError: undefined,
+          startMessage: undefined,
+        })
+        return
+      }
+      if (store.task) return
 
       /**
        * ⚠ `claim`, NOT `pending`. The request belongs to one new session — see `course-intent.ts`.
@@ -250,7 +290,8 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
      */
     createEffect(() => {
       const draft = store.draft
-      if (id() || !draft || !ready() || store.starting) return
+      // A task's agent is the task's, whatever its own window says; the gateway judges the task.
+      if (id() || !draft || !ready() || store.starting || store.task) return
       const next = draftBinding(draft.courseId, draft.assistantId, now())
       if (next?.assistantId === draft.assistantId) return
       setStore("draft", next)
@@ -280,6 +321,8 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
       now,
       /** The session on screen, or undefined on the new-session screen. */
       sessionID: id,
+      /** The task the session on screen was started for, if any. */
+      task,
 
       draft: {
         get value() {
@@ -297,7 +340,8 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
            * request re-apply CS 310 the next time the effect ran.
            */
           CourseIntent.clear()
-          setStore({ draft: draftFor(courseId), startError: undefined })
+          AssignmentIntent.clear()
+          setStore({ draft: draftFor(courseId), task: undefined, startError: undefined, startMessage: undefined })
         },
         setAssistant(assistantId: string) {
           const courseId = store.draft?.courseId ?? assistantById(assistantId)?.courseId
@@ -309,11 +353,29 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
            * choice on the next refresh or tick.
            */
           CourseIntent.clear()
-          setStore({ draft: draftFor(courseId, assistantId), startError: undefined })
+          AssignmentIntent.clear()
+          setStore({
+            draft: draftFor(courseId, assistantId),
+            task: undefined,
+            startError: undefined,
+            startMessage: undefined,
+          })
         },
         clear() {
           CourseIntent.clear()
-          setStore({ draft: undefined, startError: undefined })
+          AssignmentIntent.clear()
+          setStore({ draft: undefined, task: undefined, startError: undefined, startMessage: undefined })
+        },
+        /** The task this draft starts a session for, when it was opened from one. */
+        get task() {
+          return store.task
+        },
+        /** Why the last Start of a task failed, in the gateway's words. */
+        get startMessage() {
+          return store.startMessage
+        },
+        setStartMessage(message: string | undefined) {
+          setStore("startMessage", message)
         },
         /** Why the last Start on this draft failed; undefined once it succeeds or the student re-chooses. */
         get startError() {
@@ -342,7 +404,8 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
         const next = binding ?? store.draft
         if (!next) return
         handoff.set(session, { ...next })
-        setStore({ draft: undefined, startError: undefined })
+        setStore({ draft: undefined, task: undefined, startError: undefined, startMessage: undefined })
+        AssignmentIntent.clear()
         /**
          * ⚠ THE "+" REQUEST IS ANSWERED HERE, WHICH IS THE ONLY MOMENT IT CAN BE. It has to outlive
          * the two providers that read it — that is why it is not consumed on read — so the thing

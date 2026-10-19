@@ -666,3 +666,112 @@ export const SessionShare = Schema.Struct({
   roster: Schema.Literals(["ok", "unavailable"]),
   refusal: ShareRefusal.pipe(optional),
 }).annotate({ identifier: "Jolli.SessionShare" })
+
+/**
+ * A STUDENT'S ASSIGNMENTS, AS JOLLI CODE LISTS THEM: THE TODO ASSIGNMENTS AND THEIR TASKS.
+ *
+ * ⚠ A TASK IS AN ASSIGNMENT'S PART, AND ONLY A JOLLI CODE ONE IS WORKED HERE. A web task is listed so
+ * the student sees the whole assignment, never started from here: the gateway refuses that either way.
+ *
+ * ⚠ THE IDS ARE STRINGS, as `metadata.jolli` and the catalogue hold a course's and an assistant's.
+ */
+
+/** Where a task is worked: in a Jolli Code session, or in a web chat. */
+export const AssignmentTaskPlace = Schema.Literals(["jolli_code", "web"]).annotate({
+  identifier: "Jolli.AssignmentTaskPlace",
+})
+export type AssignmentTaskPlace = typeof AssignmentTaskPlace.Type
+
+/** One session of a task that is on this machine, and the folder it lives in. */
+export const AssignmentTaskSession = Schema.Struct({
+  sessionID: Schema.String,
+  directory: Schema.String,
+}).annotate({ identifier: "Jolli.AssignmentTaskSession" })
+export type AssignmentTaskSession = typeof AssignmentTaskSession.Type
+
+export interface AssignmentTask extends Schema.Schema.Type<typeof AssignmentTask> {}
+export const AssignmentTask = Schema.Struct({
+  partId: Schema.String,
+  /** "Task 2": the task's place among the assignment's, as the gateway names it in a hand-in. */
+  title: Schema.String,
+  assistantId: Schema.String,
+  assistantName: Schema.String,
+  assistantBlurb: Schema.String,
+  place: AssignmentTaskPlace,
+  /** When the student handed it in; null while it is not. */
+  handedInAt: Schema.NullOr(Schema.String),
+  /** The session handed in for it, when that was a Jolli Code session. */
+  handedInSessionID: Schema.NullOr(Schema.String),
+  /** Whether the student owes it: a task whose agent was deleted, never handed in, is owed by nobody. */
+  owed: Schema.Boolean,
+  /**
+   * The task's session on this machine, the newest when there are several; null when none is here.
+   *
+   * ⚠ ONLY A JOLLI CODE TASK HAS ONE. It is the session to continue rather than start again: a task
+   * takes one session handed in, and a second started beside it is a second the student has to choose
+   * between when they hand in.
+   */
+  local: Schema.NullOr(AssignmentTaskSession),
+  /** Whether the task has sessions on another machine, or deleted here: why it may start again. */
+  elsewhere: Schema.Boolean,
+}).annotate({ identifier: "Jolli.AssignmentTask" })
+
+export interface AssignmentSummary extends Schema.Schema.Type<typeof AssignmentSummary> {}
+export const AssignmentSummary = Schema.Struct({
+  id: Schema.String,
+  courseId: Schema.String,
+  courseCode: Schema.String,
+  title: Schema.String,
+  /** ISO instant; null for an assignment with no due date. */
+  dueAt: Schema.NullOr(Schema.String),
+  /** Whether it stops taking work at its due date. */
+  stopAtDue: Schema.Boolean,
+  tasksHandedIn: Schema.Int,
+  tasksTotal: Schema.Int,
+}).annotate({ identifier: "Jolli.AssignmentSummary" })
+
+/**
+ * WHAT `/jolli/assignment` ANSWERS: THE TODO ASSIGNMENTS, DUE SOONEST FIRST.
+ *
+ * ⚠ ONLY ONES WITH A JOLLI CODE TASK, ONLY OPEN AND NOT TURNED IN, AND NOT PAST A DUE DATE THEY STOP
+ * AT. Everything else has nothing to start here.
+ *
+ * ⚠ `unreachable` IS A QUESTION NEVER ASKED, NOT "NOTHING TO DO" — `CatalogStatus`'s rule.
+ */
+export interface AssignmentList extends Schema.Schema.Type<typeof AssignmentList> {}
+export const AssignmentList = Schema.Struct({
+  status: CatalogStatus,
+  assignments: Schema.Array(AssignmentSummary),
+}).annotate({ identifier: "Jolli.AssignmentList" })
+
+export interface Assignment extends Schema.Schema.Type<typeof Assignment> {}
+export const Assignment = Schema.Struct({
+  ...AssignmentSummary.fields,
+  description: Schema.String,
+  /** Who set it, for the turn-in confirmation's "{name} can review it". Null when unnamed. */
+  authorName: Schema.NullOr(Schema.String),
+  /** Turned in: nothing more is handed in from here. */
+  turnedIn: Schema.Boolean,
+  /** Every task owed is handed in and the assignment is not yet turned in. */
+  readyToTurnIn: Schema.Boolean,
+  tasks: Schema.Array(AssignmentTask),
+}).annotate({ identifier: "Jolli.Assignment" })
+
+/**
+ * WHAT READING OR TURNING IN ONE ASSIGNMENT ANSWERS.
+ *
+ * - `ok` — `assignment` is it, as it stands now.
+ * - `refused` — the gateway said no; `message` is its sentence for the student, with the next step.
+ * - `unreachable` — we never got an answer.
+ */
+export const AssignmentStatus = Schema.Literals(["ok", "refused", "unreachable"]).annotate({
+  identifier: "Jolli.AssignmentStatus",
+})
+export type AssignmentStatus = typeof AssignmentStatus.Type
+
+export interface AssignmentAnswer extends Schema.Schema.Type<typeof AssignmentAnswer> {}
+export const AssignmentAnswer = Schema.Struct({
+  status: AssignmentStatus,
+  assignment: Assignment.pipe(optional),
+  message: Schema.String.pipe(optional),
+}).annotate({ identifier: "Jolli.AssignmentAnswer" })

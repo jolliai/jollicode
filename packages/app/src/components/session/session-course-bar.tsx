@@ -26,12 +26,20 @@ import { assistantIconName } from "@/jolli/assistant-icon"
 import { PromptAssistantSelector, PromptCourseSelector } from "@/components/prompt-course-selector"
 import { useLanguage } from "@/context/language"
 import { useCourseSession } from "@/jolli/session-binding"
+import { useTaskHeader } from "@/jolli/assignments"
 
 export function SessionCourseBar(props: { onDone?: () => void; trailing?: JSX.Element }) {
   const language = useLanguage()
   const binding = useCourseSession()
   /** Resolved once so the `hidden` check below can consult it without building the nodes twice. */
   const trailing = children(() => props.trailing)
+  /** The task a live session was started for, read from its assignment; a draft names its own. */
+  const header = useTaskHeader({
+    courseId: () => binding.current()?.courseId,
+    task: binding.task,
+    sessionID: binding.sessionID,
+  })
+  const taskLabel = () => (binding.locked() ? header()?.label : binding.draft.task?.label)
 
   /**
    * ⚠ NOTHING AT ALL WHEN A LIVE SESSION HAS NO COURSE, and that is the one branch worth arguing
@@ -68,8 +76,11 @@ export function SessionCourseBar(props: { onDone?: () => void; trailing?: JSX.El
          * session" rather than "bind this one in place".
          */}
         <Show
-          /* Frozen too while a Start is out — see `draft.starting` in `session-binding.tsx`. */
-          when={!binding.locked() && !binding.draft.starting}
+          /*
+           * Frozen too while a Start is out — see `draft.starting` in `session-binding.tsx` — and on a
+           * task's draft, whose course and agent the task decides.
+           */
+          when={!binding.locked() && !binding.draft.starting && !binding.draft.task}
           fallback={
             <Show when={binding.course()}>
               {(course) => (
@@ -108,6 +119,28 @@ export function SessionCourseBar(props: { onDone?: () => void; trailing?: JSX.El
         >
           <PromptCourseSelector onDone={props.onDone} />
           <PromptAssistantSelector onDone={props.onDone} />
+        </Show>
+        {/*
+         * WHICH TASK, AFTER WHO IT IS WITH: "Lab 4: Linked lists · Task 2", and "Handed in" before it
+         * once this is the session the teacher reads for the task.
+         */}
+        <Show when={taskLabel()}>
+          {(label) => (
+            <>
+              <span class="mx-0.5 shrink-0 select-none opacity-50">/</span>
+              <Show when={binding.locked() && header()?.handedIn}>
+                <span
+                  data-component="session-task-handed-in"
+                  class="shrink-0 rounded-[4px] bg-v2-overlay-simple-overlay-hover px-1.5 text-[12px] leading-5 text-v2-text-text-base"
+                >
+                  {language.t("prompt.jolli.task.handedIn")}
+                </span>
+              </Show>
+              <span data-component="session-task" class="min-w-0 truncate">
+                {label()}
+              </span>
+            </>
+          )}
         </Show>
         {/*
          * WHERE IT RUNS, AFTER WHAT IT IS. Project, workspace and branch when the caller has them —

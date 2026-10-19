@@ -1,8 +1,9 @@
-import { expect } from "bun:test"
+import { describe, expect } from "bun:test"
 import { ProjectV2 } from "@opencode-ai/core/project"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
+import type { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { Agent } from "@/agent/agent"
 import { MCP } from "@/mcp"
 import { Permission } from "@/permission"
@@ -414,3 +415,97 @@ it.effect("does not offer the course tools to a session with no course binding, 
     expect(result.tools.jolliedu_list_user_attachments).toBeDefined()
   }),
 )
+
+describe("the hand-in tools", () => {
+  const handInDefinition = {
+    id: "jolli_submit_task",
+    description: "hands a task in",
+    parameters: Schema.Struct({}),
+    jsonSchema: { type: "object", properties: {} },
+    execute: (_args, ctx) =>
+      Effect.gen(function* () {
+        yield* ctx.ask({
+          permission: "jolli_submit_task",
+          patterns: ["Lab 4 · Task 2"],
+          always: ["task"],
+          metadata: {},
+        })
+        return { title: "", metadata: {}, output: "handed in" }
+      }),
+  } satisfies Tool.Def
+
+  function handInLayer(asked: PermissionV1.Ruleset[]) {
+    return Layer.mergeAll(
+      Layer.succeed(Plugin.Service, fakePlugin),
+      Layer.succeed(
+        Permission.Service,
+        Permission.Service.of({
+          ask: (input) => Effect.sync(() => void asked.push(input.ruleset)),
+          reply: () => Effect.void,
+          list: () => Effect.succeed([]),
+        }),
+      ),
+      Layer.succeed(MCP.Service, fakeMcp()),
+      Layer.succeed(Truncate.Service, fakeTruncate),
+      RuntimeFlags.layer(),
+      Layer.succeed(
+        ToolRegistry.Service,
+        ToolRegistry.Service.of({
+          ids: () => Effect.succeed([handInDefinition.id]),
+          all: () => Effect.succeed([]),
+          named: () => Effect.die("unused"),
+          tools: () => Effect.succeed([handInDefinition]),
+        }),
+      ),
+    )
+  }
+
+  const resolveFor = (metadata: Record<string, unknown> | undefined, asked: PermissionV1.Ruleset[]) =>
+    SessionTools.resolve({
+      agent,
+      model,
+      session: {
+        id: sessionID,
+        permission: [{ permission: "*", pattern: "*", action: "allow" }],
+        metadata,
+      } as unknown as Session.Info,
+      processor: {
+        message: { id: messageID } as SessionV1.Assistant,
+        updateToolCall: () => Effect.die("unused"),
+        completeToolCall: () => Effect.void,
+      } as Pick<SessionProcessor.Handle, "message" | "updateToolCall" | "completeToolCall">,
+      bypassAgentCheck: false,
+      messages: [],
+      promptOps: {} as never,
+    }).pipe(Effect.provide(handInLayer(asked)))
+
+  const TASK = { jolliTask: { sessionID, assignmentId: "40", partId: "42" } }
+
+  /** ⚠ A PLAIN CHAT, A FORK AND A CHILD HAVE NO TASK THE GATEWAY BOUND TO THEM. */
+  it.effect("are not offered in a session no task started, a fork's copy included", () =>
+    Effect.gen(function* () {
+      expect((yield* resolveFor(undefined, [])).tools.jolli_submit_task).toBeUndefined()
+      const copy = { jolliTask: { ...TASK.jolliTask, sessionID: "ses_original" } }
+      expect((yield* resolveFor(copy, [])).tools.jolli_submit_task).toBeUndefined()
+    }),
+  )
+
+  /** ⚠ AN AGENT AND A SESSION THAT ALLOW EVERYTHING STILL DO NOT ANSWER FOR THE STUDENT. */
+  it.effect("are offered in the task's session, and always asked whatever else allows", () =>
+    Effect.gen(function* () {
+      const asked: PermissionV1.Ruleset[] = []
+      const result = yield* resolveFor(TASK, asked)
+      const handIn = result.tools.jolli_submit_task
+      expect(handIn).toBeDefined()
+      yield* Effect.promise(() =>
+        Promise.resolve(
+          handIn!.execute!({}, { toolCallId: "call-hand-in", messages: [], abortSignal: new AbortController().signal }),
+        ),
+      )
+      const ruleset = asked[0] ?? []
+      expect(Permission.evaluate("jolli_submit_task", "Lab 4 · Task 2", ruleset).action).toBe("ask")
+      expect(Permission.evaluate("jolli_turn_in_assignment", "Lab 4", ruleset).action).toBe("ask")
+      expect(Permission.evaluate("bash", "ls", ruleset).action).toBe("allow")
+    }),
+  )
+})

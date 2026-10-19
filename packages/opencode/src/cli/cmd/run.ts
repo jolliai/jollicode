@@ -1,3 +1,4 @@
+import { HAND_IN_ELSEWHERE, isNeverAutoApproved } from "@opencode-ai/core/jolli/assignment"
 import type { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { FSUtil } from "@opencode-ai/core/fs-util"
 import { Brand } from "@opencode-ai/core/brand"
@@ -803,7 +804,22 @@ export const RunCommand = effectCmd({
               const permission = event.properties
               if (!sessions.has(permission.sessionID)) continue
 
-              if (auto) {
+              /**
+               * ⚠ A HAND-IN IS NEVER ANSWERED HERE, NOT EVEN UNDER `--auto`. It counts only when the
+               * student approves it, and a non-interactive run has nobody to ask, so it is turned down
+               * and the agent is told to hand in from the desktop or the terminal.
+               */
+              if (isNeverAutoApproved(permission.permission)) {
+                UI.println(
+                  UI.Style.TEXT_WARNING_BOLD + "!",
+                  UI.Style.TEXT_NORMAL + `${permission.permission} needs the student's approval; declined in a run`,
+                )
+                await client.permission.reply({
+                  requestID: permission.id,
+                  reply: "reject",
+                  message: HAND_IN_ELSEWHERE,
+                })
+              } else if (auto) {
                 await client.permission.reply({
                   requestID: permission.id,
                   reply: "once",

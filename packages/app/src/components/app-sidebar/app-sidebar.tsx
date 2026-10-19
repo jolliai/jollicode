@@ -28,6 +28,7 @@ import { useCommand } from "@/context/command"
 import { useHomeData } from "@/context/home-data"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
+import { refreshAssignments, useTodoAssignments } from "@/jolli/assignments"
 import { listedCourses, refreshCatalog } from "@/jolli/catalog"
 import { HomeCourseSelection } from "@/jolli/home-selection"
 import { HomeProjectsListBody } from "@/pages/home/home-projects-view"
@@ -36,6 +37,7 @@ import type { HomeSessionStatus } from "@/pages/home/home-sessions-controller"
 import { displayName } from "@/pages/layout/helpers"
 import { createSizing } from "@/pages/session/helpers"
 import { AppSidebarAccount } from "./app-sidebar-account"
+import { AppSidebarAssignments } from "./app-sidebar-assignments"
 import { AppSidebarCourses } from "./app-sidebar-courses"
 import { AppSidebarSection } from "./app-sidebar-section"
 import { AppSidebarSessions } from "./app-sidebar-sessions"
@@ -48,6 +50,8 @@ const SIDEBAR_MAX_WIDTH = 480
 export function AppSidebar() {
   const layout = useLayout()
   const language = useLanguage()
+  /** The student's TODO assignments, asked for here because the sidebar is always mounted. */
+  const todo = useTodoAssignments()
   const command = useCommand()
   const dialog = useDialog()
   const { home, projects, sessions, search } = useHomeData()
@@ -234,6 +238,34 @@ export function AppSidebar() {
             }
           >
             <AppSidebarCourses />
+          </AppSidebarSection>
+        )}
+
+        {/*
+         * ⚠ GATED ON HAVING ANY, HEADER INCLUDED, as Courses is: a student with nothing to do in Jolli
+         * Code — most of them, most weeks — gets no empty heading. See `app-sidebar-assignments.tsx`
+         * for why it sits here.
+         */}
+        {todo.assignments.length > 0 && (
+          <AppSidebarSection
+            id="assignments"
+            label={language.t("sidebar.assignments")}
+            collapseLabel={language.t("sidebar.assignments.collapse")}
+            expandLabel={language.t("sidebar.assignments.expand")}
+            action={
+              <TooltipV2 placement="bottom" value={language.t("sidebar.assignments.refresh")}>
+                <IconButtonV2
+                  data-action="app-sidebar-assignments-refresh"
+                  variant="ghost-muted"
+                  size="small"
+                  icon={<IconV2 name="arrows-clockwise" />}
+                  aria-label={language.t("sidebar.assignments.refresh")}
+                  onClick={refreshAssignments}
+                />
+              </TooltipV2>
+            }
+          >
+            <AppSidebarAssignments assignments={todo.assignments} />
           </AppSidebarSection>
         )}
 

@@ -12,11 +12,25 @@ import {
   fetchConversationShares,
   fetchConversationVisibility,
   fetchCourseMembers,
+  fetchStudentAssignment,
+  fetchStudentAssignments,
   shareConversation,
+  turnInAssignment,
   unshareConversation,
   type ConversationVisibility,
+  type GatewayRequest,
   type JolliApiError,
+  type StudentAssignment,
 } from "@opencode-ai/core/jolli/api"
+import {
+  projectAssignment,
+  taskSessionIDs,
+  todoAssignments,
+  type LocalSession,
+  type StudentCourse,
+} from "@opencode-ai/core/jolli/assignment"
+import { JolliAssignmentCache } from "@opencode-ai/core/jolli/assignment-cache"
+import { isGatewayId } from "@opencode-ai/core/jolli/binding"
 import { loadCatalog } from "@opencode-ai/core/jolli/cache"
 import { JolliClosedAssistants } from "@opencode-ai/core/jolli/closed-assistants"
 import { projectCatalog, today } from "@opencode-ai/core/jolli/catalog"
@@ -24,7 +38,9 @@ import { viewerFromToken } from "@opencode-ai/core/jolli/identity"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { classSizeOf, projectMembers, projectReaders, refusalOf, WRITABLE_ACCESS } from "@opencode-ai/core/jolli/share"
 import { Jolli } from "@opencode-ai/schema/jolli"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Option } from "effect"
+import { Session } from "@/session/session"
+import { SessionID } from "@/session/schema"
 import { FetchHttpClient } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { RootHttpApi } from "../api"
@@ -52,9 +68,13 @@ const shareAnswer = (status: Jolli.ShareStatus): Jolli.SessionShare => ({
   roster: "unavailable",
 })
 
+/** The assignment answer for a question we never got to ask. */
+const UNREACHABLE_ASSIGNMENT = { status: "unreachable" as const }
+
 export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handlers) =>
   Effect.gen(function* () {
     const session = yield* JolliSession.Service
+    const sessions = yield* Session.Service
 
     const course = Effect.fn("JolliHttpApi.course")(function* (ctx: { query: { fresh?: boolean } }) {
       /**
@@ -246,12 +266,168 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
       )
     })
 
+    /**
+     * THE COURSES WHOSE ASSIGNMENTS JOLLI CODE LISTS: THE STUDENT'S OWN, AND OPEN.
+     *
+     * ⚠ FROM THE CATALOGUE, WHICH ALREADY HOLDS ONLY THE COURSES THAT USE JOLLI CODE. A course the
+     * student only has sight of as staff has no assignment of theirs to do; one not open yet, ended or
+     * archived has none that takes work.
+     */
+    const studentCourses = Effect.fn("JolliHttpApi.studentCourses")(function* (request: GatewayRequest) {
+      const loaded = yield* loadCatalog(request)
+      if (loaded.kind !== "ok") return undefined
+      return projectCatalog(loaded.snapshot, today())
+        .courses.filter((course) => !course.isStaff && course.entryState === "open")
+        .map((course): StudentCourse => ({ id: course.id, code: course.code }))
+    })
+
+    /**
+     * ONE FAILED ASSIGNMENT CALL, AS AN ANSWER.
+     *
+     * ⚠ A STATUS IS A REFUSAL, WORDED BY THE GATEWAY. Its sentence says what happened and what to do;
+     * a 404 without one is an assignment that is not the student's to see, which the gateway does not
+     * tell apart from one that is gone.
+     */
+    const assignmentFailed = Effect.fn("JolliHttpApi.assignmentFailed")(function* (
+      error: JolliApiError,
+      token: string,
+    ) {
+      if (error.status === 401) yield* session.refused(token).pipe(Effect.catch(() => Effect.void))
+      if (error.status === undefined || error.status === 401 || error.status >= 500) {
+        yield* Effect.logDebug("Jolli: assignment call failed", { status: error.status, cause: error.cause })
+        return UNREACHABLE_ASSIGNMENT
+      }
+      yield* Effect.logInfo("Jolli: assignment call refused", { status: error.status, code: error.code })
+      return {
+        status: "refused" as const,
+        message:
+          error.explanation ??
+          (error.status === 404 ? "This assignment isn't available to you." : "Jolli couldn't do that. Try again."),
+      }
+    })
+
+    /**
+     * THE TASK SESSIONS THAT ARE ON THIS MACHINE, BY ID.
+     *
+     * ⚠ AN ARCHIVED ONE IS NOT HERE. The student put it away; reopening it to continue a task would
+     * bring back what they chose to hide, so the task offers to start again instead.
+     */
+    const localSessions = Effect.fn("JolliHttpApi.localSessions")(function* (ids: ReadonlyArray<string>) {
+      const found = yield* Effect.forEach(
+        ids,
+        (id) =>
+          sessions.get(SessionID.make(id)).pipe(
+            Effect.map((info) =>
+              info.time.archived === undefined
+                ? [[id, { directory: info.directory, updated: info.time.updated }] as const]
+                : [],
+            ),
+            Effect.catchCause(() => Effect.succeed([])),
+          ),
+        { concurrency: 8 },
+      )
+      return new Map<string, LocalSession>(found.flat())
+    })
+
+    const answerFor = Effect.fn("JolliHttpApi.answerFor")(function* (
+      course: StudentCourse,
+      assignment: StudentAssignment,
+    ) {
+      const locals = yield* localSessions(taskSessionIDs(assignment))
+      return { status: "ok" as const, assignment: projectAssignment(course, assignment, locals, Date.now()) }
+    })
+
+    /** The course an assignment is in, as the catalogue names it; one it does not hold goes unnamed. */
+    const courseOf = Effect.fn("JolliHttpApi.courseOf")(function* (request: GatewayRequest, courseId: string) {
+      const courses = yield* studentCourses(request)
+      return courses?.find((course) => course.id === courseId) ?? { id: courseId, code: "" }
+    })
+
+    const assignments = Effect.fn("JolliHttpApi.assignments")(function* (ctx: { query: { fresh?: boolean } }) {
+      const request = yield* gateway()
+      if (!request) return { status: "unreachable" as const, assignments: [] }
+      const kept = ctx.query.fresh ? undefined : JolliAssignmentCache.list(request.identity, Date.now())
+      if (kept) return { status: "ok" as const, assignments: kept }
+      const courses = yield* studentCourses(request)
+      if (!courses) return { status: "unreachable" as const, assignments: [] }
+      const read = yield* Effect.forEach(
+        courses,
+        (course) =>
+          fetchStudentAssignments(request, Number(course.id)).pipe(
+            Effect.map((list) => ({ course, list })),
+            Effect.catch((error) =>
+              Effect.gen(function* () {
+                if (error.status === 401) yield* session.refused(request.token).pipe(Effect.catch(() => Effect.void))
+                yield* Effect.logWarning("Jolli: a course's assignments could not be read", {
+                  courseId: course.id,
+                  status: error.status,
+                })
+                return undefined
+              }),
+            ),
+          ),
+        { concurrency: 4 },
+      )
+      const lists = read.filter((item) => item !== undefined)
+      if (courses.length > 0 && lists.length === 0) return { status: "unreachable" as const, assignments: [] }
+      const todo = todoAssignments(lists, Date.now())
+      /**
+       * ⚠ A LIST WITH A COURSE MISSING IS SERVED, NOT KEPT. What could be read is still the student's to
+       * do; keeping it would hide the missing course's assignments for a minute after it answers again.
+       */
+      if (lists.length === courses.length) JolliAssignmentCache.putList(request.identity, todo, Date.now())
+      return { status: "ok" as const, assignments: todo }
+    })
+
+    const assignment = Effect.fn("JolliHttpApi.assignment")(function* (ctx: {
+      params: { courseId: string; assignmentId: string }
+      query: { fresh?: boolean }
+    }) {
+      if (!isGatewayId(ctx.params.courseId) || !isGatewayId(ctx.params.assignmentId)) return UNREACHABLE_ASSIGNMENT
+      const request = yield* gateway()
+      if (!request) return UNREACHABLE_ASSIGNMENT
+      const course = yield* courseOf(request, ctx.params.courseId)
+      const kept = ctx.query.fresh
+        ? undefined
+        : JolliAssignmentCache.assignment(request.identity, ctx.params.courseId, ctx.params.assignmentId, Date.now())
+      if (kept) return yield* answerFor(course, kept)
+      return yield* fetchStudentAssignment(request, Number(ctx.params.courseId), Number(ctx.params.assignmentId)).pipe(
+        Effect.tap((read) =>
+          Effect.sync(() => JolliAssignmentCache.keep(request.identity, ctx.params.courseId, read, Date.now())),
+        ),
+        Effect.flatMap((read) => answerFor(course, read)),
+        Effect.catch((error) => assignmentFailed(error, request.token)),
+      )
+    })
+
+    const turnIn = Effect.fn("JolliHttpApi.turnIn")(function* (ctx: {
+      params: { courseId: string; assignmentId: string }
+    }) {
+      if (!isGatewayId(ctx.params.courseId) || !isGatewayId(ctx.params.assignmentId)) return UNREACHABLE_ASSIGNMENT
+      const request = yield* gateway()
+      if (!request) return UNREACHABLE_ASSIGNMENT
+      const course = yield* courseOf(request, ctx.params.courseId)
+      return yield* turnInAssignment(request, {
+        courseId: Number(ctx.params.courseId),
+        assignmentId: Number(ctx.params.assignmentId),
+      }).pipe(
+        Effect.tap((read) =>
+          Effect.sync(() => JolliAssignmentCache.turnedIn(request.identity, ctx.params.courseId, read, Date.now())),
+        ),
+        Effect.flatMap((read) => answerFor(course, read)),
+        Effect.catch((error) => assignmentFailed(error, request.token)),
+      )
+    })
+
     return handlers
       .handle("course", course)
       .handle("share", share)
       .handle("shareReaders", shareReaders)
       .handle("shareAdd", shareAdd)
       .handle("shareRemove", shareRemove)
+      .handle("assignments", assignments)
+      .handle("assignment", assignment)
+      .handle("turnIn", turnIn)
   }),
 ).pipe(
   /**

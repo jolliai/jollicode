@@ -248,6 +248,15 @@ describe("preserveBinding", () => {
     expect(preserveBinding(bound("7", "12"), { ...bound("7", "12"), jolliOpener: opener })).toEqual(bound("7", "12"))
   })
 
+  // A task's record is the start route's too: one a client could write would offer the hand-in tools.
+  test("a write cannot replace, remove or invent a task's record", () => {
+    const task = { sessionID: "ses_1", assignmentId: "40", partId: "41", startHead: "9f0c1aa" }
+    const before = { ...bound("7", "12"), jolliTask: task }
+    expect(preserveBinding(before, { ...bound("7", "12"), jolliTask: { ...task, partId: "42" } })).toEqual(before)
+    expect(preserveBinding(before, { other: 1 })).toEqual({ other: 1, ...before })
+    expect(preserveBinding(bound("7", "12"), { ...bound("7", "12"), jolliTask: task })).toEqual(bound("7", "12"))
+  })
+
   test("an unbound session gains nothing", () => {
     expect(preserveBinding(undefined, { a: 1 })).toEqual({ a: 1 })
     expect(preserveBinding({}, { a: 1 })).toEqual({ a: 1 })

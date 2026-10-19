@@ -142,4 +142,20 @@ describe("run permission shared", () => {
       "- src/**/*.tsx",
     ])
   })
+
+  /** ⚠ THE LINES ARE THE GATEWAY'S PREVIEW, AND "ALWAYS" NEVER STOPS THE ASKING. */
+  test("shows a hand-in's lines as they are, and says what allowing it always means", () => {
+    const lines = ["Lab 4 · Task 2 · Prof. Okafor and CS 310 staff", "Reflection: “the empty list”"]
+    const submit = req({ permission: "jolli_submit_task", patterns: lines, always: ["course 7 assignment 40 task 42"] })
+    expect(permissionInfo(submit)).toEqual({
+      icon: "↑",
+      title: "Submit task — final unless your teacher reopens it.",
+      lines,
+    })
+    expect(permissionAlwaysLines(submit)).toEqual([
+      "This applies to this task only. You'll still be asked each time it is handed in.",
+    ])
+    const turnIn = req({ permission: "jolli_turn_in_assignment", patterns: ["Lab 4 · due Oct 24 · Prof. Okafor"] })
+    expect(permissionInfo(turnIn).title).toStartWith("Turn in assignment")
+  })
 })

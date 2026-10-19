@@ -21,7 +21,13 @@ export const JolliPaths = {
   share: "/jolli/session/:sessionID/share",
   shareReaders: "/jolli/session/:sessionID/share/readers",
   unshare: "/jolli/session/:sessionID/share/:subject",
+  assignments: "/jolli/assignment",
+  assignment: "/jolli/assignment/:courseId/:assignmentId",
+  turnIn: "/jolli/assignment/:courseId/:assignmentId/turn-in",
 } as const
+
+/** An assignment by its course and its own id, as the gateway numbers both. */
+const AssignmentParams = { courseId: Schema.String, assignmentId: Schema.String }
 
 /**
  * ⚠ THE SESSION ID IS A PLAIN STRING HERE, NOT THE BRANDED `SessionID`. These routes never touch the
@@ -121,10 +127,56 @@ export const JolliApi = HttpApi.make("jolli").add(
         }),
       ),
     )
+    .add(
+      HttpApiEndpoint.get("assignments", JolliPaths.assignments, {
+        query: CourseQuery,
+        success: described(Jolli.AssignmentList, "The student's assignments to do that have a Jolli Code task"),
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "jolli.assignments",
+          summary: "List the signed-in student's assignments to do",
+          description:
+            "Across the student's Jolli Code courses, the open assignments not yet turned in that have a " +
+            "task worked in Jolli Code, due soonest first. One past a due date it stops at is left out. " +
+            "Answers `unreachable` rather than an error when there is no credential or Jolli did not " +
+            "answer. Served from a minute-long cache unless `fresh` is `true`.",
+        }),
+      ),
+    )
+    .add(
+      HttpApiEndpoint.get("assignment", JolliPaths.assignment, {
+        params: AssignmentParams,
+        query: CourseQuery,
+        success: described(Jolli.AssignmentAnswer, "One assignment and its tasks, with this machine's sessions"),
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "jolli.assignment",
+          summary: "Read one assignment",
+          description:
+            "One assignment with the student's own work: each task, where it is worked, whether it is " +
+            "handed in and by which session, and the task's session on this machine when there is one. " +
+            "A refusal answers `refused` with Jolli's own sentence in `message`.",
+        }),
+      ),
+    )
+    .add(
+      HttpApiEndpoint.post("turnIn", JolliPaths.turnIn, {
+        params: AssignmentParams,
+        success: described(Jolli.AssignmentAnswer, "The assignment as it stands after the turn-in"),
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "jolli.turnIn",
+          summary: "Turn an assignment in",
+          description:
+            "Turns the whole assignment in for the teacher to review. The caller has already had the " +
+            "student confirm it. A refusal answers `refused` with Jolli's own sentence in `message`.",
+        }),
+      ),
+    )
     .annotateMerge(
       OpenApi.annotations({
         title: "jolli",
-        description: "Jolli Code course, assistant and session-share routes.",
+        description: "Jolli Code course, assistant, assignment and session-share routes.",
       }),
     ),
 )

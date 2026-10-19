@@ -41,7 +41,13 @@ const jolliStartInputs: unknown[] = []
 const sessionUpdates: unknown[] = []
 let jolliStartAnswer: () => Promise<{ data: unknown }> = async () => ({ data: { status: "unreachable" } })
 /** The draft's Start state, as `session-binding.tsx` keeps it. */
-const draftState: { starting: boolean; startError?: string; startingSeen: boolean[] } = {
+const draftState: {
+  starting: boolean
+  startError?: string
+  startMessage?: string
+  task?: { courseId: string; assistantId: string; assignmentId: string; partId: string; label: string }
+  startingSeen: boolean[]
+} = {
   starting: false,
   startingSeen: [],
 }
@@ -242,6 +248,15 @@ beforeAll(async () => {
         setStartError(key: string | undefined) {
           draftState.startError = key
         },
+        get startMessage() {
+          return draftState.startMessage
+        },
+        setStartMessage(message: string | undefined) {
+          draftState.startMessage = message
+        },
+        get task() {
+          return draftState.task
+        },
       },
     }),
   }))
@@ -404,6 +419,8 @@ beforeEach(() => {
   jolliStartAnswer = async () => ({ data: { status: "unreachable" } })
   draftState.starting = false
   draftState.startError = undefined
+  draftState.startMessage = undefined
+  draftState.task = undefined
   draftState.startingSeen.length = 0
   promotedDrafts.length = 0
   addedTabs.length = 0
@@ -1015,6 +1032,45 @@ describe("session start", () => {
       opener: !!metadata?.["jolliOpener"],
       session: { id: "ses_started", directory: "/repo/main", title: "", time: { created: 1, updated: 1 }, metadata },
     },
+  })
+
+  /** ⚠ A TASK'S SESSION IS THE TASK'S: the sidecar opens it through the task, so the gateway records it. */
+  test("a task's draft starts its session for the task", async () => {
+    courseBinding = binding
+    draftState.task = { ...binding, assignmentId: "40", partId: "41", label: "Lab 4 · Task 2" }
+    jolliStartAnswer = async () => started({ jolli: binding })
+
+    const result = await startSession()()
+
+    expect(jolliStartInputs).toEqual([
+      expect.objectContaining({ courseId: "7", assistantId: "42", assignmentId: "40", partId: "41" }),
+    ])
+    expect(result).toMatchObject({ status: "created" })
+  })
+
+  test("a refused task start shows the gateway's sentence", async () => {
+    courseBinding = binding
+    draftState.task = { ...binding, assignmentId: "40", partId: "41", label: "Lab 4 · Task 2" }
+    const sentence = "Lab 4 stopped taking work at its due date. If you need more time, ask Prof. Okafor."
+    jolliStartAnswer = async () => ({ data: { status: "refused", code: "submissions_stopped", message: sentence } })
+
+    const result = await startSession()()
+
+    expect(result).toMatchObject({ status: "not-created" })
+    expect(draftState.startMessage).toBe(sentence)
+    expect(coursePromoted).toEqual([])
+  })
+
+  /** ⚠ ANOTHER TASK WITH THE SAME AGENT IS ANOTHER CONVERSATION, NEVER A RETRY OF THIS ONE. */
+  test("an unanswered Start is retried only for the same task", async () => {
+    courseBinding = binding
+    draftState.task = { ...binding, assignmentId: "40", partId: "41", label: "Lab 4 · Task 2" }
+    jolliStartAnswer = async () => ({ data: { status: "unreachable" } })
+    await startSession()()
+    draftState.task = { ...binding, assignmentId: "40", partId: "43", label: "Lab 4 · Task 3" }
+    await startSession()()
+    const ids = jolliStartInputs.map((input) => (input as { sessionID: string }).sessionID)
+    expect(ids[0]).not.toBe(ids[1])
   })
 
   test("promotes and routes only once the sidecar answers with a session", async () => {

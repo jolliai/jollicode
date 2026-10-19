@@ -89,7 +89,13 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
    * the draft: once the session exists — with an opener or, when the gateway could not write one,
    * without — the ordinary input takes over.
    */
-  const opens = () => !courseSession.locked() && !!courseSession.assistant()?.opensConversation
+  /**
+   * ⚠ AND A TASK'S DRAFT ALWAYS GETS START, WHETHER ITS AGENT SPEAKS FIRST OR NOT. A task's session is
+   * one the gateway opens for the task, recording its attempt; a first message typed instead would
+   * make a plain chat with the agent, which the task could never be handed in from.
+   */
+  const opens = () =>
+    !courseSession.locked() && (!!courseSession.assistant()?.opensConversation || !!courseSession.draft.task)
 
   return (
     <div class="flex flex-col gap-3">
@@ -102,7 +108,19 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
           <span class="min-w-0 flex-1">{language.t("prompt.jolli.closed.notice")}</span>
         </div>
       </Show>
-      <Show when={!courseSession.locked() && courseSession.draft.startError}>
+      <Show when={!courseSession.locked() && courseSession.draft.startMessage}>
+        {(message) => (
+          <div
+            data-component="session-start-error"
+            role="alert"
+            class="flex items-center gap-2 rounded-xl bg-v2-background-bg-base px-3 py-2 text-[13px] leading-5 text-v2-text-text-muted shadow-[var(--v2-elevation-raised)]"
+          >
+            <Icon name="help" class="shrink-0 text-v2-icon-icon-info" />
+            <span class="min-w-0 flex-1">{message()}</span>
+          </div>
+        )}
+      </Show>
+      <Show when={!courseSession.locked() && !courseSession.draft.startMessage && courseSession.draft.startError}>
         {(key) => (
           <div
             data-component="session-start-error"
@@ -241,7 +259,10 @@ function PromptStartRow(props: { onStart: () => void }) {
         }
       >
         <span class="min-w-0 flex-1 text-[13px] leading-5 text-v2-text-text-muted">
-          {language.t("prompt.jolli.start.prompt")}
+          {/* A task's agent may not speak first; what Start does then is begin the task's session. */}
+          {courseSession.draft.task
+            ? language.t("prompt.jolli.task.start.prompt", { task: courseSession.draft.task.label })
+            : language.t("prompt.jolli.start.prompt")}
         </span>
         <ButtonV2 ref={button} variant="contrast" size="normal" data-action="session-start" onClick={props.onStart}>
           <svg viewBox="0 0 16 16" class="size-3 shrink-0" fill="currentColor" aria-hidden="true">

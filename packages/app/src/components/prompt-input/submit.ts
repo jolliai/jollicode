@@ -14,6 +14,7 @@ import { useCourseSession, type CourseBinding } from "@/jolli/session-binding"
 import { sameBinding } from "@opencode-ai/core/jolli/binding"
 import { refreshCatalog } from "@/jolli/catalog"
 import { startErrorKey } from "@/jolli/start-session"
+import { refreshAssignments } from "@/jolli/assignment-refresh"
 import { defaultSessionTitle } from "@/jolli/session-title"
 import { SessionTitle } from "@opencode-ai/core/session/title"
 import { openedOnGateway, settleStart } from "@opencode-ai/core/jolli/opener"
@@ -432,7 +433,17 @@ export function createNewSession(input: NewSessionWorktreeInput) {
  */
 const unfinished = new Map<
   string,
-  Array<CourseBinding & { sessionID: string; answered: boolean; draftID?: string; directory: string; at: number }>
+  Array<
+    CourseBinding & {
+      sessionID: string
+      answered: boolean
+      draftID?: string
+      directory: string
+      at: number
+      /** The task the Start was for; a Start for another task, or none, is another conversation. */
+      partId?: string
+    }
+  >
 >()
 
 /** How long a Start not seen through is kept for a retry. */
@@ -489,16 +500,19 @@ export function createSessionStart(
       return
     }
 
+    const task = courseSession.draft.task
     courseSession.draft.setStartError(undefined)
+    courseSession.draft.setStartMessage(undefined)
     courseSession.draft.setStarting(true)
     const scope = sdk().scope
     const draftID = search.draftId
     const now = Date.now()
     const retries = (unfinished.get(scope) ?? []).filter((entry) => now - entry.at < RETRY_TTL_MS)
     unfinished.set(scope, retries)
+    const same = (entry: (typeof retries)[number]) => sameBinding(entry, binding) && entry.partId === task?.partId
     const reused =
-      retries.find((entry) => entry.draftID === draftID && sameBinding(entry, binding)) ??
-      retries.find((entry) => !entry.answered && sameBinding(entry, binding))
+      retries.find((entry) => entry.draftID === draftID && same(entry)) ??
+      retries.find((entry) => !entry.answered && same(entry))
     const sessionID = reused?.sessionID ?? Identifier.descending("session")
     const result = await newSession({
       agent: currentAgent.name,
@@ -513,6 +527,7 @@ export function createSessionStart(
             directory: target.directory,
             courseId: binding.courseId,
             assistantId: binding.assistantId,
+            ...(task ? { assignmentId: task.assignmentId, partId: task.partId } : {}),
             sessionID,
             agent: currentAgent.name,
             model: { id: currentModel.id, providerID: currentModel.provider.id, variant },
@@ -523,6 +538,7 @@ export function createSessionStart(
         if (answer.unanswered || answer.result?.status === "started")
           unfinished.get(scope)?.push({
             ...binding,
+            ...(task ? { partId: task.partId } : {}),
             sessionID,
             answered: !answer.unanswered || !!before?.answered,
             draftID,
@@ -530,12 +546,21 @@ export function createSessionStart(
             at: Date.now(),
           })
         if (answer.result?.status === "started") return { session: normalizeSessionInfo(answer.result.session) }
-        if (answer.result?.status === "refused") refreshCatalog()
+        if (answer.result?.status === "refused") {
+          refreshCatalog()
+          // A task's refusal is the assignment's to word; the list it was started from may be stale too.
+          if (task) {
+            refreshAssignments()
+            if (answer.result.message) courseSession.draft.setStartMessage(answer.result.message)
+          }
+        }
         return { failure: startErrorKey(answer.result?.status === "refused" ? answer.result.code : undefined) }
       },
     })
       .then((result) => {
         if (result.status === "created") settled(scope, sessionID)
+        // The task now has a session here, which its dialog offers to continue.
+        if (result.status === "created" && task) refreshAssignments()
         return result
       })
       /**

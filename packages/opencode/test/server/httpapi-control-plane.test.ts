@@ -10,6 +10,7 @@ import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { Auth } from "../../src/auth"
 import { Config } from "../../src/config/config"
 import { Installation } from "../../src/installation"
+import { Session } from "../../src/session/session"
 import { ServerAuth } from "../../src/server/auth"
 import { RootHttpApi } from "../../src/server/routes/instance/httpapi/api"
 import { controlHandlers } from "../../src/server/routes/instance/httpapi/handlers/control"
@@ -43,6 +44,7 @@ const apiLayer = HttpRouter.serve(
   Layer.provide(Layer.mock(JolliSession.Service)({ request: () => Effect.succeed(undefined) })),
   Layer.provide(Layer.mock(Config.Service)({})),
   Layer.provide(Layer.mock(Installation.Service)({})),
+  Layer.provide(Layer.mock(Session.Service)({})),
   Layer.provide(
     Layer.mock(MoveSession.Service)({
       moveSession: (value) => Ref.set(called, value),

@@ -6,6 +6,7 @@ import { Deferred, Effect, Layer, Context } from "effect"
 import os from "os"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { EventV2Bridge } from "@/event-v2-bridge"
+import { HAND_IN_PERMISSIONS } from "@opencode-ai/core/jolli/assignment"
 
 export const Event = PermissionV1.Event
 
@@ -71,7 +72,11 @@ const layer = Layer.effect(
 
       for (const pattern of request.patterns) {
         const rule = evaluate(request.permission, pattern, ruleset, approved)
-        yield* Effect.logInfo("evaluated", { permission: request.permission, pattern, action: rule })
+        yield* Effect.logInfo("evaluated", {
+          permission: request.permission,
+          pattern: logged(request.permission, pattern),
+          action: rule,
+        })
         if (rule.action === "deny") {
           return yield* new PermissionV1.DeniedError({
             ruleset: ruleset.filter((rule) => Wildcard.match(request.permission, rule.permission)),
@@ -93,7 +98,11 @@ const layer = Layer.effect(
         always: request.always,
         tool: request.tool,
       }
-      yield* Effect.logInfo("asking", { id, permission: info.permission, patterns: info.patterns })
+      yield* Effect.logInfo("asking", {
+        id,
+        permission: info.permission,
+        patterns: info.patterns.map((pattern) => logged(info.permission, pattern)),
+      })
 
       const deferred = yield* Deferred.make<void, PermissionV1.RejectedError | PermissionV1.CorrectedError>()
       pending.set(id, { info, deferred })
@@ -174,6 +183,18 @@ const layer = Layer.effect(
     return Service.of({ ask, reply, list })
   }),
 )
+
+/**
+ * A pattern as the log may keep it.
+ *
+ * ⚠ A HAND-IN'S LINES ARE THE STUDENT'S WORK, NOT A PATH OR A COMMAND. Its reflection is written for
+ * their teacher and its project line names their repository; a local log is not where either belongs
+ * whole, so only the start of each line is kept — enough to tell one request from another.
+ */
+function logged(permission: string, pattern: string) {
+  if (!HAND_IN_PERMISSIONS.has(permission) || pattern.length <= 24) return pattern
+  return `${pattern.slice(0, 24)}… (${pattern.length} chars)`
+}
 
 function expand(pattern: string): string {
   if (pattern.startsWith("~/")) return os.homedir() + pattern.slice(1)

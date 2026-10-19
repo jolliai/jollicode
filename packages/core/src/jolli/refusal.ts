@@ -58,3 +58,22 @@ export function refusalCodeOf(body: unknown) {
   const code = Option.getOrUndefined(decodeCode(body))?.code
   return isRefusalCode(code) ? code : undefined
 }
+
+/**
+ * A TURN AN ASSIGNMENT REFUSED, WORDED BY THE GATEWAY.
+ *
+ * ⚠ NOT IN THE TABLES ABOVE, BECAUSE THE SENTENCE IS NOT OURS. An assignment's refusal names its due
+ * date, its teacher and what to do next, in the time zone the agent reads the assignment in; only the
+ * gateway can say that, so the body's `error` is the sentence. An ordinary turn is refused with a
+ * normal reply and never reaches here — this is the compaction the gateway would not run.
+ */
+export const ASSIGNMENT_TURN_REFUSED = "assignment_turn_refused"
+
+const decodeAssignmentRefusal = Schema.decodeUnknownOption(
+  Schema.fromJsonString(Schema.Struct({ code: Schema.Literal(ASSIGNMENT_TURN_REFUSED), error: Schema.String })),
+)
+
+/** The gateway's sentence for an assignment's refused turn, or undefined for any other body. */
+export function assignmentRefusalOf(body: unknown) {
+  return Option.getOrUndefined(decodeAssignmentRefusal(body))?.error
+}

@@ -32,6 +32,7 @@ import { batch, onCleanup, onMount } from "solid-js"
 import path from "path"
 import { useKV } from "./kv"
 import { usePermission } from "./permission"
+import { isNeverAutoApproved } from "@opencode-ai/core/jolli/assignment"
 
 /**
  * How often to re-ask whether a credential is still held — see `refreshConnected`.
@@ -257,7 +258,8 @@ export const {
 
         case "permission.asked": {
           const request = event.properties
-          if (permission.mode === "auto") {
+          // Handing work in counts only when the student answers; `--auto` and the toggle never do.
+          if (permission.mode === "auto" && !isNeverAutoApproved(request.permission)) {
             void sdk.client.permission.reply({
               requestID: request.id,
               reply: "once",

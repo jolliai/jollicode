@@ -183,6 +183,26 @@ describe("acp permissions", () => {
     expect(harness.replies).toEqual([{ requestID: "perm_1", reply: "once", directory: "/workspace" }])
   })
 
+  /** ⚠ AN EDITOR'S PROMPT CANNOT SHOW WHAT WOULD BE HANDED IN, SO IT IS NEVER ASKED TO APPROVE ONE. */
+  it("declines a hand-in without asking the editor, saying where to hand in", async () => {
+    const harness = createHarness()
+    await createSession(harness.session, "ses_a")
+
+    for (const [id, permission] of [
+      ["perm_submit", "jolli_submit_task"],
+      ["perm_turn_in", "jolli_turn_in_assignment"],
+    ] as const) {
+      harness.subscription.handle(permissionAsked("ses_a", id, { permission, metadata: {} }))
+    }
+
+    await pollUntil(() => harness.replies.length === 2, "the hand-ins were never declined")
+    expect(harness.requests).toEqual([])
+    for (const reply of harness.replies) {
+      expect(reply).toMatchObject({ reply: "reject", directory: "/workspace" })
+      expect(reply.message).toContain("Jolli Code desktop app or the jollicode terminal")
+    }
+  })
+
   it("uses permission metadata for non-shell titles", async () => {
     const harness = createHarness()
     await createSession(harness.session, "ses_a")

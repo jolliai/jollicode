@@ -23,10 +23,12 @@ import { XaiAuthPlugin } from "./xai"
 import { CerebrasPlugin } from "./cerebras"
 import { JolliAuthPlugin } from "./jolli"
 import { JolliCourseChatPlugin } from "./jolli-course-chat"
+import { JolliAssignmentPlugin } from "./jolli-assignment"
 import { SnowflakeCortexAuthPlugin } from "./snowflake-cortex"
 import { Effect, Layer, Context } from "effect"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { EffectBridge } from "@/effect/bridge"
+import { Git } from "@/git"
 import { InstanceState } from "@/effect/instance-state"
 import { errorMessage } from "@/util/error"
 import { PluginLoader } from "./loader"
@@ -80,6 +82,9 @@ function internalPlugins(flags: RuntimeFlags.Info, bridge: EffectBridge.Shape): 
     // Hides the session-owned ids from model-facing course tool schemas, then injects them from
     // `session.metadata.jolli` immediately before the corresponding Jolliedu MCP call.
     (input) => JolliCourseChatPlugin(input, { bridge }),
+    // Hands an assignment task in, and turns its assignment in, from the session the task started —
+    // each only once the student approves what the gateway says it would keep.
+    (input) => JolliAssignmentPlugin(input, { bridge }),
     // Temporary rollout: pre-release builds use WebSockets by default; releases require explicit opt-in.
     (input) =>
       CodexAuthPlugin(input, {
@@ -338,8 +343,11 @@ export const node = LayerNode.make({
    * is why a missing entry here can go unnoticed; a narrower caller, a test harness or a new
    * runtime would fail. The plugin layer test in `jolli-course-chat.test.ts` initializes from a
    * caller without `Session` to hold this line.
+   *
+   * `Git` is here for the same reason: the assignment plugin reads the project a task's hand-in
+   * reports through it.
    */
-  deps: [EventV2Bridge.node, Config.node, RuntimeFlags.node, JolliSession.node, Session.node],
+  deps: [EventV2Bridge.node, Config.node, RuntimeFlags.node, JolliSession.node, Session.node, Git.node],
 })
 
 export * as Plugin from "."

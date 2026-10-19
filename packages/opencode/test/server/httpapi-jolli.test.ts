@@ -15,6 +15,7 @@ import { JolliStore } from "@opencode-ai/core/jolli/store"
 import { Auth } from "../../src/auth"
 import { Config } from "../../src/config/config"
 import { Installation } from "../../src/installation"
+import { Session } from "../../src/session/session"
 import { MoveSession } from "@opencode-ai/core/control-plane/move-session"
 import { ServerAuth } from "../../src/server/auth"
 import { RootHttpApi } from "../../src/server/routes/instance/httpapi/api"
@@ -98,6 +99,8 @@ function apiLayer(
     Layer.provide(Layer.mock(Auth.Service)({})),
     Layer.provide(Layer.mock(Config.Service)({})),
     Layer.provide(Layer.mock(MoveSession.Service)({})),
+    // The assignment routes look a task's sessions up on this machine; no case here has one.
+    Layer.provide(Layer.mock(Session.Service)({})),
     Layer.provide(Layer.mock(Installation.Service)({})),
     Layer.provide(ServerAuth.Config.configLayer({ password: Option.none(), username: "opencode" })),
     /**

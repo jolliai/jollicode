@@ -3,6 +3,7 @@ import { Agent } from "@/agent/agent"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Command } from "@/command"
+import { Git } from "@/git"
 import { Permission } from "@/permission"
 import { SessionShare } from "@/share/session"
 import { Session } from "@/session/session"
@@ -18,8 +19,9 @@ import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
-import { JolliApiError, openConversation } from "@opencode-ai/core/jolli/api"
-import { courseBindingOf, type CourseBinding } from "@opencode-ai/core/jolli/binding"
+import { JolliApiError, openConversation, startTaskSession } from "@opencode-ai/core/jolli/api"
+import { TASK_KEY, taskBindingOf, taskRecord } from "@opencode-ai/core/jolli/assignment"
+import { courseBindingOf, isGatewayId, type CourseBinding } from "@opencode-ai/core/jolli/binding"
 import { JolliClosedAssistants } from "@opencode-ai/core/jolli/closed-assistants"
 import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
 import { openedOnGateway, openerTextOf } from "@opencode-ai/core/jolli/opener"
@@ -78,11 +80,14 @@ export function preserveBinding(
    * whole object.
    */
   const opener = before?.["jolliOpener"]
-  const rest = Object.fromEntries(Object.entries(after).filter(([key]) => key !== "jolliOpener"))
+  /** ⚠ A TASK'S RECORD IS THE SERVER'S FOR THE SAME REASON: see `TASK_KEY`. */
+  const task = before?.[TASK_KEY]
+  const rest = Object.fromEntries(Object.entries(after).filter(([key]) => key !== "jolliOpener" && key !== TASK_KEY))
   return {
     ...rest,
     ...(previous === undefined || "jolli" in after ? {} : { jolli: previous }),
     ...(opener === undefined ? {} : { jolliOpener: opener }),
+    ...(task === undefined ? {} : { [TASK_KEY]: task }),
   }
 }
 
@@ -237,6 +242,14 @@ export const refuseBindingOutsideStart = Effect.fn("SessionHttpApi.refuseBinding
 export const startJolliSession = Effect.fn("SessionHttpApi.startJolliSession")(function* (input: StartInput) {
   if (!isGatewayId(input.payload.courseId) || !isGatewayId(input.payload.assistantId))
     return yield* new HttpApiError.BadRequest({})
+  // A task is named whole or not at all: half of one is no task the gateway could start.
+  if ((input.payload.assignmentId === undefined) !== (input.payload.partId === undefined))
+    return yield* new HttpApiError.BadRequest({})
+  if (
+    input.payload.assignmentId !== undefined &&
+    (!isGatewayId(input.payload.assignmentId) || !isGatewayId(input.payload.partId ?? ""))
+  )
+    return yield* new HttpApiError.BadRequest({})
   const id = input.payload.sessionID ?? SessionID.descending()
   return yield* startLock.withLock(id)(startUnder(id, input))
 })
@@ -256,6 +269,18 @@ type StartInput = {
   gateway: Pick<JolliSession.Interface, "request" | "refused">
   existing: (id: SessionID) => Effect.Effect<Session.Info | undefined>
   create: (input: Session.CreateInput & { id: SessionID }) => Effect.Effect<Session.Info>
+  /**
+   * The commit the folder's HEAD is at, or undefined outside a repository or before its first commit.
+   * Read for a task's session only: its hand-in reports the commits made since.
+   */
+  head: () => Effect.Effect<string | undefined>
+}
+
+/** The task a Start names, when it names one. */
+function taskOf(payload: typeof JolliStartPayload.Type) {
+  return payload.assignmentId !== undefined && payload.partId !== undefined
+    ? { assignmentId: payload.assignmentId, partId: payload.partId }
+    : undefined
 }
 
 const startUnder = Effect.fn("SessionHttpApi.startUnder")(function* (id: SessionID, input: StartInput) {
@@ -263,13 +288,32 @@ const startUnder = Effect.fn("SessionHttpApi.startUnder")(function* (id: Session
   if (previous) return yield* alreadyStarted(previous, input)
   const request = yield* input.gateway.request().pipe(Effect.catch(() => Effect.succeed(undefined)))
   if (!request) return { status: "unreachable" as const }
-  const opened = yield* openConversation(request, {
-    spaceId: Number(input.payload.courseId),
-    courseAssistantId: Number(input.payload.assistantId),
-    publicSessionId: id,
-  }).pipe(Effect.catch((error) => Effect.succeed(error)))
+  const named = taskOf(input.payload)
+  /**
+   * ⚠ A TASK'S SESSION IS OPENED BY THE TASK, NOT BY THE ASSISTANT. The gateway records the attempt
+   * with the session in one step, and refuses a task the student cannot start now in the assignment's
+   * own words; opening the assistant's conversation instead would make a plain chat the task could
+   * never be handed in from.
+   */
+  const opened = yield* (
+    named
+      ? startTaskSession(request, {
+          courseId: Number(input.payload.courseId),
+          assignmentId: Number(named.assignmentId),
+          partId: Number(named.partId),
+          publicSessionId: id,
+        })
+      : openConversation(request, {
+          spaceId: Number(input.payload.courseId),
+          courseAssistantId: Number(input.payload.assistantId),
+          publicSessionId: id,
+        })
+  ).pipe(Effect.catch((error) => Effect.succeed(error)))
   if (opened instanceof JolliApiError)
-    return yield* startRefused(input.gateway, opened, request.token, input.payload.assistantId)
+    return yield* startRefused(input.gateway, opened, request.token, input.payload.assistantId, named !== undefined)
+  const task = named
+    ? { ...named, ...(yield* input.head().pipe(Effect.map((head) => (head ? { startHead: head } : {})))) }
+    : undefined
   const session = yield* input.create({
     id,
     title: input.payload.title,
@@ -283,8 +327,13 @@ const startUnder = Effect.fn("SessionHttpApi.startUnder")(function* (id: Session
      * message; only `text` depends on what the gateway answered.
      */
     metadata: {
-      jolli: { courseId: input.payload.courseId, assistantId: input.payload.assistantId },
+      // A task's session is recorded under the agent the gateway bound it to, which every turn is checked against.
+      jolli:
+        "binding" in opened
+          ? opened.binding
+          : { courseId: input.payload.courseId, assistantId: input.payload.assistantId },
       jolliOpener: { sessionID: id, ...(opened.opener ? { text: opened.opener } : {}) },
+      ...(task ? { [TASK_KEY]: taskRecord(id, task) } : {}),
     },
   })
   return { status: "started" as const, session, opener: !!opened.opener }
@@ -307,10 +356,15 @@ const alreadyStarted = Effect.fn("SessionHttpApi.alreadyStarted")(function* (
   input: Pick<StartInput, "payload" | "directory">,
 ) {
   const bound = courseBindingOf(session)
+  const task = taskBindingOf(session)
+  const named = taskOf(input.payload)
   if (
     !openedOnGateway(session) ||
     bound?.courseId !== input.payload.courseId ||
-    bound.assistantId !== input.payload.assistantId
+    // A task's agent is the gateway's answer, which the Start retried may not have known.
+    (named === undefined && bound.assistantId !== input.payload.assistantId) ||
+    task?.assignmentId !== named?.assignmentId ||
+    task?.partId !== named?.partId
   )
     return yield* new HttpApiError.BadRequest({})
   if (session.directory !== input.directory) {
@@ -333,6 +387,8 @@ const startRefused = Effect.fn("SessionHttpApi.startRefused")(function* (
   error: JolliApiError,
   token: string,
   assistantId: string,
+  /** A task's start, whose refusals the gateway words in the assignment's terms. */
+  forTask: boolean,
 ) {
   if (error.status === 401) yield* gateway.refused(token).pipe(Effect.catch(() => Effect.void))
   /**
@@ -356,7 +412,16 @@ const startRefused = Effect.fn("SessionHttpApi.startRefused")(function* (
    * assistant even when its clock still reads the window as open.
    */
   if (code === "assistant_closed") JolliClosedAssistants.record(assistantId)
-  return { status: "refused" as const, ...(code === undefined ? {} : { code }) }
+  return {
+    status: "refused" as const,
+    ...(code === undefined ? {} : { code }),
+    /**
+     * ⚠ ONLY A TASK'S REFUSAL CARRIES THE GATEWAY'S SENTENCE. It names the assignment's dates and what
+     * to do, which no table here could; an assistant's refusal is worded by its code, through each
+     * renderer's own dictionary.
+     */
+    ...(forTask && error.explanation !== undefined ? { message: error.explanation } : {}),
+  }
 })
 
 export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", (handlers) =>
@@ -374,6 +439,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     const summary = yield* SessionSummary.Service
     const events = yield* EventV2Bridge.Service
     const jolli = yield* JolliSession.Service
+    const git = yield* Git.Service
     const scope = yield* Scope.Scope
 
     const list = Effect.fn("SessionHttpApi.list")(function* (ctx: { query: typeof ListQuery.Type }) {
@@ -504,6 +570,10 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
         gateway: jolli,
         existing: (id) => session.get(id).pipe(Effect.option, Effect.map(Option.getOrUndefined)),
         create: shareSvc.create,
+        head: () =>
+          git
+            .run(["rev-parse", "--verify", "--quiet", "HEAD"], { cwd: instance.directory })
+            .pipe(Effect.map((result) => (result.exitCode === 0 ? result.text().trim() || undefined : undefined))),
       }).pipe(Effect.provide(FetchHttpClient.layer))
     })
 
@@ -814,12 +884,3 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
       .handle("updatePart", updatePart)
   }),
 )
-
-/**
- * A gateway course or assistant id: a positive integer, spelled the one way `metadata.jolli` and the
- * catalogue spell it. `Number()` alone also takes "1e1", " 10" and "0xA", and the binding stored
- * would then name a course no catalogue lookup finds.
- */
-function isGatewayId(value: string) {
-  return /^[1-9]\d{0,14}$/.test(value)
-}

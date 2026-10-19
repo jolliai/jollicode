@@ -19,9 +19,10 @@
  */
 
 import { Flag } from "@opencode-ai/core/flag/flag"
-import { courseBindingOf, type CourseBinding } from "@opencode-ai/core/jolli/binding"
+import { courseBindingOf, sameBinding, type CourseBinding } from "@opencode-ai/core/jolli/binding"
 import { isJolliConnected } from "@opencode-ai/core/jolli/gateway-config"
 import { Lookup } from "@opencode-ai/core/jolli/lookup"
+import type { TaskDraft } from "@opencode-ai/core/jolli/assignment"
 import { refusalCodeOf, startRefusalMessage } from "@opencode-ai/core/jolli/refusal"
 import { Jolli } from "@opencode-ai/schema/jolli"
 import type { JolliStartResult } from "@opencode-ai/sdk/v2"
@@ -156,7 +157,9 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
      * ⚠ HERE, NOT IN THE COMPOSER, because the composer is unmounted every time the student leaves
      * home, and a retry from the remounted one under a fresh id was the orphan this exists to prevent.
      */
-    const [unanswered, setUnanswered] = createSignal<(CourseBinding & { sessionID: string }) | undefined>()
+    const [unanswered, setUnanswered] = createSignal<
+      (CourseBinding & { sessionID: string; partId?: string }) | undefined
+    >()
     /** When {@link refresh} last ran, so a dialog being opened can let a recent one stand. */
     let refreshedAt = Number.NEGATIVE_INFINITY
     const refresh = () => {
@@ -221,6 +224,12 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
       /** Whose catalogue this is, and what {@link remember} files a course under. See `Jolli.Catalog.account`. */
       account?: string
       draft?: CourseBinding
+      /**
+       * THE TASK THE DRAFT STARTS A SESSION FOR, from `/assignment`. It fixes the course and the agent
+       * — the task decides both, and an agent kept for assignments is offered nowhere else — and the
+       * first Enter is always Start, so the gateway records the task's attempt.
+       */
+      task?: TaskDraft
     }>({ courses: [], assistants: [], loaded: false, status: "unreachable" })
 
     /**
@@ -565,6 +574,17 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
     })
 
     /**
+     * A STAGED TASK GOES WHEN THE DRAFT STOPS BEING ITS COURSE AND AGENT.
+     *
+     * ⚠ ONE RULE RATHER THAN A GUARD AT EACH WRITE. The session in view, a restore and a sign-out all
+     * rewrite the draft; a task left behind would have Start send one course's agent with another's
+     * task — a 404, or a session bound locally to an agent the gateway did not bind it to.
+     */
+    createEffect(() => {
+      if (store.task && !sameBinding(store.draft, store.task)) setStore("task", undefined)
+    })
+
+    /**
      * THE COURSE OF THE SESSION IN VIEW BECOMES THE ONE THE NEXT SESSION STARTS IN.
      *
      * ⚠ THIS IS WHAT MAKES `/new` STOP ASKING, AND THE GAP IT CLOSES WAS INVISIBLE FROM THE DRAFT
@@ -624,7 +644,8 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
      */
     createEffect(() => {
       const draft = store.draft
-      if (!draft || sessionID() || starting() || !store.loaded || store.status !== "ok") return
+      // A task's agent is the task's, whatever its own window says; the gateway judges the task.
+      if (!draft || store.task || sessionID() || starting() || !store.loaded || store.status !== "ok") return
       if (startableAssistants(draft.courseId).some((item) => item.id === draft.assistantId)) return
       const next = draftFor(draft.courseId)
       /**
@@ -772,7 +793,7 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
         setCourse(courseId: string) {
           if (starting()) return
           const next = draftFor(courseId)
-          setStore("draft", next)
+          setStore({ draft: next, task: undefined })
           remember(next)
         },
         setAssistant(assistantId: string) {
@@ -780,8 +801,28 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
           const courseId = store.draft?.courseId ?? Lookup.assistantById(store, assistantId)?.courseId
           if (!courseId) return
           const next = draftFor(courseId, assistantId)
-          setStore("draft", next)
+          setStore({ draft: next, task: undefined })
           remember(next)
+        },
+        /** The task the draft starts a session for, when `/assignment` staged one. */
+        get task() {
+          return store.task
+        },
+        /**
+         * STAGE A NEW SESSION FOR A TASK. Not remembered: a task is chosen for one session, and the next
+         * launch should come back to the student's own course rather than to a task's agent.
+         */
+        setTask(task: TaskDraft) {
+          if (starting()) return
+          setStore({ draft: { courseId: task.courseId, assistantId: task.assistantId }, task })
+        },
+        /**
+         * THE TASK'S SESSION STARTED: THE DRAFT GOES BACK TO AN ORDINARY ONE IN THE SAME COURSE, so the
+         * next `/new` is a plain chat rather than a second session for the task.
+         */
+        clearTask() {
+          if (!store.task) return
+          setStore({ draft: draftFor(store.task.courseId) ?? store.draft, task: undefined })
         },
       },
 
@@ -944,7 +985,12 @@ export function startOutcome(
 ): { type: "started"; sessionID: string } | { type: "failed"; message: string; refresh: boolean } {
   if (result?.status === "started") return { type: "started", sessionID: result.session.id }
   if (result?.status !== "refused") return { type: "failed", message: START_FAILED, refresh: false }
-  return { type: "failed", message: startRefusalMessage(result.code) ?? START_FAILED, refresh: true }
+  /** A task's refusal is worded by the gateway — the assignment's dates and what to do — and said as it is. */
+  return {
+    type: "failed",
+    message: result.message ?? startRefusalMessage(result.code) ?? START_FAILED,
+    refresh: true,
+  }
 }
 
 /**

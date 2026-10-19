@@ -5,7 +5,7 @@ import type { ProviderV2 } from "@opencode-ai/core/provider"
 import { isContextOverflow } from "@opencode-ai/llm"
 import { Brand } from "@opencode-ai/core/brand"
 import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
-import { refusalCodeOf, turnRefusalMessage } from "@opencode-ai/core/jolli/refusal"
+import { assignmentRefusalOf, refusalCodeOf, turnRefusalMessage } from "@opencode-ai/core/jolli/refusal"
 
 export class HeaderTimeoutError extends Error {
   public override readonly name = "ProviderHeaderTimeoutError"
@@ -41,7 +41,7 @@ function message(providerID: ProviderV2.ID, e: APICallError) {
      * has closed.
      */
     if (isJolliProviderId(providerID)) {
-      const refusal = turnRefusalMessage(refusalCodeOf(e.responseBody))
+      const refusal = turnRefusalMessage(refusalCodeOf(e.responseBody)) ?? assignmentRefusalOf(e.responseBody)
       if (refusal) return refusal
     }
     const msg = e.message
@@ -199,7 +199,10 @@ export function parseAPICallError(input: { providerID: ProviderV2.ID; error: API
    * gateway refuses with 409 for an archived course or a binding conflict — so the session retried
    * a decision that cannot change, five times over about a minute, before the student read why.
    */
-  const refused = isJolliProviderId(input.providerID) && refusalCodeOf(input.error.responseBody) !== undefined
+  const refused =
+    isJolliProviderId(input.providerID) &&
+    (refusalCodeOf(input.error.responseBody) !== undefined ||
+      assignmentRefusalOf(input.error.responseBody) !== undefined)
   return {
     type: "api_error",
     message: m,

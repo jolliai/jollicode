@@ -2561,6 +2561,7 @@ export type JolliStartResult =
   | {
       status: "refused"
       code?: string
+      message?: string
     }
   | {
       status: "unreachable"
@@ -4020,6 +4021,67 @@ export type JolliSessionShare = {
 }
 
 export type JolliShareSubject = number | "everyone"
+
+export type JolliAssignmentSummary = {
+  id: string
+  courseId: string
+  courseCode: string
+  title: string
+  dueAt: string
+  stopAtDue: boolean
+  tasksHandedIn: number
+  tasksTotal: number
+}
+
+export type JolliAssignmentList = {
+  status: JolliCatalogStatus
+  assignments: Array<JolliAssignmentSummary>
+}
+
+export type JolliAssignmentStatus = "ok" | "refused" | "unreachable"
+
+export type JolliAssignmentTaskPlace = "jolli_code" | "web"
+
+export type JolliAssignmentTaskSession = {
+  sessionID: string
+  directory: string
+}
+
+export type JolliAssignmentTask = {
+  partId: string
+  title: string
+  assistantId: string
+  assistantName: string
+  assistantBlurb: string
+  place: JolliAssignmentTaskPlace
+  handedInAt: string
+  handedInSessionID: string
+  owed: boolean
+  local: JolliAssignmentTaskSession
+  elsewhere: boolean
+}
+
+export type JolliAssignment = {
+  id: string
+  courseId: string
+  courseCode: string
+  title: string
+  dueAt: string
+  stopAtDue: boolean
+  tasksHandedIn: number
+  tasksTotal: number
+  description: string
+  authorName: string
+  turnedIn: boolean
+  readyToTurnIn: boolean
+  tasks: Array<JolliAssignmentTask>
+}
+
+export type JolliAssignmentAnswer = {
+  status: JolliAssignmentStatus
+  assignment?: JolliAssignment
+  message?: string
+}
 
 export type ProjectDirectories = Array<{
   directory: string
@@ -7704,6 +7766,91 @@ export type JolliShareRemoveResponses = {
 
 export type JolliShareRemoveResponse = JolliShareRemoveResponses[keyof JolliShareRemoveResponses]
 
+export type JolliAssignmentsData = {
+  body?: never
+  path?: never
+  query?: {
+    fresh?: "true" | "false"
+  }
+  url: "/jolli/assignment"
+}
+
+export type JolliAssignmentsErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliAssignmentsError = JolliAssignmentsErrors[keyof JolliAssignmentsErrors]
+
+export type JolliAssignmentsResponses = {
+  /**
+   * The student's assignments to do that have a Jolli Code task
+   */
+  200: JolliAssignmentList
+}
+
+export type JolliAssignmentsResponse = JolliAssignmentsResponses[keyof JolliAssignmentsResponses]
+
+export type JolliAssignmentData = {
+  body?: never
+  path: {
+    courseId: string
+    assignmentId: string
+  }
+  query?: {
+    fresh?: "true" | "false"
+  }
+  url: "/jolli/assignment/{courseId}/{assignmentId}"
+}
+
+export type JolliAssignmentErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliAssignmentError = JolliAssignmentErrors[keyof JolliAssignmentErrors]
+
+export type JolliAssignmentResponses = {
+  /**
+   * One assignment and its tasks, with this machine's sessions
+   */
+  200: JolliAssignmentAnswer
+}
+
+export type JolliAssignmentResponse = JolliAssignmentResponses[keyof JolliAssignmentResponses]
+
+export type JolliTurnInData = {
+  body?: never
+  path: {
+    courseId: string
+    assignmentId: string
+  }
+  query?: never
+  url: "/jolli/assignment/{courseId}/{assignmentId}/turn-in"
+}
+
+export type JolliTurnInErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliTurnInError = JolliTurnInErrors[keyof JolliTurnInErrors]
+
+export type JolliTurnInResponses = {
+  /**
+   * The assignment as it stands after the turn-in
+   */
+  200: JolliAssignmentAnswer
+}
+
+export type JolliTurnInResponse = JolliTurnInResponses[keyof JolliTurnInResponses]
+
 export type EventSubscribeData = {
   body?: never
   path?: never
@@ -10252,6 +10399,8 @@ export type SessionJolliStartData = {
     courseId: string
     assistantId: string
     sessionID?: string
+    assignmentId?: string
+    partId?: string
   }
   path?: never
   query?: {
