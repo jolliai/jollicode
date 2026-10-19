@@ -3957,6 +3957,7 @@ export type JolliAssistant = {
   endsAt?: string
   directChatEnabled?: boolean
   opensConversation?: boolean
+  includeAssignments?: boolean
 }
 
 export type JolliModelTier = "premium" | "economy"
