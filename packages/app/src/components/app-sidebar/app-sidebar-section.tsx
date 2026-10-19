@@ -15,7 +15,7 @@ import { Show, type JSX } from "solid-js"
 import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
 import { useLayout } from "@/context/layout"
 
-export type AppSidebarSectionId = "courses" | "sessions" | "projects"
+export type AppSidebarSectionId = "courses" | "assignments" | "sessions" | "projects"
 
 export function AppSidebarSection(props: {
   id: AppSidebarSectionId

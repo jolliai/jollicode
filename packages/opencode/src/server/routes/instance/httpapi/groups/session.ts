@@ -93,6 +93,13 @@ export const JolliStartPayload = Schema.Struct({
    * same one, which the gateway treats as the same conversation; omitted, the route mints one.
    */
   sessionID: Schema.optional(SessionID),
+  /**
+   * The assignment and task this session is started for, both or neither. A task's session is opened
+   * by the task's own start on the gateway, which decides the course and assistant from the task; the
+   * two above must name them all the same, as the session's binding.
+   */
+  assignmentId: Schema.optional(Schema.String),
+  partId: Schema.optional(Schema.String),
 })
 /**
  * WHAT STARTING ANSWERED.
@@ -108,7 +115,12 @@ export const JolliStartPayload = Schema.Struct({
  */
 export const JolliStartResult = Schema.Union([
   Schema.Struct({ status: Schema.Literal("started"), session: Session.Info, opener: Schema.Boolean }),
-  Schema.Struct({ status: Schema.Literal("refused"), code: Schema.optional(Schema.String) }),
+  Schema.Struct({
+    status: Schema.Literal("refused"),
+    code: Schema.optional(Schema.String),
+    /** The gateway's own sentence, when it sent one: a task's start is refused in the assignment's words. */
+    message: Schema.optional(Schema.String),
+  }),
   Schema.Struct({ status: Schema.Literal("unreachable") }),
 ]).annotate({ identifier: "JolliStartResult" })
 

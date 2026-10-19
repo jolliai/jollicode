@@ -1,3 +1,9 @@
+import {
+  HAND_IN_PROMPT,
+  isNeverAutoApproved,
+  SUBMIT_TASK_PERMISSION,
+  TURN_IN_PERMISSION,
+} from "@opencode-ai/core/jolli/assignment"
 import { createStore } from "solid-js/store"
 import { dirname } from "node:path"
 import { createMemo, For, Match, Show, Switch } from "solid-js"
@@ -141,12 +147,29 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
           title="Always allow"
           body={
             <Switch>
+              {/*
+               * ⚠ A HAND-IN'S "ALWAYS" COVERS ITS ONE TASK, AND STILL ASKS EVERY TIME. What it remembers is
+               * a key no later request matches, so saying it "allows" anything would be untrue.
+               */}
+              <Match when={isNeverAutoApproved(props.request.permission)}>
+                <TextBody
+                  title={
+                    props.request.permission === SUBMIT_TASK_PERMISSION
+                      ? HAND_IN_PROMPT[SUBMIT_TASK_PERMISSION].always
+                      : HAND_IN_PROMPT[TURN_IN_PERMISSION].always
+                  }
+                />
+              </Match>
               <Match when={props.request.always.length === 1 && props.request.always[0] === "*"}>
-                <TextBody title={"This will allow " + props.request.permission + ` until ${Brand.name} is restarted.`} />
+                <TextBody
+                  title={"This will allow " + props.request.permission + ` until ${Brand.name} is restarted.`}
+                />
               </Match>
               <Match when={true}>
                 <box paddingLeft={1} gap={1}>
-                  <text fg={theme.textMuted}>This will allow the following patterns until {Brand.name} is restarted</text>
+                  <text fg={theme.textMuted}>
+                    This will allow the following patterns until {Brand.name} is restarted
+                  </text>
                   <box>
                     <For each={props.request.always}>
                       {(pattern) => (
@@ -354,6 +377,22 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
                       </box>
                     </box>
                   </Show>
+                ),
+              }
+            }
+
+            /**
+             * ⚠ A HAND-IN SHOWS WHAT THE GATEWAY SAID IT WOULD KEEP, LINE BY LINE — the request's lines
+             * are built from its preview, never from what the model passed — the reflection last and whole.
+             */
+            if (permission === SUBMIT_TASK_PERMISSION || permission === TURN_IN_PERMISSION) {
+              return {
+                icon: "↑",
+                title: HAND_IN_PROMPT[permission].title,
+                body: (
+                  <box paddingLeft={1} gap={0}>
+                    <For each={props.request.patterns}>{(line) => <text fg={theme.text}>{line}</text>}</For>
+                  </box>
                 ),
               }
             }

@@ -26,6 +26,15 @@
  *   GET    /api/spaces/:id/members                  SpaceMemberRouter.ts  spaces.view
  * The shares read and the share writes answer with the conversation's composed visibility, the convo
  * read carries the same object under `visibility`, and the roster is a bare array.
+ *
+ * And a student's assignments, all mounted on `/api/courses/:id/assignments` (AssignmentRouter.ts):
+ *   GET  /student-view                                       the student's list, in three groups
+ *   GET  /:assignmentId/student-view                         one assignment with the student's own work
+ *   POST /:assignmentId/parts/:partId/jolli-code/sessions    start a task's session, idempotent by id
+ *   POST /:assignmentId/parts/:partId/jolli-code/preview     what handing the session in would hand in
+ *   POST /:assignmentId/parts/:partId/jolli-code/hand-in     hand it in, up to where the preview ended it
+ *   POST /:assignmentId/turn-in                              turn the whole assignment in
+ * A refusal answers `{ code, error }`, `error` being the sentence the student is to read.
  */
 import { Duration, Effect, Schedule, Schema } from "effect"
 import { HttpClient, HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
@@ -42,6 +51,12 @@ export class JolliApiError extends Schema.TaggedErrorClass<JolliApiError>()("Jol
    * writes ({@link shareConversation}) and by {@link openConversation}.
    */
   code: Schema.optional(Schema.String),
+  /**
+   * The gateway's own sentence for the student, when a refusal sent one: the assignment routes word
+   * every refusal with its next step, and saying it again here would be a second wording to keep in
+   * step with theirs.
+   */
+  explanation: Schema.optional(Schema.String),
   message: Schema.String,
   cause: Schema.optional(Schema.Defect()),
 }) {}
@@ -273,6 +288,19 @@ const OpenedConversation = Schema.Struct({
   ),
 })
 
+/**
+ * A task's session as the gateway started it: the opener, and the course and agent the TASK bound it to.
+ *
+ * ⚠ THE AGENT IS THE GATEWAY'S ANSWER, NOT THE ONE ASKED FOR. The task decides it, and every turn the
+ * session takes is checked against it; a session recorded under any other would be refused as a
+ * binding conflict on its first message.
+ */
+const StartedTaskSession = Schema.Struct({
+  ...OpenedConversation.fields,
+  courseId: Schema.Number,
+  courseAssistantId: Schema.Number,
+})
+
 /** jolliedu `common/src/types/SpaceMember.ts` — `SpaceMemberWithUser`, trimmed to what a picker reads. */
 export const SpaceMember = Schema.Struct({
   userId: Schema.Number,
@@ -282,6 +310,182 @@ export const SpaceMember = Schema.Struct({
   userEmail: Schema.String,
 }).annotate({ identifier: "JolliApi.SpaceMember" })
 export interface SpaceMember extends Schema.Schema.Type<typeof SpaceMember> {}
+
+/**
+ * What a part asks the student to hand in. jolliedu `common/src/types/Assignment.ts` —
+ * `AssignmentPartTurnIn`.
+ */
+export const AssignmentTurnIn = Schema.Struct({
+  transcript: Schema.Boolean,
+  summary: Schema.Boolean,
+  reflection: Schema.Boolean,
+}).annotate({ identifier: "JolliApi.AssignmentTurnIn" })
+export interface AssignmentTurnIn extends Schema.Schema.Type<typeof AssignmentTurnIn> {}
+
+/**
+ * jolliedu `AssignmentProgress`, trimmed to what this client reads.
+ *
+ * ⚠ `state` IS AN OPEN STRING for the reason `CourseListItem.status` is: a state this client has not
+ * heard of must not fail the whole list.
+ */
+const AssignmentProgress = Schema.Struct({
+  state: Schema.String,
+  partsSubmitted: Schema.Number,
+  partsTotal: Schema.Number,
+  turnedInAt: Schema.NullOr(Schema.String),
+})
+
+/**
+ * One part a student owes, as their list names it. jolliedu `StudentAssignmentTask`.
+ *
+ * ⚠ `workedIn` IS OPEN, AND READ AS A WEB TASK WHEN IT IS NOT `jolli_code`: a place this client does
+ * not know is not one it can work in.
+ */
+export const StudentAssignmentTask = Schema.Struct({
+  partId: Schema.Number,
+  assistantId: Schema.Number,
+  workedIn: Schema.String,
+  submitted: Schema.Boolean,
+}).annotate({ identifier: "JolliApi.StudentAssignmentTask" })
+export interface StudentAssignmentTask extends Schema.Schema.Type<typeof StudentAssignmentTask> {}
+
+/**
+ * One row of a student's Assignments tab. jolliedu `StudentAssignmentListItem`.
+ *
+ * ⚠ `tasks` IS OPTIONAL BECAUSE A SERVER THAT PREDATES JOLLI CODE TASKS DOES NOT SEND IT, and such a
+ * server has no task to work here: absent reads as none.
+ */
+export const StudentAssignmentListItem = Schema.Struct({
+  id: Schema.Number,
+  title: Schema.String,
+  description: Schema.String,
+  status: Schema.String,
+  opensAt: Schema.NullOr(Schema.String),
+  dueAt: Schema.NullOr(Schema.String),
+  stopAtDue: Schema.Boolean,
+  progress: AssignmentProgress,
+  tasks: Schema.optional(Schema.Array(StudentAssignmentTask)),
+}).annotate({ identifier: "JolliApi.StudentAssignmentListItem" })
+export interface StudentAssignmentListItem extends Schema.Schema.Type<typeof StudentAssignmentListItem> {}
+
+/** jolliedu `StudentAssignmentList`: open and not turned in, not open yet, and turned in. */
+export const StudentAssignmentList = Schema.Struct({
+  todo: Schema.Array(StudentAssignmentListItem),
+  upcoming: Schema.Array(StudentAssignmentListItem),
+  completed: Schema.Array(StudentAssignmentListItem),
+}).annotate({ identifier: "JolliApi.StudentAssignmentList" })
+export interface StudentAssignmentList extends Schema.Schema.Type<typeof StudentAssignmentList> {}
+
+/** One session a student opened from a part. jolliedu `StudentAssignmentAttempt`, trimmed. */
+const StudentAssignmentAttempt = Schema.Struct({
+  id: Schema.Number,
+  /** The session's public id: the id this client gave it. */
+  conversationId: Schema.String,
+  countedAt: Schema.NullOr(Schema.String),
+})
+
+/** What a student handed in for a part. jolliedu `StudentAssignmentSubmission`, trimmed. */
+const StudentAssignmentSubmission = Schema.Struct({
+  attemptId: Schema.Number,
+  submittedAt: Schema.String,
+})
+
+/** One part, from the student's side. jolliedu `StudentAssignmentPart`, trimmed. */
+export const StudentAssignmentPart = Schema.Struct({
+  id: Schema.Number,
+  assistantId: Schema.Number,
+  assistantName: Schema.String,
+  assistantBlurb: Schema.String,
+  /** Open, as every status here is. */
+  assistantStatus: Schema.String,
+  turnIn: AssignmentTurnIn,
+  reflectionPrompt: Schema.NullOr(Schema.String),
+  /** Optional for the reason `tasks` is: absent reads as a web task. */
+  workedIn: Schema.optional(Schema.String),
+  attempts: Schema.Array(StudentAssignmentAttempt),
+  submission: Schema.NullOr(StudentAssignmentSubmission),
+  owed: Schema.Boolean,
+}).annotate({ identifier: "JolliApi.StudentAssignmentPart" })
+export interface StudentAssignmentPart extends Schema.Schema.Type<typeof StudentAssignmentPart> {}
+
+/**
+ * One assignment as its student sees it. jolliedu `StudentAssignment`, trimmed.
+ *
+ * ⚠ `parts` ARE THE LIVE PARTS IN WORKSHEET ORDER, so a part's place in it is the "Task 2" the gateway
+ * names it by in a hand-in preview.
+ */
+export const StudentAssignment = Schema.Struct({
+  id: Schema.Number,
+  courseId: Schema.Number,
+  title: Schema.String,
+  description: Schema.String,
+  opensAt: Schema.NullOr(Schema.String),
+  dueAt: Schema.NullOr(Schema.String),
+  stopAtDue: Schema.Boolean,
+  status: Schema.String,
+  progress: AssignmentProgress,
+  authorName: Schema.NullOr(Schema.String),
+  parts: Schema.Array(StudentAssignmentPart),
+}).annotate({ identifier: "JolliApi.StudentAssignment" })
+export interface StudentAssignment extends Schema.Schema.Type<typeof StudentAssignment> {}
+
+/** jolliedu `HandedInCommit`: one commit of the project a session reports. */
+export const HandedInCommit = Schema.Struct({
+  sha: Schema.String,
+  shortSha: Schema.String,
+  subject: Schema.String,
+  committedAt: Schema.String,
+  pushed: Schema.Boolean,
+}).annotate({ identifier: "JolliApi.HandedInCommit" })
+export interface HandedInCommit extends Schema.Schema.Type<typeof HandedInCommit> {}
+
+/** jolliedu `JolliCodeProjectReport`: what this client read of the repository. */
+export interface ProjectReport {
+  readonly remoteUrl: string | null
+  readonly branch: string | null
+  readonly commits: ReadonlyArray<HandedInCommit>
+}
+
+/** jolliedu `HandedInProject`: the report, with the pull requests the gateway found. */
+export const HandedInProject = Schema.Struct({
+  remoteUrl: Schema.NullOr(Schema.String),
+  branch: Schema.NullOr(Schema.String),
+  commits: Schema.Array(HandedInCommit),
+  pullRequests: Schema.Array(Schema.Struct({ url: Schema.String, number: Schema.Number })),
+}).annotate({ identifier: "JolliApi.HandedInProject" })
+export interface HandedInProject extends Schema.Schema.Type<typeof HandedInProject> {}
+
+/**
+ * jolliedu `AssignmentSummaryDraft`: the summary written, or why none could be.
+ *
+ * ⚠ `reason` IS OPEN: a failure this client has not heard of is still a failure.
+ */
+const SummaryDraft = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("ready"), throughSeq: Schema.Number, summary: Schema.String }),
+  Schema.Struct({ kind: Schema.Literal("failed"), throughSeq: Schema.Number, reason: Schema.String }),
+])
+
+/** jolliedu `JolliCodeHandInPreview`: what handing a session in would hand in, for the student to approve. */
+export const HandInPreview = Schema.Struct({
+  assignmentTitle: Schema.String,
+  taskTitle: Schema.String,
+  staffLabel: Schema.String,
+  messageCount: Schema.Number,
+  throughSeq: Schema.Number,
+  includes: AssignmentTurnIn,
+  summary: Schema.NullOr(SummaryDraft),
+  reflectionPrompt: Schema.NullOr(Schema.String),
+  reflection: Schema.NullOr(Schema.String),
+  project: Schema.NullOr(HandedInProject),
+}).annotate({ identifier: "JolliApi.HandInPreview" })
+export interface HandInPreview extends Schema.Schema.Type<typeof HandInPreview> {}
+
+/** jolliedu `JolliCodeHandInResult`: the part as it now stands, and how many tasks are still owed. */
+export const HandInResult = Schema.Struct({
+  part: StudentAssignmentPart,
+  owedCount: Schema.Number,
+}).annotate({ identifier: "JolliApi.HandInResult" })
+export interface HandInResult extends Schema.Schema.Type<typeof HandInResult> {}
 
 // ── The calls ───────────────────────────────────────────────────────────────────────────────────
 
@@ -346,11 +550,12 @@ const send = Effect.fn("Jolli.send")(function* <A, I>(
 ) {
   const http = yield* HttpClient.HttpClient
   const url = new URL(path, request.origin).toString()
-  const failed = (cause: unknown, status?: number, code?: string) =>
+  const failed = (cause: unknown, status?: number, refusal?: { code?: string; explanation?: string }) =>
     new JolliApiError({
       path,
       ...(status === undefined ? {} : { status }),
-      ...(code === undefined ? {} : { code }),
+      ...(refusal?.code === undefined ? {} : { code: refusal.code }),
+      ...(refusal?.explanation === undefined ? {} : { explanation: refusal.explanation }),
       message: `Jolli request failed: ${method} ${path}`,
       cause,
     })
@@ -368,16 +573,21 @@ const send = Effect.fn("Jolli.send")(function* <A, I>(
       Effect.mapError((cause) => failed(cause, response.status)),
     )
   }
-  const code = yield* response.json.pipe(
-    Effect.map((json) =>
-      typeof json === "object" && json !== null && "code" in json && typeof json.code === "string"
-        ? json.code
-        : undefined,
-    ),
+  const refusal = yield* response.json.pipe(
+    Effect.map(refusalOf),
     Effect.orElseSucceed(() => undefined),
   )
-  return yield* Effect.fail(failed(undefined, response.status, code))
+  return yield* Effect.fail(failed(undefined, response.status, refusal))
 })
+
+/** The `code` and the student's sentence (`error`) a refusal's body carries, each when it is a string. */
+function refusalOf(json: unknown) {
+  if (typeof json !== "object" || json === null) return undefined
+  return {
+    ...("code" in json && typeof json.code === "string" ? { code: json.code } : {}),
+    ...("error" in json && typeof json.error === "string" ? { explanation: json.error } : {}),
+  }
+}
 
 /** Every course the signed-in user can see. NOT only theirs — see `CourseListItem.viewerRole`. */
 export const fetchCourses = (request: GatewayRequest) => get(request, "/api/courses", Schema.Array(CourseListItem))
@@ -602,3 +812,102 @@ export const openConversation = (
 function isTransportFailure(cause: unknown) {
   return HttpClientError.isHttpClientError(cause) && cause.reason._tag === "TransportError"
 }
+
+// ── A student's assignments ─────────────────────────────────────────────────────────────────────
+
+const assignmentsOf = (courseId: number) => `/api/courses/${courseId}/assignments`
+const partOf = (courseId: number, assignmentId: number, partId: number) =>
+  `${assignmentsOf(courseId)}/${assignmentId}/parts/${partId}`
+
+/**
+ * One course's assignments, as its student's Assignments tab groups them.
+ *
+ * ⚠ A STUDENT'S READ ONLY. Staff are answered the same path with an empty student's view, which is
+ * nothing this client could work in; the course list leaves staff's courses out before this is asked.
+ */
+export const fetchStudentAssignments = (request: GatewayRequest, courseId: number) =>
+  get(request, `${assignmentsOf(courseId)}/student-view`, StudentAssignmentList)
+
+/** One assignment with the student's own work. 404 is a draft, or not theirs; one not open is refused. */
+export const fetchStudentAssignment = (request: GatewayRequest, courseId: number, assignmentId: number) =>
+  get(request, `${assignmentsOf(courseId)}/${assignmentId}/student-view`, StudentAssignment)
+
+/**
+ * START A TASK'S SESSION ON THE GATEWAY, UNDER THE ID THIS CLIENT WILL USE LOCALLY.
+ *
+ * ⚠ {@link openConversation}'S RULES, FOR ITS REASONS. 45 seconds, because the opener is a model call
+ * made before the answer; retried once under the same id when no response came back at all, because
+ * the route is idempotent by id. A refusal carries the gateway's `code` and its `explanation`. The
+ * answer's `binding` is the course and agent to record the session under.
+ */
+export const startTaskSession = (
+  request: GatewayRequest,
+  input: { courseId: number; assignmentId: number; partId: number; publicSessionId: string },
+) =>
+  send(
+    request,
+    "POST",
+    `${partOf(input.courseId, input.assignmentId, input.partId)}/jolli-code/sessions`,
+    StartedTaskSession,
+    { publicSessionId: input.publicSessionId },
+    "45 seconds",
+  ).pipe(
+    Effect.retry({ times: 1, while: (error) => error.status === undefined && isTransportFailure(error.cause) }),
+    Effect.map((detail) => ({
+      opener: detail.config?.opener?.text,
+      binding: { courseId: String(detail.courseId), assistantId: String(detail.courseAssistantId) },
+    })),
+  )
+
+/** What a task's hand-in names: the session, the student's reflection, the project as this machine read it. */
+export interface HandInInput {
+  readonly courseId: number
+  readonly assignmentId: number
+  readonly partId: number
+  readonly publicSessionId: string
+  readonly reflection?: string
+  readonly project?: ProjectReport
+}
+
+const handInBody = (input: HandInInput) => ({
+  publicSessionId: input.publicSessionId,
+  ...(input.reflection === undefined ? {} : { reflection: input.reflection }),
+  ...(input.project === undefined ? {} : { project: input.project }),
+})
+
+/**
+ * WHAT HANDING THE SESSION IN WOULD HAND IN, CHECKED AS THE HAND-IN WILL BE.
+ *
+ * ⚠ 90 SECONDS. The gateway writes the summary before it answers, a model call over the whole
+ * session; `send`'s 15 would give up on every long one. Not retried: a second request would write
+ * the summary twice.
+ */
+export const previewHandIn = (request: GatewayRequest, input: HandInInput) =>
+  send(
+    request,
+    "POST",
+    `${partOf(input.courseId, input.assignmentId, input.partId)}/jolli-code/preview`,
+    HandInPreview,
+    handInBody(input),
+    "90 seconds",
+  )
+
+/**
+ * HAND THE SESSION IN, UP TO WHERE ITS PREVIEW ENDED IT.
+ *
+ * ⚠ NOT RETRIED. A hand-in that timed out may have landed, and a second one is refused as already
+ * handed in — a refusal the student would read as their work being lost.
+ */
+export const handIn = (request: GatewayRequest, input: HandInInput & { readonly throughSeq: number }) =>
+  send(
+    request,
+    "POST",
+    `${partOf(input.courseId, input.assignmentId, input.partId)}/jolli-code/hand-in`,
+    HandInResult,
+    { ...handInBody(input), throughSeq: input.throughSeq },
+    "30 seconds",
+  )
+
+/** Turn the whole assignment in. The answer is the assignment as it now stands. */
+export const turnInAssignment = (request: GatewayRequest, input: { courseId: number; assignmentId: number }) =>
+  send(request, "POST", `${assignmentsOf(input.courseId)}/${input.assignmentId}/turn-in`, StudentAssignment)

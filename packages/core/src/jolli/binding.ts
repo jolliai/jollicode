@@ -46,3 +46,12 @@ export function courseBindingOf(session: SessionLike | undefined): CourseBinding
 export function sameBinding<T extends CourseBinding>(left: T | undefined, right: CourseBinding): left is T {
   return left?.courseId === right.courseId && left.assistantId === right.assistantId
 }
+
+/**
+ * A gateway course, assistant, assignment or task id as a route takes it: a positive integer, spelled
+ * the one way `metadata.jolli` and the catalogue spell it. `Number()` alone also takes "1e1", " 10"
+ * and "0xA", and a binding stored from one would name a course no catalogue lookup finds.
+ */
+export function isGatewayId(value: string) {
+  return /^[1-9]\d{0,14}$/.test(value)
+}

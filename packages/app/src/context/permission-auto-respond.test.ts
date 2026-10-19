@@ -123,3 +123,27 @@ describe("isDirectoryAutoAccepting", () => {
     expect(isDirectoryAutoAccepting(autoAccept, directory)).toBe(false)
   })
 })
+
+describe("the hand-in permissions", () => {
+  /** ⚠ HANDING WORK IN COUNTS ONLY WHEN THE STUDENT CLICKED; NO TOGGLE MAY ANSWER FOR THEM. */
+  test("are never answered by a session's, a parent's, or a folder's auto-accept", () => {
+    const directory = "/tmp/project"
+    const sessions = [session({ id: "root" }), session({ id: "child", parentID: "root" })]
+    const autoAccept = {
+      [`${base64Encode(directory)}/root`]: true,
+      [`${base64Encode(directory)}/*`]: true,
+      root: true,
+    }
+    for (const asked of ["jolli_submit_task", "jolli_turn_in_assignment"]) {
+      for (const sessionID of ["root", "child"]) {
+        expect(autoRespondsPermission(autoAccept, sessions, { sessionID, permission: asked }, directory)).toBe(false)
+        expect(sessionAutoAccept(autoAccept, sessions, { sessionID, permission: asked }, directory)).toBe(false)
+      }
+    }
+    // Every other permission is still answered, and a toggle's own state still reads as on.
+    expect(autoRespondsPermission(autoAccept, sessions, { sessionID: "root", permission: "bash" }, directory)).toBe(
+      true,
+    )
+    expect(autoRespondsPermission(autoAccept, sessions, permission("root"), directory)).toBe(true)
+  })
+})

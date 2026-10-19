@@ -171,6 +171,16 @@ describe("startOutcome", () => {
     })
   })
 
+  /** ⚠ A TASK'S REFUSAL NAMES THE ASSIGNMENT'S DATES AND NEXT STEP, WHICH ONLY THE GATEWAY CAN SAY. */
+  test("a refused task start says the gateway's own sentence", () => {
+    const message = "Lab 4 stopped taking work at its due date. If you need more time, ask Prof. Okafor."
+    expect(startOutcome({ status: "refused", code: "submissions_stopped", message })).toEqual({
+      type: "failed",
+      message,
+      refresh: true,
+    })
+  })
+
   /** ⚠ A REFUSAL ASKS FOR THE CATALOGUE AGAIN, so the Start it refused is not offered a second time. */
   test("a refusal says why in the student's words and refreshes the catalogue", () => {
     expect(startOutcome({ status: "refused", code: "assistant_not_open" })).toEqual({

@@ -22,12 +22,27 @@ import { ModelV2 } from "@opencode-ai/core/model"
 import { isRecord } from "@/util/record"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { unboundCourseToolRules } from "@/plugin/jolli-mcp-tools"
+import { HAND_IN_PERMISSIONS, taskBindingOf } from "@opencode-ai/core/jolli/assignment"
 
 const MCP_RESOURCE_TOOLS = {
   list: "list_mcp_resources",
   listTemplates: "list_mcp_resource_templates",
   read: "read_mcp_resource",
 } as const
+/**
+ * THE HAND-IN PERMISSIONS ARE ALWAYS ASKED, WHATEVER ELSE SAYS.
+ *
+ * ⚠ LAST, SO NOTHING BEFORE IT CAN ANSWER FOR THE STUDENT. `Permission.evaluate` takes the last rule
+ * that matches, so a config that allows every permission, a project's `permission: "allow"`, or a
+ * session's own rules would otherwise approve a hand-in nobody saw. "Allow always" still applies on
+ * top — it remembers one task, which no later request's lines match (see `taskApprovalKey`).
+ */
+const HAND_IN_ASKED = [...HAND_IN_PERMISSIONS].map((permission) => ({
+  permission,
+  pattern: "*",
+  action: "ask" as const,
+}))
+
 const MAX_MCP_RESOURCE_BLOB_BYTES = 10 * 1024 * 1024
 const SUPPORTED_MCP_RESOURCE_ATTACHMENT_MIMES = new Set([
   "application/pdf",
@@ -110,7 +125,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
           ...req,
           sessionID: input.session.id,
           tool: { messageID: input.processor.message.id, callID: options.toolCallId },
-          ruleset: Permission.merge(input.agent.permission, input.session.permission ?? []),
+          ruleset: Permission.merge(input.agent.permission, input.session.permission ?? [], HAND_IN_ASKED),
         })
         .pipe(Effect.orDie),
   })
@@ -120,6 +135,12 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   // already filters by; the ordinary MCP tools below skip the same names.
   const withheldCourseTools = unboundCourseToolRules(input.session)
   const withheld = new Set(withheldCourseTools.map((rule) => rule.permission))
+  /**
+   * ⚠ THE HAND-IN TOOLS EXIST ONLY IN A TASK'S OWN SESSION. A plain chat, a fork and a child session —
+   * a subagent the task's session started — have no task the gateway bound to them, so every call
+   * would be refused; offered there, the model would try.
+   */
+  const handsIn = taskBindingOf(input.session) !== undefined
 
   for (const item of yield* registry.tools({
     modelID: ModelV2.ID.make(input.model.api.id),
@@ -127,6 +148,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     agent: input.agent,
     permission: [...(input.session.permission ?? []), ...withheldCourseTools],
   })) {
+    if (HAND_IN_PERMISSIONS.has(item.id) && !handsIn) continue
     const schema = ProviderTransform.schema(input.model, ToolJsonSchema.fromTool(item))
     tools[item.id] = tool({
       description: item.description,

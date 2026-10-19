@@ -90,6 +90,10 @@ import type {
   GlobalUpgradeResponses,
   InstanceDisposeErrors,
   InstanceDisposeResponses,
+  JolliAssignmentErrors,
+  JolliAssignmentResponses,
+  JolliAssignmentsErrors,
+  JolliAssignmentsResponses,
   JolliCourseErrors,
   JolliCourseResponses,
   JolliShareAddErrors,
@@ -101,6 +105,8 @@ import type {
   JolliShareRemoveResponses,
   JolliShareResponses,
   JolliShareSubject,
+  JolliTurnInErrors,
+  JolliTurnInResponses,
   LocationRef,
   LspStatusErrors,
   LspStatusResponses,
@@ -1513,6 +1519,87 @@ export class Jolli extends HeyApiClient {
     )
     return (options?.client ?? this.client).delete<JolliShareRemoveResponses, JolliShareRemoveErrors, ThrowOnError>({
       url: "/jolli/session/{sessionID}/share/{subject}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * List the signed-in student's assignments to do
+   *
+   * Across the student's Jolli Code courses, the open assignments not yet turned in that have a task worked in Jolli Code, due soonest first. One past a due date it stops at is left out. Answers `unreachable` rather than an error when there is no credential or Jolli did not answer. Served from a minute-long cache unless `fresh` is `true`.
+   */
+  public assignments<ThrowOnError extends boolean = false>(
+    parameters?: {
+      fresh?: "true" | "false"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "fresh" }] }])
+    return (options?.client ?? this.client).get<JolliAssignmentsResponses, JolliAssignmentsErrors, ThrowOnError>({
+      url: "/jolli/assignment",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Read one assignment
+   *
+   * One assignment with the student's own work: each task, where it is worked, whether it is handed in and by which session, and the task's session on this machine when there is one. A refusal answers `refused` with Jolli's own sentence in `message`.
+   */
+  public assignment<ThrowOnError extends boolean = false>(
+    parameters: {
+      courseId: string
+      assignmentId: string
+      fresh?: "true" | "false"
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "courseId" },
+            { in: "path", key: "assignmentId" },
+            { in: "query", key: "fresh" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<JolliAssignmentResponses, JolliAssignmentErrors, ThrowOnError>({
+      url: "/jolli/assignment/{courseId}/{assignmentId}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Turn an assignment in
+   *
+   * Turns the whole assignment in for the teacher to review. The caller has already had the student confirm it. A refusal answers `refused` with Jolli's own sentence in `message`.
+   */
+  public turnIn<ThrowOnError extends boolean = false>(
+    parameters: {
+      courseId: string
+      assignmentId: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "courseId" },
+            { in: "path", key: "assignmentId" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<JolliTurnInResponses, JolliTurnInErrors, ThrowOnError>({
+      url: "/jolli/assignment/{courseId}/{assignmentId}/turn-in",
       ...options,
       ...params,
     })
@@ -4024,6 +4111,8 @@ export class Session2 extends HeyApiClient {
       courseId?: string
       assistantId?: string
       sessionID?: string
+      assignmentId?: string
+      partId?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -4042,6 +4131,8 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "courseId" },
             { in: "body", key: "assistantId" },
             { in: "body", key: "sessionID" },
+            { in: "body", key: "assignmentId" },
+            { in: "body", key: "partId" },
           ],
         },
       ],

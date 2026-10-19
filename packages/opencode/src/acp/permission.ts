@@ -12,6 +12,7 @@ import { exists, readText } from "@/util/filesystem"
 import type { ACPSession } from "./session"
 import { pendingToolCall, toLocations, type ToolInput } from "./tool"
 import { Effect } from "effect"
+import { HAND_IN_ELSEWHERE, isNeverAutoApproved } from "@opencode-ai/core/jolli/assignment"
 
 type PermissionEvent = Extract<Event, { type: "permission.asked" }>
 type Reply = "once" | "always" | "reject"
@@ -53,6 +54,16 @@ export class Handler {
     const session = await Effect.runPromise(this.input.session.tryGet(permission.sessionID))
     if (!session) return
 
+    /**
+     * ⚠ A HAND-IN IS DECLINED HERE, BEFORE THE EDITOR IS ASKED. An editor's permission prompt shows a
+     * tool name and an Allow button, not what would be handed in — and handing in counts only when the
+     * student approved exactly that. The agent is told where the student can do it instead.
+     */
+    if (isNeverAutoApproved(permission.permission)) {
+      await this.reply(permission.id, "reject", session.cwd, HAND_IN_ELSEWHERE)
+      return
+    }
+
     if (!this.input.connection.requestPermission) {
       await this.reply(permission.id, "reject", session.cwd)
       return
@@ -88,11 +99,12 @@ export class Handler {
     await this.reply(permission.id, reply, session.cwd)
   }
 
-  private async reply(requestID: string, reply: Reply, directory: string) {
+  private async reply(requestID: string, reply: Reply, directory: string, message?: string) {
     await this.input.sdk.permission.reply({
       requestID,
       reply,
       directory,
+      ...(message === undefined ? {} : { message }),
     })
   }
 

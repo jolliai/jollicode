@@ -581,3 +581,47 @@ test("an ended course is shown in its session and not carried into the next one"
     picker.close()
   }
 })
+
+/**
+ * ⚠ A STAGED TASK BELONGS TO ITS COURSE AND AGENT. Opening a session elsewhere moves the draft there;
+ * the task must go with it, or Start would send that course's agent with this task.
+ */
+test("a staged task is dropped when the draft moves to another course or agent", async () => {
+  const task = { courseId: "101", assistantId: "1", assignmentId: "40", partId: "42", label: "Lab 4 · Task 2" }
+  for (const binding of [
+    { courseId: "303", assistantId: "3" },
+    { courseId: "101", assistantId: "2" },
+  ]) {
+    const picker = await mount({ sessions: [boundSession(binding)] })
+    try {
+      picker.jolli.draft.setTask(task)
+      await settled(picker.app)
+      expect(picker.jolli.draft.task).toEqual(task)
+
+      picker.route.navigate({ type: "session", sessionID: SESSION_ID })
+      await picker.app.waitFor(() => picker.jolli.draft.value?.assistantId === binding.assistantId)
+      picker.route.navigate({ type: "home" })
+      await settled(picker.app)
+
+      expect(picker.jolli.current()).toMatchObject(binding)
+      expect(picker.jolli.draft.task).toBeUndefined()
+    } finally {
+      picker.close()
+    }
+  }
+})
+
+test("a staged task is kept while the draft stays its course and agent", async () => {
+  const task = { courseId: "101", assistantId: "1", assignmentId: "40", partId: "42", label: "Lab 4 · Task 2" }
+  const picker = await mount({ sessions: [boundSession({ courseId: "101", assistantId: "1" })] })
+  try {
+    picker.jolli.draft.setTask(task)
+    picker.route.navigate({ type: "session", sessionID: SESSION_ID })
+    await settled(picker.app)
+    picker.route.navigate({ type: "home" })
+    await settled(picker.app)
+    expect(picker.jolli.draft.task).toEqual(task)
+  } finally {
+    picker.close()
+  }
+})

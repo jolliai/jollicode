@@ -13,6 +13,7 @@
 //
 // permissionInfo() extracts display info (icon, title, lines, diff) from
 // the request, delegating to tool.ts for tool-specific formatting.
+import { HAND_IN_PROMPT, SUBMIT_TASK_PERMISSION, TURN_IN_PERMISSION } from "@opencode-ai/core/jolli/assignment"
 import type { PermissionRequest } from "@opencode-ai/sdk/v2"
 import { Brand } from "@opencode-ai/core/brand"
 import type { PermissionReply } from "./types"
@@ -92,6 +93,13 @@ export function permissionOptions(stage: PermissionStage): PermissionOption[] {
 
 export function permissionInfo(request: PermissionRequest): PermissionInfo {
   const pats = patterns(request)
+  /**
+   * ⚠ A HAND-IN SHOWS WHAT THE GATEWAY SAID IT WOULD KEEP: the request's lines are built from its
+   * preview, never from the model's arguments, the reflection last and whole.
+   */
+  if (request.permission === SUBMIT_TASK_PERMISSION || request.permission === TURN_IN_PERMISSION) {
+    return { icon: "↑", title: HAND_IN_PROMPT[request.permission].title, lines: pats }
+  }
   const input = data(request)
   const info = toolPermissionInfo(request.permission, input, dict(request.metadata), pats)
   if (info) {
@@ -125,6 +133,10 @@ export function permissionInfo(request: PermissionRequest): PermissionInfo {
 }
 
 export function permissionAlwaysLines(request: PermissionRequest): string[] {
+  // What a hand-in's "always" remembers is a key no later request matches: it never stops the asking.
+  if (request.permission === SUBMIT_TASK_PERMISSION || request.permission === TURN_IN_PERMISSION) {
+    return [HAND_IN_PROMPT[request.permission].always]
+  }
   if (request.always.length === 1 && request.always[0] === "*") {
     return [`This will allow ${request.permission} until ${Brand.name} is restarted.`]
   }

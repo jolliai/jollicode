@@ -46,13 +46,22 @@ function harness(
     }),
   )
   const start = (
-    payload: { courseId: string; assistantId: string; agent?: string; sessionID?: SessionID },
+    payload: {
+      courseId: string
+      assistantId: string
+      agent?: string
+      sessionID?: SessionID
+      assignmentId?: string
+      partId?: string
+    },
     request = REQUEST,
     directory = DIRECTORY,
+    head: string | undefined = undefined,
   ) =>
     startJolliSession({
       payload,
       directory,
+      head: () => Effect.succeed(head),
       gateway: {
         request: () => Effect.succeed(request),
         refused: (token) => Effect.sync(() => renewed.push(token)).pipe(Effect.as(token)),
@@ -220,6 +229,7 @@ describe("startJolliSession", () => {
         gateway: { request: () => Effect.succeed(undefined), refused: (token) => Effect.succeed(token) },
         existing: () => Effect.succeed(undefined),
         create: () => Effect.die("must not create"),
+        head: () => Effect.succeed(undefined),
       }).pipe(Effect.provide(h.layer)),
     )
     expect(result).toEqual({ status: "unreachable" })
@@ -327,5 +337,99 @@ describe("startJolliSession", () => {
       expect(exit._tag).toBe("Failure")
       expect(h.sent).toEqual([])
     }
+  })
+})
+
+describe("startJolliSession for an assignment task", () => {
+  const TASK = { courseId: "7", assistantId: "12", assignmentId: "40", partId: "41" }
+  /** What the gateway answers a task's start with: the course and agent the task bound it to. */
+  const BOUND = { courseId: 7, courseAssistantId: 12 }
+
+  test("opens the task's session on the gateway and records the task and the commit it started at", async () => {
+    const h = harness(() => json({ ...BOUND, config: { opener: { text: "Lab 4 Task 2 asks you to…" } } }, 201))
+    const result = await Effect.runPromise(h.start(TASK, REQUEST, DIRECTORY, "9f0c1aa"))
+
+    expect(h.sent).toHaveLength(1)
+    expect(h.sent[0]?.url).toBe("https://acme.jolli.ai/api/courses/7/assignments/40/parts/41/jolli-code/sessions")
+    const body = bodyOf(h.sent[0])
+    expect(body).toEqual({ publicSessionId: expect.stringMatching(/^ses_/) })
+
+    const created = h.created[0]!
+    expect(created.metadata).toEqual({
+      jolli: { courseId: "7", assistantId: "12" },
+      jolliOpener: { sessionID: body.publicSessionId, text: "Lab 4 Task 2 asks you to…" },
+      jolliTask: { sessionID: body.publicSessionId, assignmentId: "40", partId: "41", startHead: "9f0c1aa" },
+    })
+    expect(result).toMatchObject({ status: "started", opener: true })
+  })
+
+  /** ⚠ THE TASK DECIDES THE AGENT: a Start that asked under another is recorded under the gateway's. */
+  test("records the session under the agent the gateway bound the task to, and a retry still finds it", async () => {
+    const h = harness(() => json({ courseId: 7, courseAssistantId: 13, config: {} }, 201))
+    const sessionID = SessionID.descending()
+    await Effect.runPromise(h.start({ ...TASK, sessionID }))
+    expect(h.created[0]?.metadata?.["jolli"]).toEqual({ courseId: "7", assistantId: "13" })
+
+    const again = await Effect.runPromise(h.start({ ...TASK, sessionID }))
+    expect(again).toMatchObject({ status: "started", session: { id: sessionID } })
+    expect(h.sent).toHaveLength(1)
+  })
+
+  test("a folder that is not a repository records the task without a commit", async () => {
+    const h = harness(() => json({ ...BOUND, config: { opener: null } }, 201))
+    await Effect.runPromise(h.start(TASK))
+    expect(h.created[0]?.metadata?.["jolliTask"]).toEqual({
+      sessionID: h.created[0]?.id,
+      assignmentId: "40",
+      partId: "41",
+    })
+  })
+
+  /** ⚠ THE ASSIGNMENT'S OWN WORDS: its dates and next step are the gateway's to say. */
+  test("a refused task start answers with the gateway's sentence and creates nothing", async () => {
+    const sentence = "Lab 4 stopped taking work at its due date. If you need more time, ask Prof. Okafor."
+    const h = harness(() => json({ error: sentence, code: "submissions_stopped" }, 409))
+    expect(await Effect.runPromise(h.start(TASK))).toEqual({
+      status: "refused",
+      code: "submissions_stopped",
+      message: sentence,
+    })
+    expect(h.created).toEqual([])
+  })
+
+  test("half a task is a bad request, asked of nobody", async () => {
+    const h = harness(() => json({}))
+    for (const payload of [
+      { courseId: "7", assistantId: "12", assignmentId: "40" },
+      { courseId: "7", assistantId: "12", partId: "41" },
+      { courseId: "7", assistantId: "12", assignmentId: "forty", partId: "41" },
+    ]) {
+      const exit = await Effect.runPromise(Effect.exit(h.start(payload)))
+      expect(exit._tag).toBe("Failure")
+    }
+    expect(h.sent).toEqual([])
+  })
+
+  test("a retry for another task under the same id is a bad request", async () => {
+    const h = harness(() => json({ ...BOUND, config: {} }, 201))
+    const sessionID = SessionID.descending()
+    await Effect.runPromise(h.start({ ...TASK, sessionID }))
+    for (const payload of [
+      { ...TASK, partId: "42", sessionID },
+      { courseId: "7", assistantId: "12", sessionID },
+    ]) {
+      const exit = await Effect.runPromise(Effect.exit(h.start(payload)))
+      expect(exit._tag).toBe("Failure")
+    }
+    expect(h.created).toHaveLength(1)
+  })
+
+  test("a retry of the same task under its id answers with the session it made", async () => {
+    const h = harness(() => json({ ...BOUND, config: {} }, 201))
+    const sessionID = SessionID.descending()
+    await Effect.runPromise(h.start({ ...TASK, sessionID }))
+    const again = await Effect.runPromise(h.start({ ...TASK, sessionID }))
+    expect(again).toMatchObject({ status: "started", session: { id: sessionID } })
+    expect(h.sent).toHaveLength(1)
   })
 })

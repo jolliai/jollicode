@@ -15,6 +15,7 @@ import { registerOpencodeSpinner } from "../register-spinner"
 import path from "path"
 import { fileURLToPath } from "url"
 import { startOutcome, useJolli } from "../../context/jolli"
+import { useTaskHeader } from "../../context/assignments"
 import { useLocal } from "../../context/local"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Identifier } from "@opencode-ai/core/id/id"
@@ -997,7 +998,22 @@ export function Prompt(props: PromptProps) {
    * reach submit; one that does is a server command, which would create a plain session without Start
    * and become its first turn.
    */
-  const opening = createMemo(() => !props.sessionID && !!jolli.assistant()?.opensConversation)
+  /**
+   * ⚠ AND A TASK'S DRAFT ALWAYS STARTS, whether its agent speaks first or not: its session is the one the
+   * gateway opens for the task, and a first line typed instead would make a plain chat the task could
+   * never be handed in from.
+   */
+  /** The task this composer starts a session for, or the one its session was started for. */
+  const taskHeader = useTaskHeader(() => props.sessionID)
+  const taskLine = createMemo(() => {
+    if (!props.sessionID) {
+      const task = jolli.draft.task
+      return task ? { label: task.label, handedIn: false } : undefined
+    }
+    return taskHeader()
+  })
+
+  const opening = createMemo(() => !props.sessionID && (!!jolli.assistant()?.opensConversation || !!jolli.draft.task))
 
   let submitting = false
   async function submit() {
@@ -1301,20 +1317,34 @@ export function Prompt(props: PromptProps) {
     input: Omit<Parameters<typeof sdk.client.session.jolliStart>[0], "courseId" | "assistantId" | "sessionID">,
   ) {
     const retry = jolli.unanswered()
-    const sessionID = sameBinding(retry, binding) ? retry.sessionID : Identifier.descending("session")
+    const task = jolli.draft.task
+    // Another task with the same agent is another conversation, never a retry of this one.
+    const sessionID =
+      sameBinding(retry, binding) && retry.partId === task?.partId ? retry.sessionID : Identifier.descending("session")
     jolli.setStarting(true)
     const answer = await settleStart(
-      sdk.client.session.jolliStart({ ...input, ...binding, sessionID }, { throwOnError: true }),
+      sdk.client.session.jolliStart(
+        {
+          ...input,
+          ...binding,
+          ...(task ? { assignmentId: task.assignmentId, partId: task.partId } : {}),
+          sessionID,
+        },
+        { throwOnError: true },
+      ),
     )
     jolli.setStarting(false)
     const outcome = startOutcome(answer.result)
-    jolli.setUnanswered(answer.unanswered ? { ...binding, sessionID } : undefined)
+    jolli.setUnanswered(
+      answer.unanswered ? { ...binding, sessionID, ...(task ? { partId: task.partId } : {}) } : undefined,
+    )
     if (outcome.type === "failed") {
       if (outcome.refresh) jolli.refresh()
       toast.show({ message: outcome.message, variant: "warning", duration: 5000 })
       return false
     }
     jolli.promote(outcome.sessionID, binding)
+    jolli.draft.clearTask()
     if (route.data.type !== "home") {
       toast.show({ message: "The conversation has started — open it from the session list.", variant: "info" })
       return false
@@ -1575,6 +1605,22 @@ export function Prompt(props: PromptProps) {
                         </box>
                       )}
                     </Show>
+                    {/*
+                     * WHICH TASK, LAST AND FIRST TO GO: the draft's own, or the one the session was
+                     * started for, with "Handed in" once this is the session the teacher reads.
+                     */}
+                    <Show when={taskLine()}>
+                      {(line) => (
+                        <box flexDirection="row" gap={1} flexShrink={1}>
+                          <Show when={line().handedIn}>
+                            <text fg={theme.success}>Handed in ·</text>
+                          </Show>
+                          <text fg={theme.text} wrapMode="none">
+                            {Locale.truncate(line().label, Math.max(12, dimensions().width - 60))}
+                          </text>
+                        </box>
+                      )}
+                    </Show>
                   </box>
                 )
               }}
@@ -1816,7 +1862,12 @@ export function Prompt(props: PromptProps) {
             </Match>
             <Match when={opening()}>
               <box paddingLeft={3}>
-                <text fg={theme.accent}>The agent will open the conversation — press Enter to start</text>
+                {/* A task's agent may not speak first; what Enter does then is begin the task's session. */}
+                <text fg={theme.accent}>
+                  {jolli.draft.task
+                    ? "Press Enter to start a session for this task"
+                    : "The agent will open the conversation — press Enter to start"}
+                </text>
               </box>
             </Match>
             <Match when={workspace.notice()}>

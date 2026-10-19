@@ -50,6 +50,7 @@ import { DialogHelp } from "./ui/dialog-help"
 import { DialogAgent } from "./component/dialog-agent"
 import { DialogAssistant } from "./component/dialog-assistant"
 import { Brand } from "@opencode-ai/core/brand"
+import { DialogAssignments } from "./component/dialog-assignment"
 import { DialogCourse } from "./component/dialog-course"
 import { DialogCourseGate } from "./component/dialog-course-gate"
 import { DialogLogout } from "./component/dialog-logout"
@@ -119,6 +120,7 @@ const appBindingCommands = [
   "agent.list",
   "jolli.course",
   "jolli.assistant",
+  "jolli.assignment",
   "mcp.list",
   "agent.cycle",
   "agent.cycle.reverse",
@@ -805,6 +807,19 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         slashName: "assistant",
         run: () => {
           dialog.replace(() => <DialogAssistant />)
+        },
+      },
+      {
+        /**
+         * ⚠ IT OPENS TASKS, NEVER HANDS ONE IN. Handing in is the agent's, asked in the task's session
+         * and approved by the student in a permission prompt; this is where a task's session begins.
+         */
+        name: "jolli.assignment",
+        title: "Open an assignment",
+        category: "Agent",
+        slashName: "assignment",
+        run: () => {
+          dialog.replace(() => <DialogAssignments />)
         },
       },
       {

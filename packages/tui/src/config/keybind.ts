@@ -135,6 +135,7 @@ export const Definitions = {
    */
   jolli_course: keybind("none", "Select course"),
   jolli_assistant: keybind("none", "Select assistant"),
+  jolli_assignment: keybind("none", "Open an assignment"),
   agent_cycle: keybind("tab", "Next agent"),
   agent_cycle_reverse: keybind("shift+tab", "Previous agent"),
   variant_cycle: keybind("ctrl+t", "Cycle model variants"),
@@ -344,6 +345,7 @@ export const CommandMap = {
   agent_list: "agent.list",
   jolli_course: "jolli.course",
   jolli_assistant: "jolli.assistant",
+  jolli_assignment: "jolli.assignment",
   agent_cycle: "agent.cycle",
   agent_cycle_reverse: "agent.cycle.reverse",
   variant_cycle: "variant.cycle",
