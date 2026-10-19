@@ -113,7 +113,11 @@ describe("current session timeline rows", () => {
       text: "With this assistant's current settings I cannot look up assignments.",
       metadata: { assignmentsUrl },
     })
-    const rows = (status: "idle" | "busy", url: string) =>
+    const rows = (
+      status: "idle" | "busy",
+      url: string,
+      course: { showCitations?: boolean } = { showCitations: false },
+    ) =>
       Timeline.constructMessageRows(
         user,
         (messageID) => (messageID === "msg_2" ? [answer(url)] : []),
@@ -123,7 +127,7 @@ describe("current session timeline rows", () => {
         status,
         true,
         true,
-        false,
+        course.showCitations,
       )
     const url = "https://school.example.edu/learn/44/assignments"
 
@@ -133,6 +137,8 @@ describe("current session timeline rows", () => {
     expect(rows("busy", url).map(TimelineRow.key)).not.toContain("assignments-link:msg_1")
     // Any client can write a part's metadata; only an http(s) link is ever drawn.
     expect(rows("idle", "javascript:alert(1)").map(TimelineRow.key)).not.toContain("assignments-link:msg_1")
+    // Outside a course no turn carries the link, so its parts are not even walked for one.
+    expect(rows("idle", url, {}).map(TimelineRow.key)).not.toContain("assignments-link:msg_1")
   })
 
   test("renders a current shell message as a standalone turn", () => {

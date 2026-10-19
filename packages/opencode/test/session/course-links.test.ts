@@ -63,7 +63,9 @@ const attach = Effect.fn("Test.attach")(function* (input: {
   readonly sessionID: SessionID
   readonly userMessageID: MessageID
   readonly reply: unknown
+  readonly status?: number
   readonly signedIn?: boolean
+  readonly serialize?: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
 }) {
   const seen: HttpClientRequest.HttpClientRequest[] = []
   const gateway = Layer.succeed(
@@ -73,7 +75,10 @@ const attach = Effect.fn("Test.attach")(function* (input: {
       return Effect.succeed(
         HttpClientResponse.fromWeb(
           request,
-          new Response(JSON.stringify(input.reply), { headers: { "content-type": "application/json" } }),
+          new Response(JSON.stringify(input.reply), {
+            status: input.status ?? 200,
+            headers: { "content-type": "application/json" },
+          }),
         ),
       )
     }),
@@ -86,9 +91,11 @@ const attach = Effect.fn("Test.attach")(function* (input: {
           : { origin: "https://school.jolli.ai", token: "jwt", identity: "student-a" },
       ),
   })
-  yield* CourseLinks.attach({ sessionID: input.sessionID, userMessageID: input.userMessageID }).pipe(
-    Effect.provide(Layer.mergeAll(gateway, credential)),
-  )
+  yield* CourseLinks.attach({
+    sessionID: input.sessionID,
+    userMessageID: input.userMessageID,
+    ...(input.serialize === undefined ? {} : { serialize: input.serialize }),
+  }).pipe(Effect.provide(Layer.mergeAll(gateway, credential)))
   return seen
 })
 
@@ -155,6 +162,40 @@ describe("CourseLinks.attach", () => {
         reply: { assignmentsUrl: ASSIGNMENTS },
       })
       expect(again).toEqual([])
+    }),
+  )
+
+  // A CLI session the gateway does not hold yet has no links: nothing is written, and it is no failure.
+  it.instance("writes nothing, and does not fail, for a session the gateway does not hold", () =>
+    Effect.gen(function* () {
+      const turn = yield* answeredTurn()
+      const seen = yield* attach({
+        sessionID: turn.sessionID,
+        userMessageID: turn.userID,
+        reply: { error: "Conversation not found" },
+        status: 404,
+      })
+      expect(seen).toHaveLength(1)
+      expect((yield* stored(turn.sessionID, turn.answer))?.metadata).toBeUndefined()
+    }),
+  )
+
+  // The read-and-write goes through the caller's lock, which keeps it from interleaving with the sources'.
+  it.instance("reads and writes the answer through the lock it is handed", () =>
+    Effect.gen(function* () {
+      const turn = yield* answeredTurn()
+      let locked = 0
+      yield* attach({
+        sessionID: turn.sessionID,
+        userMessageID: turn.userID,
+        reply: { assignmentsUrl: ASSIGNMENTS },
+        serialize: (effect) =>
+          Effect.sync(() => {
+            locked += 1
+          }).pipe(Effect.andThen(effect)),
+      })
+      expect(locked).toBe(1)
+      expect((yield* stored(turn.sessionID, turn.answer))?.metadata).toEqual({ assignmentsUrl: ASSIGNMENTS })
     }),
   )
 })

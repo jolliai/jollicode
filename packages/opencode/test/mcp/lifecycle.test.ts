@@ -236,6 +236,27 @@ it.instance("tools() reuses cached definitions until a protocol notification", (
   }),
 )
 
+// For a server whose tools change without its saying so; at most once a minute for a connection, so a
+// caller asking on every step for a tool that never comes does not fetch the manifest on every step.
+it.instance("relist() lists a server's tools again, at most once a minute for a connection", () =>
+  Effect.gen(function* () {
+    const server = yield* lifecycleServer({ capabilities: { tools: {} } })
+    const mcp = yield* MCP.Service
+    yield* mcp.add("relist-server", remote(server.url))
+    server.state.tools = [{ name: "next_tool", inputSchema: { type: "object", properties: {} } }]
+
+    yield* mcp.relist("relist-server")
+    expect(Object.keys(yield* mcp.tools())).toEqual(["relist-server_next_tool"])
+
+    server.state.tools = [{ name: "third_tool", inputSchema: { type: "object", properties: {} } }]
+    yield* mcp.relist("relist-server")
+    expect(Object.keys(yield* mcp.tools())).toEqual(["relist-server_next_tool"])
+
+    // A server that is not connected has nothing to list.
+    yield* mcp.relist("no-such-server")
+  }),
+)
+
 it.instance("instructions() returns non-empty connected server instructions with tool names", () =>
   Effect.gen(function* () {
     const guide = yield* lifecycleServer({ instructions: "Use lookup before mutate." })

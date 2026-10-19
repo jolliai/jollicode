@@ -10,7 +10,8 @@
  * both renderers read it (`JolliSources.turnAssignmentsUrl`).
  *
  * ⚠ NOTHING IS WRITTEN WHEN IT FAILS. A reply without the link is the honest rendering of not knowing
- * one; the reason goes to the caller's log.
+ * one; the reason goes to the caller's log. A session the gateway does not hold — a CLI session not
+ * synced to it yet — has no links either, and is no failure: it is not logged as one on every turn.
  */
 export * as CourseLinks from "./course-links"
 import { fetchCourseTurnLinks } from "@opencode-ai/core/jolli/api"
@@ -24,6 +25,8 @@ import { Session } from "./session"
 export const attach = Effect.fn("CourseLinks.attach")(function* (input: {
   readonly sessionID: SessionID
   readonly userMessageID: MessageID
+  /** Runs the read-and-write of the answer part, so a caller can keep it from interleaving with another's. */
+  readonly serialize?: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
 }) {
   const sessions = yield* Session.Service
   const jolli = yield* JolliSession.Service
@@ -31,17 +34,24 @@ export const attach = Effect.fn("CourseLinks.attach")(function* (input: {
   if (!turn?.answerPart || turn.answerPart.metadata?.assignmentsUrl !== undefined) return
   const request = yield* jolli.request()
   if (!request) return
-  const links = yield* fetchCourseTurnLinks(request, input.sessionID, input.userMessageID)
-  if (!links.assignmentsUrl || !JolliSources.isWebUrl(links.assignmentsUrl)) return
+  const links = yield* fetchCourseTurnLinks(request, input.sessionID, input.userMessageID).pipe(
+    Effect.catch((error) => (error.status === 404 ? Effect.succeed(undefined) : Effect.fail(error))),
+  )
+  const assignmentsUrl = links?.assignmentsUrl
+  if (!assignmentsUrl || !JolliSources.isWebUrl(assignmentsUrl)) return
+  const answerPart = turn.answerPart
   // Read again just before the write, as the sources are: the part may have changed or gone meanwhile.
-  const current = yield* sessions.getPart({
-    sessionID: input.sessionID,
-    messageID: turn.answerPart.messageID,
-    partID: turn.answerPart.id,
+  const write = Effect.gen(function* () {
+    const current = yield* sessions.getPart({
+      sessionID: input.sessionID,
+      messageID: answerPart.messageID,
+      partID: answerPart.id,
+    })
+    if (current?.type !== "text" || current.metadata?.assignmentsUrl !== undefined) return
+    yield* sessions.updatePart({
+      ...current,
+      metadata: { ...current.metadata, assignmentsUrl },
+    })
   })
-  if (current?.type !== "text") return
-  yield* sessions.updatePart({
-    ...current,
-    metadata: { ...current.metadata, assignmentsUrl: links.assignmentsUrl },
-  })
+  yield* input.serialize ? input.serialize(write) : write
 })

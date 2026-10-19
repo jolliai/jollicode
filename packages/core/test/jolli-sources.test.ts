@@ -45,6 +45,61 @@ describe("JolliSources.materialEvidenceOf", () => {
     expect(evidence[0]).not.toHaveProperty("url")
   })
 
+  /**
+   * ⚠ AN ASSIGNMENT BINDING ONLY EVER ADDS A LINK. Written differently by a gateway — null, without a
+   * course id, or not an object at all — it costs the link and never the material's evidence.
+   */
+  test.each([null, { url: "https://school.jolli.ai/learn/11/assignments/5" }, "assignment", { courseId: "11" }])(
+    "keeps a read's evidence whatever its assignment binding holds: %j",
+    (assignment) => {
+      const evidence = JolliSources.materialEvidenceOf(
+        READ,
+        result(
+          JSON.stringify({
+            id: 5,
+            title: "Pointers lab",
+            assignment,
+            lines: [{ number: 1, text: "Explain ownership." }],
+          }),
+        ),
+      )
+      expect(evidence).toEqual([
+        {
+          kind: "material",
+          materialId: "5",
+          title: "Pointers lab",
+          text: "Explain ownership.",
+          ...(typeof assignment === "object" && assignment !== null && "url" in assignment
+            ? { url: assignment.url }
+            : {}),
+        },
+      ])
+    },
+  )
+
+  // A material's link is its own: named through a passage without it, it still comes from the one that has it.
+  test("lists a material's link from whichever offered passage carries it", () => {
+    const url = "https://school.jolli.ai/learn/11/assignments/5"
+    const passage = { kind: "material" as const, materialId: "5", title: "Pointers lab", text: "Trace the pointers." }
+    const sources = JolliSources.selectedSources(
+      ["s1", "s2"],
+      [
+        { ref: "s1", evidence: passage },
+        { ref: "s2", evidence: { ...passage, text: "Explain ownership.", url } },
+      ],
+    )
+    expect(sources).toEqual([{ kind: "material", materialId: "5", title: "Pointers lab", url }])
+    expect(
+      JolliSources.selectedSources(
+        ["s1"],
+        [
+          { ref: "s1", evidence: passage },
+          { ref: "s2", evidence: { ...passage, text: "Explain ownership.", url } },
+        ],
+      ),
+    ).toEqual([{ kind: "material", materialId: "5", title: "Pointers lab", url }])
+  })
+
   // Any client can write a part's metadata: a bad link is dropped, never the material it was on.
   test("keeps a stored material source whose link is not http(s), without the link", () => {
     expect(
@@ -121,6 +176,17 @@ describe("JolliSources tool names", () => {
     expect(JolliSources.isMaterialTool("jolliedu_get_conversation_context")).toBe(false)
     expect(JolliSources.isCourseTool("jolliedu_get_conversation_context")).toBe(true)
     expect(JolliSources.isCourseTool("webfetch")).toBe(false)
+  })
+
+  // The one gating rule both runtimes turn into deny rules of their own.
+  test("withholds every course tool without a binding, and the assignment list where it is not read", () => {
+    expect(JolliSources.withheldCourseTools({ bound: false, includeAssignments: true })).toEqual(
+      JolliSources.COURSE_TOOLS,
+    )
+    expect(JolliSources.withheldCourseTools({ bound: true, includeAssignments: false })).toEqual([
+      JolliSources.ASSIGNMENT_LIST_TOOL,
+    ])
+    expect(JolliSources.withheldCourseTools({ bound: true, includeAssignments: true })).toEqual([])
   })
 })
 

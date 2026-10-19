@@ -79,6 +79,12 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("MCP
 
 type MCPClient = Client
 
+/** How often one connection's tools may be listed again on a caller's request (`Interface.relist`). */
+const RELIST_INTERVAL_MS = 60_000
+
+/** When each connection last listed its tools again on request; a new connection starts unlisted. */
+const relistedAt = new WeakMap<MCPClient, number>()
+
 function createClient(directory: string) {
   const client = new Client({ name: Brand.bin, version: InstallationVersion }, CLIENT_OPTIONS)
   client.setRequestHandler(ListRootsRequestSchema, () =>
@@ -174,7 +180,15 @@ export interface Interface {
   readonly status: () => Effect.Effect<Record<string, Status>>
   readonly clients: () => Effect.Effect<Record<string, MCPClient>>
   readonly instructions: () => Effect.Effect<ServerInstructions[]>
-  readonly tools: (options?: { refreshCourseTools?: boolean }) => Effect.Effect<Record<string, McpTool>>
+  readonly tools: () => Effect.Effect<Record<string, McpTool>>
+  /**
+   * Lists one connected server's tools again, replacing the manifest this connection cached, for a
+   * caller that knows the server's tools may have changed without the server saying so.
+   *
+   * ⚠ AT MOST ONCE A MINUTE FOR A CONNECTION, whatever the callers ask. One that asks on every step for
+   * a tool the server never comes to offer would otherwise fetch the manifest on every step.
+   */
+  readonly relist: (server: string) => Effect.Effect<void>
   readonly prompts: () => Effect.Effect<Record<string, PromptInfo & { client: string }>>
   readonly resources: (clientName?: string) => Effect.Effect<Record<string, ResourceInfo & { client: string }>>
   readonly resourceTemplates: (
@@ -719,7 +733,7 @@ const layer = Layer.effect(
       return s.config[name]?.timeout ?? staticTimeout ?? fallback
     }
 
-    const tools = Effect.fn("MCP.tools")(function* (options?: { refreshCourseTools?: boolean }) {
+    const tools = Effect.fn("MCP.tools")(function* () {
       const result: Record<string, McpTool> = {}
       const s = yield* InstanceState.get(state)
 
@@ -730,16 +744,7 @@ const layer = Layer.effect(
       for (const [clientName, client] of Object.entries(s.clients)) {
         if (s.status[clientName]?.status !== "connected") continue
         const mcpConfig = config[clientName]
-        const cached = s.defs[clientName]
-        // An institution can enable assignments after this connection cached its manifest.
-        const listed =
-          clientName === JOLLI_MCP_SERVER &&
-          options?.refreshCourseTools &&
-          !cached?.some((tool) => tool.name === "list_remote_course_assignments")
-            ? ((yield* McpCatalog.defs(client, 5_000)) ?? cached)
-            : cached
-        if (s.clients[clientName] !== client || s.status[clientName]?.status !== "connected") continue
-        if (listed !== undefined && listed !== cached) s.defs[clientName] = listed
+        const listed = s.defs[clientName]
         if (!listed) {
           yield* Effect.logWarning("missing cached tools for connected server", { clientName })
           continue
@@ -750,6 +755,21 @@ const layer = Layer.effect(
         }
       }
       return result
+    })
+
+    const relist = Effect.fn("MCP.relist")(function* (server: string) {
+      const s = yield* InstanceState.get(state)
+      const client = s.clients[server]
+      if (!client || s.status[server]?.status !== "connected") return
+      if (Date.now() - (relistedAt.get(client) ?? 0) < RELIST_INTERVAL_MS) return
+      relistedAt.set(client, Date.now())
+      const listed = yield* McpCatalog.defs(client, 5_000)
+      // The connection may have closed or been replaced while the list was read.
+      if (!listed || s.clients[server] !== client || s.status[server]?.status !== "connected") return
+      const before = (s.defs[server] ?? []).map((tool) => tool.name).join("\n")
+      s.defs[server] = listed
+      if (listed.map((tool) => tool.name).join("\n") === before) return
+      yield* events.publish(ToolsChanged, { server }).pipe(Effect.ignore)
     })
 
     function collectFromConnected<T extends { name: string }>(
@@ -1039,6 +1059,7 @@ const layer = Layer.effect(
       clients,
       instructions,
       tools,
+      relist,
       prompts,
       resources,
       resourceTemplates,

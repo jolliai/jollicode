@@ -46,7 +46,7 @@ export function createTimelineProjection(input: {
       input.status().type,
       input.inlineComments(),
       input.userMessages(),
-      input.showCitations?.() === true,
+      input.showCitations?.(),
     ),
   )
   const activeMessageID = createMemo(() => projection().activeMessageID)

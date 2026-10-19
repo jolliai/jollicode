@@ -3,7 +3,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises"
 import { Effect } from "effect"
 import { FetchHttpClient } from "effect/unstable/http"
 import { Global } from "../src/global"
-import type { GatewayRequest } from "../src/jolli/api"
+import { gatewayRequest, type GatewayRequest } from "../src/jolli/api"
 import { CATALOG_SCHEMA, catalogCachePath } from "../src/jolli/cache"
 import { JolliCourseGuardrails } from "../src/jolli/course-guardrails"
 import { JolliSession } from "../src/jolli/session"
@@ -172,16 +172,39 @@ describe("JolliCourseGuardrails.assignmentsIncluded", () => {
       headers: { "content-type": "application/json" },
     })
 
-  function included(origin: string, fetch: typeof globalThis.fetch) {
+  /** The stored credential for `baseUrl`, whose origin and tenant a reading is filed under. */
+  const stored = (baseUrl: string) => ({
+    id: "row",
+    subject: null,
+    email: null,
+    base_url: baseUrl,
+    access_token: "jwt",
+    refresh_token: "refresh",
+    token_expiry: Date.now(),
+    cache_key: "student-a",
+    time_created: 0,
+    time_updated: 0,
+  })
+
+  /**
+   * Whether the switch reads as on, with the credential stored for `baseUrl`, a renewal answering
+   * `renewed` (by default a token for that same account), and the gateway behind `fetch`.
+   */
+  function included(
+    baseUrl: string,
+    fetch: typeof globalThis.fetch,
+    renewed: JolliSession.Interface["request"] = () =>
+      Effect.succeed(gatewayRequest(baseUrl, { token: "jwt", identity: "student-a" })),
+  ) {
     const unused = () => Effect.die("not used by this read")
     return Effect.runPromise(
       JolliCourseGuardrails.assignmentsIncluded(binding).pipe(
         Effect.provideService(
           JolliSession.Service,
           JolliSession.Service.of({
-            current: () => Effect.succeed(undefined),
+            current: () => Effect.succeed(stored(baseUrl)),
             token: unused,
-            request: () => Effect.succeed(request(origin)),
+            request: renewed,
             refused: unused,
             signIn: unused,
             signOut: unused,
@@ -194,7 +217,7 @@ describe("JolliCourseGuardrails.assignmentsIncluded", () => {
 
   // Asked before every model step: a turn of many steps reads the gateway once, not once a step.
   test("reads the switch once for the steps of a turn", async () => {
-    const origin = "https://course-guardrails-assignments.invalid"
+    const origin = "https://assignments-once.jolli.dev"
     const http = gateway(() => choices(true))
     expect(await included(origin, http.fetch)).toBe(true)
     expect(await included(origin, http.fetch)).toBe(true)
@@ -206,18 +229,55 @@ describe("JolliCourseGuardrails.assignmentsIncluded", () => {
    * withholding on a failure would drop the tool and hand it back a step later.
    */
   test("keeps the last answer when a later read fails, and withholds only what was never read", async () => {
-    const origin = "https://course-guardrails-assignments-kept.invalid"
+    const origin = "https://assignments-kept.jolli.dev"
     expect(await included(origin, gateway(() => choices(true)).fetch)).toBe(true)
     setSystemTime(new Date(Date.now() + 60_000))
     const failing = gateway(() => new Response("unavailable", { status: 503 }))
     expect(await included(origin, failing.fetch)).toBe(true)
     expect(failing.reads).toContain(`${origin}/api/courses/7/assistant-choices`)
 
-    expect(await included("https://course-guardrails-assignments-new.invalid", failing.fetch)).toBe(false)
+    expect(await included("https://assignments-new.jolli.dev", failing.fetch)).toBe(false)
+  })
+
+  // The reading is found by the stored credential, so a renewal that is slow or failing — the moment
+  // the last answer is wanted — still finds it.
+  test("keeps the last answer when the credential cannot be renewed", async () => {
+    const origin = "https://assignments-renewal.jolli.dev"
+    expect(await included(origin, gateway(() => choices(true)).fetch)).toBe(true)
+    setSystemTime(new Date(Date.now() + 60_000))
+    const unread = gateway(() => choices(false))
+    const offline = () => Effect.fail(new JolliSession.JolliUnavailable({ message: "offline" }))
+    expect(await included(origin, unread.fetch, offline)).toBe(true)
+    expect(unread.reads).toEqual([])
+  })
+
+  /**
+   * With the gateway down, every caller waiting out a timeout of its own would cost each step and each
+   * code-mode call the whole timeout. One read serves the callers that arrive while it runs, and a
+   * failed one answers for the TTL as a successful one does.
+   */
+  test("shares one read among concurrent callers, and holds a failed read for the TTL", async () => {
+    const origin = "https://assignments-shared.jolli.dev"
+    const failing = gateway(() => new Response("unavailable", { status: 503 }))
+    expect(await Promise.all([included(origin, failing.fetch), included(origin, failing.fetch)])).toEqual([
+      false,
+      false,
+    ])
+    const reads = failing.reads.length
+    expect(await included(origin, failing.fetch)).toBe(false)
+    expect(failing.reads).toHaveLength(reads)
+  })
+
+  // Two tenants on one origin can hold the same course and assistant ids.
+  test("files a reading under its tenant, not only its origin", async () => {
+    const http = gateway(() => choices(true))
+    expect(await included("https://assignments-tenants.jolli.dev/north", http.fetch)).toBe(true)
+    expect(await included("https://assignments-tenants.jolli.dev/south", http.fetch)).toBe(true)
+    expect(http.reads).toHaveLength(2)
   })
 
   test("reads again once the last reading is old, so a teacher's change reaches the next turn", async () => {
-    const origin = "https://course-guardrails-assignments-stale.invalid"
+    const origin = "https://assignments-stale.jolli.dev"
     expect(await included(origin, gateway(() => choices(true)).fetch)).toBe(true)
     setSystemTime(new Date(Date.now() + 60_000))
     expect(await included(origin, gateway(() => choices(false)).fetch)).toBe(false)

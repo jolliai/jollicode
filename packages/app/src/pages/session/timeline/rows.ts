@@ -46,8 +46,8 @@ export namespace Timeline {
     status: SessionStatus["type"],
     inlineComments: boolean,
     projectedUserMessages: UserMessage[],
-    // Whether the bound course shows citations; false for a session bound to none.
-    showCitations = false,
+    // Whether the bound course shows citations; undefined for a session bound to none.
+    showCitations?: boolean,
   ) {
     const turns: { user: UserMessage; assistants: AssistantMessage[] }[] = []
     const turnByUserID = new Map<string, (typeof turns)[number]>()
@@ -116,7 +116,8 @@ export namespace Timeline {
     isActive: boolean,
     // v2 renders comments inside the user message attachments row instead of a strip row
     inlineComments: boolean,
-    showCitations = false,
+    // As `constructSessionMessageRows` takes it: undefined outside a course.
+    showCitations?: boolean,
   ) {
     const rows: TimelineRow.TimelineRow[] = []
 
@@ -217,12 +218,14 @@ export namespace Timeline {
 
     // After the answer and before the diff summary, and only once the turn is over: a turn still
     // running has not finished drawing on anything, and one that failed or was stopped answered nothing.
+    // Only in a course session: no other turn carries either row, so no other turn's parts are walked.
     const settled = (status === "idle" || !isActive) && !error && !interrupted
-    const turnParts = settled ? assistantMessages.flatMap((message) => getMessageParts(message.id)) : []
+    const turnParts =
+      settled && showCitations !== undefined ? assistantMessages.flatMap((message) => getMessageParts(message.id)) : []
     const sources = showCitations && settled ? JolliSources.turnSources(turnParts) : undefined
     if (sources) rows.push(new TimelineRow.Sources({ userMessageID: userMessage.id, sources }))
     // No source, so not behind the citations switch: where the answer sends the student instead.
-    const assignmentsUrl = settled ? JolliSources.turnAssignmentsUrl(turnParts) : undefined
+    const assignmentsUrl = turnParts.length > 0 ? JolliSources.turnAssignmentsUrl(turnParts) : undefined
     if (assignmentsUrl)
       rows.push(new TimelineRow.AssignmentsLink({ userMessageID: userMessage.id, url: assignmentsUrl }))
 

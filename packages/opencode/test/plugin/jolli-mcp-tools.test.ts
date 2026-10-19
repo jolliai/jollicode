@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test"
+import { Effect } from "effect"
+import type { MCP } from "@/mcp"
 import { Permission } from "@/permission"
 import {
   COURSE_TOOL_IDS,
   courseToolBindingOf,
   courseToolRules,
+  listMcpTools,
   unboundCourseToolRules,
   projectJolliToolDefinition,
 } from "@/plugin/jolli-mcp-tools"
@@ -59,5 +62,33 @@ describe("plugin.jolli-mcp-tools", () => {
       "jolliedu_list_user_attachments",
       "github_list_issues",
     ])
+  })
+
+  /**
+   * An institution can turn assignments on after the connection cached its manifest, and the server
+   * does not say so: an assignment reader meeting a manifest without the list asks the MCP layer to
+   * list the course server again. Nobody else does, and nobody asks again once the list is there.
+   */
+  test("lists the course server again only for an assignment reader whose manifest lacks the list", async () => {
+    const assignments = "jolliedu_list_remote_course_assignments"
+    const manifests: Record<string, unknown>[] = [
+      { jolliedu_search_remote_course_materials: {} },
+      { jolliedu_search_remote_course_materials: {}, [assignments]: {} },
+    ]
+    const relisted: string[] = []
+    const mcp = {
+      tools: () => Effect.succeed((relisted.length === 0 ? manifests[0] : manifests[1]) as never),
+      relist: (server: string) =>
+        Effect.sync(() => {
+          relisted.push(server)
+        }),
+    } as unknown as MCP.Interface
+
+    expect(Object.keys(await Effect.runPromise(listMcpTools(mcp, false)))).not.toContain(assignments)
+    expect(relisted).toEqual([])
+    expect(Object.keys(await Effect.runPromise(listMcpTools(mcp, true)))).toContain(assignments)
+    expect(relisted).toEqual(["jolliedu"])
+    await Effect.runPromise(listMcpTools(mcp, true))
+    expect(relisted).toEqual(["jolliedu"])
   })
 })
