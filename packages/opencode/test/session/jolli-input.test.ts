@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test"
+import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
+import { fileURLToPath } from "node:url"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { MAX_STEPS_PROMPT } from "@opencode-ai/core/session/runner/max-steps"
 import { JolliInput } from "@/session/jolli-input"
@@ -219,6 +221,32 @@ describe("JolliInput.marker", () => {
 })
 
 describe("JolliInput.header", () => {
+  test("hashes declared blocks in the desktop Node.js runtime without Bun globals", async () => {
+    const bundle = await Bun.build({
+      entrypoints: [fileURLToPath(new URL("../../src/session/jolli-input.ts", import.meta.url))],
+      target: "node",
+      format: "esm",
+    })
+    expect(bundle.success).toBe(true)
+    const source = `data:text/javascript;base64,${Buffer.from(await bundle.outputs[0].text()).toString("base64")}`
+    const prompt = [
+      {
+        role: "user",
+        content: [{ type: "text", text: "now fix it", providerOptions: declared({ ranges: [[4, 7]] }) }],
+      },
+    ]
+    const result = spawnSync("node", ["--input-type=module"], {
+      input: `await import(${JSON.stringify(source)})
+          .then(({ JolliInput }) => process.stdout.write(JolliInput.header(${JSON.stringify(prompt)})))
+          .catch((error) => { console.error(error.message); process.exitCode = 1 })`,
+      encoding: "utf8",
+      timeout: 10_000,
+    })
+    expect(result.stderr).toBe("")
+    expect(result.status).toBe(0)
+    expect(result.stdout).toBe(`${sha256("now fix it")};4-7`)
+  })
+
   test("hashes the declared blocks of the trailing user turn", () => {
     const value = JolliInput.header([
       { role: "system", content: "You are a coding agent." },
