@@ -693,6 +693,7 @@ export const dict = {
   "session.review.filesChanged": "Spremenjene datoteke {{count}}",
   "session.sources.materials": "Gradiva predmeta",
   "session.sources.web": "Spletne strani",
+  "session.sources.assignments": "Prikaži naloge",
   "session.review.change.one": "spremeniti",
   "session.review.change.other": "Spremembe",
   "session.review.loadingChanges": "Nalaganje sprememb ...",

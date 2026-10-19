@@ -684,6 +684,7 @@ export const dict = {
   "session.review.filesChanged": "変更されたファイル: {{count}}件",
   "session.sources.materials": "コース資料",
   "session.sources.web": "Webページ",
+  "session.sources.assignments": "課題を表示",
   "session.review.change.one": "変更",
   "session.review.change.other": "変更",
   "session.review.loadingChanges": "変更を読み込み中...",

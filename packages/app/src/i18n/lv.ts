@@ -694,6 +694,7 @@ export const dict = {
   "session.review.filesChanged": "Mainīti faili: {{count}}",
   "session.sources.materials": "Kursa materiāli",
   "session.sources.web": "Tīmekļa lapas",
+  "session.sources.assignments": "Skatīt uzdevumus",
   "session.review.change.one": "Izmaiņa",
   "session.review.change.other": "Izmaiņas",
   "session.review.loadingChanges": "Notiek izmaiņu ielāde...",

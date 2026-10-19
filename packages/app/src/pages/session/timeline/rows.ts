@@ -31,6 +31,7 @@ export type TimelineRowMap = {
   Retry: { userMessageID: string }
   DiffSummary: { userMessageID: string; diffs: SummaryDiff[] }
   Sources: { userMessageID: string; sources: JolliSources.TurnSources }
+  AssignmentsLink: { userMessageID: string; url: string }
   Error: { userMessageID: string; text: string }
   Brief: { text: string }
   Opener: { sessionID: string; text: string }
@@ -216,11 +217,14 @@ export namespace Timeline {
 
     // After the answer and before the diff summary, and only once the turn is over: a turn still
     // running has not finished drawing on anything, and one that failed or was stopped answered nothing.
-    const sources =
-      showCitations && (status === "idle" || !isActive) && !error && !interrupted
-        ? JolliSources.turnSources(assistantMessages.flatMap((message) => getMessageParts(message.id)))
-        : undefined
+    const settled = (status === "idle" || !isActive) && !error && !interrupted
+    const turnParts = settled ? assistantMessages.flatMap((message) => getMessageParts(message.id)) : []
+    const sources = showCitations && settled ? JolliSources.turnSources(turnParts) : undefined
     if (sources) rows.push(new TimelineRow.Sources({ userMessageID: userMessage.id, sources }))
+    // No source, so not behind the citations switch: where the answer sends the student instead.
+    const assignmentsUrl = settled ? JolliSources.turnAssignmentsUrl(turnParts) : undefined
+    if (assignmentsUrl)
+      rows.push(new TimelineRow.AssignmentsLink({ userMessageID: userMessage.id, url: assignmentsUrl }))
 
     const diffs = uniqueSummaryDiffs(userMessage.summary?.diffs)
     if (diffs.length > 0 && (status === "idle" || !isActive)) {

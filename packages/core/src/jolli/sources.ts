@@ -34,6 +34,15 @@ export const MATERIAL_TOOLS = [
   `${COURSE_TOOL_PREFIX}get_remote_material_content`,
 ] as const
 
+export const ASSIGNMENT_LIST_TOOL = `${COURSE_TOOL_PREFIX}list_remote_course_assignments`
+
+export const COURSE_TOOLS = [
+  `${COURSE_TOOL_PREFIX}get_conversation_context`,
+  `${COURSE_TOOL_PREFIX}list_all_materials_in_remote_course`,
+  ASSIGNMENT_LIST_TOOL,
+  ...MATERIAL_TOOLS,
+] as const
+
 /** The built-in tools that reach the web. */
 export const WEB_TOOLS = ["webfetch", "websearch"] as const
 
@@ -53,12 +62,18 @@ export const MAX_SELECTION_ATTEMPTS = 2
 
 /** One piece of evidence a turn's tools returned, before anything has judged whether the answer used it. */
 export type Evidence =
-  | { readonly kind: "material"; readonly materialId: string; readonly title: string; readonly text: string }
+  | {
+      readonly kind: "material"
+      readonly materialId: string
+      readonly title: string
+      readonly text: string
+      readonly url?: string
+    }
   | { readonly kind: "web"; readonly url: string; readonly title: string; readonly text: string }
 
 /** A source the selection found supporting the answer, as it is stored on the answer and drawn. */
 export type AnswerSource =
-  | { readonly kind: "material"; readonly materialId: string; readonly title: string }
+  | { readonly kind: "material"; readonly materialId: string; readonly title: string; readonly url?: string }
   | { readonly kind: "web"; readonly url: string; readonly title: string }
 
 export interface Candidate {
@@ -101,7 +116,11 @@ export function isCourseTool(tool: string) {
 
 // ── 1. When a course tool returns ─────────────────────────────────────────────────────────────────
 
-const MaterialRef = Schema.Struct({ id: Schema.Union([Schema.Number, Schema.String]), title: Schema.String })
+const MaterialRef = Schema.Struct({
+  id: Schema.Union([Schema.Number, Schema.String]),
+  title: Schema.String,
+  assignment: Schema.optional(Schema.Struct({ courseId: Schema.Number, url: Schema.optional(Schema.String) })),
+})
 /**
  * ⚠ ONLY A RETRIEVED CHUNK IS EVIDENCE. A search preview locates a candidate the model still has to
  * read, so offering it would let a reading nobody did be listed; the read that follows is recorded
@@ -127,6 +146,7 @@ const StoredEvidence = Schema.Struct({
   materialId: Schema.String,
   title: Schema.String,
   text: Schema.String,
+  url: Schema.optional(Schema.String),
 })
 const decodeStoredEvidence = Schema.decodeUnknownOption(StoredEvidence)
 
@@ -390,7 +410,12 @@ export function selectedSources(refs: readonly string[], candidates: readonly Ca
     listed.add(key)
     return [
       evidence.kind === "material"
-        ? { kind: "material" as const, materialId: evidence.materialId, title: evidence.title }
+        ? {
+            kind: "material" as const,
+            materialId: evidence.materialId,
+            title: evidence.title,
+            ...(evidence.url === undefined ? {} : { url: evidence.url }),
+          }
         : { kind: "web" as const, url: evidence.url, title: evidence.title },
     ]
   })
@@ -427,7 +452,12 @@ export class SelectionError extends Schema.TaggedErrorClass<SelectionError>()("J
 // ── 3. When a renderer draws the answer ───────────────────────────────────────────────────────────
 
 const StoredAnswerSource = Schema.Union([
-  Schema.Struct({ kind: Schema.Literal("material"), materialId: Schema.String, title: Schema.String }),
+  Schema.Struct({
+    kind: Schema.Literal("material"),
+    materialId: Schema.String,
+    title: Schema.String,
+    url: Schema.optional(Schema.String),
+  }),
   Schema.Struct({ kind: Schema.Literal("web"), url: Schema.String, title: Schema.String }),
 ])
 const decodeAnswerSource = Schema.decodeUnknownOption(StoredAnswerSource)
@@ -435,16 +465,22 @@ const decodeAnswerSource = Schema.decodeUnknownOption(StoredAnswerSource)
 /**
  * The sources an answer part carries, validated, since metadata is an untyped bag.
  *
- * ⚠ A WEB SOURCE'S LINK IS CHECKED AGAIN HERE, NOT ONLY WHEN IT WAS PICKED. Any client can write a
- * part's metadata, and an imported session brings its own; both renderers put the link in an anchor,
- * where a `javascript:` one would run when clicked. So only an http(s) link is drawn.
+ * ⚠ A LINK IS CHECKED AGAIN HERE, NOT ONLY WHEN IT WAS PICKED. Any client can write a part's metadata,
+ * and an imported session brings its own; both renderers put the link in an anchor, where a
+ * `javascript:` one would run when clicked. So only an http(s) link is drawn. A web page is nothing
+ * but its link, so it goes with it; a material keeps its title and loses only the link it can do
+ * without.
  */
 export function answerSourcesFromMetadata(metadata: unknown): AnswerSource[] {
   if (!isRecord(metadata) || !Array.isArray(metadata.answerSources)) return []
   return metadata.answerSources.flatMap((item) =>
     Option.match(decodeAnswerSource(item), {
       onNone: () => [],
-      onSome: (value) => (value.kind === "web" && !isWebUrl(value.url) ? [] : [value]),
+      onSome: (value): AnswerSource[] => {
+        if (value.kind === "web") return isWebUrl(value.url) ? [value] : []
+        if (value.url === undefined || isWebUrl(value.url)) return [value]
+        return [{ kind: "material", materialId: value.materialId, title: value.title }]
+      },
     }),
   )
 }
@@ -468,10 +504,28 @@ export function turnSources(parts: readonly TurnPart[]): TurnSources | undefined
   }
 }
 
+/**
+ * THE WAY TO THE COURSE'S ASSIGNMENTS PAGE A FINISHED TURN'S ANSWER CARRIES, or undefined. Set when the
+ * turn asked about assignments the session's agent does not read: the answer says it cannot look
+ * them up, and this is where the student can. No source, so it is drawn whether or not the course
+ * shows citations.
+ *
+ * ⚠ CHECKED AS A WEB LINK HERE, as a web source's is, for the same reason: any client can write a
+ * part's metadata, and both renderers open the link.
+ */
+export function turnAssignmentsUrl(parts: readonly TurnPart[]): string | undefined {
+  return parts
+    .flatMap((part) => {
+      const url = part.type === "text" && isRecord(part.metadata) ? part.metadata.assignmentsUrl : undefined
+      return typeof url === "string" && isWebUrl(url) ? [url] : []
+    })
+    .at(-1)
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────────────────────────
 
 function materialEvidence(
-  material: { readonly id: number | string; readonly title: string },
+  material: { readonly id: number | string; readonly title: string; readonly assignment?: { readonly url?: string } },
   text: string,
 ): Evidence[] {
   const trimmed = text.trim()
@@ -482,6 +536,7 @@ function materialEvidence(
       materialId: String(material.id),
       title: material.title,
       text: trimmed.slice(0, MAX_EVIDENCE_CHARS),
+      ...(material.assignment?.url && isWebUrl(material.assignment.url) ? { url: material.assignment.url } : {}),
     },
   ]
 }
@@ -616,7 +671,8 @@ function selectionProblems(
   return { kind: "ok", refs: refs.filter((ref): ref is string => typeof ref === "string") }
 }
 
-function isWebUrl(value: string) {
+/** Whether a link may be put in an anchor: an http(s) one only, never a `javascript:` one. */
+export function isWebUrl(value: string) {
   return URL.canParse(value) && /^https?:$/.test(new URL(value).protocol)
 }
 

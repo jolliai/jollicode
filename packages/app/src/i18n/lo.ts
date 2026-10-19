@@ -688,6 +688,7 @@ export const dict = {
   "session.review.filesChanged": "ໄຟລ໌ປ່ຽນ {{count}}",
   "session.sources.materials": "ເອກະສານວິຊາ",
   "session.sources.web": "ໜ້າເວັບ",
+  "session.sources.assignments": "ເບິ່ງວຽກມອບໝາຍ",
   "session.review.change.one": "ປ່ຽນແປງ",
   "session.review.change.other": "ການປ່ຽນແປງ",
   "session.review.loadingChanges": "ກຳລັງໂຫຼດການປ່ຽນແປງ...",

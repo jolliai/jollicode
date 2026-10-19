@@ -1,10 +1,38 @@
 import { describe, expect, test } from "bun:test"
 import { Permission } from "@/permission"
-import { COURSE_TOOL_IDS, courseToolBindingOf, unboundCourseToolRules } from "@/plugin/jolli-mcp-tools"
+import {
+  COURSE_TOOL_IDS,
+  courseToolBindingOf,
+  courseToolRules,
+  unboundCourseToolRules,
+  projectJolliToolDefinition,
+} from "@/plugin/jolli-mcp-tools"
 
 const BOUND = { metadata: { jolli: { courseId: "7", assistantId: "12" } } }
 
 describe("plugin.jolli-mcp-tools", () => {
+  test("binds assignment tools to the session and hides binding ids from the model", () => {
+    const tool = "jolliedu_list_remote_course_assignments"
+    expect(COURSE_TOOL_IDS.has(tool)).toBe(true)
+    expect(
+      projectJolliToolDefinition(tool, "Assignments", {
+        type: "object",
+        properties: { courseId: { type: "number" }, assistantId: { type: "number" } },
+        required: ["courseId", "assistantId"],
+      }).parameters,
+    ).toEqual({ type: "object", properties: { continue: expect.objectContaining({ type: "boolean" }) }, required: [] })
+  })
+  test("withholds assignment listing from both catalogs when the bound assistant excludes assignments", () => {
+    const tool = "jolliedu_list_remote_course_assignments"
+    const catalog = { [tool]: tool, jolliedu_search_remote_course_materials: "search", github_list_issues: "issues" }
+    expect(Object.keys(Permission.visibleTools(catalog, courseToolRules(BOUND, false)))).toEqual([
+      "jolliedu_search_remote_course_materials",
+      "github_list_issues",
+    ])
+    expect(Object.keys(Permission.visibleTools(catalog, courseToolRules(BOUND, true)))).toContain(tool)
+    expect(courseToolRules(undefined, true)).toEqual(unboundCourseToolRules(undefined))
+  })
+
   test("reads a session's binding as the numeric ids the course tools take", () => {
     expect(courseToolBindingOf(BOUND)).toEqual({ courseId: 7, assistantId: 12 })
   })

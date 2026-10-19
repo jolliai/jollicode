@@ -693,6 +693,7 @@ export const dict = {
   "session.review.filesChanged": "ფაილები შეიცვალა {{count}}",
   "session.sources.materials": "კურსის მასალები",
   "session.sources.web": "ვებგვერდები",
+  "session.sources.assignments": "დავალებების ნახვა",
   "session.review.change.one": "შეცვლა",
   "session.review.change.other": "ცვლილებები",
   "session.review.loadingChanges": "ცვლილებების ჩატვირთვა...",

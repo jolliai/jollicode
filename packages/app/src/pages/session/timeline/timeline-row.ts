@@ -38,6 +38,11 @@ export namespace TimelineRow {
     userMessageID: string
     sources: JolliSources.TurnSources
   }> {}
+  /** A course session's finished turn that asked about assignments its agent does not read. */
+  export class AssignmentsLink extends Data.TaggedClass("AssignmentsLink")<{
+    userMessageID: string
+    url: string
+  }> {}
   export class Error extends Data.TaggedClass("Error")<{
     userMessageID: string
     text: string
@@ -64,6 +69,7 @@ export namespace TimelineRow {
     | Thinking
     | DiffSummary
     | Sources
+    | AssignmentsLink
     | Error
     | Retry
     | Brief
@@ -87,6 +93,8 @@ export namespace TimelineRow {
         return `diff-summary:${row.userMessageID}`
       case "Sources":
         return `sources:${row.userMessageID}`
+      case "AssignmentsLink":
+        return `assignments-link:${row.userMessageID}`
       case "Error":
         return `error:${row.userMessageID}`
       case "Retry":

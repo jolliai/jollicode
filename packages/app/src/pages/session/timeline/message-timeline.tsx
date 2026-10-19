@@ -81,7 +81,7 @@ import { scheduleConnectedMeasure } from "./measure"
 import { observeElementOffsetReconnectAware } from "./observe-element-offset"
 import { createTimelineProjection } from "./projection"
 import { MessageComment, SummaryDiff, TimelineRow, TimelineRowMap } from "./rows"
-import { TimelineSourcesRow } from "./turn-sources-row"
+import { TimelineAssignmentsLinkRow, TimelineSourcesRow } from "./turn-sources-row"
 import { constructLeadRows } from "./lead-rows"
 import { filterVirtualIndexes } from "./virtual-items"
 
@@ -1305,6 +1305,16 @@ export function MessageTimeline(props: {
           <TimelineRowFrame row={sourcesRow}>
             <div data-slot="session-turn-message-container" class="w-full px-4 md:px-5">
               <TimelineSourcesRow sources={sourcesRow().sources} />
+            </div>
+          </TimelineRowFrame>
+        )
+      }
+      case "AssignmentsLink": {
+        const linkRow = row as Accessor<TimelineRowByTag<"AssignmentsLink">>
+        return (
+          <TimelineRowFrame row={linkRow}>
+            <div data-slot="session-turn-message-container" class="w-full px-4 md:px-5">
+              <TimelineAssignmentsLinkRow url={linkRow().url} />
             </div>
           </TimelineRowFrame>
         )

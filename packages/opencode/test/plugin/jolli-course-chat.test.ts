@@ -312,6 +312,31 @@ describe("plugin.jolli-course-chat", () => {
     expect(output.metadata).toHaveProperty("evidence")
   })
 
+  test("pages assignments with a session-owned page and stops at the last result", async () => {
+    const { hooks } = await plugin(BOUND)
+    const tool = "jolliedu_list_remote_course_assignments"
+    const fresh: Record<string, unknown> = { page: 999, courseId: 999, assistantId: 999 }
+    await hooks["tool.execute.before"]?.({ tool, sessionID: "ses_test", callID: "assignment_1" }, { args: fresh })
+    expect(fresh).toEqual({ courseId: 7, assistantId: 12 })
+    await hooks["tool.execute.after"]?.(
+      { tool, sessionID: "ses_test", callID: "assignment_1", args: fresh },
+      page({ toDo: [{ id: 1 }], hasMore: true, nextPage: 1 }),
+    )
+    const more: Record<string, unknown> = { continue: true, page: 999 }
+    await hooks["tool.execute.before"]?.({ tool, sessionID: "ses_test", callID: "assignment_2" }, { args: more })
+    expect(more).toEqual({ courseId: 7, assistantId: 12, page: 1 })
+    await hooks["tool.execute.after"]?.(
+      { tool, sessionID: "ses_test", callID: "assignment_2", args: more },
+      page({ toDo: [{ id: 2 }], hasMore: false, nextPage: null }),
+    )
+    await expect(
+      hooks["tool.execute.before"]?.(
+        { tool, sessionID: "ses_test", callID: "assignment_3" },
+        { args: { continue: true } },
+      ),
+    ).rejects.toThrow("No more assignments")
+  })
+
   test("stores an attachment cursor and injects it only for a continuation", async () => {
     const { hooks } = await plugin(BOUND)
     const cursor = "opaque-page-token"

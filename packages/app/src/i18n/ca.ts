@@ -698,6 +698,7 @@ export const dict = {
   "session.review.filesChanged": "Fitxers canviats {{count}}",
   "session.sources.materials": "Materials del curs",
   "session.sources.web": "Pàgines web",
+  "session.sources.assignments": "Mostra les tasques",
   "session.review.change.one": "Canviar",
   "session.review.change.other": "Canvis",
   "session.review.loadingChanges": "S'estan carregant els canvis...",

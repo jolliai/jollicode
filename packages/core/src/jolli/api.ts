@@ -168,6 +168,7 @@ export const CourseAssistantChoice = Schema.Struct({
   worksThroughProblems: Schema.Boolean,
   answersFromMaterialsOnly: Schema.Boolean,
   showCitations: Schema.Boolean,
+  includeAssignments: Schema.optional(Schema.Boolean),
   /** A Registry UUID. Never null: only a `live` assistant is offered and `live` requires a model. */
   modelId: Schema.String,
   /** Registry UUIDs. Empty means UNRESTRICTED, not "no models". */
@@ -640,6 +641,21 @@ export const forkCourseSkills = (
 
 export const fetchCourseSkills = (request: GatewayRequest, sessionID: string) =>
   get(request, `/api/agent/convos/${encodeURIComponent(sessionID)}/skills`, Schema.Array(CourseSkillChoice))
+
+/** What a course turn's reply carries beside its text, as the gateway decided it for that turn. */
+export const CourseTurnLinks = Schema.Struct({ assignmentsUrl: Schema.NullOr(Schema.String) })
+export type CourseTurnLinks = Schema.Schema.Type<typeof CourseTurnLinks>
+
+/**
+ * The links a finished course turn's reply carries, by the turn id the gateway was handed for its
+ * steps — the student message that opened it. Null where there is nothing to draw.
+ */
+export const fetchCourseTurnLinks = (request: GatewayRequest, sessionID: string, turnID: string) =>
+  get(
+    request,
+    `/api/agent/convos/${encodeURIComponent(sessionID)}/turns/${encodeURIComponent(turnID)}/course-links`,
+    CourseTurnLinks,
+  )
 
 /**
  * The MCP servers the tenant wants a Jolli Code session to connect to, keyed by server name. Each

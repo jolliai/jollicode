@@ -63,6 +63,7 @@ import {
 } from "./jolli-mcp-tools"
 
 type PagingState = {
+  assignments?: { nextCursor: number | null; courseId: number; assistantId: number }
   materials?: { nextCursor: number | null; courseId: number; assistantId: number }
   attachments?: { nextCursor: string | null }
 }
@@ -251,19 +252,28 @@ export async function JolliCourseChatPlugin(
       if (!kind) return
       const wantsMore = args.continue === true
       delete args.continue
-      delete args[kind === "materials" ? "afterId" : "cursor"]
+      delete args[kind === "materials" ? "afterId" : kind === "assignments" ? "page" : "cursor"]
       // A fresh list starts over, and a failure of it must not leave the previous list's cursor behind.
       if (!wantsMore) return forget(input.sessionID, kind)
       const key = pageKey(input.sessionID, kind)
       await afterEarlierPage(key)
       const state = paging.get(input.sessionID)
-      if (kind === "materials") {
-        const page = state?.materials
+      if (kind === "materials" || kind === "assignments") {
+        const page = state?.[kind]
         if (!page || page.courseId !== args.courseId || page.assistantId !== args.assistantId) {
-          throw new Error("No course material page is saved for this session. Start a fresh list.")
+          throw new Error(
+            kind === "materials"
+              ? "No course material page is saved for this session. Start a fresh list."
+              : "No assignment page is saved for this session. Start a fresh list.",
+          )
         }
-        if (page.nextCursor === null) throw new Error("No more course materials are available in this session.")
-        args.afterId = page.nextCursor
+        if (page.nextCursor === null)
+          throw new Error(
+            kind === "materials"
+              ? "No more course materials are available in this session."
+              : "No more assignments are available in this session.",
+          )
+        args[kind === "materials" ? "afterId" : "page"] = page.nextCursor
         return claimPage(key, input.callID)
       }
       const cursor = state?.attachments?.nextCursor
@@ -311,9 +321,9 @@ export async function JolliCourseChatPlugin(
       if (!kind) return
       // Released after the cursor below is written, so a waiting continuation reads the new one.
       const release = () => settlePage(pageKey(input.sessionID, kind), input.callID)
-      const page = pageOf(output)
+      const page = pageOf(output, kind)
       const next = page?.hasMore ? page.nextCursor : null
-      if (kind === "materials") {
+      if (kind === "materials" || kind === "assignments") {
         const courseId = input.args.courseId
         const assistantId = input.args.assistantId
         if (
@@ -327,7 +337,7 @@ export async function JolliCourseChatPlugin(
         }
         remember(input.sessionID, {
           ...paging.get(input.sessionID),
-          materials: { nextCursor: next, courseId, assistantId },
+          [kind]: { nextCursor: next, courseId, assistantId },
         })
         return release()
       }
@@ -345,9 +355,14 @@ export async function JolliCourseChatPlugin(
 }
 
 /** The page a successful list call returned, or undefined for an error or an unexpected shape. */
-function pageOf(output: unknown) {
+function pageOf(output: unknown, kind: ListKind) {
   const text = JolliSources.firstText(output)
-  return text === undefined ? undefined : Option.getOrUndefined(decodePage(text))
+  if (text === undefined) return undefined
+  if (kind !== "assignments") return Option.getOrUndefined(decodePage(text))
+  const page = Schema.decodeUnknownOption(
+    Schema.fromJsonString(Schema.Struct({ hasMore: Schema.Boolean, nextPage: Schema.NullOr(Schema.Int) })),
+  )(text)
+  return Option.isSome(page) ? { hasMore: page.value.hasMore, nextCursor: page.value.nextPage } : undefined
 }
 
 /**

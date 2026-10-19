@@ -695,6 +695,7 @@ export const dict = {
   "session.review.filesChanged": "Файлҳо тағир дода шуданд {{count}}",
   "session.sources.materials": "Маводҳои курс",
   "session.sources.web": "Саҳифаҳои веб",
+  "session.sources.assignments": "Дидани супоришҳо",
   "session.review.change.one": "Тағйир",
   "session.review.change.other": "Тағйирот",
   "session.review.loadingChanges": "Тағйирот бор карда мешавад...",

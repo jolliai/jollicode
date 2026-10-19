@@ -703,6 +703,7 @@ export const dict = {
   "session.review.filesChanged": "ފައިލްތައް ބަދަލުވެއްޖެ {{count}}",
   "session.sources.materials": "ކޯހުގެ މެޓީރިއަލްތައް",
   "session.sources.web": "ވެބް ޕޭޖްތައް",
+  "session.sources.assignments": "އެސައިންމަންޓްތައް ބައްލަވާ",
   "session.review.change.one": "ބަދަލު",
   "session.review.change.other": "ބަދަލުތައް",
   "session.review.loadingChanges": "ބަދަލުތައް ލޯޑް ކުރަނީ...",

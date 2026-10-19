@@ -693,6 +693,7 @@ export const dict = {
   "session.review.filesChanged": "Fílur broyttar {{count}}",
   "session.sources.materials": "Tilfar til skeiðið",
   "session.sources.web": "Vevsíður",
+  "session.sources.assignments": "Vís uppgávur",
   "session.review.change.one": "Broyting",
   "session.review.change.other": "Broytingar",
   "session.review.loadingChanges": "Heinta broytingar...",

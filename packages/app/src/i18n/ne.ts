@@ -693,6 +693,7 @@ export const dict: Record<string, string> = {
   "session.review.filesChanged": "फाइलहरू परिवर्तन गरियो {{count}}",
   "session.sources.materials": "पाठ्यक्रम सामग्री",
   "session.sources.web": "वेब पृष्ठहरू",
+  "session.sources.assignments": "असाइनमेन्टहरू हेर्नुहोस्",
   "session.review.change.one": "परिवर्तन गर्नुहोस्",
   "session.review.change.other": "परिवर्तनहरू",
   "session.review.loadingChanges": "परिवर्तनहरू लोड गर्दै...",

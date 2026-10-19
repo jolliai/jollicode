@@ -700,6 +700,7 @@ export const dict = {
   "session.review.filesChanged": "ဖိုင်များကို {{count}} ပြောင်းထားသည်။",
   "session.sources.materials": "သင်တန်းစာရွက်စာတမ်းများ",
   "session.sources.web": "ဝဘ်စာမျက်နှာများ",
+  "session.sources.assignments": "တာဝန်များကို ကြည့်ရန်",
   "session.review.change.one": "ပြောင်းလဲခြင်း။",
   "session.review.change.other": "ပြောင်းလဲမှုများ",
   "session.review.loadingChanges": "အပြောင်းအလဲများကို ဖွင့်နေသည်...",

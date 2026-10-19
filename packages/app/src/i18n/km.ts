@@ -690,6 +690,7 @@ export const dict = {
   "session.review.filesChanged": "ឯកសារបានផ្លាស់ប្តូរ {{count}}",
   "session.sources.materials": "ឯកសារវគ្គសិក្សា",
   "session.sources.web": "គេហទំព័រ",
+  "session.sources.assignments": "មើលកិច្ចការ",
   "session.review.change.one": "ការផ្លាស់ប្តូរ",
   "session.review.change.other": "ការផ្លាស់ប្តូរ",
   "session.review.loadingChanges": "កំពុងផ្ទុកការផ្លាស់ប្តូរ...",

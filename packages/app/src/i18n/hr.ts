@@ -700,6 +700,7 @@ export const dict = {
   "session.review.filesChanged": "Datoteke promijenjene {{count}}",
   "session.sources.materials": "Materijali kolegija",
   "session.sources.web": "Web-stranice",
+  "session.sources.assignments": "Prikaži zadatke",
   "session.review.change.one": "Promijeniti",
   "session.review.change.other": "Promjene",
   "session.review.loadingChanges": "Učitavanje promjena...",

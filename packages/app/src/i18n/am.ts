@@ -683,6 +683,7 @@ export const dict = {
   "session.review.filesChanged": "የተቀየሩ ፋይሎች {{count}}",
   "session.sources.materials": "የኮርስ ቁሳቁሶች",
   "session.sources.web": "ድረ-ገጾች",
+  "session.sources.assignments": "የቤት ሥራዎችን ይመልከቱ",
   "session.review.change.one": "ለውጥ",
   "session.review.change.other": "ለውጦች",
   "session.review.loadingChanges": "ለውጦችን በመጫን ላይ...",

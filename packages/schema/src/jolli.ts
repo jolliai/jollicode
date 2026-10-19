@@ -420,6 +420,7 @@ export const Assistant = Schema.Struct({
   directChatEnabled: Schema.Boolean.pipe(optional),
   /** Whether the agent speaks first, so a new chat begins with Start rather than a prompt. */
   opensConversation: Schema.Boolean.pipe(optional),
+  includeAssignments: Schema.Boolean.pipe(optional),
 }).annotate({ identifier: "Jolli.Assistant" })
 
 /**

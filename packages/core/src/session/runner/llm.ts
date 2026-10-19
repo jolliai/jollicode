@@ -9,6 +9,9 @@ import {
   isContextOverflowFailure,
   type ProviderErrorEvent,
 } from "@opencode-ai/llm"
+import { JolliCourseGuardrails } from "../../jolli/course-guardrails"
+import { JolliSession } from "../../jolli/session"
+import { JolliSources } from "../../jolli/sources"
 import { courseBindingOf } from "../../jolli/binding"
 import { jolliCodingAgentHeaders } from "../../jolli/coding-headers"
 import { CourseSkillHistory } from "../../jolli/skill-history"
@@ -102,6 +105,7 @@ const layer = Layer.effect(
     const llm = yield* LLMClient.Service
     const agents = yield* AgentV2.Service
     const tools = yield* ToolRegistry.Service
+    const jolli = yield* JolliSession.Service
     const models = yield* SessionRunnerModel.Service
     const store = yield* SessionStore.Service
     const location = yield* Location.Service
@@ -237,7 +241,21 @@ const layer = Layer.effect(
         context.some((message) => message.type === "compaction") &&
         !context.some((message) => message.type === "user")
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
-      const toolMaterialization = isLastStep ? undefined : yield* tools.materialize(agent.info?.permissions)
+      const assignmentAccess =
+        !isLastStep && binding
+          ? yield* JolliCourseGuardrails.assignmentsIncluded(binding).pipe(
+              Effect.provideService(JolliSession.Service, jolli),
+            )
+          : false
+      const withheld = !binding
+        ? JolliSources.COURSE_TOOLS
+        : assignmentAccess
+          ? []
+          : [JolliSources.ASSIGNMENT_LIST_TOOL]
+      const courseRules: PermissionV2.Ruleset = withheld.map((action) => ({ action, resource: "*", effect: "deny" }))
+      const toolMaterialization = isLastStep
+        ? undefined
+        : yield* tools.materialize([...(agent.info?.permissions ?? []), ...courseRules])
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
       const request = LLM.request({
         model,
@@ -486,6 +504,7 @@ export const node = makeLocationNode({
     llmClient,
     AgentV2.node,
     ToolRegistry.node,
+    JolliSession.node,
     SessionRunnerModel.node,
     SessionStore.node,
     Location.node,

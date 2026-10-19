@@ -760,6 +760,7 @@ export const dict = {
   "session.review.filesChanged": "Змінено файлів: {{count}}",
   "session.sources.materials": "Матеріали курсу",
   "session.sources.web": "Веб-сторінки",
+  "session.sources.assignments": "Переглянути завдання",
   "session.review.change.one": "Зміна",
   "session.review.change.other": "Зміни",
   "session.review.loadingChanges": "Завантаження змін...",

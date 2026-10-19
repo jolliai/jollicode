@@ -691,6 +691,7 @@ export const dict = {
   "session.review.filesChanged": "Zmenené súbory {{count}}",
   "session.sources.materials": "Materiály kurzu",
   "session.sources.web": "Webové stránky",
+  "session.sources.assignments": "Zobraziť úlohy",
   "session.review.change.one": "Zmena",
   "session.review.change.other": "Zmeny",
   "session.review.loadingChanges": "Načítavam zmeny...",

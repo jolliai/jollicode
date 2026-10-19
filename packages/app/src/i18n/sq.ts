@@ -696,6 +696,7 @@ export const dict = {
   "session.review.filesChanged": "Skedarët u ndryshuan {{count}}",
   "session.sources.materials": "Materialet e kursit",
   "session.sources.web": "Faqe uebi",
+  "session.sources.assignments": "Shiko detyrat",
   "session.review.change.one": "Ndryshimi",
   "session.review.change.other": "Ndryshimet",
   "session.review.loadingChanges": "Ndryshimet po ngarkohen...",

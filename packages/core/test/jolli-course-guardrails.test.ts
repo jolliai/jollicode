@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, test } from "bun:test"
+import { afterEach, describe, expect, setSystemTime, test } from "bun:test"
 import { mkdir, rm, writeFile } from "node:fs/promises"
 import { Effect } from "effect"
+import { FetchHttpClient } from "effect/unstable/http"
 import { Global } from "../src/global"
 import type { GatewayRequest } from "../src/jolli/api"
 import { CATALOG_SCHEMA, catalogCachePath } from "../src/jolli/cache"
@@ -148,5 +149,77 @@ describe("JolliCourseGuardrails.ofBinding", () => {
       ),
     )
     expect(guardrails).toBeUndefined()
+  })
+})
+
+describe("JolliCourseGuardrails.assignmentsIncluded", () => {
+  afterEach(() => {
+    setSystemTime()
+  })
+
+  /** A gateway answering the assistant choices with `reply`, counting the reads it is sent. */
+  function gateway(reply: () => Response) {
+    const reads: string[] = []
+    const fetch = ((input: string | URL | Request) => {
+      reads.push(input instanceof Request ? input.url : String(input))
+      return Promise.resolve(reply())
+    }) as typeof globalThis.fetch
+    return { reads, fetch }
+  }
+
+  const choices = (includeAssignments: boolean) =>
+    new Response(JSON.stringify([{ ...choice(12, false), includeAssignments }]), {
+      headers: { "content-type": "application/json" },
+    })
+
+  function included(origin: string, fetch: typeof globalThis.fetch) {
+    const unused = () => Effect.die("not used by this read")
+    return Effect.runPromise(
+      JolliCourseGuardrails.assignmentsIncluded(binding).pipe(
+        Effect.provideService(
+          JolliSession.Service,
+          JolliSession.Service.of({
+            current: () => Effect.succeed(undefined),
+            token: unused,
+            request: () => Effect.succeed(request(origin)),
+            refused: unused,
+            signIn: unused,
+            signOut: unused,
+          }),
+        ),
+        Effect.provideService(FetchHttpClient.Fetch, fetch),
+      ),
+    )
+  }
+
+  // Asked before every model step: a turn of many steps reads the gateway once, not once a step.
+  test("reads the switch once for the steps of a turn", async () => {
+    const origin = "https://course-guardrails-assignments.invalid"
+    const http = gateway(() => choices(true))
+    expect(await included(origin, http.fetch)).toBe(true)
+    expect(await included(origin, http.fetch)).toBe(true)
+    expect(http.reads).toHaveLength(1)
+  })
+
+  /**
+   * ⚠ ONE FAILED READ MUST NOT TAKE THE TOOL AWAY MID-TURN. The tool list is rebuilt every step, so
+   * withholding on a failure would drop the tool and hand it back a step later.
+   */
+  test("keeps the last answer when a later read fails, and withholds only what was never read", async () => {
+    const origin = "https://course-guardrails-assignments-kept.invalid"
+    expect(await included(origin, gateway(() => choices(true)).fetch)).toBe(true)
+    setSystemTime(new Date(Date.now() + 60_000))
+    const failing = gateway(() => new Response("unavailable", { status: 503 }))
+    expect(await included(origin, failing.fetch)).toBe(true)
+    expect(failing.reads).toContain(`${origin}/api/courses/7/assistant-choices`)
+
+    expect(await included("https://course-guardrails-assignments-new.invalid", failing.fetch)).toBe(false)
+  })
+
+  test("reads again once the last reading is old, so a teacher's change reaches the next turn", async () => {
+    const origin = "https://course-guardrails-assignments-stale.invalid"
+    expect(await included(origin, gateway(() => choices(true)).fetch)).toBe(true)
+    setSystemTime(new Date(Date.now() + 60_000))
+    expect(await included(origin, gateway(() => choices(false)).fetch)).toBe(false)
   })
 })

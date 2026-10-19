@@ -588,6 +588,7 @@ export const dict = {
   "session.review.filesChanged": "Muutettuja tiedostoja: {{count}}",
   "session.sources.materials": "Kurssimateriaalit",
   "session.sources.web": "Verkkosivut",
+  "session.sources.assignments": "Näytä tehtävät",
   "session.review.change.one": "Muutos",
   "session.review.change.other": "Muutokset",
   "session.review.loadingChanges": "Ladataan muutoksia...",

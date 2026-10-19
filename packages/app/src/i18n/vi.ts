@@ -702,6 +702,7 @@ export const dict = {
   "session.review.filesChanged": "Số tệp đã thay đổi: {{count}}",
   "session.sources.materials": "Tài liệu khóa học",
   "session.sources.web": "Trang web",
+  "session.sources.assignments": "Xem bài tập",
   "session.review.change.one": "Thay đổi",
   "session.review.change.other": "Thay đổi",
   "session.review.loadingChanges": "Đang tải các thay đổi...",

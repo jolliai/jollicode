@@ -14,17 +14,13 @@ import { isRecord } from "@/util/record"
  * the credential, which the MCP layer attaches by destination origin, not by server name.
  * Guarding it would mean threading the server name through upstream's generic hook inputs.
  */
-export const COURSE_TOOL_IDS = new Set<string>([
-  `${JolliSources.COURSE_TOOL_PREFIX}get_conversation_context`,
-  `${JolliSources.COURSE_TOOL_PREFIX}list_all_materials_in_remote_course`,
-  ...JolliSources.MATERIAL_TOOLS,
-])
+export const COURSE_TOOL_IDS = new Set<string>(JolliSources.COURSE_TOOLS)
 
 const MATERIAL_LIST_TOOL = `${JolliSources.COURSE_TOOL_PREFIX}list_all_materials_in_remote_course`
 const ATTACHMENT_LIST_TOOL = `${JolliSources.COURSE_TOOL_PREFIX}list_user_attachments`
 const BINDING_PARAMETER_NAMES = new Set(["courseId", "assistantId"])
 
-export type ListKind = "materials" | "attachments"
+export type ListKind = "materials" | "assignments" | "attachments"
 
 /**
  * The session's course binding as the course tools take it, or undefined when it has none usable.
@@ -54,7 +50,14 @@ export function unboundCourseToolRules(session: SessionLike | undefined): Permis
   return [...COURSE_TOOL_IDS].map((permission) => ({ permission, pattern: "*", action: "deny" as const }))
 }
 
+/** The same assignment switch controls ordinary MCP tools and the code-mode catalog. */
+export function courseToolRules(session: SessionLike | undefined, includeAssignments: boolean): PermissionV1.Rule[] {
+  if (!courseToolBindingOf(session)) return unboundCourseToolRules(session)
+  return includeAssignments ? [] : [{ permission: JolliSources.ASSIGNMENT_LIST_TOOL, pattern: "*", action: "deny" }]
+}
+
 export function kindOf(tool: string): ListKind | undefined {
+  if (tool === JolliSources.ASSIGNMENT_LIST_TOOL) return "assignments"
   if (tool === MATERIAL_LIST_TOOL) return "materials"
   if (tool === ATTACHMENT_LIST_TOOL) return "attachments"
   return undefined
@@ -84,7 +87,7 @@ function withoutBindingParameters(parameters: unknown): unknown {
  * model to pass it, and a schema that closes `additionalProperties` would refuse an undeclared
  * field, leaving the model no way to reach the next page.
  */
-function listParameters(parameters: unknown, cursor: "afterId" | "cursor"): unknown {
+function listParameters(parameters: unknown, cursor: "afterId" | "page" | "cursor"): unknown {
   if (!isRecord(parameters)) return parameters
   const properties = isRecord(parameters.properties) ? parameters.properties : {}
   return {
@@ -94,7 +97,7 @@ function listParameters(parameters: unknown, cursor: "afterId" | "cursor"): unkn
       continue: {
         type: "boolean",
         description:
-          "Set true only when the student asks for the next page of this list. The client supplies the saved cursor.",
+          "Set true only when the student asks for the next page or the complete list. The client supplies the saved cursor.",
       },
     },
     ...(Array.isArray(parameters.required) && { required: parameters.required.filter((name) => name !== cursor) }),
@@ -108,10 +111,15 @@ export function projectJolliToolDefinition(tool: string, description: string, pa
   if (!kind) return { description, parameters: withoutBinding }
   return {
     description:
-      kind === "materials"
-        ? "List the material catalog visible to the assistant in the bound course, without material body text. Use when the student asks which course materials are available; use search_remote_course_materials for a topic-specific question. For a fresh list omit `continue`; if the student asks for the next page, set `continue=true`. When `hasMore=true`, tell the student in their language that more materials are available and that they can ask for the next page; when it is false, the list is complete. The client supplies the course binding and saved pagination cursor; do not invent or pass either."
-        : "List the student's available uploads across sessions, newest first, without reading their contents. Use when the student asks which files they uploaded; use search_user_attachments for questions about file contents. `textState=ready` means text can be read; supported images may be viewable through read_user_attachment. For a fresh list omit `continue`; if the student asks for the next page, set `continue=true`. When `hasMore=true`, tell the student in their language that more files are available and that they can ask for the next page; when it is false, the list is complete. The client supplies the saved pagination cursor; do not invent or pass it.",
-    parameters: listParameters(withoutBinding, kind === "materials" ? "afterId" : "cursor"),
+      kind === "assignments"
+        ? "List the bound course's assignments with ids, dates and the student's own progress, grouped by status. Staff also see labelled drafts. Unopened assignments expose titles and dates only. Use the unified course search and reader for worksheet content. For a fresh list omit `continue`; to read another page set `continue=true`. When hasMore is true this is only a partial list; continue through every page when the student asks for all assignments. The client supplies the course binding and saved page; never invent them."
+        : kind === "materials"
+          ? "List the material catalog visible to the assistant in the bound course, without material body text. Use when the student asks which course materials are available; use search_remote_course_materials for a topic-specific question. For a fresh list omit `continue`; if the student asks for the next page, set `continue=true`. When `hasMore=true`, tell the student in their language that more materials are available and that they can ask for the next page; when it is false, the list is complete. The client supplies the course binding and saved pagination cursor; do not invent or pass either."
+          : "List the student's available uploads across sessions, newest first, without reading their contents. Use when the student asks which files they uploaded; use search_user_attachments for questions about file contents. `textState=ready` means text can be read; supported images may be viewable through read_user_attachment. For a fresh list omit `continue`; if the student asks for the next page, set `continue=true`. When `hasMore=true`, tell the student in their language that more files are available and that they can ask for the next page; when it is false, the list is complete. The client supplies the saved pagination cursor; do not invent or pass it.",
+    parameters: listParameters(
+      withoutBinding,
+      kind === "materials" ? "afterId" : kind === "assignments" ? "page" : "cursor",
+    ),
   }
 }
 
