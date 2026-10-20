@@ -713,3 +713,72 @@ describe("jolli HttpApi — session share", () => {
     }),
   )
 })
+
+const assignmentPath = (courseId: string, assignmentId: string) =>
+  JolliPaths.assignment.replace(":courseId", courseId).replace(":assignmentId", assignmentId)
+
+const STUDENT_ASSIGNMENT = {
+  id: 40,
+  courseId: 7,
+  title: "Lab 4: Linked lists",
+  description: "",
+  opensAt: null,
+  dueAt: null,
+  stopAtDue: false,
+  status: "published",
+  progress: { state: "in_progress", partsSubmitted: 0, partsTotal: 1, turnedInAt: null },
+  authorName: null,
+  parts: [
+    {
+      id: 42,
+      assistantId: 13,
+      assistantName: "CS 310 Lab Assistant",
+      assistantBlurb: "",
+      assistantStatus: "live",
+      turnIn: { transcript: true, summary: false, reflection: false },
+      reflectionPrompt: null,
+      workedIn: "jolli_code",
+      attempts: [{ id: 1, conversationId: "not-a-session", countedAt: null }],
+      submission: null,
+      owed: true,
+    },
+  ],
+}
+
+describe("jolli HttpApi — an assignment", () => {
+  /** ⚠ THE GATEWAY'S SESSION IDS ARE NOT TRUSTED TO BE SESSION IDS; one that is not is simply not here. */
+  const foreign = gatewayStub((call) =>
+    call.path.endsWith("/assignments/40/student-view") ? reply(STUDENT_ASSIGNMENT) : reply({}, 404),
+  )
+  signedInAs(foreign.fetch).live("reads an assignment whose task names a session id that is not one", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(`${assignmentPath("7", "40")}?fresh=true`).pipe(
+        HttpClient.execute,
+      )
+      expect(response.status).toBe(200)
+      const body = (yield* response.json) as { status: string; assignment: { tasks: { local: unknown }[] } }
+      expect(body.status).toBe("ok")
+      expect(body.assignment.tasks[0]?.local).toBeNull()
+    }),
+  )
+
+  /** ⚠ A 2XX THAT WOULD NOT DECODE WAS TURNED IN; it must not read as a refusal to try again. */
+  const garbled = gatewayStub((call) => {
+    if (call.path.endsWith("/turn-in")) return reply({ unexpected: true })
+    if (call.path.endsWith("/assignments/41/student-view")) return reply({ ...STUDENT_ASSIGNMENT, id: 41 })
+    return reply({}, 404)
+  })
+  const reads = () => garbled.calls.filter((call) => call.path.endsWith("/41/student-view")).length
+  signedInAs(garbled.fetch).live("answers unreachable, not refused, when a turn-in's answer will not decode", () =>
+    Effect.gen(function* () {
+      yield* HttpClientRequest.get(assignmentPath("7", "41")).pipe(HttpClient.execute)
+      expect(reads()).toBe(1)
+      const response = yield* HttpClientRequest.post(`${assignmentPath("7", "41")}/turn-in`).pipe(HttpClient.execute)
+      expect(((yield* response.json) as { status: string }).status).toBe("unreachable")
+      expect(garbled.calls.map((call) => call.path)).toContain("/api/courses/7/assignments/41/turn-in")
+      // The turn-in may have landed, so the copy kept before it is gone and the retry asks the gateway.
+      yield* HttpClientRequest.get(assignmentPath("7", "41")).pipe(HttpClient.execute)
+      expect(reads()).toBe(2)
+    }),
+  )
+})

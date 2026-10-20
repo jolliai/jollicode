@@ -62,6 +62,21 @@ export class JolliApiError extends Schema.TaggedErrorClass<JolliApiError>()("Jol
 }) {}
 
 /**
+ * WHAT A FAILED GATEWAY CALL MEANS: `refused`, a 4xx other than 401, where the gateway said no and
+ * wrote nothing; `expired`, a 401, a credential to renew, where nothing was written either; `failed`,
+ * anything else — no answer, a 5xx, or a 2xx whose body would not decode — after which a write may
+ * have landed.
+ *
+ * ⚠ A 2XX THAT WOULD NOT DECODE IS `failed`, NOT `refused`. The gateway did what was asked; telling
+ * the student it refused would have them try again at something already done.
+ */
+export function failureOf(error: JolliApiError) {
+  if (error.status === 401) return "expired" as const
+  if (error.status !== undefined && error.status >= 400 && error.status < 500) return "refused" as const
+  return "failed" as const
+}
+
+/**
  * WHERE TO CALL AND AS WHOM.
  *
  * ⚠ `origin` IS AN ORIGIN, NEVER A TENANT URL WITH A PATH. Jolli mounts its API at the origin root
@@ -391,9 +406,11 @@ const StudentAssignmentSubmission = Schema.Struct({
   submittedAt: Schema.String,
 })
 
-/** One part, from the student's side. jolliedu `StudentAssignmentPart`, trimmed. */
-export const StudentAssignmentPart = Schema.Struct({
+/** One agent part, from the student's side. jolliedu `StudentAgentTask`, trimmed. */
+export const StudentAssignmentAgentPart = Schema.Struct({
   id: Schema.Number,
+  /** Absent from a server that predates task kinds, where every part is an agent's. */
+  kind: Schema.optional(Schema.Literal("agent")),
   assistantId: Schema.Number,
   assistantName: Schema.String,
   assistantBlurb: Schema.String,
@@ -406,8 +423,38 @@ export const StudentAssignmentPart = Schema.Struct({
   attempts: Schema.Array(StudentAssignmentAttempt),
   submission: Schema.NullOr(StudentAssignmentSubmission),
   owed: Schema.Boolean,
-}).annotate({ identifier: "JolliApi.StudentAssignmentPart" })
-export interface StudentAssignmentPart extends Schema.Schema.Type<typeof StudentAssignmentPart> {}
+}).annotate({ identifier: "JolliApi.StudentAssignmentAgentPart" })
+export interface StudentAssignmentAgentPart extends Schema.Schema.Type<typeof StudentAssignmentAgentPart> {}
+
+/**
+ * A part of any other kind — a File upload task, and whatever kind comes after it. jolliedu
+ * `StudentFileTask`, trimmed to what every kind carries.
+ *
+ * ⚠ NO AGENT, SO NEVER WORKED HERE. It is read only so the assignment's dialog can list it as a task
+ * done on the web, and count it among the tasks owed before turning in.
+ *
+ * ⚠ NEVER AN AGENT PART. One that failed its own schema must fail the read, as it did before kinds:
+ * taken for this, it would be offered on the web, lose its attempts here, and a hand-in to it would
+ * read as not landed.
+ */
+export const StudentAssignmentOtherPart = Schema.Struct({
+  id: Schema.Number,
+  kind: Schema.String.check(Schema.makeFilter((kind) => kind !== "agent")),
+  name: Schema.String,
+  submission: Schema.NullOr(Schema.Struct({ submittedAt: Schema.String })),
+  owed: Schema.Boolean,
+}).annotate({ identifier: "JolliApi.StudentAssignmentOtherPart" })
+export interface StudentAssignmentOtherPart extends Schema.Schema.Type<typeof StudentAssignmentOtherPart> {}
+
+/**
+ * One part, from the student's side, by its kind. jolliedu `StudentAssignmentTask`.
+ *
+ * ⚠ AN AGENT PART IS TRIED FIRST: a part of another kind has none of its agent's fields, and fails it.
+ */
+export const StudentAssignmentPart = Schema.Union([StudentAssignmentAgentPart, StudentAssignmentOtherPart]).annotate({
+  identifier: "JolliApi.StudentAssignmentPart",
+})
+export type StudentAssignmentPart = typeof StudentAssignmentPart.Type
 
 /**
  * One assignment as its student sees it. jolliedu `StudentAssignment`, trimmed.
@@ -483,7 +530,7 @@ export interface HandInPreview extends Schema.Schema.Type<typeof HandInPreview> 
 
 /** jolliedu `JolliCodeHandInResult`: the part as it now stands, and how many tasks are still owed. */
 export const HandInResult = Schema.Struct({
-  part: StudentAssignmentPart,
+  part: StudentAssignmentAgentPart,
   owedCount: Schema.Number,
 }).annotate({ identifier: "JolliApi.HandInResult" })
 export interface HandInResult extends Schema.Schema.Type<typeof HandInResult> {}

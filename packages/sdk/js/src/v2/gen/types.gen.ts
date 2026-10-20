@@ -4051,8 +4051,8 @@ export type JolliAssignmentTaskSession = {
 export type JolliAssignmentTask = {
   partId: string
   title: string
+  name: string
   assistantId: string
-  assistantName: string
   assistantBlurb: string
   place: JolliAssignmentTaskPlace
   handedInAt: string

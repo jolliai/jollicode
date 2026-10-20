@@ -18,6 +18,7 @@
 import type { Hooks, PluginInput } from "@opencode-ai/plugin"
 import { tool } from "@opencode-ai/plugin"
 import {
+  failureOf,
   fetchStudentAssignment,
   handIn,
   JolliApiError,
@@ -29,6 +30,7 @@ import {
   assignmentApprovalKey,
   HAND_IN_ELSEWHERE,
   handInLines,
+  isAgentPart,
   projectAssignment,
   SUBMIT_TASK_PERMISSION,
   taskApprovalKey,
@@ -142,12 +144,12 @@ export async function JolliAssignmentPlugin(
               status: error.status,
               code: error.code,
             })
-            const refusal = error.status !== undefined && error.status >= 400 && error.status < 500
+            const failure = failureOf(error)
             const told =
-              error.status === 401 || !refusal
-                ? unreachable(act)
-                : (error.explanation ?? `Jolli refused the ${act.noun}. Nothing was ${act.done}.`)
-            return { ok: false as const, told, unsure: write && !refusal }
+              failure === "refused"
+                ? (error.explanation ?? `Jolli refused the ${act.noun}. Nothing was ${act.done}.`)
+                : unreachable(act)
+            return { ok: false as const, told, unsure: write && failure === "failed" }
           }),
         ),
       ),
@@ -176,8 +178,9 @@ export async function JolliAssignmentPlugin(
       return "unknown" as const
     }
     const part = now.parts.find((item) => String(item.id) === task.partId)
-    const handedIn = part?.attempts.find((attempt) => attempt.id === part.submission?.attemptId)
-    if (!part || handedIn?.conversationId !== sessionID) return undefined
+    if (!part || !isAgentPart(part)) return undefined
+    const handedIn = part.attempts.find((attempt) => attempt.id === part.submission?.attemptId)
+    if (handedIn?.conversationId !== sessionID) return undefined
     return { part, owedCount: now.progress.partsTotal - now.progress.partsSubmitted }
   }
 

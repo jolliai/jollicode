@@ -90,12 +90,19 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
    * without — the ordinary input takes over.
    */
   /**
-   * ⚠ AND A TASK'S DRAFT ALWAYS GETS START, WHETHER ITS AGENT SPEAKS FIRST OR NOT. A task's session is
-   * one the gateway opens for the task, recording its attempt; a first message typed instead would
-   * make a plain chat with the agent, which the task could never be handed in from.
+   * ⚠ A TASK'S DRAFT GETS START ONLY WHEN ITS AGENT SPEAKS FIRST, like any draft. Otherwise the student
+   * types their first message, and the submit opens the task's session on the gateway before sending
+   * it (`openOnGateway`), so it is still the task's session, not a plain chat with the agent.
    */
-  const opens = () =>
-    !courseSession.locked() && (!!courseSession.assistant()?.opensConversation || !!courseSession.draft.task)
+  /**
+   * ⚠ A TASK'S AGENT THE CATALOGUE CANNOT NAME GETS START. Whether it speaks first is unknown, and Start
+   * is the safe guess: a typed message to an agent that does speak first would race its opener.
+   */
+  const opens = () => {
+    if (courseSession.locked()) return false
+    const assistant = courseSession.assistant()
+    return assistant ? !!assistant.opensConversation : !!courseSession.draft.task
+  }
 
   return (
     <div class="flex flex-col gap-3">
@@ -187,7 +194,7 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
        */}
       <Show
         when={!opens() && !courseSession.draft.starting}
-        fallback={<PromptStartRow onStart={() => void props.controller.start()} />}
+        fallback={<PromptStartRow writing={opens()} onStart={() => void props.controller.start()} />}
       >
         <PromptInputV2
           controller={props.controller}
@@ -237,8 +244,11 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
  *
  * ⚠ START TAKES FOCUS WHEN IT IS DRAWN, as on the web: it replaces the box the draft screen would
  * otherwise focus, and a keyboard reader would be left on the page's body.
+ *
+ * ⚠ A TASK'S TYPED FIRST MESSAGE WAITS HERE TOO, while its session opens on the gateway, so nothing is
+ * typed into a box the send is about to clear. Its agent is not writing, and `writing` says which wait.
  */
-function PromptStartRow(props: { onStart: () => void }) {
+function PromptStartRow(props: { writing: boolean; onStart: () => void }) {
   const language = useLanguage()
   const courseSession = useCourseSession()
   let button: HTMLButtonElement | undefined
@@ -254,12 +264,13 @@ function PromptStartRow(props: { onStart: () => void }) {
         when={!courseSession.draft.starting}
         fallback={
           <span role="status" class="min-w-0 flex-1 text-[13px] leading-5 text-v2-text-text-muted">
-            <TextShimmer text={language.t("prompt.jolli.start.writing")} />
+            <TextShimmer
+              text={language.t(props.writing ? "prompt.jolli.start.writing" : "prompt.jolli.task.start.opening")}
+            />
           </span>
         }
       >
         <span class="min-w-0 flex-1 text-[13px] leading-5 text-v2-text-text-muted">
-          {/* A task's agent may not speak first; what Start does then is begin the task's session. */}
           {courseSession.draft.task
             ? language.t("prompt.jolli.task.start.prompt", { task: courseSession.draft.task.label })
             : language.t("prompt.jolli.start.prompt")}

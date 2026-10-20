@@ -12,16 +12,20 @@ import {
   type GatewayRequest,
   type HandInPreview,
   type StudentAssignment,
+  type StudentAssignmentAgentPart,
   type StudentAssignmentList,
+  type StudentAssignmentOtherPart,
   type StudentAssignmentPart,
 } from "../src/jolli/api"
 import {
   handedInBy,
   handInLines,
+  isAgentPart,
   isNeverAutoApproved,
   projectAssignment,
   SUBMIT_TASK_PERMISSION,
   taskApprovalKey,
+  taskDraftOf,
   taskBindingOf,
   taskSessionIDs,
   todoAssignments,
@@ -78,7 +82,7 @@ function listItem(overrides: Partial<StudentAssignmentList["todo"][number]> = {}
   }
 }
 
-function part(overrides: Partial<StudentAssignmentPart> = {}): StudentAssignmentPart {
+function part(overrides: Partial<StudentAssignmentAgentPart> = {}): StudentAssignmentAgentPart {
   return {
     id: 42,
     assistantId: 13,
@@ -93,6 +97,11 @@ function part(overrides: Partial<StudentAssignmentPart> = {}): StudentAssignment
     owed: true,
     ...overrides,
   }
+}
+
+/** A File upload task: a kind with no agent, worked on the web alone. */
+function filePart(overrides: Partial<StudentAssignmentOtherPart> = {}): StudentAssignmentOtherPart {
+  return { id: 44, kind: "files", name: "Lab report", submission: null, owed: true, ...overrides }
 }
 
 function assignment(parts: StudentAssignmentPart[], overrides: Partial<StudentAssignment> = {}): StudentAssignment {
@@ -166,9 +175,10 @@ describe("taskBindingOf", () => {
 })
 
 describe("todoAssignments", () => {
-  test("lists open assignments with a Jolli Code task, due soonest first", () => {
+  test("lists open assignments with a Jolli Code task, due soonest first, counting every kind's tasks", () => {
     const later = listItem({ id: 50, title: "Lab 5", dueAt: "2026-10-30T23:59:00Z" })
-    const sooner = listItem()
+    // `tasks` holds the two agent tasks; the progress counts a File upload task beside them.
+    const sooner = listItem({ progress: { ...progress, partsSubmitted: 1, partsTotal: 3 } })
     const undated = listItem({ id: 60, title: "Project", dueAt: null, stopAtDue: false })
     const list = { todo: [later, undated, sooner], upcoming: [], completed: [] }
     expect(todoAssignments([{ course: CS310, list }], NOW).map((item) => item.id)).toEqual(["40", "50", "60"])
@@ -180,7 +190,7 @@ describe("todoAssignments", () => {
       dueAt: "2026-10-24T23:59:00Z",
       stopAtDue: true,
       tasksHandedIn: 1,
-      tasksTotal: 2,
+      tasksTotal: 3,
     })
   })
 
@@ -244,6 +254,38 @@ describe("projectAssignment", () => {
     expect(projected.tasksTotal).toBe(1)
     expect(handedInBy(projected, { assignmentId: "40", partId: "42" }, "ses_a")).toBe(true)
     expect(handedInBy(projected, { assignmentId: "40", partId: "42" }, "ses_b")).toBe(false)
+  })
+
+  /** ⚠ A TASK OF ANOTHER KIND HAS NO AGENT: LISTED AS DONE ON THE WEB, NEVER STARTED HERE. */
+  test("lists a File upload task as a web task under its own name, and owes it before turning in", () => {
+    const handed = part({
+      attempts: [{ id: 2, conversationId: "ses_a", countedAt: "2026-10-20T10:00:00Z" }],
+      submission: { attemptId: 2, submittedAt: "2026-10-21T10:00:00Z" },
+    })
+    const read = assignment([handed, filePart()])
+    const projected = projectAssignment(CS310, read, new Map(), NOW)
+    expect(projected.tasks[1]).toEqual({
+      partId: "44",
+      title: "Task 2",
+      name: "Lab report",
+      assistantId: null,
+      assistantBlurb: null,
+      place: "web",
+      handedInAt: null,
+      handedInSessionID: null,
+      owed: true,
+      local: null,
+      elsewhere: false,
+    })
+    expect(taskDraftOf(projected, projected.tasks[1])).toBeUndefined()
+    // The renderer names the task its own way, and the composer's label follows it.
+    expect(taskDraftOf(projected, projected.tasks[0], "任务 1")?.label).toBe("Lab 4: Linked lists · 任务 1")
+    expect(taskSessionIDs(read)).toEqual(["ses_a"])
+    expect(projected).toMatchObject({ tasksHandedIn: 1, tasksTotal: 2, readyToTurnIn: false })
+    const uploaded = filePart({ submission: { submittedAt: "2026-10-21T11:00:00Z" } })
+    const done = projectAssignment(CS310, assignment([handed, uploaded]), new Map(), NOW)
+    expect(done.tasks[1]?.handedInAt).toBe("2026-10-21T11:00:00Z")
+    expect(done.readyToTurnIn).toBe(true)
   })
 
   test("is not ready to turn in with a task owed, once turned in, or past a due date it stops at", () => {
@@ -337,11 +379,43 @@ describe("the assignment calls", () => {
     const read = await Effect.runPromise(fetchStudentAssignments(REQUEST, 7).pipe(Effect.provide(h.layer)))
     expect(read.todo[0]?.tasks?.[1]?.workedIn).toBe("jolli_code")
     const one = await Effect.runPromise(fetchStudentAssignment(REQUEST, 7, 40).pipe(Effect.provide(h.layer)))
-    expect(one.parts[0]?.workedIn).toBe("jolli_code")
+    expect(one.parts[0]).toMatchObject({ workedIn: "jolli_code" })
     expect(h.seen.map((request) => request.url)).toEqual([
       "https://acme.jolli.ai/api/courses/7/assignments/student-view",
       "https://acme.jolli.ai/api/courses/7/assignments/40/student-view",
     ])
+  })
+
+  /** ⚠ A PART WITH NO AGENT MUST NOT FAIL THE WHOLE ASSIGNMENT: ITS DIALOG, THE HAND-IN AND THE TURN-IN READ IT. */
+  test("read an assignment with a File upload task, as the gateway sends one", async () => {
+    const files = {
+      id: 44,
+      kind: "files",
+      name: "Lab report",
+      cardKey: "files-1",
+      position: 1,
+      reflectionPrompt: null,
+      owed: true,
+      fileTypes: null,
+      maxFiles: 5,
+      turnIn: { reflection: false },
+      files: [],
+      submission: null,
+    }
+    const h = stub(() => json({ ...assignment([]), parts: [part({ kind: "agent" }), files] }))
+    const one = await Effect.runPromise(fetchStudentAssignment(REQUEST, 7, 40).pipe(Effect.provide(h.layer)))
+    expect(one.parts.map((item) => (isAgentPart(item) ? "agent" : item.kind))).toEqual(["agent", "files"])
+    expect(one.parts[1]).toMatchObject({ id: 44, name: "Lab report", submission: null, owed: true })
+  })
+
+  /** ⚠ BUT AN AGENT PART THAT FAILS ITS OWN SCHEMA FAILS THE READ, rather than pass for a web task. */
+  test("an agent part missing an agent field fails the read instead of reading as another kind", async () => {
+    // Every kind carries `name` on the wire, an agent part as well, so only its kind keeps it from the other.
+    const broken = { ...part({ kind: "agent" }), name: "CS 310 Lab Assistant", assistantBlurb: null }
+    const h = stub(() => json({ ...assignment([]), parts: [broken] }))
+    await expect(
+      Effect.runPromise(fetchStudentAssignment(REQUEST, 7, 40).pipe(Effect.provide(h.layer))),
+    ).rejects.toBeDefined()
   })
 
   test("start a task's session under the client's id and read the opener", async () => {
@@ -409,7 +483,7 @@ describe("turnInBlocker", () => {
     const handed = part({ submission: { attemptId: 2, submittedAt: "2026-10-21T10:00:00Z" } })
     const projected = projectAssignment(CS310, assignment([web, handed]), new Map(), NOW)
     expect(turnInBlocker(projected)).toBe(
-      "Lab 4: Linked lists can't be turned in yet. Still to hand in: Task 1 (CS 310 Lab Assistant), which is done in the web chat.",
+      "Lab 4: Linked lists can't be turned in yet. Still to hand in: Task 1 (CS 310 Lab Assistant), which is done on the web.",
     )
   })
 
