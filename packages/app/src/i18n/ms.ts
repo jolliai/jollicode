@@ -1208,6 +1208,7 @@ export const dict = {
   "prompt.jolli.start.button": "Mula",
   "prompt.jolli.start.writing": "Ejen sedang menulis…",
   "prompt.jolli.start.failed": "Tidak dapat memulakan sembang. Cuba lagi.",
+  "prompt.jolli.start.heldBack": "Ejen memulakan perbualan dahulu, jadi mesej anda tidak dihantar. Ia menunggu di kotak input.",
   "prompt.jolli.closed.notice": "Ejen ini telah ditutup. Anda masih boleh membaca sembang ini.",
   "prompt.jolli.refusal.notOpen": "Ejen ini belum dibuka lagi.",
   "prompt.jolli.refusal.closed": "Ejen ini telah ditutup.",

@@ -1232,6 +1232,7 @@ export const dict = {
   "prompt.jolli.start.button": "Pradėti",
   "prompt.jolli.start.writing": "Agentas rašo…",
   "prompt.jolli.start.failed": "Nepavyko pradėti pokalbio. Bandyk dar kartą.",
+  "prompt.jolli.start.heldBack": "Pokalbį pirmas pradėjo agentas, todėl tavo žinutė nebuvo išsiųsta. Ji laukia įvesties lauke.",
   "prompt.jolli.closed.notice": "Šis agentas uždarytas. Šį pokalbį vis dar gali skaityti.",
   "prompt.jolli.refusal.notOpen": "Šis agentas dar neatidarytas.",
   "prompt.jolli.refusal.closed": "Šis agentas uždarytas.",

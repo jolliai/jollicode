@@ -1206,6 +1206,7 @@ export const dict: Record<string, string> = {
   "prompt.jolli.start.button": "අරඹන්න",
   "prompt.jolli.start.writing": "නියෝජිතයා ලියමින් සිටී…",
   "prompt.jolli.start.failed": "කතාබහ ආරම්භ කළ නොහැකි විය. නැවත උත්සාහ කරන්න.",
+  "prompt.jolli.start.heldBack": "නියෝජිතයා මුලින්ම සංවාදය ආරම්භ කළ නිසා ඔබගේ පණිවිඩය යවා නැත. එය ආදාන කොටුවේ රැඳී ඇත.",
   "prompt.jolli.closed.notice": "මෙම නියෝජිතයා වසා ඇත. ඔබට තවමත් මෙම කතාබහ කියවිය හැක.",
   "prompt.jolli.refusal.notOpen": "මෙම නියෝජිතයා තවම විවෘත කර නැත.",
   "prompt.jolli.refusal.closed": "මෙම නියෝජිතයා වසා ඇත.",

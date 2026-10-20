@@ -1207,6 +1207,7 @@ export const dict = {
   "prompt.jolli.start.button": "شروع",
   "prompt.jolli.start.writing": "عامل در حال نوشتن است…",
   "prompt.jolli.start.failed": "شروع گفتگو ممکن نشد. دوباره تلاش کنید.",
+  "prompt.jolli.start.heldBack": "عامل زودتر گفتگو را آغاز کرد، بنابراین پیام شما ارسال نشد. پیام در کادر ورودی منتظر است.",
   "prompt.jolli.closed.notice": "این عامل بسته شده است. همچنان می‌توانید این گفتگو را بخوانید.",
   "prompt.jolli.refusal.notOpen": "این عامل هنوز باز نشده است.",
   "prompt.jolli.refusal.closed": "این عامل بسته شده است.",

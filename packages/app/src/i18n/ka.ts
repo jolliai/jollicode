@@ -1208,6 +1208,7 @@ export const dict = {
   "prompt.jolli.start.button": "დაწყება",
   "prompt.jolli.start.writing": "აგენტი წერს…",
   "prompt.jolli.start.failed": "ჩატის დაწყება ვერ მოხერხდა. სცადე ხელახლა.",
+  "prompt.jolli.start.heldBack": "საუბარი აგენტმა პირველმა დაიწყო, ამიტომ შენი შეტყობინება არ გაიგზავნა. ის შეყვანის ველში გელოდება.",
   "prompt.jolli.closed.notice": "ეს აგენტი დაიხურა. ამ ჩატის წაკითხვა ისევ შეგიძლია.",
   "prompt.jolli.refusal.notOpen": "ეს აგენტი ჯერ არ გახსნილა.",
   "prompt.jolli.refusal.closed": "ეს აგენტი დაიხურა.",

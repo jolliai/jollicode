@@ -1205,6 +1205,7 @@ export const dict: Record<string, string> = {
   "prompt.jolli.start.button": "শুরু করুন",
   "prompt.jolli.start.writing": "এজেন্ট লিখছে…",
   "prompt.jolli.start.failed": "চ্যাট শুরু করা যায়নি। আবার চেষ্টা করুন।",
+  "prompt.jolli.start.heldBack": "এজেন্ট আগে কথোপকথন শুরু করেছে, তাই আপনার বার্তা পাঠানো হয়নি। এটি ইনপুট বক্সে অপেক্ষা করছে।",
   "prompt.jolli.closed.notice": "এই এজেন্ট বন্ধ হয়ে গেছে। আপনি এখনও এই চ্যাটটি পড়তে পারবেন।",
   "prompt.jolli.refusal.notOpen": "এই এজেন্ট এখনও খোলেনি।",
   "prompt.jolli.refusal.closed": "এই এজেন্ট বন্ধ হয়ে গেছে।",

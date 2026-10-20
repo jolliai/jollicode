@@ -1220,6 +1220,7 @@ export const dict = {
   "prompt.jolli.start.button": "시작",
   "prompt.jolli.start.writing": "에이전트가 작성 중…",
   "prompt.jolli.start.failed": "채팅을 시작할 수 없습니다. 다시 시도하세요.",
+  "prompt.jolli.start.heldBack": "에이전트가 먼저 대화를 시작해서 메시지가 전송되지 않았습니다. 입력창에 남아 있습니다.",
   "prompt.jolli.closed.notice": "이 에이전트는 종료되었습니다. 이 채팅은 계속 읽을 수 있습니다.",
   "prompt.jolli.refusal.notOpen": "이 에이전트는 아직 열리지 않았습니다.",
   "prompt.jolli.refusal.closed": "이 에이전트는 종료되었습니다.",

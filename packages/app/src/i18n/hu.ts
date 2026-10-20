@@ -1222,6 +1222,7 @@ export const dict = {
   "prompt.jolli.start.button": "Indítás",
   "prompt.jolli.start.writing": "Az ügynök ír…",
   "prompt.jolli.start.failed": "Nem sikerült elindítani a csevegést. Próbálja újra.",
+  "prompt.jolli.start.heldBack": "Az ügynök kezdte a beszélgetést, ezért az üzenete nem lett elküldve. A beviteli mezőben várja.",
   "prompt.jolli.closed.notice": "Ez az ügynök lezárult. Ezt a csevegést továbbra is elolvashatja.",
   "prompt.jolli.refusal.notOpen": "Ez az ügynök még nem nyílt meg.",
   "prompt.jolli.refusal.closed": "Ez az ügynök lezárult.",

@@ -1210,6 +1210,7 @@ export const dict: Record<string, string> = {
   "prompt.jolli.start.button": "सुरु गर्नुहोस्",
   "prompt.jolli.start.writing": "एजेन्ट लेख्दैछ…",
   "prompt.jolli.start.failed": "कुराकानी सुरु गर्न सकिएन। फेरि प्रयास गर्नुहोस्।",
+  "prompt.jolli.start.heldBack": "एजेन्टले पहिले कुराकानी सुरु गर्‍यो, त्यसैले तपाईंको सन्देश पठाइएन। यो इनपुट बाकसमा पर्खिरहेको छ।",
   "prompt.jolli.closed.notice": "यो एजेन्ट बन्द भइसकेको छ। तपाईं अझै यो कुराकानी पढ्न सक्नुहुन्छ।",
   "prompt.jolli.refusal.notOpen": "यो एजेन्ट अझै खुलेको छैन।",
   "prompt.jolli.refusal.closed": "यो एजेन्ट बन्द भइसकेको छ।",

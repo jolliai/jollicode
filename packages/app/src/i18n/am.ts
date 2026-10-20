@@ -1184,6 +1184,7 @@ export const dict = {
   "prompt.jolli.start.button": "ጀምር",
   "prompt.jolli.start.writing": "ወኪሉ እየጻፈ ነው…",
   "prompt.jolli.start.failed": "ውይይቱን መጀመር አልተቻለም። እንደገና ይሞክሩ።",
+  "prompt.jolli.start.heldBack": "ወኪሉ ውይይቱን አስቀድሞ ጀምሯል፣ ስለዚህ መልእክትዎ አልተላከም። በግቤት ሳጥኑ ውስጥ እየጠበቀ ነው።",
   "prompt.jolli.closed.notice": "ይህ ወኪል ተዘግቷል። አሁንም ይህን ውይይት ማንበብ ይችላሉ።",
   "prompt.jolli.refusal.notOpen": "ይህ ወኪል ገና አልተከፈተም።",
   "prompt.jolli.refusal.closed": "ይህ ወኪል ተዘግቷል።",

@@ -108,7 +108,8 @@ export const { use: useCourseSession, provider: CourseSessionProvider } = create
       /**
        * THE TASK THIS DRAFT STARTS A SESSION FOR, from the assignment dialog. It fixes the course and
        * the agent — the task decides both, and an agent kept for assignments is offered only here —
-       * and every first message goes through Start, so the gateway records the task's attempt.
+       * and its session is opened on the gateway however it begins, with Start or a typed first
+       * message, so the gateway records the task's attempt.
        */
       task?: TaskDraft
       /**

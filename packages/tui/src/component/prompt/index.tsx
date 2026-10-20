@@ -145,7 +145,49 @@ function formatEditorContext(selection: EditorSelection) {
   return `<system-reminder>${ranges.join("\n")} This may or may not be relevant to the current task.</system-reminder>\n`
 }
 
-let stashed: { prompt: PromptInfo; cursor: number } | undefined
+/** A line in a composer, with what restoring it takes: a shell command must come back as one. */
+type Line = { prompt: PromptInfo; mode: "normal" | "shell"; cursor: number }
+
+/** What was left typed in the composer that unmounted last, and whose composer that was — see `owner`. */
+let stashed: (Line & { owner: string }) | undefined
+
+/**
+ * ⚠ A SUBMITTED LINE THAT WAS NOT SENT IS KEPT FOR ITS OWNER, NOT FOR THE NEXT COMPOSER. `stashed` goes to
+ * whichever composer mounts next, and a student who left during the wait may be anywhere by then; there
+ * Enter would send the line to another session. A line held back for an opener waits for the task's
+ * session, keyed by its id; one that was not sent at all waits for the composer it was typed in — a
+ * session's, home's draft of the same task, or home's plain draft of a course.
+ *
+ * ⚠ ONLY IN MEMORY, AND A SUBMITTED LINE ONLY FOR `HELD_FOR`. It is also put in the prompt history, which is
+ * where it is found after that, or after the TUI restarts. A line only typed, never submitted, has no `at`
+ * and does not expire: like any draft, the student knows it was not sent, and it is nowhere else.
+ */
+const held = new Map<string, Line & { at?: number }>()
+// A line nobody came back for within this is stale: restored later, one Enter would send a message from long ago.
+const HELD_FOR = 30 * 60 * 1000
+// The owner of the latest hold, so a composer already showing for it restores a line held after it mounted.
+const [lastHeld, setLastHeld] = createSignal<string | undefined>(undefined, { equals: false })
+
+function hold(key: string, line: Line & { at?: number }) {
+  dropStale()
+  held.set(key, line)
+  setLastHeld(key)
+}
+
+/** Takes the line held for `key`; a stale one, this owner's or another's, is dropped instead. */
+function take(key: string) {
+  dropStale()
+  const kept = held.get(key)
+  held.delete(key)
+  return kept
+}
+
+function dropStale() {
+  const now = Date.now()
+  held.forEach((kept, owner) => {
+    if (kept.at !== undefined && now - kept.at > HELD_FOR) held.delete(owner)
+  })
+}
 
 /** What opening a session on the gateway takes beside its binding and the id it is made under. */
 type GatewayStartInput = Omit<
@@ -669,34 +711,63 @@ export function Prompt(props: PromptProps) {
       input.gotoBufferEnd()
     },
     reset() {
-      input.clear()
-      input.extmarks.clear()
-      setStore("prompt", {
-        input: "",
-        parts: [],
-      })
-      setStore("extmarkToPartIndex", new Map())
+      if (!input.isDestroyed) input.clear()
+      emptyPrompt()
     },
     submit() {
       void submit()
     },
   }
 
-  onMount(() => {
-    const saved = stashed
-    stashed = undefined
-    if (store.prompt.input) return
-    if (saved && saved.prompt.input) {
-      input.setText(saved.prompt.input)
-      setStore("prompt", saved.prompt)
-      restoreExtmarksFromParts(saved.prompt.parts)
-      input.cursorOffset = saved.cursor
-    }
+  /**
+   * Whose composer this is, for `held`: its session's, home's draft of a task, or home's plain draft of a
+   * course — restored into another course's draft, a line would be sent to a course it was not typed for.
+   */
+  // A memo: the draft object is replaced on every catalogue refresh, and that alone is no cue to restore.
+  const owner = createMemo(() => {
+    if (props.sessionID) return props.sessionID
+    const task = jolli.draft.task
+    if (task) return `task:${task.assignmentId}/${task.partId}`
+    const course = jolli.draft.value?.courseId
+    return course ? `home:${course}` : "home"
   })
 
+  /**
+   * A held line is restored once its owner's composer shows with nothing typed in it: on mount, when home's
+   * draft becomes its owner again without the composer remounting, or when it is held after that. Only a hold
+   * for this owner is a cue; another's would fill this composer with a line long after it was held.
+   *
+   * ⚠ ON MOUNT A HELD LINE COMES BEFORE `stashed`, WHICH GOES BACK TO THE COMPOSER IT WAS LEFT IN. Restored
+   * first, the stash would leave this composer full, and the held line would wait on for some later mount to
+   * fill it; left for the next composer, it would skip this one unseen and turn up in another session's.
+   *
+   * ⚠ NOT WHILE A SUBMIT IS OUT. A Start's `clearTask` turns home's draft into a plain one before the submit
+   * ends; a line held for that draft would fill a composer about to leave, and the submit would take it.
+   */
+  createEffect(
+    on([owner, lastHeld], ([key, latest], before) => {
+      if (before && before[0] === key && latest !== key) return
+      // The stash is for the composer that mounts next, this one, whether or not it is restored here.
+      const saved = before ? undefined : stashed
+      if (!before) stashed = undefined
+      if (submitting || store.prompt.input) return
+      // Left typed in this same composer, which only remounted: what was being written comes back, as it always
+      // did, and a line held for it waits on for a later mount.
+      if (saved?.prompt.input && saved.owner === key) return restore(saved)
+      const kept = take(key)
+      // Into another owner's composer the stash comes back as text, as it always did: a shell command
+      // carried into another session would run there on one Enter.
+      if (!kept) return saved?.prompt.input ? restore({ ...saved, mode: "normal" }) : undefined
+      restore(kept)
+      if (saved?.prompt.input) hold(saved.owner, { prompt: saved.prompt, mode: saved.mode, cursor: saved.cursor })
+    }),
+  )
+
   onCleanup(() => {
-    if (store.prompt.input) {
-      stashed = { prompt: unwrap(store.prompt), cursor: input.cursorOffset }
+    disposed = true
+    // A line a submit has taken to send is that submit's, not the next composer's to restore.
+    if (store.prompt.input && !sending) {
+      stashed = { prompt: unwrap(store.prompt), mode: store.mode, cursor: input.cursorOffset, owner: owner() }
     }
     setInputTarget(undefined)
     props.ref?.(undefined)
@@ -724,6 +795,14 @@ export function Prompt(props: PromptProps) {
       }),
     }
   })
+
+  function restore(line: Line) {
+    input.setText(line.prompt.input)
+    setStore("prompt", line.prompt)
+    setStore("mode", line.mode)
+    restoreExtmarksFromParts(line.prompt.parts)
+    input.cursorOffset = line.cursor
+  }
 
   function restoreExtmarksFromParts(parts: PromptInfo["parts"]) {
     input.extmarks.clear()
@@ -1036,6 +1115,28 @@ export function Prompt(props: PromptProps) {
   })
 
   let submitting = false
+  /**
+   * ⚠ A SUBMITTED LINE IS SENT WHEREVER THE STUDENT GOES DURING THE WAIT. A new session's worktree, its
+   * `session.create`, or a task's session opening on the gateway can each take seconds, and a student who
+   * leaves meanwhile takes this composer with them; the line still goes where it was sent, as the desktop
+   * sends it, rather than also being restored into whatever input they reach next, where Enter would send
+   * it a second time. Should the submit end without sending it, the line is held for the composer it was
+   * typed in, by `owner` — see `held`.
+   */
+  let sending: string | undefined
+  let disposed = false
+  /** A copy, since the store is cleared after it is taken; the cursor at the end, as the composer counts width. */
+  const snapshot = () => ({
+    prompt: structuredClone(unwrap(store.prompt)),
+    mode: store.mode,
+    cursor: promptOffsetWidth(store.prompt.input),
+  })
+  /** Empties the store. A composer destroyed during a submit's wait has only its store left to empty. */
+  function emptyPrompt() {
+    if (!input.isDestroyed) input.extmarks.clear()
+    setStore("prompt", { input: "", parts: [] })
+    setStore("extmarkToPartIndex", new Map())
+  }
   async function submit() {
     // Prevent overlapping invocations (e.g. a double-pressed Enter, or the
     // input's native onSubmit racing another dispatch). Without this guard,
@@ -1045,11 +1146,20 @@ export function Prompt(props: PromptProps) {
     // to a freshly created session.
     if (submitting) return false
     submitting = true
+    sending = owner()
     try {
       return await submitInner()
     } finally {
       submitting = false
+      if (sending && disposed && store.prompt.input) holdSubmitted(sending, snapshot())
+      sending = undefined
     }
+  }
+
+  /** Holds a line the student submitted for `key`, and puts it in the history, which outlasts `held`. */
+  function holdSubmitted(key: string, line: Line) {
+    history.append({ ...line.prompt, mode: line.mode })
+    hold(key, { ...line, at: Date.now() })
   }
 
   async function submitInner() {
@@ -1097,7 +1207,10 @@ export function Prompt(props: PromptProps) {
 
     if (opening() && store.prompt.input) {
       toast.show({
-        message: "This agent opens the conversation — clear the prompt and press Enter to start.",
+        // A task's agent the catalogue cannot name may or may not speak first; only Start is certain.
+        message: jolli.assistant()?.opensConversation
+          ? "This agent opens the conversation — clear the prompt and press Enter to start."
+          : "This task's session starts first — clear the prompt and press Enter to start.",
         variant: "info",
         duration: 4000,
       })
@@ -1122,6 +1235,9 @@ export function Prompt(props: PromptProps) {
     const variant = local.model.variant.current()
     let sessionID = props.sessionID
     let finishMoveProgress = false
+    // The student left home while a task's session opened: the line is sent, but they are not moved. A plain
+    // session is still entered once it is made, wherever the student went, as it always has been.
+    let left = false
     if (sessionID == null) {
       const selectedWorkspace = workspace.selection()
       const workspaceID = selectedWorkspace?.type === "existing" ? selectedWorkspace.workspaceID : undefined
@@ -1165,20 +1281,44 @@ export function Prompt(props: PromptProps) {
           if (finishMoveProgress) move.finishSubmit()
           return false
         }
+        // The catalogue said this agent does not speak first and the gateway wrote it an opener: a fresh
+        // catalogue gives the next draft Start.
+        if (opened.opener) jolli.refresh()
         /**
-         * ⚠ A STUDENT WHO LEFT HOME DURING THE WAIT IS NOT PULLED BACK, as Start does not pull them. This
-         * composer went with them, so the line they typed is not sent; the session is the task's all the
-         * same, and is in the session list.
+         * ⚠ AN OPENER THE CATALOGUE DID NOT FORESEE HOLDS THE LINE BACK. Sent now, the line would talk over a
+         * turn the student has not read. The line is held for the session's input, wherever the student is
+         * now. A shell command is run all the same, as the desktop runs it: it asks the model nothing, so it
+         * talks over no one.
+         */
+        if (opened.opener && store.mode !== "shell") {
+          if (finishMoveProgress) move.finishSubmit()
+          const line = snapshot()
+          ref.reset()
+          holdSubmitted(opened.sessionID, line)
+          if (route.data.type !== "home") {
+            toast.show({
+              message: `The task's agent opened the conversation first, so your message wasn't sent. Open that session from the session list within ${HELD_FOR / 60_000} minutes to find it in the input; it's also in your prompt history.`,
+              variant: "info",
+            })
+            return false
+          }
+          props.onSubmit?.()
+          route.navigate({ type: "session", sessionID: opened.sessionID })
+          return true
+        }
+        /**
+         * ⚠ A STUDENT WHO LEFT HOME DURING THE WAIT IS NOT PULLED BACK, as Start does not pull them. The
+         * line is sent to the task's session all the same — see `sending` — which is in the session list.
          */
         if (route.data.type !== "home") {
+          left = true
           toast.show({
-            message: "The task's session has started without your message — open it from the session list.",
+            message:
+              "The task's session has started and your message is being sent to it — open it from the session list.",
             variant: "info",
           })
-          if (finishMoveProgress) move.finishSubmit()
-          return false
         }
-        sessionID = opened
+        sessionID = opened.sessionID
       }
       // Not a task's: a plain session, bound to the course when there is one.
       if (sessionID == null) {
@@ -1220,12 +1360,19 @@ export function Prompt(props: PromptProps) {
 
     const inputText = expandTrackedPastedText(
       store.prompt.input,
-      input.extmarks.getAllForTypeId(promptPartTypeId).flatMap((extmark) => {
-        const partIndex = store.extmarkToPartIndex.get(extmark.id)
-        const part = partIndex === undefined ? undefined : store.prompt.parts[partIndex]
-        if (part?.type !== "text") return []
-        return [{ start: extmark.start, end: extmark.end, text: part.text }]
-      }),
+      // ⚠ A composer unmounted during the wait has dropped its extmarks; its parts still say where each paste sits.
+      input.isDestroyed
+        ? store.prompt.parts.flatMap((part) =>
+            part.type === "text" && part.source?.text
+              ? [{ start: part.source.text.start, end: part.source.text.end, text: part.text }]
+              : [],
+          )
+        : input.extmarks.getAllForTypeId(promptPartTypeId).flatMap((extmark) => {
+            const partIndex = store.extmarkToPartIndex.get(extmark.id)
+            const part = partIndex === undefined ? undefined : store.prompt.parts[partIndex]
+            if (part?.type !== "text") return []
+            return [{ start: extmark.start, end: extmark.end, text: part.text }]
+          }),
     )
 
     // Filter out text parts (pasted content) since they're now expanded inline
@@ -1307,9 +1454,16 @@ export function Prompt(props: PromptProps) {
           { throwOnError: true },
         )
         .catch((error) => {
+          /**
+           * ⚠ A FAILED SEND IS NOT PUT BACK IN THE SESSION'S INPUT. The request lasts the whole turn, so it can
+           * fail after the message was recorded; put back, one Enter would send it twice. A student who left
+           * is not there to see it either way, and the history below has it.
+           */
           toast.show({
             title: "Failed to send prompt",
-            message: errorMessage(error),
+            message: left
+              ? `${errorMessage(error)} If the task's session does not show your message, it's in your prompt history.`
+              : errorMessage(error),
             variant: "error",
           })
         })
@@ -1319,16 +1473,12 @@ export function Prompt(props: PromptProps) {
       ...store.prompt,
       mode: currentMode,
     })
-    input.extmarks.clear()
-    setStore("prompt", {
-      input: "",
-      parts: [],
-    })
-    setStore("extmarkToPartIndex", new Map())
-    props.onSubmit?.()
+    emptyPrompt()
+    // A student who left took this composer with them: what it was submitted from is not on screen.
+    if (!left) props.onSubmit?.()
 
     // temporary hack to make sure the message is sent
-    if (!props.sessionID) {
+    if (!props.sessionID && !left) {
       if (editorParts.length > 0) editor.preserveSelectionFromNewSession()
       setTimeout(() => {
         route.navigate({
@@ -1337,9 +1487,9 @@ export function Prompt(props: PromptProps) {
         })
       }, 50)
     }
-    input.clear()
+    if (!input.isDestroyed) input.clear()
     if (finishMoveProgress) move.finishSubmit()
-    return true
+    return !left
   }
 
   /**
@@ -1362,20 +1512,21 @@ export function Prompt(props: PromptProps) {
    * another session is not pulled out of it.
    */
   async function start(binding: CourseBinding, input: GatewayStartInput) {
-    const sessionID = await openOnGateway(binding, input)
-    if (!sessionID) return false
+    const opened = await openOnGateway(binding, input)
+    if (!opened) return false
     if (route.data.type !== "home") {
       toast.show({ message: "The conversation has started — open it from the session list.", variant: "info" })
       return false
     }
     props.onSubmit?.()
-    route.navigate({ type: "session", sessionID })
+    route.navigate({ type: "session", sessionID: opened.sessionID })
     return true
   }
 
   /**
    * Opens a session for `binding` on the gateway — Start's, and a task draft's typed first line's —
-   * and makes it this composer's; or says why not, and answers undefined.
+   * and makes it this composer's, answering its id and whether it came with an opener; or says why not,
+   * and answers undefined.
    *
    * ⚠ ONE WAY FOR BOTH. A task's session is the one the gateway opens for the task, recording its
    * attempt, however the student begins it; made with `session.create` it would be a plain chat the
@@ -1411,7 +1562,7 @@ export function Prompt(props: PromptProps) {
     }
     jolli.promote(outcome.sessionID, binding)
     jolli.draft.clearTask()
-    return outcome.sessionID
+    return outcome
   }
 
   function pasteText(text: string, virtualText: string) {

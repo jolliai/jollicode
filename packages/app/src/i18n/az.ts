@@ -1219,6 +1219,7 @@ export const dict = {
   "prompt.jolli.start.button": "Başla",
   "prompt.jolli.start.writing": "Agent yazır…",
   "prompt.jolli.start.failed": "Söhbəti başlatmaq alınmadı. Yenidən cəhd et.",
+  "prompt.jolli.start.heldBack": "Söhbəti agent əvvəlcə başlatdı, ona görə mesajın göndərilmədi. O, giriş sahəsində gözləyir.",
   "prompt.jolli.closed.notice": "Bu agent bağlanıb. Bu söhbəti yenə də oxuya bilərsən.",
   "prompt.jolli.refusal.notOpen": "Bu agent hələ açılmayıb.",
   "prompt.jolli.refusal.closed": "Bu agent bağlanıb.",

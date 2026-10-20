@@ -1216,6 +1216,7 @@ export const dict = {
   "prompt.jolli.start.button": "شروع کریں",
   "prompt.jolli.start.writing": "ایجنٹ لکھ رہا ہے…",
   "prompt.jolli.start.failed": "چیٹ شروع نہیں ہو سکی۔ دوبارہ کوشش کریں۔",
+  "prompt.jolli.start.heldBack": "ایجنٹ نے پہلے گفتگو شروع کی، اس لیے آپ کا پیغام نہیں بھیجا گیا۔ یہ ان پٹ باکس میں منتظر ہے۔",
   "prompt.jolli.closed.notice": "یہ ایجنٹ بند ہو چکا ہے۔ آپ اب بھی یہ چیٹ پڑھ سکتے ہیں۔",
   "prompt.jolli.refusal.notOpen": "یہ ایجنٹ ابھی کھلا نہیں ہے۔",
   "prompt.jolli.refusal.closed": "یہ ایجنٹ بند ہو چکا ہے۔",

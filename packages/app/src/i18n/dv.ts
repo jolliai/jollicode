@@ -1227,6 +1227,7 @@ export const dict = {
   "prompt.jolli.start.button": "ފަށާ",
   "prompt.jolli.start.writing": "އޭޖެންޓް ލިޔަނީ…",
   "prompt.jolli.start.failed": "ޗެޓް ފެށިއެއް ނުދިޔައެވެ. އަލުން މަސައްކަތް ކޮށްލާ.",
+  "prompt.jolli.start.heldBack": "އޭޖެންޓް ފުރަތަމަ ވާހަކަ ފެށީތީ، ތިބާގެ މެސެޖު ނުފޮނުވެއެވެ. އެ މެސެޖު އިންޕުޓް ބޮކްސްގައި އޮތެވެ.",
   "prompt.jolli.closed.notice": "މި އޭޖެންޓް ބަންދުކުރެވިއްޖެއެވެ. މި ޗެޓް އަދިވެސް ކިޔައިލެވޭނެއެވެ.",
   "prompt.jolli.refusal.notOpen": "މި އޭޖެންޓް އަދި ހުޅުވިފައެއް ނުވެއެވެ.",
   "prompt.jolli.refusal.closed": "މި އޭޖެންޓް ބަންދުކުރެވިއްޖެއެވެ.",

@@ -983,8 +983,8 @@ export const START_FAILED = "Couldn't start the chat. Try again."
  */
 export function startOutcome(
   result: JolliStartResult | undefined,
-): { type: "started"; sessionID: string } | { type: "failed"; message: string; refresh: boolean } {
-  if (result?.status === "started") return { type: "started", sessionID: result.session.id }
+): { type: "started"; sessionID: string; opener: boolean } | { type: "failed"; message: string; refresh: boolean } {
+  if (result?.status === "started") return { type: "started", sessionID: result.session.id, opener: result.opener }
   if (result?.status !== "refused") return { type: "failed", message: START_FAILED, refresh: false }
   /** A task's refusal is worded by the gateway — the assignment's dates and what to do — and said as it is. */
   return {

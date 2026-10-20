@@ -1219,6 +1219,7 @@ export const dict = {
   "prompt.jolli.start.button": "Эхлэх",
   "prompt.jolli.start.writing": "Агент бичиж байна…",
   "prompt.jolli.start.failed": "Чатыг эхлүүлж чадсангүй. Дахин оролдоно уу.",
+  "prompt.jolli.start.heldBack": "Агент яриаг түрүүлж эхлүүлсэн тул таны мессеж илгээгдээгүй. Энэ нь оролтын талбарт хүлээж байна.",
   "prompt.jolli.closed.notice": "Энэ агент хаагдсан. Та энэ чатыг уншсаар байж болно.",
   "prompt.jolli.refusal.notOpen": "Энэ агент хараахан нээгдээгүй байна.",
   "prompt.jolli.refusal.closed": "Энэ агент хаагдсан.",

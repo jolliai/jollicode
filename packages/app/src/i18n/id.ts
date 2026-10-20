@@ -1300,6 +1300,7 @@ export const dict = {
   "prompt.jolli.start.button": "Mulai",
   "prompt.jolli.start.writing": "Agen sedang menulis…",
   "prompt.jolli.start.failed": "Tidak dapat memulai obrolan. Coba lagi.",
+  "prompt.jolli.start.heldBack": "Agen memulai percakapan lebih dulu, jadi pesan Anda tidak terkirim. Pesan itu menunggu di kotak input.",
   "prompt.jolli.closed.notice": "Agen ini sudah ditutup. Anda masih dapat membaca obrolan ini.",
   "prompt.jolli.refusal.notOpen": "Agen ini belum dibuka.",
   "prompt.jolli.refusal.closed": "Agen ini sudah ditutup.",

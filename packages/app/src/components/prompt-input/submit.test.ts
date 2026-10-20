@@ -35,6 +35,8 @@ let courseBinding: { courseId: string; assistantId: string } | undefined
 /** The resolved course behind that binding — its `code` is the prefix a new session is named with. */
 let course: { id: string; code: string } | undefined
 const coursePromoted: Array<{ directory: string; sessionID: string; binding?: unknown }> = []
+/** The order history and the course binding were promoted in, across one submit. */
+const promotions: string[] = []
 /** What a Start sent to the sidecar, and what the sidecar answers it with. */
 const jolliStartInputs: unknown[] = []
 /** Every `session.update` the submit sent — only the first message of a started session renames it. */
@@ -60,6 +62,12 @@ const addedTabs: Array<{ server: string; sessionId: string }> = []
 let openTabs: Array<{ type: "draft"; draftID: string; server: string; directory: string }> | undefined
 const sentPrompts: string[] = []
 const promptInputs: unknown[] = []
+/** What the submit put back into an input — a message held back for a session to read its opener first. */
+const promptSets: unknown[] = []
+/** What the submit did to the input, in order: emptied it, or put a message back into it. */
+const promptWrites: string[] = []
+/** Every toast the submit showed. */
+const toasts: unknown[] = []
 const sentCommands: unknown[] = []
 const commands: Array<{ name: string }> = []
 let serverSessionSyncs = 0
@@ -97,8 +105,13 @@ const prompt = {
     current: () => undefined,
     set: () => undefined,
   },
-  reset: () => undefined,
-  set: () => undefined,
+  reset: () => {
+    promptWrites.push("reset")
+  },
+  set: (value: unknown) => {
+    promptWrites.push("set")
+    promptSets.push(value)
+  },
   context: {
     add: () => undefined,
     remove: () => undefined,
@@ -198,7 +211,7 @@ beforeAll(async () => {
   // What `submit.ts` actually imports. Without this the real module is loaded, dragging in the
   // Kobalte toaster for no benefit to any assertion here.
   mock.module("@/utils/toast", () => ({
-    showToast: () => 0,
+    showToast: (options: unknown) => toasts.push(options),
   }))
 
   mock.module("@opencode-ai/core/util/encode", () => ({
@@ -237,6 +250,7 @@ beforeAll(async () => {
       promote(directory: string, sessionID: string, binding?: unknown) {
         if (coursePromoteFails) throw new Error("promote failed")
         coursePromoted.push({ directory, sessionID, ...(binding ? { binding } : {}) })
+        promotions.push("course")
       },
       draft: {
         get starting() {
@@ -417,6 +431,7 @@ beforeEach(() => {
   courseBinding = undefined
   course = undefined
   coursePromoted.length = 0
+  promotions.length = 0
   jolliStartInputs.length = 0
   sessionUpdates.length = 0
   jolliStartAnswer = async () => ({ data: { status: "unreachable" } })
@@ -430,6 +445,9 @@ beforeEach(() => {
   openTabs = undefined
   sentPrompts.length = 0
   promptInputs.length = 0
+  promptSets.length = 0
+  promptWrites.length = 0
+  toasts.length = 0
   sentCommands.length = 0
   commands.length = 0
   promptValue = [{ type: "text", content: "ls", start: 0, end: 2 }]
@@ -853,6 +871,7 @@ describe("prompt submit history handoff", () => {
 
   const submitWithHistory = (
     info: () => { id: string; title?: string; metadata?: Record<string, unknown> } | undefined = () => undefined,
+    mode: "normal" | "shell" = "shell",
   ) =>
     createPromptSubmit({
       prompt,
@@ -860,13 +879,16 @@ describe("prompt submit history handoff", () => {
       imageAttachments: () => [],
       commentCount: () => 0,
       autoAccept: () => false,
-      mode: () => "shell",
+      mode: () => mode,
       working: () => false,
       editor: () => undefined,
       queueScroll: () => undefined,
       promptLength: (value) => value.reduce((sum, part) => sum + ("content" in part ? part.content.length : 0), 0),
       addToHistory: () => undefined,
-      promoteHistory: (sessionID) => history.promoted.push(sessionID),
+      promoteHistory: (sessionID) => {
+        history.promoted.push(sessionID)
+        promotions.push("history")
+      },
       discardHistory: () => history.discarded++,
       resetHistoryNavigation: () => undefined,
       setMode: () => undefined,
@@ -1035,14 +1057,117 @@ describe("prompt submit history handoff", () => {
     expect(jolliStartInputs).toEqual([
       expect.objectContaining({ courseId: "7", assistantId: "42", assignmentId: "40", partId: "41" }),
     ])
+    // Named by the typed message only once it is sent, as a started session is: an opener could hold it back.
+    expect(jolliStartInputs[0]).not.toHaveProperty("title")
+    expect(sessionUpdates).toEqual([{ sessionID: "ses_task", title: "CS 310 · ls" }])
     expect(sessionCreateInputs).toEqual([])
     expect(sentShell).toEqual([expect.objectContaining({ sessionID: "ses_task", command: "ls" })])
-    // Born with the server's default title, it is named by the typed message as a Start's first one is.
-    expect(sessionUpdates).toEqual([{ sessionID: "ses_task", title: "CS 310 · ls" }])
     expect(history.promoted).toEqual(["ses_task"])
+    // Before the session is shown: its composer reads the history once, as it is made.
+    expect(promotions).toEqual(["history", "course"])
     // The composer waited as Start's row does while the gateway opened the session, and came back after.
     expect(draftState.startingSeen).toEqual([true])
     expect(draftState.starting).toBe(false)
+  })
+
+  /**
+   * ⚠ AN OPENER THE CATALOGUE DID NOT FORESEE HOLDS THE TYPED MESSAGE BACK. The list said the agent does not
+   * speak first, but the gateway wrote it an opener; the message goes to the session's input, unsent,
+   * and the catalogue is asked again so the next draft shows Start.
+   */
+  test("a typed first message whose task's agent turns out to open the session is held back for its input", async () => {
+    courseBinding = { courseId: "7", assistantId: "42" }
+    draftState.task = { ...courseBinding, assignmentId: "40", partId: "41", label: "Lab 4 · Task 2" }
+    jolliStartAnswer = async () => ({
+      data: {
+        status: "started",
+        opener: true,
+        session: {
+          id: "ses_task",
+          directory: "/repo/worktree-a",
+          title: "New session - 2026-10-14T08:00:00.000Z",
+          time: { created: 1, updated: 1 },
+          metadata: { jolli: courseBinding, jolliOpener: { sessionID: "ses_task", text: "Hi" } },
+        },
+      },
+    })
+    const before = catalogGeneration()
+
+    await submitWithHistory(undefined, "normal").handleSubmit(event())
+
+    expect(coursePromoted).toEqual([expect.objectContaining({ sessionID: "ses_task" })])
+    expect(sentPrompts).toEqual([])
+    expect(sentShell).toEqual([])
+    expect(sessionUpdates).toEqual([])
+    expect(promptSets).toEqual([promptValue])
+    // Said, since a student who moved on during the wait would otherwise wait on a reply to nothing.
+    expect(toasts).toEqual([{ description: "prompt.jolli.start.heldBack" }])
+    // The unsent message leaves no history entry behind: promoted, the discard would have had nothing to drop.
+    expect(history.promoted).toEqual([])
+    expect(history.discarded).toBe(1)
+    // Nor does it name the session it was never sent to.
+    expect(jolliStartInputs[0]).not.toHaveProperty("title")
+    expect(catalogGeneration()).toBe(before + 1)
+  })
+
+  /**
+   * ⚠ THE INPUT IT WAS TYPED IN IS EMPTIED, AS A SENT MESSAGE'S IS. With no draft tab, that is the New session
+   * input; left holding the message, it would send it again, to a plain session, on the next Enter.
+   */
+  test("a typed first message held back for an opener leaves the input it was typed in empty", async () => {
+    courseBinding = { courseId: "7", assistantId: "42" }
+    draftState.task = { ...courseBinding, assignmentId: "40", partId: "41", label: "Lab 4 · Task 2" }
+    jolliStartAnswer = async () => ({
+      data: {
+        status: "started",
+        opener: true,
+        session: {
+          id: "ses_task",
+          directory: "/repo/worktree-a",
+          title: "New session - 2026-10-14T08:00:00.000Z",
+          time: { created: 1, updated: 1 },
+          metadata: { jolli: courseBinding, jolliOpener: { sessionID: "ses_task", text: "Hi" } },
+        },
+      },
+    })
+
+    await submitWithHistory(undefined, "normal").handleSubmit(event())
+
+    expect(sentPrompts).toEqual([])
+    expect(promptSets).toEqual([promptValue])
+    // Emptied before the session's input is given the message, so the message is what that input is left with.
+    // The input it was typed in is a different one without a draft tab; `clear()` empties both — see its test.
+    expect(promptWrites).toEqual(["reset", "set"])
+  })
+
+  /** ⚠ A SHELL COMMAND IS RUN THROUGH AN OPENER: it asks the model nothing, so it talks over no one. */
+  test("a typed first shell command on a task's draft runs though the gateway wrote an opener", async () => {
+    courseBinding = { courseId: "7", assistantId: "42" }
+    draftState.task = { ...courseBinding, assignmentId: "40", partId: "41", label: "Lab 4 · Task 2" }
+    jolliStartAnswer = async () => ({
+      data: {
+        status: "started",
+        opener: true,
+        session: {
+          id: "ses_task",
+          directory: "/repo/worktree-a",
+          title: "New session - 2026-10-14T08:00:00.000Z",
+          time: { created: 1, updated: 1 },
+          metadata: { jolli: courseBinding, jolliOpener: { sessionID: "ses_task", text: "Hi" } },
+        },
+      },
+    })
+
+    const before = catalogGeneration()
+
+    await submitWithHistory().handleSubmit(event())
+
+    expect(sentShell).toEqual([expect.objectContaining({ sessionID: "ses_task", command: "ls" })])
+    expect(promptSets).toEqual([])
+    expect(toasts).toEqual([])
+    // The catalogue was wrong about the agent all the same.
+    expect(catalogGeneration()).toBe(before + 1)
+    expect(history.promoted).toEqual(["ses_task"])
   })
 
   test("a refused task start keeps the typed message, sends nothing, and shows the gateway's sentence", async () => {

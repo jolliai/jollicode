@@ -1227,6 +1227,7 @@ export const dict = {
   "prompt.jolli.start.button": "Comença",
   "prompt.jolli.start.writing": "L'agent està escrivint…",
   "prompt.jolli.start.failed": "No s'ha pogut iniciar el xat. Torna-ho a provar.",
+  "prompt.jolli.start.heldBack": "L'agent ha obert la conversa primer, així que el teu missatge no s'ha enviat. T'espera al camp d'entrada.",
   "prompt.jolli.closed.notice": "Aquest agent s'ha tancat. Encara pots llegir aquest xat.",
   "prompt.jolli.refusal.notOpen": "Aquest agent encara no està obert.",
   "prompt.jolli.refusal.closed": "Aquest agent s'ha tancat.",

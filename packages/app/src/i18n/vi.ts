@@ -1220,6 +1220,7 @@ export const dict = {
   "prompt.jolli.start.button": "Bắt đầu",
   "prompt.jolli.start.writing": "Tác nhân đang viết…",
   "prompt.jolli.start.failed": "Không thể bắt đầu cuộc trò chuyện. Hãy thử lại.",
+  "prompt.jolli.start.heldBack": "Tác nhân đã mở đầu cuộc trò chuyện trước, nên tin nhắn của bạn chưa được gửi. Tin nhắn đang chờ trong ô nhập.",
   "prompt.jolli.closed.notice": "Tác nhân này đã đóng. Bạn vẫn có thể đọc cuộc trò chuyện này.",
   "prompt.jolli.refusal.notOpen": "Tác nhân này chưa mở.",
   "prompt.jolli.refusal.closed": "Tác nhân này đã đóng.",

@@ -1203,6 +1203,7 @@ export const dict = {
   "prompt.jolli.start.button": "Alusta",
   "prompt.jolli.start.writing": "Agent kirjutab…",
   "prompt.jolli.start.failed": "Vestlust ei õnnestunud alustada. Proovi uuesti.",
+  "prompt.jolli.start.heldBack": "Agent alustas vestlust esimesena, seega sinu sõnumit ei saadetud. See ootab sisestusväljal.",
   "prompt.jolli.closed.notice": "See agent on suletud. Saad seda vestlust endiselt lugeda.",
   "prompt.jolli.refusal.notOpen": "See agent pole veel avatud.",
   "prompt.jolli.refusal.closed": "See agent on suletud.",

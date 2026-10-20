@@ -1235,6 +1235,7 @@ export const dict = {
   "prompt.jolli.start.button": "ابدأ",
   "prompt.jolli.start.writing": "الوكيل يكتب…",
   "prompt.jolli.start.failed": "تعذّر بدء المحادثة. حاول مرة أخرى.",
+  "prompt.jolli.start.heldBack": "بدأ الوكيل المحادثة أولًا، لذلك لم تُرسَل رسالتك. إنها بانتظارك في مربع الإدخال.",
   "prompt.jolli.closed.notice": "أُغلق هذا الوكيل. لا يزال بإمكانك قراءة هذه المحادثة.",
   "prompt.jolli.refusal.notOpen": "لم يُفتح هذا الوكيل بعد.",
   "prompt.jolli.refusal.closed": "أُغلق هذا الوكيل.",

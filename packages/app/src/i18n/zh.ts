@@ -1281,6 +1281,7 @@ export const dict = {
   "prompt.jolli.start.button": "开始",
   "prompt.jolli.start.writing": "智能体正在输入…",
   "prompt.jolli.start.failed": "无法开始对话，请重试。",
+  "prompt.jolli.start.heldBack": "智能体已先开启对话，你的消息没有发送，仍保留在输入框中。",
   "prompt.jolli.closed.notice": "此智能体已关闭，你仍可阅读此对话。",
   "prompt.jolli.refusal.notOpen": "此智能体尚未开放。",
   "prompt.jolli.refusal.closed": "此智能体已关闭。",

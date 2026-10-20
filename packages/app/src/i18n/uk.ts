@@ -1323,6 +1323,7 @@ export const dict = {
   "prompt.jolli.start.button": "Почати",
   "prompt.jolli.start.writing": "Агент пише…",
   "prompt.jolli.start.failed": "Не вдалося розпочати чат. Спробуйте ще раз.",
+  "prompt.jolli.start.heldBack": "Агент першим розпочав розмову, тому ваше повідомлення не надіслано. Воно чекає в полі введення.",
   "prompt.jolli.closed.notice": "Цей агент закрито. Ви все ще можете читати цей чат.",
   "prompt.jolli.refusal.notOpen": "Цей агент ще не відкрито.",
   "prompt.jolli.refusal.closed": "Цей агент закрито.",

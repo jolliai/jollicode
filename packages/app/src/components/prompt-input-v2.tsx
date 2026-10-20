@@ -103,6 +103,25 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
     const assistant = courseSession.assistant()
     return assistant ? !!assistant.opensConversation : !!courseSession.draft.task
   }
+  /**
+   * ⚠ THE INPUT TAKES FOCUS BACK WHEN A FAILED OPENING RETURNS IT. A task's typed first message unmounts
+   * the input while its session opens on the gateway; drawn again after a refusal it would leave focus on
+   * the page's body, and the student's Enter to retry would go nowhere. Only a failed one: an opening that
+   * succeeded promoted the draft, clearing its task, before `starting` cleared, and its session view is
+   * where focus belongs now. And only focus that went nowhere: a student who moved on to the search or the
+   * terminal during the wait keeps typing there.
+   */
+  createEffect(
+    on(
+      () => courseSession.draft.starting,
+      (starting, before) => {
+        if (!before || starting || !courseSession.draft.task || opens()) return
+        if (document.activeElement && document.activeElement !== document.body) return
+        props.controller.restoreFocus()
+      },
+      { defer: true },
+    ),
+  )
 
   return (
     <div class="flex flex-col gap-3">
@@ -194,7 +213,13 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
        */}
       <Show
         when={!opens() && !courseSession.draft.starting}
-        fallback={<PromptStartRow writing={opens()} onStart={() => void props.controller.start()} />}
+        fallback={
+          <PromptStartRow
+            // Only an agent the catalogue says speaks first is writing; an unknown task agent may not be.
+            writing={opens() && !!courseSession.assistant()?.opensConversation}
+            onStart={() => void props.controller.start()}
+          />
+        }
       >
         <PromptInputV2
           controller={props.controller}

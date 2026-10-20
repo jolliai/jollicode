@@ -1310,6 +1310,7 @@ export const dict = {
   "prompt.jolli.start.button": "Başlat",
   "prompt.jolli.start.writing": "Ajan yazıyor…",
   "prompt.jolli.start.failed": "Sohbet başlatılamadı. Tekrar deneyin.",
+  "prompt.jolli.start.heldBack": "Sohbeti ajan önce başlattı, bu yüzden mesajınız gönderilmedi. Giriş alanında bekliyor.",
   "prompt.jolli.closed.notice": "Bu ajan kapandı. Bu sohbeti okumaya devam edebilirsiniz.",
   "prompt.jolli.refusal.notOpen": "Bu ajan henüz açılmadı.",
   "prompt.jolli.refusal.closed": "Bu ajan kapandı.",

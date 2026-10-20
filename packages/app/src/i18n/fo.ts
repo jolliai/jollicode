@@ -1205,6 +1205,7 @@ export const dict = {
   "prompt.jolli.start.button": "Byrja",
   "prompt.jolli.start.writing": "Agenturin skrivar…",
   "prompt.jolli.start.failed": "Ikki gjørligt at byrja prátið. Royn aftur.",
+  "prompt.jolli.start.heldBack": "Agenturin byrjaði samrøðuna fyrst, so tín boð vórðu ikki send. Tey bíða í inntaksteiginum.",
   "prompt.jolli.closed.notice": "Hesin agenturin er stongdur. Tú kanst framvegis lesa hetta prátið.",
   "prompt.jolli.refusal.notOpen": "Hesin agenturin er ikki opin enn.",
   "prompt.jolli.refusal.closed": "Hesin agenturin er stongdur.",

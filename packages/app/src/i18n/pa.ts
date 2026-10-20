@@ -1213,6 +1213,7 @@ export const dict = {
   "prompt.jolli.start.button": "شروع کرو",
   "prompt.jolli.start.writing": "ایجنٹ لکھ رہیا اے…",
   "prompt.jolli.start.failed": "چیٹ شروع نہیں ہو سکی۔ فیر کوشش کرو۔",
+  "prompt.jolli.start.heldBack": "ایجنٹ نے پہلاں گل بات شروع کیتی، ایس لئی تہاڈا سنیہا نہیں گیا۔ ایہہ ان پٹ خانے وچ اڈیک رہیا اے۔",
   "prompt.jolli.closed.notice": "ایہہ ایجنٹ بند ہو گیا اے۔ تسیں ہالے وی ایہہ چیٹ پڑھ سکدے او۔",
   "prompt.jolli.refusal.notOpen": "ایہہ ایجنٹ ہالے کھلیا نہیں۔",
   "prompt.jolli.refusal.closed": "ایہہ ایجنٹ بند ہو گیا اے۔",

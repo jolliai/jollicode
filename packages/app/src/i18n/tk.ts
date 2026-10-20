@@ -1210,6 +1210,7 @@ export const dict = {
   "prompt.jolli.start.button": "Başla",
   "prompt.jolli.start.writing": "Agent ýazýar…",
   "prompt.jolli.start.failed": "Söhbeti başlap bolmady. Täzeden synanyş.",
+  "prompt.jolli.start.heldBack": "Söhbeti agent ilki başlady, şonuň üçin habaryň iberilmedi. Ol giriş meýdançasynda garaşýar.",
   "prompt.jolli.closed.notice": "Bu agent ýapyldy. Bu söhbeti henizem okap bilersiň.",
   "prompt.jolli.refusal.notOpen": "Bu agent entek açylmady.",
   "prompt.jolli.refusal.closed": "Bu agent ýapyldy.",
