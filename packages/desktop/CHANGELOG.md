@@ -5,6 +5,9 @@
 ## 0.0.3
 
 - **Windows and Linux installers.** The desktop app is available for Windows and Linux again, alongside macOS. Windows installers are signed.
+- **Assignments.** TODO Assignments in the sidebar lists your course's assignments and their due dates. Open one to start or continue each task in its own chat, and turn the assignment in once every task is handed in. Tasks you do on the web are listed too.
+- **Hand in from the chat.** In a task's chat, ask the assistant to hand in your work. It shows you exactly what it will hand in, and nothing is handed in until you approve.
+- **Assignments link.** When you ask about assignments the assistant can't look up, the answer offers a View assignments button to your course's assignments page. A course material that belongs to an assignment links to it.
 - **Assistants that open the conversation.** When a course assistant is set to speak first, press Start and the assistant writes the opening message.
 - **Your teacher's brief** for an assistant shows above the composer before you start a chat.
 - **Closed assistants.** When your teacher closes an assistant, you can still read the chat, and the app tells you it has closed. The course picker shows when no assistant is open right now.
