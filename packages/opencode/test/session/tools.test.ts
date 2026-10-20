@@ -17,6 +17,8 @@ import { ToolRegistry } from "@/tool/registry"
 import { Truncate } from "@/tool/truncate"
 import { Plugin } from "@/plugin"
 import { RuntimeFlags } from "@/effect/runtime-flags"
+import { JolliMcpCall } from "@/mcp/jolli-call"
+import type { OrgScope } from "@opencode-ai/core/jolli/org-scoped-id"
 import { Effect, Layer, Schema } from "effect"
 import { asSchema, streamText } from "ai"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
@@ -415,6 +417,105 @@ it.effect("does not offer the course tools to a session with no course binding, 
     expect(result.tools.jolliedu_list_user_attachments).toBeDefined()
   }),
 )
+
+describe("the org a session's MCP calls are made in", () => {
+  const ACME: OrgScope = { tenantSlug: "acme", orgSlug: "main" }
+  const scoped = {
+    id: sessionID,
+    permission: [],
+    metadata: { jolli: { courseId: "acme:main:7", assistantId: "acme:main:12" } },
+  } as unknown as Session.Info
+
+  function resolveFor(session: Session.Info, mcp: MCP.Interface) {
+    return SessionTools.resolve({
+      agent,
+      model,
+      session,
+      processor: {
+        message: { id: messageID } as SessionV1.Assistant,
+        updateToolCall: () => Effect.die("unused"),
+        completeToolCall: () => Effect.void,
+      } as Pick<SessionProcessor.Handle, "message" | "updateToolCall" | "completeToolCall">,
+      bypassAgentCheck: false,
+      messages: [],
+      promptOps: {} as never,
+    }).pipe(Effect.provide(createLayer(fakePlugin, mcp)))
+  }
+
+  const options = { toolCallId: callID, abortSignal: new AbortController().signal, messages: [] }
+
+  it.effect("a tool call starts in the org the session's course names, and only inside the call", () =>
+    Effect.gen(function* () {
+      const madeIn: Array<{ readonly org: OrgScope | undefined } | undefined> = []
+      const client = {
+        callTool: async () => {
+          madeIn.push(JolliMcpCall.current())
+          return { content: [{ type: "text" as const, text: "ok" }] }
+        },
+      }
+      const mcp = MCP.Service.of({
+        tools: () =>
+          Effect.succeed({
+            jolliedu_list_user_attachments: {
+              def: {
+                name: "list_user_attachments",
+                description: "attachments",
+                inputSchema: { type: "object" as const, properties: {} },
+              },
+              client,
+              server: "jolliedu",
+            },
+          }),
+        clients: () => Effect.succeed({}),
+      } as unknown as Partial<MCP.Interface> as MCP.Interface)
+
+      for (const [session, org] of [
+        [scoped, ACME],
+        [{ id: sessionID, permission: [] } as unknown as Session.Info, undefined],
+      ] as const) {
+        const result = yield* resolveFor(session, mcp)
+        yield* Effect.promise(() => result.tools.jolliedu_list_user_attachments!.execute!({}, options))
+        expect(madeIn.pop()).toEqual({ org })
+      }
+      expect(JolliMcpCall.current()).toBeUndefined()
+    }),
+  )
+
+  it.effect("a resource read and the resource listings are made in the same org", () =>
+    Effect.gen(function* () {
+      const asked: Array<[string, OrgScope | undefined]> = []
+      const client = { getServerCapabilities: () => ({ resources: {} }) }
+      const mcp = MCP.Service.of({
+        tools: () => Effect.succeed({}),
+        clients: () => Effect.succeed({ jolliedu: client }),
+        resources: (_server?: string, org?: OrgScope) => {
+          asked.push(["resources", org])
+          return Effect.succeed({})
+        },
+        resourceTemplates: (_server?: string, org?: OrgScope) => {
+          asked.push(["templates", org])
+          return Effect.succeed({})
+        },
+        readResource: (_server: string, _uri: string, org?: OrgScope) => {
+          asked.push(["read", org])
+          return Effect.succeed({ contents: [{ uri: "course://7", text: "notes" }] })
+        },
+      } as unknown as Partial<MCP.Interface> as MCP.Interface)
+
+      const result = yield* resolveFor(scoped, mcp)
+      yield* Effect.promise(() => result.tools.list_mcp_resources!.execute!({ server: "jolliedu" }, options))
+      yield* Effect.promise(() => result.tools.list_mcp_resource_templates!.execute!({ server: "jolliedu" }, options))
+      yield* Effect.promise(() =>
+        result.tools.read_mcp_resource!.execute!({ server: "jolliedu", uri: "course://7" }, options),
+      )
+      expect(asked).toEqual([
+        ["resources", ACME],
+        ["templates", ACME],
+        ["read", ACME],
+      ])
+    }),
+  )
+})
 
 describe("the hand-in tools", () => {
   const handInDefinition = {

@@ -61,6 +61,7 @@ import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { LLMEvent } from "@opencode-ai/llm"
 import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
+import { bindingOrg } from "@opencode-ai/core/jolli/org-scoped-id"
 import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
 import { CourseServer } from "./course-server"
 import { CourseLinks } from "./course-links"
@@ -233,7 +234,7 @@ const layer = Layer.effect(
 
       const sync = (title: string) =>
         isJolliProviderId(input.providerID)
-          ? syncTitle(input.session.id, title).pipe(
+          ? syncTitle(input.session, title).pipe(
               Effect.provideService(JolliSession.Service, jolli),
               Effect.provide(FetchHttpClient.layer),
             )
@@ -832,7 +833,8 @@ const layer = Layer.effect(
                 text: `Reading MCP resource: ${part.filename} (${uri})`,
               },
             ]
-            const exit = yield* mcp.readResource(clientName, uri).pipe(Effect.exit)
+            // Read in the org the session's course lives in, as the model's own resource reads are.
+            const exit = yield* mcp.readResource(clientName, uri, bindingOrg(current)).pipe(Effect.exit)
             if (Exit.isSuccess(exit)) {
               const content = exit.value
               if (!content) throw new Error(`Resource not found: ${clientName}/${uri}`)

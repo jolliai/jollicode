@@ -203,7 +203,9 @@ export const make = (dependencies: Dependencies) => {
     const chunks: string[] = []
     let failed = false
     const headers = Object.fromEntries(
-      Object.entries(input.request.http?.headers ?? {}).filter(([key]) => !key.toLowerCase().startsWith("x-jolli-")),
+      Object.entries(input.request.http?.headers ?? {}).filter(
+        ([key]) => key.toLowerCase() === "x-jolli-org-scope" || !key.toLowerCase().startsWith("x-jolli-"),
+      ),
     )
     const conversation = input.request.http?.headers?.["x-jolli-conversation-id"]
     const summarized = yield* dependencies.llm

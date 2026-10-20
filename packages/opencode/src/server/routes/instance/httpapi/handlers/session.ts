@@ -19,11 +19,18 @@ import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
-import { failureOf, JolliApiError, openConversation, startTaskSession } from "@opencode-ai/core/jolli/api"
+import {
+  failureOf,
+  JolliApiError,
+  openConversation,
+  scopedRequest,
+  startTaskSession,
+} from "@opencode-ai/core/jolli/api"
 import { TASK_KEY, taskBindingOf, taskRecord } from "@opencode-ai/core/jolli/assignment"
 import { courseBindingOf, isGatewayId, type CourseBinding } from "@opencode-ai/core/jolli/binding"
 import { JolliClosedAssistants } from "@opencode-ai/core/jolli/closed-assistants"
 import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
+import { orgScopedId, parseCourseBinding, type OrgScope } from "@opencode-ai/core/jolli/org-scoped-id"
 import { openedOnGateway, openerTextOf } from "@opencode-ai/core/jolli/opener"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { syncTitle } from "@opencode-ai/core/jolli/title"
@@ -214,6 +221,16 @@ export const refuseBindingOutsideStart = Effect.fn("SessionHttpApi.refuseBinding
   if (!next) return
   const previous = boundTo(before)
   if (previous?.courseId === next.courseId && previous.assistantId === next.assistantId) return
+  /**
+   * ⚠ A NEW BINDING MUST NAME A COURSE THE GATEWAY HOLDS, as Start's must. Every reader of a binding
+   * goes through `parseCourseBinding`, and one that does not parse — a malformed id, a pair naming
+   * two orgs — reads as no course at all: its turns would reach the gateway carrying no course and
+   * run without the course's rules. Refused here, it never gets stored.
+   */
+  if (!parseCourseBinding(next)) {
+    yield* Effect.logWarning("Jolli: refused a binding that names no course", { binding: next })
+    return yield* Effect.fail(new HttpApiError.BadRequest({}))
+  }
   if (!(yield* opens(next))) return
   yield* Effect.logWarning("Jolli: refused to bind a session to an assistant that speaks first", { binding: next })
   return yield* Effect.fail(new HttpApiError.BadRequest({}))
@@ -240,8 +257,9 @@ export const refuseBindingOutsideStart = Effect.fn("SessionHttpApi.refuseBinding
  * server.
  */
 export const startJolliSession = Effect.fn("SessionHttpApi.startJolliSession")(function* (input: StartInput) {
-  if (!isGatewayId(input.payload.courseId) || !isGatewayId(input.payload.assistantId))
-    return yield* new HttpApiError.BadRequest({})
+  // An assistant is asked for in its course's org; a pair naming two orgs is no pair the gateway holds.
+  const ids = parseCourseBinding(input.payload)
+  if (!ids) return yield* new HttpApiError.BadRequest({})
   // A task is named whole or not at all: half of one is no task the gateway could start.
   if ((input.payload.assignmentId === undefined) !== (input.payload.partId === undefined))
     return yield* new HttpApiError.BadRequest({})
@@ -251,7 +269,7 @@ export const startJolliSession = Effect.fn("SessionHttpApi.startJolliSession")(f
   )
     return yield* new HttpApiError.BadRequest({})
   const id = input.payload.sessionID ?? SessionID.descending()
-  return yield* startLock.withLock(id)(startUnder(id, input))
+  return yield* startLock.withLock(id)(startUnder(id, input, ids))
 })
 
 /**
@@ -283,11 +301,15 @@ function taskOf(payload: typeof JolliStartPayload.Type) {
     : undefined
 }
 
-const startUnder = Effect.fn("SessionHttpApi.startUnder")(function* (id: SessionID, input: StartInput) {
+/** The org a Start's ids name, and the numeric ids the gateway knows them by there. */
+type StartIds = { readonly org?: OrgScope; readonly courseId: number; readonly assistantId: number }
+
+const startUnder = Effect.fn("SessionHttpApi.startUnder")(function* (id: SessionID, input: StartInput, ids: StartIds) {
   const previous = input.payload.sessionID ? yield* input.existing(id) : undefined
   if (previous) return yield* alreadyStarted(previous, input)
-  const request = yield* input.gateway.request().pipe(Effect.catch(() => Effect.succeed(undefined)))
-  if (!request) return { status: "unreachable" as const }
+  const signedIn = yield* input.gateway.request().pipe(Effect.catch(() => Effect.succeed(undefined)))
+  if (!signedIn) return { status: "unreachable" as const }
+  const request = scopedRequest(signedIn, ids.org)
   const named = taskOf(input.payload)
   /**
    * ⚠ A TASK'S SESSION IS OPENED BY THE TASK, NOT BY THE ASSISTANT. The gateway records the attempt
@@ -298,16 +320,31 @@ const startUnder = Effect.fn("SessionHttpApi.startUnder")(function* (id: Session
   const opened = yield* (
     named
       ? startTaskSession(request, {
-          courseId: Number(input.payload.courseId),
+          courseId: ids.courseId,
           assignmentId: Number(named.assignmentId),
           partId: Number(named.partId),
           publicSessionId: id,
-        })
+        }).pipe(
+          // A task's session is recorded under the agent the gateway bound it to, which every turn is checked
+          // against — in the org the Start was asked in, since the gateway answers with the ids it knows there.
+          Effect.map((started) => ({
+            opener: started.opener,
+            binding: {
+              courseId: orgScopedId(ids.org, started.binding.courseId),
+              assistantId: orgScopedId(ids.org, started.binding.assistantId),
+            },
+          })),
+        )
       : openConversation(request, {
-          spaceId: Number(input.payload.courseId),
-          courseAssistantId: Number(input.payload.assistantId),
+          spaceId: ids.courseId,
+          courseAssistantId: ids.assistantId,
           publicSessionId: id,
-        })
+        }).pipe(
+          Effect.map((conversation) => ({
+            opener: conversation.opener,
+            binding: { courseId: input.payload.courseId, assistantId: input.payload.assistantId },
+          })),
+        )
   ).pipe(Effect.catch((error) => Effect.succeed(error)))
   if (opened instanceof JolliApiError)
     return yield* startRefused(input.gateway, opened, request.token, input.payload.assistantId, named !== undefined)
@@ -327,11 +364,7 @@ const startUnder = Effect.fn("SessionHttpApi.startUnder")(function* (id: Session
      * message; only `text` depends on what the gateway answered.
      */
     metadata: {
-      // A task's session is recorded under the agent the gateway bound it to, which every turn is checked against.
-      jolli:
-        "binding" in opened
-          ? opened.binding
-          : { courseId: input.payload.courseId, assistantId: input.payload.assistantId },
+      jolli: opened.binding,
       jolliOpener: { sessionID: id, ...(opened.opener ? { text: opened.opener } : {}) },
       ...(task ? { [TASK_KEY]: taskRecord(id, task) } : {}),
     },
@@ -615,7 +648,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
          * absent gateway never holds up the rename the student is looking at.
          */
         if (current.model && isJolliProviderId(current.model.providerID)) {
-          yield* syncTitle(ctx.params.sessionID, ctx.payload.title).pipe(
+          yield* syncTitle(current, ctx.payload.title).pipe(
             Effect.provideService(JolliSession.Service, jolli),
             Effect.provide(FetchHttpClient.layer),
             Effect.forkIn(scope),

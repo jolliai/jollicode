@@ -79,7 +79,10 @@ function harness(
   metadata: Record<string, unknown> = TASK_SESSION.metadata,
 ) {
   const sent: { url: string; body: unknown }[] = []
+  /** The org each call was scoped to, in the order sent; null for a call with no scope. */
+  const orgs: (string | null)[] = []
   const fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    orgs.push(new Headers(input instanceof Request ? input.headers : init?.headers).get("x-org-slug"))
     const url = input instanceof Request ? input.url : String(input)
     const raw = input instanceof Request ? await input.text() : init?.body
     const body =
@@ -115,7 +118,7 @@ function harness(
     promise: <A, E, R>(effect: Effect.Effect<A, E, R>) =>
       Effect.runPromise(effect.pipe(Effect.provide(services)) as Effect.Effect<A, E>),
   } as unknown as EffectBridge.Shape
-  return { bridge, sent }
+  return { bridge, sent, orgs }
 }
 
 function context(ask: ToolContext["ask"], abort = new AbortController().signal): ToolContext {
@@ -172,6 +175,36 @@ describe("plugin.jolli-assignment: handing a task in", () => {
     })
     // The last task in: the agent is told to offer the turn-in.
     expect(output(result)).toContain("ask the student whether to turn the whole assignment in")
+  })
+
+  test("an org-scoped task is previewed and handed in in its org, by the numeric ids", async () => {
+    const h = harness((url) => (url.endsWith("/preview") ? json(preview) : json({ part, owedCount: 0 })), {
+      ...TASK_SESSION.metadata,
+      jolli: { courseId: "acme:main:7", assistantId: "acme:main:13" },
+    })
+    await (
+      await tools(h)
+    )[SUBMIT_TASK_PERMISSION].execute(
+      {},
+      context(async () => undefined),
+    )
+    expect(h.sent.map((item) => item.url)).toEqual([
+      "https://acme.jolli.ai/api/courses/7/assignments/40/parts/42/jolli-code/preview",
+      "https://acme.jolli.ai/api/courses/7/assignments/40/parts/42/jolli-code/hand-in",
+    ])
+    expect(h.sent[1]?.body).toMatchObject({ publicSessionId: "ses_a" })
+    expect(h.orgs).toEqual(["main", "main"])
+  })
+
+  test("a bare task sends no scope", async () => {
+    const h = harness((url) => (url.endsWith("/preview") ? json(preview) : json({ part, owedCount: 0 })))
+    await (
+      await tools(h)
+    )[SUBMIT_TASK_PERMISSION].execute(
+      {},
+      context(async () => undefined),
+    )
+    expect(h.orgs).toEqual([null, null])
   })
 
   /** ⚠ A NO FROM THE STUDENT IS AN ANSWER: nothing goes in, and the agent keeps talking. */

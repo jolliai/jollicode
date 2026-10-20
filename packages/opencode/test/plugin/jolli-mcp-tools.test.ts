@@ -40,6 +40,27 @@ describe("plugin.jolli-mcp-tools", () => {
     expect(courseToolBindingOf(BOUND)).toEqual({ courseId: 7, assistantId: 12 })
   })
 
+  test("course tool arguments carry the numeric ids of an org-scoped binding", () => {
+    expect(
+      courseToolBindingOf({ metadata: { jolli: { courseId: "acme:main:12", assistantId: "acme:main:5" } } }),
+    ).toEqual({ courseId: 12, assistantId: 5 })
+    expect(
+      courseToolBindingOf({ metadata: { jolli: { courseId: "acme:12", assistantId: "acme:main:5" } } }),
+    ).toBeUndefined()
+  })
+
+  test("treats a course and assistant naming different orgs as no binding at all", () => {
+    for (const [courseId, assistantId] of [
+      ["acme:main:12", "acme:other:5"],
+      ["acme:main:12", "5"],
+      ["12", "beta:north:5"],
+    ]) {
+      const session = { metadata: { jolli: { courseId, assistantId } } }
+      expect(courseToolBindingOf(session)).toBeUndefined()
+      expect(unboundCourseToolRules(session)).toHaveLength(COURSE_TOOL_IDS.size)
+    }
+  })
+
   test("treats a missing or malformed binding as no binding at all", () => {
     expect(courseToolBindingOf(undefined)).toBeUndefined()
     expect(courseToolBindingOf({ metadata: {} })).toBeUndefined()

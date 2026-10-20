@@ -1,12 +1,30 @@
 import { isJolliProviderId } from "./gateway-config"
+import { orgScopeHeaders, parseCourseBinding } from "./org-scoped-id"
 
 export const CODING_CONTINUATION =
   "Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed."
 
 /**
- * ⚠ A COMPACTION NAMES ITS SESSION AND NOTHING ELSE. It is no step of a turn, so it carries none of a
- * turn's headers; the gateway reads its session only to rewrite the history it summarises with the
- * placeholders that session's personal data already has.
+ * Merges request headers over a provider's static ones. Header names are case-insensitive, so a static
+ * `X-Tenant-Slug` must go when the request names `x-tenant-slug`; left in, a plain object holds both
+ * and the transport joins them into "home, target".
+ */
+export function overrideHeaders(
+  base: Record<string, string>,
+  override: Record<string, string>,
+): Record<string, string> {
+  const names = new Set(Object.keys(override).map((name) => name.toLowerCase()))
+  return {
+    ...Object.fromEntries(Object.entries(base).filter(([name]) => !names.has(name.toLowerCase()))),
+    ...override,
+  }
+}
+
+/**
+ * ⚠ A COMPACTION NAMES ITS SESSION AND THE ORG IT LIVES IN, NOTHING ELSE. It is no step of a turn, so
+ * it carries none of a turn's headers; the gateway reads its session only to rewrite the history it
+ * summarises with the placeholders that session's personal data already has. That session lives in
+ * the org its course binding names, so the scope goes with it; an unbound or bare session names none.
  */
 export function jolliCodingAgentHeaders(input: {
   readonly providerID: string
@@ -29,8 +47,18 @@ export function jolliCodingAgentHeaders(input: {
   readonly skillMessageIds?: ReadonlyArray<number>
 }): Record<string, string> {
   if (!isJolliProviderId(input.providerID)) return {}
+  // The course and assistant are one binding, read whole: half of one, or a pair naming two orgs,
+  // names no course and no org, since half a scope would address the right number in the wrong org.
+  const scope =
+    input.courseID !== undefined && input.courseAssistantID !== undefined
+      ? parseCourseBinding({ courseId: input.courseID, assistantId: input.courseAssistantID })
+      : undefined
   if (input.requestKind === "compaction")
-    return { "x-jolli-conversation-id": input.sessionID, "x-jolli-request-kind": input.requestKind }
+    return {
+      "x-jolli-conversation-id": input.sessionID,
+      "x-jolli-request-kind": input.requestKind,
+      ...orgScopeHeaders(scope?.org),
+    }
   if (input.turnID === undefined || input.clientAttemptID === undefined || input.stepIndex === undefined) return {}
   return {
     "x-jolli-conversation-id": input.sessionID,
@@ -40,8 +68,19 @@ export function jolliCodingAgentHeaders(input: {
     "x-jolli-step-index": String(input.stepIndex),
     ...(input.assistantMessageID ? { "x-jolli-assistant-message-id": input.assistantMessageID } : {}),
     ...(input.skillMessageIds?.length ? { "x-jolli-skill-message-ids": input.skillMessageIds.join(",") } : {}),
-    ...(input.courseID ? { "x-jolli-space-id": input.courseID } : {}),
-    ...(input.courseAssistantID ? { "x-jolli-assistant-id": input.courseAssistantID } : {}),
+    ...(scope
+      ? { "x-jolli-space-id": String(scope.courseId), "x-jolli-assistant-id": String(scope.assistantId) }
+      : /**
+         * ⚠ A BINDING THAT DOES NOT PARSE GOES AS WRITTEN, WITH NO ORG — NEVER LEFT OFF. The gateway
+         * refuses ids it does not hold, which the student sees; dropping them would run the turn as an
+         * unbound chat, outside the course's rules, and nobody would be told. Create and PATCH refuse
+         * such a binding, so this is the backstop for one that got stored some other way.
+         */
+        {
+          ...(input.courseID ? { "x-jolli-space-id": input.courseID } : {}),
+          ...(input.courseAssistantID ? { "x-jolli-assistant-id": input.courseAssistantID } : {}),
+        }),
+    ...orgScopeHeaders(scope?.org),
     // The session remembers which catalogue row ran it, so the web chat's model picker opens on that
     // model. The name in the body cannot say: several rows may share one name.
     ...(input.modelID ? { "x-jolli-model-id": input.modelID } : {}),

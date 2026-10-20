@@ -20,9 +20,12 @@ const it = testEffect(LayerNode.compile(LayerNode.group([Session.node, MessageV2
 const ASSIGNMENTS = "https://school.jolli.ai/learn/44/assignments"
 
 /** A session with one finished turn: the student's question, then the answer that turned it down. */
-const answeredTurn = Effect.fn("Test.answeredTurn")(function* (answerMetadata?: Record<string, unknown>) {
+const answeredTurn = Effect.fn("Test.answeredTurn")(function* (
+  answerMetadata?: Record<string, unknown>,
+  sessionMetadata?: Record<string, unknown>,
+) {
   const sessions = yield* Session.Service
-  const sessionID = (yield* sessions.create({})).id
+  const sessionID = (yield* sessions.create(sessionMetadata === undefined ? {} : { metadata: sessionMetadata })).id
   const userID = MessageID.ascending()
   yield* sessions.updateMessage({
     id: userID,
@@ -125,6 +128,26 @@ describe("CourseLinks.attach", () => {
         answerSources: [],
         assignmentsUrl: ASSIGNMENTS,
       })
+    }),
+  )
+
+  it.instance("asks about an org-scoped session's turn in its org, and a bare one's without a scope", () =>
+    Effect.gen(function* () {
+      const scoped = yield* answeredTurn(undefined, { jolli: { courseId: "acme:main:7", assistantId: "acme:main:12" } })
+      const [sent] = yield* attach({
+        sessionID: scoped.sessionID,
+        userMessageID: scoped.userID,
+        reply: { assignmentsUrl: null },
+      })
+      expect(sent?.headers).toMatchObject({ "x-jolli-org-scope": "1", "x-tenant-slug": "acme", "x-org-slug": "main" })
+
+      const bare = yield* answeredTurn(undefined, { jolli: { courseId: "7", assistantId: "12" } })
+      const [unscoped] = yield* attach({
+        sessionID: bare.sessionID,
+        userMessageID: bare.userID,
+        reply: { assignmentsUrl: null },
+      })
+      expect(unscoped?.headers["x-jolli-org-scope"]).toBeUndefined()
     }),
   )
 

@@ -14,11 +14,12 @@ export * as JolliCourseGuardrails from "./course-guardrails"
 
 import { Duration, Effect, Fiber, Option } from "effect"
 import { FetchHttpClient } from "effect/unstable/http"
-import { fetchAssistantChoices, gatewayRequest, type GatewayRequest } from "./api"
+import { fetchAssistantChoices, gatewayRequest, scopedRequest, type GatewayRequest } from "./api"
 import type { CourseBinding } from "./binding"
 import { loadCatalog, readCatalog, type CatalogSnapshot } from "./cache"
 import { projectCatalog, today } from "./catalog"
 import { Lookup } from "./lookup"
+import { parseCourseBinding } from "./org-scoped-id"
 import { JolliSession } from "./session"
 
 /**
@@ -128,9 +129,14 @@ export const assignmentsIncluded = Effect.fn("JolliCourseGuardrails.assignmentsI
 /**
  * The switch as the gateway states it now, read with a fresh token — refused when that token is no
  * longer for the account `scope` names, whose reading this would otherwise be filed under.
+ *
+ * Read in the org the binding names; a binding that does not parse names no assistant, so its
+ * switch reads as off.
  */
 function readAssignmentSwitch(jolli: JolliSession.Interface, scope: GatewayRequest, binding: CourseBinding) {
   return Effect.gen(function* () {
+    const ids = parseCourseBinding(binding)
+    if (!ids) return false
     const request = yield* jolli.request().pipe(Effect.timeout(TIMEOUT))
     if (
       !request ||
@@ -139,8 +145,10 @@ function readAssignmentSwitch(jolli: JolliSession.Interface, scope: GatewayReque
       request.identity !== scope.identity
     )
       return yield* Effect.fail(new Error("The active Jolli account changed while reading the assignment switch"))
-    const choices = yield* fetchAssistantChoices(request, Number(binding.courseId)).pipe(Effect.timeout(TIMEOUT))
-    return choices.find((choice) => String(choice.id) === binding.assistantId)?.includeAssignments === true
+    const choices = yield* fetchAssistantChoices(scopedRequest(request, ids.org), ids.courseId).pipe(
+      Effect.timeout(TIMEOUT),
+    )
+    return choices.find((choice) => choice.id === ids.assistantId)?.includeAssignments === true
   }).pipe(Effect.provide(FetchHttpClient.layer))
 }
 

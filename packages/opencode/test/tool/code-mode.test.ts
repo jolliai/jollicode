@@ -11,6 +11,7 @@ import { Tool } from "@/tool/tool"
 import * as Truncate from "@/tool/truncate"
 import { MessageID, SessionID } from "@/session/schema"
 import { Cause, Effect, Exit, Layer, Schema } from "effect"
+import { JolliMcpCall } from "@/mcp/jolli-call"
 
 const ctx: Tool.Context = {
   sessionID: SessionID.make("ses_code-mode"),
@@ -44,6 +45,7 @@ function harness(input: {
   servers: string[]
   permission?: PermissionV1.Rule[]
   trigger?: Plugin.Interface["trigger"]
+  session?: Record<string, unknown>
 }) {
   return Layer.mergeAll(
     Layer.mock(Plugin.Service, {
@@ -56,7 +58,7 @@ function harness(input: {
       get: () => Effect.succeed({ name: "build", permission: input.permission ?? [] } as any),
     }),
     Layer.mock(Session.Service, {
-      get: () => Effect.succeed({ permission: [] } as any),
+      get: () => Effect.succeed({ permission: [], ...input.session } as any),
     }),
     Layer.mock(MCP.Service, {
       tools: () => Effect.succeed(input.mcpTools),
@@ -74,12 +76,13 @@ function build(
   servers?: string[],
   permission?: PermissionV1.Rule[],
   trigger?: Plugin.Interface["trigger"],
+  session?: Record<string, unknown>,
 ) {
   const names = serverNames(mcpTools, servers)
   return Effect.runPromise(
     CodeModeTool.pipe(
       Effect.flatMap(Tool.init),
-      Effect.provide(harness({ mcpTools, servers: names, permission, trigger })),
+      Effect.provide(harness({ mcpTools, servers: names, permission, trigger, session })),
     ),
   )
 }
@@ -337,6 +340,26 @@ describe("code mode execute", () => {
     expect(output.metadata.toolCalls).toEqual([
       { tool: "greeter.hello", status: "completed", input: { name: "world" } },
     ])
+  })
+
+  test("starts each MCP call in the org the running session's course names", async () => {
+    const madeIn: Array<unknown> = []
+    const tools = {
+      jolliedu_list_user_attachments: mcpTool("list_user_attachments", () => {
+        madeIn.push(JolliMcpCall.current())
+        return { content: [{ type: "text", text: "none" }] }
+      }),
+    }
+    const code = { code: "return await tools.jolliedu.list_user_attachments({})" }
+
+    const scoped = await build(tools, undefined, undefined, undefined, {
+      metadata: { jolli: { courseId: "acme:main:7", assistantId: "acme:main:12" } },
+    })
+    await Effect.runPromise(scoped.execute(code, ctx))
+    const unbound = await build(tools)
+    await Effect.runPromise(unbound.execute(code, ctx))
+
+    expect(madeIn).toEqual([{ org: { tenantSlug: "acme", orgSlug: "main" } }, { org: undefined }])
   })
 
   test("exposes structured content as native data and composes multiple calls", async () => {

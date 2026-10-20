@@ -255,6 +255,45 @@ describe("startJolliSession", () => {
     expect(h.created).toEqual([])
   })
 
+  test("a Start for an org-scoped course opens the conversation in that org", async () => {
+    const h = harness(() => json({ config: {} }, 201))
+    const result = await Effect.runPromise(h.start({ courseId: "acme:main:12", assistantId: "acme:main:5" }))
+
+    expect(h.sent).toHaveLength(1)
+    expect(h.sent[0]?.url).toBe("https://acme.jolli.ai/api/agent/convos")
+    expect(h.sent[0]?.headers).toMatchObject({
+      "x-jolli-org-scope": "1",
+      "x-tenant-slug": "acme",
+      "x-org-slug": "main",
+    })
+    expect(bodyOf(h.sent[0])).toMatchObject({ spaceId: 12, courseAssistantId: 5 })
+    expect(h.created[0]?.metadata?.["jolli"]).toEqual({ courseId: "acme:main:12", assistantId: "acme:main:5" })
+    expect(result).toMatchObject({ status: "started" })
+  })
+
+  test("a Start for a bare course sends no scope headers", async () => {
+    const h = harness(() => json({ config: {} }, 201))
+    await Effect.runPromise(h.start({ courseId: "7", assistantId: "12" }))
+    expect(Object.keys(h.sent[0]?.headers ?? {}).filter((name) => name.startsWith("x-"))).toEqual([])
+  })
+
+  test("a Start whose course and assistant name different orgs is a bad request", async () => {
+    const h = harness(() => json({}))
+    for (const payload of [
+      { courseId: "acme:main:12", assistantId: "acme:other:5" },
+      { courseId: "acme:main:12", assistantId: "beta:main:5" },
+      { courseId: "acme:main:12", assistantId: "5" },
+      { courseId: "12", assistantId: "acme:main:5" },
+      { courseId: "acme:12", assistantId: "acme:main:5" },
+      { courseId: "a:b:c:12", assistantId: "5" },
+    ]) {
+      const exit = await Effect.runPromise(Effect.exit(h.start(payload)))
+      expect(exit._tag).toBe("Failure")
+    }
+    expect(h.sent).toEqual([])
+    expect(h.created).toEqual([])
+  })
+
   /** ⚠ THE GATEWAY IS IDEMPOTENT BY ID, SO A RETRY UNDER THE SAME ONE CANNOT LEAVE AN ORPHAN BEHIND. */
   test("a retry opens the conversation under the id the client sent", async () => {
     const h = harness(() => json({ config: { opener: { text: "Hi." } } }, 201))
@@ -373,6 +412,20 @@ describe("startJolliSession for an assignment task", () => {
     const again = await Effect.runPromise(h.start({ ...TASK, sessionID }))
     expect(again).toMatchObject({ status: "started", session: { id: sessionID } })
     expect(h.sent).toHaveLength(1)
+  })
+
+  test("a task Start records the gateway's binding under the same org", async () => {
+    const h = harness(() => json({ courseId: 12, courseAssistantId: 7, config: {} }, 201))
+    await Effect.runPromise(
+      h.start({ courseId: "acme:main:12", assistantId: "acme:main:5", assignmentId: "40", partId: "41" }),
+    )
+    expect(h.sent[0]?.url).toBe("https://acme.jolli.ai/api/courses/12/assignments/40/parts/41/jolli-code/sessions")
+    expect(h.sent[0]?.headers).toMatchObject({
+      "x-jolli-org-scope": "1",
+      "x-tenant-slug": "acme",
+      "x-org-slug": "main",
+    })
+    expect(h.created[0]?.metadata?.["jolli"]).toEqual({ courseId: "acme:main:12", assistantId: "acme:main:7" })
   })
 
   test("a folder that is not a repository records the task without a commit", async () => {

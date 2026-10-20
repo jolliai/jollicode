@@ -38,6 +38,8 @@ import { Brand } from "@opencode-ai/core/brand"
 import { JOLLI_MCP_SERVER, jolliMcpFetch } from "@opencode-ai/core/jolli/mcp"
 import { isJolliOriginAllowed } from "@opencode-ai/core/jolli/origin"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
+import type { OrgScope } from "@opencode-ai/core/jolli/org-scoped-id"
+import { JolliMcpCall } from "./jolli-call"
 
 const DEFAULT_TIMEOUT = 30_000
 // SDK 1.30+ caps a single stdio message at 10 MB and closes the transport past it, which rejects
@@ -190,9 +192,17 @@ export interface Interface {
    */
   readonly relist: (server: string) => Effect.Effect<void>
   readonly prompts: () => Effect.Effect<Record<string, PromptInfo & { client: string }>>
-  readonly resources: (clientName?: string) => Effect.Effect<Record<string, ResourceInfo & { client: string }>>
+  /**
+   * `org` on the resource calls is the org of the session asking, when one is: a course server
+   * answers in it (see `JolliMcpCall`). None for a call made for no session, or one with no org.
+   */
+  readonly resources: (
+    clientName?: string,
+    org?: OrgScope,
+  ) => Effect.Effect<Record<string, ResourceInfo & { client: string }>>
   readonly resourceTemplates: (
     clientName?: string,
+    org?: OrgScope,
   ) => Effect.Effect<Record<string, ResourceTemplateInfo & { client: string }>>
   readonly add: (name: string, mcp: ConfigMCPV1.Info) => Effect.Effect<{ status: Record<string, Status> | Status }>
   readonly connect: (name: string) => Effect.Effect<void, NotFoundError>
@@ -205,6 +215,7 @@ export interface Interface {
   readonly readResource: (
     clientName: string,
     resourceUri: string,
+    org?: OrgScope,
   ) => Effect.Effect<Awaited<ReturnType<MCPClient["readResource"]>> | undefined>
   readonly startAuth: (
     mcpName: string,
@@ -314,10 +325,13 @@ const layer = Layer.effect(
               }
               const bridge = yield* EffectBridge.make()
               return {
-                fetch: jolliMcpFetch({
-                  token: () => bridge.promise(jolli.token()),
-                  refused: (token) => bridge.promise(jolli.refused(token)),
-                }),
+                fetch: jolliMcpFetch(
+                  {
+                    token: () => bridge.promise(jolli.token()),
+                    refused: (token) => bridge.promise(jolli.refused(token)),
+                  },
+                  () => JolliMcpCall.current()?.org,
+                ),
               }
             })
           : {}
@@ -778,6 +792,7 @@ const layer = Layer.effect(
       label: string,
       key?: (item: T) => string,
       targetClientName?: string,
+      org?: OrgScope,
     ) {
       return Effect.gen(function* () {
         const cfg = yield* cfgSvc.get()
@@ -789,7 +804,10 @@ const layer = Layer.effect(
             McpCatalog.fetch(
               clientName,
               client,
-              (c) => listFn(c, requestTimeout(s, clientName, cfg.mcp?.[clientName], cfg.experimental?.mcp_timeout)),
+              (c) =>
+                JolliMcpCall.run({ org }, () =>
+                  listFn(c, requestTimeout(s, clientName, cfg.mcp?.[clientName], cfg.experimental?.mcp_timeout)),
+                ),
               label,
               key,
             ).pipe(Effect.map((items) => Object.entries(items ?? {}))),
@@ -802,23 +820,25 @@ const layer = Layer.effect(
       return yield* collectFromConnected(yield* InstanceState.get(state), McpCatalog.prompts, "prompts")
     })
 
-    const resources = Effect.fn("MCP.resources")(function* (clientName?: string) {
+    const resources = Effect.fn("MCP.resources")(function* (clientName?: string, org?: OrgScope) {
       return yield* collectFromConnected(
         yield* InstanceState.get(state),
         McpCatalog.resources,
         "resources",
         (resource) => resource.uri,
         clientName,
+        org,
       )
     })
 
-    const resourceTemplates = Effect.fn("MCP.resourceTemplates")(function* (clientName?: string) {
+    const resourceTemplates = Effect.fn("MCP.resourceTemplates")(function* (clientName?: string, org?: OrgScope) {
       return yield* collectFromConnected(
         yield* InstanceState.get(state),
         McpCatalog.resourceTemplates,
         "resource templates",
         (template) => template.uriTemplate,
         clientName,
+        org,
       )
     })
 
@@ -827,6 +847,7 @@ const layer = Layer.effect(
       fn: (client: MCPClient, timeout?: number) => Promise<A>,
       label: string,
       meta?: Record<string, unknown>,
+      org?: OrgScope,
     ) {
       const s = yield* InstanceState.get(state)
       const client = s.clients[clientName]
@@ -836,7 +857,10 @@ const layer = Layer.effect(
       }
       const cfg = yield* cfgSvc.get()
       return yield* Effect.tryPromise({
-        try: () => fn(client, requestTimeout(s, clientName, cfg.mcp?.[clientName], cfg.experimental?.mcp_timeout)),
+        try: () =>
+          JolliMcpCall.run({ org }, () =>
+            fn(client, requestTimeout(s, clientName, cfg.mcp?.[clientName], cfg.experimental?.mcp_timeout)),
+          ),
         catch: (error) => error,
       }).pipe(
         Effect.tapError((error) =>
@@ -863,12 +887,17 @@ const layer = Layer.effect(
       )
     })
 
-    const readResource = Effect.fn("MCP.readResource")(function* (clientName: string, resourceUri: string) {
+    const readResource = Effect.fn("MCP.readResource")(function* (
+      clientName: string,
+      resourceUri: string,
+      org?: OrgScope,
+    ) {
       return yield* withClient(
         clientName,
         (client, timeout) => client.readResource({ uri: resourceUri }, { timeout }),
         "readResource",
         { resourceUri },
+        org,
       )
     })
 

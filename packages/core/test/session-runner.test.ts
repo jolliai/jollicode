@@ -1327,6 +1327,13 @@ describe("SessionRunnerLLM", () => {
   it.effect("forces one compaction and retries after provider context overflow", () =>
     Effect.gen(function* () {
       const session = yield* setupOverflowRecovery
+      const database = yield* Database.Service
+      yield* database.db
+        .update(SessionTable)
+        .set({ metadata: { jolli: { courseId: "acme:main:12", assistantId: "acme:main:5" } } })
+        .where(eq(SessionTable.id, sessionID))
+        .run()
+        .pipe(Effect.orDie)
       currentModel = Model.make({ ...recoveryModel, provider: providerIdFor("openai") })
       responses = [
         [
@@ -1347,6 +1354,11 @@ describe("SessionRunnerLLM", () => {
       expect(original?.["x-jolli-turn-id"]).toBeDefined()
       expect(requests[1].http?.headers?.["x-jolli-request-kind"]).toBe("compaction")
       expect(requests[1].http?.headers).not.toHaveProperty("x-jolli-request-id")
+      expect(requests[1].http?.headers).toMatchObject({
+        "x-jolli-org-scope": "1",
+        "x-tenant-slug": "acme",
+        "x-org-slug": "main",
+      })
       expect(retried?.["x-jolli-conversation-id"]).toBe(sessionID)
       expect(retried?.["x-jolli-turn-id"]).toBe(original?.["x-jolli-turn-id"])
       expect(retried?.["x-jolli-attempt-id"]).not.toBe(original?.["x-jolli-attempt-id"])

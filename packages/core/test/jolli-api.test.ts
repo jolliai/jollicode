@@ -12,9 +12,12 @@ import {
   gatewayRequest,
   JolliApiError,
   openConversation,
+  renameConversation,
+  scopedRequest,
   shareConversation,
   unshareConversation,
 } from "../src/jolli/api"
+import { catalogCachePath } from "../src/jolli/cache"
 import { it } from "./lib/effect"
 
 /** Something to send, and something to file the snapshot under. See `GatewayRequest.identity`. */
@@ -478,4 +481,42 @@ describe("openConversation", () => {
       expect(seen).toHaveLength(1)
     }),
   )
+})
+
+describe("a request's org scope", () => {
+  const home = { origin: "https://jolli-local.me", tenantSlug: "home", token: "jwt", identity: "student-a" }
+  const acme = { tenantSlug: "acme", orgSlug: "main" }
+
+  // ⚠ THE BASE URL'S TENANT HEADER IS ALREADY ON THE REQUEST; the scope must replace it, not join it.
+  test("a scoped request names its org and overrides the base URL's tenant header", async () => {
+    const http = stub(() => json([]))
+    await Effect.runPromise(fetchAssistantChoices(scopedRequest(home, acme), 7).pipe(Effect.provide(http.layer)))
+    const sent = http.seen[0]
+    expect(sent?.headers["x-jolli-org-scope"]).toBe("1")
+    expect(sent?.headers["x-tenant-slug"]).toBe("acme")
+    expect(sent?.headers["x-org-slug"]).toBe("main")
+  })
+
+  test("an unscoped request sends no scope headers", async () => {
+    const http = stub(() => json([]))
+    await Effect.runPromise(fetchAssistantChoices(scopedRequest(home, undefined), 7).pipe(Effect.provide(http.layer)))
+    const sent = http.seen[0]
+    expect(sent?.headers["x-jolli-org-scope"]).toBeUndefined()
+    expect(sent?.headers["x-org-slug"]).toBeUndefined()
+    expect(sent?.headers["x-tenant-slug"]).toBe("home")
+  })
+
+  test("a scoped write carries the scope too", async () => {
+    const http = stub(() => json({}))
+    await Effect.runPromise(renameConversation(scopedRequest(home, acme), "ses_1", "t").pipe(Effect.provide(http.layer)))
+    const sent = http.seen[0]
+    expect(sent?.method).toBe("PATCH")
+    expect(sent?.headers["x-jolli-org-scope"]).toBe("1")
+    expect(sent?.headers["x-tenant-slug"]).toBe("acme")
+    expect(sent?.headers["x-org-slug"]).toBe("main")
+  })
+
+  test("the catalogue cache path ignores the scope", () => {
+    expect(catalogCachePath(scopedRequest(home, acme))).toBe(catalogCachePath(home))
+  })
 })

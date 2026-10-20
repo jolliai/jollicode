@@ -1,6 +1,8 @@
 import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
+import { bindingOrg, type OrgScope } from "@opencode-ai/core/jolli/org-scoped-id"
+import { JolliMcpCall } from "@/mcp/jolli-call"
 import { courseToolRules, listMcpTools } from "@/plugin/jolli-mcp-tools"
 import * as Tool from "./tool"
 import { CallToolResultSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js"
@@ -177,6 +179,8 @@ const invokeChildTool = Effect.fn("CodeMode.invokeChildTool")(function* (input: 
   args: Record<string, unknown>
   callID: string
   ctx: Tool.Context
+  /** The org the session's course lives in, which the call is made in. */
+  org: OrgScope | undefined
 }) {
   yield* input.plugin.trigger(
     "tool.execute.before",
@@ -187,16 +191,18 @@ const invokeChildTool = Effect.fn("CodeMode.invokeChildTool")(function* (input: 
     yield* input.ctx.ask({ permission: input.entry.key, metadata: {}, patterns: ["*"], always: ["*"] })
     // Deliberately mirrors McpCatalog.convertTool's transport call so the MCP service stays free of tool-loop concerns.
     return yield* Effect.promise(async () => {
-      const raw = await input.entry.tool.client.callTool(
-        { name: input.entry.tool.def.name, arguments: input.args },
-        CallToolResultSchema,
-        {
-          resetTimeoutOnProgress: true,
-          signal: input.ctx.abort,
-          timeout: input.entry.tool.timeout,
-          // The MCP SDK only sends a progress token when this hook is present, enabling timeout resets.
-          onprogress: () => {},
-        },
+      const raw = await JolliMcpCall.run({ org: input.org }, () =>
+        input.entry.tool.client.callTool(
+          { name: input.entry.tool.def.name, arguments: input.args },
+          CallToolResultSchema,
+          {
+            resetTimeoutOnProgress: true,
+            signal: input.ctx.abort,
+            timeout: input.entry.tool.timeout,
+            // The MCP SDK only sends a progress token when this hook is present, enabling timeout resets.
+            onprogress: () => {},
+          },
+        ),
       )
       if (raw.isError)
         throw new Error(
@@ -275,6 +281,7 @@ export const CodeModeTool = Tool.define(
               args: (input ?? {}) as Record<string, unknown>,
               callID: `${ctx.callID ?? entry.key}/${childCalls}`,
               ctx,
+              org: bindingOrg(session),
             })
             return projectMcpResult(result, (attachment: Attachment) => void attachments.push(attachment))
           }).pipe(

@@ -1870,6 +1870,60 @@ describe("session.compaction.process", () => {
     },
     { git: true },
   )
+
+  for (const [name, metadata, expected] of [
+    [
+      "carries the course a bound session names",
+      { jolli: { courseId: "acme:main:12", assistantId: "acme:main:5" } },
+      { courseID: "acme:main:12", courseAssistantID: "acme:main:5" },
+    ],
+    ["carries no course for an unbound session", undefined, { courseID: undefined, courseAssistantID: undefined }],
+  ] as const) {
+    itCompaction.instance(
+      `a compaction of a Jolli session ${name}`,
+      () => {
+        const jolliModel = {
+          ...createModel({ context: 100_000, output: 32_000 }),
+          providerID: ProviderV2.ID.make(providerIdFor("anthropic")),
+        } as Provider.Model
+        const jolliRef = { providerID: jolliModel.providerID, modelID: ModelV2.ID.make(jolliModel.id) }
+        const stub = llm()
+        let captured: LLM.StreamInput | undefined
+        stub.push(reply("summary", (input) => (captured = input)))
+        return Effect.gen(function* () {
+          const ssn = yield* SessionNs.Service
+          const session = yield* ssn.create({ metadata })
+          yield* ssn.updateMessage({
+            id: MessageID.ascending(),
+            role: "user",
+            sessionID: session.id,
+            agent: "build",
+            model: jolliRef,
+            time: { created: Date.now() },
+          })
+          yield* SessionCompaction.use.create({ sessionID: session.id, agent: "build", model: jolliRef, auto: false })
+
+          const msgs = yield* ssn.messages({ sessionID: session.id })
+          yield* SessionCompaction.use.process({
+            parentID: msgs.at(-1)!.info.id,
+            messages: msgs,
+            sessionID: session.id,
+            auto: false,
+          })
+
+          expect(captured?.requestKind).toBe("compaction")
+          expect({ courseID: captured?.courseID, courseAssistantID: captured?.courseAssistantID }).toEqual(expected)
+        }).pipe(
+          withCompaction({
+            llm: stub.llmLayer,
+            provider: ProviderTest.fake({ model: jolliModel }),
+            config: cfg({ tail_turns: 0 }),
+          }),
+        )
+      },
+      { git: true },
+    )
+  }
 })
 
 describe("util.token.estimate", () => {
