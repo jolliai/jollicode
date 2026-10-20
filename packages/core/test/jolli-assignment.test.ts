@@ -242,6 +242,18 @@ describe("projectAssignment", () => {
     expect(taskSessionIDs(read)).toEqual(["ses_old", "ses_new", "ses_other_machine"])
   })
 
+  /**
+   * ⚠ A TASK'S ASSISTANT IS IN ITS COURSE'S ORG. A bare assistant id beside an org-scoped course id
+   * names two orgs, which the start route refuses as no binding at all.
+   */
+  test("names a task's assistant in the org its course names", () => {
+    const read = assignment([part({ assistantId: 12 })])
+    expect(projectAssignment({ id: "acme:bio:7", code: "BIO 7" }, read, new Map(), NOW).tasks[0]?.assistantId).toBe(
+      "acme:bio:12",
+    )
+    expect(projectAssignment(CS310, read, new Map(), NOW).tasks[0]?.assistantId).toBe("12")
+  })
+
   test("names the session handed in, and is ready to turn in once every owed task is in", () => {
     const handed = part({
       attempts: [{ id: 2, conversationId: "ses_a", countedAt: "2026-10-20T10:00:00Z" }],

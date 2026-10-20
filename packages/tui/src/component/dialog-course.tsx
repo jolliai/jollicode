@@ -1,4 +1,5 @@
 import { createEffect, createMemo, on } from "solid-js"
+import { Lookup } from "@opencode-ai/core/jolli/lookup"
 import { useJolli } from "../context/jolli"
 import { useTheme } from "../context/theme"
 import { DialogSelect } from "../ui/dialog-select"
@@ -68,11 +69,15 @@ export function DialogCourse() {
       const course = jolli.course()
       return course ? [{ value: course.id, title: course.code, description: course.title }] : []
     }
-    return jolli.courses().map((course) => ({
-      value: course.id,
-      title: course.code,
-      description: course.title,
-    }))
+    // A list across several orgs is grouped under each org's name: two schools' "CS 101" look alike.
+    return Lookup.orgGroups(jolli.courses()).flatMap((group) =>
+      group.rows.map((course) => ({
+        value: course.id,
+        title: course.code,
+        description: course.title,
+        category: group.label,
+      })),
+    )
   })
 
   return (

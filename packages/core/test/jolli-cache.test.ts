@@ -61,14 +61,17 @@ afterEach(async () => {
 
 function stub(handler: (url: string) => Response) {
   const seen: string[] = []
+  /** Each request's path with the org it was scoped to, if any. */
+  const scoped: string[] = []
   const layer = Layer.succeed(
     HttpClient.HttpClient,
     HttpClient.make((request: HttpClientRequest.HttpClientRequest) => {
       seen.push(new URL(request.url).pathname)
+      scoped.push(`${new URL(request.url).pathname} ${request.headers["x-org-slug"] ?? "-"}`)
       return Effect.succeed(HttpClientResponse.fromWeb(request, handler(request.url)))
     }),
   )
-  return { seen, layer }
+  return { seen, scoped, layer }
 }
 
 const json = (body: unknown, status = 200) =>
@@ -85,6 +88,23 @@ const course = (over: Record<string, unknown> = {}) => ({
   viewerRole: "course-student",
   isStaff: false,
   ...over,
+})
+
+const org = (orgSlug: string) => ({
+  tenantSlug: "acme",
+  orgSlug,
+  tenantId: "t1",
+  orgId: orgSlug,
+  institutionName: "Westfield",
+  orgName: orgSlug,
+})
+const home = org("cs")
+
+/** The cross-org list: each course tagged with an org (home unless it says otherwise). */
+const listed = (courses: readonly Record<string, unknown>[], over: { unavailable?: readonly object[] } = {}) => ({
+  courses: courses.map((item) => ({ org: home, ...item })),
+  unavailable: over.unavailable ?? [],
+  home,
 })
 
 const choice = (id: number) => ({
@@ -119,12 +139,14 @@ describe("refreshCatalog", () => {
    */
   test("stores only the viewer's own coding courses, and asks about no others", async () => {
     const http = stub((url) =>
-      url.endsWith("/api/courses")
-        ? json([
-            course({ id: 7 }),
-            course({ id: 8, requiresCoding: false }),
-            course({ id: 9, viewerRole: "space-manager" }),
-          ])
+      url.endsWith("/api/me/courses")
+        ? json(
+            listed([
+              course({ id: 7 }),
+              course({ id: 8, requiresCoding: false }),
+              course({ id: 9, viewerRole: "space-manager" }),
+            ]),
+          )
         : url.endsWith("/api/agent/models")
           ? json(providers)
           : json([choice(12)]),
@@ -144,8 +166,8 @@ describe("refreshCatalog", () => {
    */
   test("a course whose assistants cannot be listed keeps the rest of the catalogue", async () => {
     const http = stub((url) =>
-      url.endsWith("/api/courses")
-        ? json([course({ id: 7 }), course({ id: 8, code: "CS 101" })])
+      url.endsWith("/api/me/courses")
+        ? json(listed([course({ id: 7 }), course({ id: 8, code: "CS 101" })]))
         : url.endsWith("/api/agent/models")
           ? json(providers)
           : url.includes("/courses/8/")
@@ -161,12 +183,182 @@ describe("refreshCatalog", () => {
   })
 
   /**
+   * ⚠ COURSE 7 IN ANOTHER ORG IS NOT COURSE 7 AT HOME. Its assistants are asked for in its own org,
+   * and filed under an id that names the org, so the two never overwrite each other.
+   */
+  test("asks each course's assistants in its own org and files another org's under its scoped id", async () => {
+    const http = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json(listed([course({ id: 7 }), course({ id: 7, code: "BIO 7", org: org("bio") })]))
+        : url.endsWith("/api/agent/models")
+          ? json(providers)
+          : json([choice(12)]),
+    )
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(http.layer)))
+    written.push(cacheFile(origin))
+
+    expect(Object.keys(snapshot.assistants).toSorted()).toEqual(["7", "acme:bio:7"])
+    expect(snapshot.home?.orgSlug).toBe("cs")
+    expect(http.scoped.filter((line) => line.includes("assistant-choices")).toSorted()).toEqual([
+      "/api/courses/7/assistant-choices -",
+      "/api/courses/7/assistant-choices bio",
+    ])
+    // The list and the models are deployment-wide reads, asked once and unscoped.
+    expect(http.scoped.filter((line) => !line.includes("assistant-choices"))).toEqual([
+      "/api/me/courses -",
+      "/api/agent/models -",
+    ])
+  })
+
+  /**
+   * ⚠ AN ORG THAT DID NOT ANSWER IS NOT AN ORG WITH NO COURSES. Its courses stay as the last answer
+   * left them, so a session bound to one does not read as a course that is gone.
+   */
+  test("keeps the last answer's courses in an org that did not answer this time", async () => {
+    const both = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json(listed([course({ id: 7 }), course({ id: 7, code: "BIO 7", org: org("bio") })]))
+        : url.endsWith("/api/agent/models")
+          ? json(providers)
+          : json([choice(12)]),
+    )
+    await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(both.layer)))
+    written.push(cacheFile(origin))
+
+    const homeOnly = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json(listed([course({ id: 7 })], { unavailable: [org("bio")] }))
+        : url.endsWith("/api/agent/models")
+          ? json(providers)
+          : json([choice(13)]),
+    )
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(homeOnly.layer)))
+
+    expect(snapshot.courses.map((c) => c.code)).toEqual(["CS 310", "BIO 7"])
+    expect(snapshot.assistants["7"]?.map((a) => a.id)).toEqual([13])
+    expect(snapshot.assistants["acme:bio:7"]?.map((a) => a.id)).toEqual([12])
+    // Nothing was asked of the org that did not answer.
+    expect(homeOnly.scoped.some((line) => line.endsWith(" bio"))).toBe(false)
+    // And the snapshot says whose courses are old, so nothing serves it as fresh.
+    expect(snapshot.unavailable?.map((o) => o.orgSlug)).toEqual(["bio"])
+  })
+
+  // An org late with part of its list: the course it did send is the newer copy, and the only one.
+  test("carries nothing forward that this answer already has", async () => {
+    const both = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json(listed([course({ id: 7, code: "BIO 7", org: org("bio") }), course({ id: 8, org: org("bio") })]))
+        : url.endsWith("/api/agent/models")
+          ? json(providers)
+          : json([choice(12)]),
+    )
+    await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(both.layer)))
+    written.push(cacheFile(origin))
+
+    const partial = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json(listed([course({ id: 7, code: "BIO 7 (new)", org: org("bio") })], { unavailable: [org("bio")] }))
+        : url.endsWith("/api/agent/models")
+          ? json(providers)
+          : json([choice(13)]),
+    )
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(partial.layer)))
+    expect(snapshot.courses.map((c) => c.code)).toEqual(["BIO 7 (new)", "CS 310"])
+    expect(snapshot.assistants["acme:bio:7"]?.map((a) => a.id)).toEqual([13])
+    expect(snapshot.assistants["acme:bio:8"]?.map((a) => a.id)).toEqual([12])
+  })
+
+  // The server listing a course it now hides is its newer word: the old visible copy must not return.
+  test("carries nothing forward that this answer lists but no longer shows", async () => {
+    const both = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json(listed([course({ id: 7, code: "BIO 7", org: org("bio") })]))
+        : url.endsWith("/api/agent/models")
+          ? json(providers)
+          : json([choice(12)]),
+    )
+    await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(both.layer)))
+    written.push(cacheFile(origin))
+
+    const hidden = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json(
+            listed([course({ id: 7, code: "BIO 7", requiresCoding: false, org: org("bio") })], {
+              unavailable: [org("bio")],
+            }),
+          )
+        : url.endsWith("/api/agent/models")
+          ? json(providers)
+          : json([choice(13)]),
+    )
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(hidden.layer)))
+    expect(snapshot.courses).toEqual([])
+    expect(snapshot.assistants["acme:bio:7"]).toBeUndefined()
+  })
+
+  /**
+   * ⚠ ONE ANSWER WITHOUT `home` MUST NOT RENAME EVERY HOME COURSE. Read without one, course 7 would
+   * become "acme:cs:7" and every session bound to "7" would read as bound to a course that is gone.
+   */
+  test("keeps the last answer's home when an answer names none", async () => {
+    const named = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json(listed([course({ id: 7 })]))
+        : url.endsWith("/api/agent/models")
+          ? json(providers)
+          : json([choice(12)]),
+    )
+    await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(named.layer)))
+    written.push(cacheFile(origin))
+
+    const unnamed = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json({ ...listed([course({ id: 7 })]), home: undefined })
+        : url.endsWith("/api/agent/models")
+          ? json(providers)
+          : json([choice(13)]),
+    )
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(unnamed.layer)))
+    expect(snapshot.home?.orgSlug).toBe("cs")
+    expect(Object.keys(snapshot.assistants)).toEqual(["7"])
+    expect(unnamed.scoped).toContain("/api/courses/7/assistant-choices -")
+  })
+
+  // An org that answered with no course for this person has none: nothing is carried for it.
+  test("drops an org's courses once it answers without them", async () => {
+    const both = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json(listed([course({ id: 7 }), course({ id: 7, code: "BIO 7", org: org("bio") })]))
+        : url.endsWith("/api/agent/models")
+          ? json(providers)
+          : json([choice(12)]),
+    )
+    await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(both.layer)))
+    written.push(cacheFile(origin))
+
+    const homeOnly = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json(listed([course({ id: 7 })]))
+        : url.endsWith("/api/agent/models")
+          ? json(providers)
+          : json([choice(12)]),
+    )
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(homeOnly.layer)))
+    expect(snapshot.courses.map((c) => c.code)).toEqual(["CS 310"])
+    expect(Object.keys(snapshot.assistants)).toEqual(["7"])
+  })
+
+  /**
    * ⚠ THE WRITE IS WHY THIS MODULE EXISTS: main fetches, the sidecar reads, and a second fetch
    * would be a second answer. A fresh file is served with no request at all.
    */
   test("writes a snapshot the next load serves without asking the gateway", async () => {
     const http = stub((url) =>
-      url.endsWith("/api/courses") ? json([course()]) : url.endsWith("/api/agent/models") ? json(providers) : json([]),
+      url.endsWith("/api/me/courses")
+        ? json(listed([course()]))
+        : url.endsWith("/api/agent/models")
+          ? json(providers)
+          : json([]),
     )
     await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(http.layer)))
     written.push(cacheFile(origin))
@@ -290,7 +482,7 @@ describe("loadCatalog asked for a fresh answer", () => {
       fetch(request) {
         const pathname = new URL(request.url).pathname
         seen.push(pathname)
-        if (pathname === "/api/courses") return json([course()])
+        if (pathname === "/api/me/courses") return json(listed([course()]))
         if (pathname === "/api/agent/models") return json(providers)
         return json([choice(13)])
       },
@@ -303,7 +495,7 @@ describe("loadCatalog asked for a fresh answer", () => {
     expect(cached.kind === "ok" && cached.snapshot.courses.map((c) => c.code)).toEqual(["CS 101"])
 
     const loaded = await Effect.runPromise(loadCatalog(req(origin), { fresh: true }))
-    expect(seen).toContain("/api/courses")
+    expect(seen).toContain("/api/me/courses")
     expect(loaded.kind).toBe("ok")
     if (loaded.kind !== "ok") return
     expect(loaded.stale).toBe(false)
@@ -322,7 +514,7 @@ describe("loadCatalog asked for a fresh answer", () => {
       fetch(request) {
         const pathname = new URL(request.url).pathname
         seen.push(pathname)
-        if (pathname === "/api/courses") return json([course()])
+        if (pathname === "/api/me/courses") return json(listed([course()]))
         if (pathname === "/api/agent/models") return json(providers)
         return json([choice(13)])
       },
@@ -339,7 +531,7 @@ describe("loadCatalog asked for a fresh answer", () => {
     await lock.release()
 
     const answers = await loads
-    expect(seen.filter((pathname) => pathname === "/api/courses")).toHaveLength(1)
+    expect(seen.filter((pathname) => pathname === "/api/me/courses")).toHaveLength(1)
     expect(answers.map((loaded) => loaded.kind === "ok" && loaded.snapshot.courses[0]?.code)).toEqual([
       "CS 310",
       "CS 310",
@@ -358,9 +550,9 @@ describe("loadCatalog asked for a fresh answer", () => {
       async fetch(request) {
         const pathname = new URL(request.url).pathname
         seen.push(pathname)
-        if (pathname === "/api/courses") {
-          if (seen.filter((item) => item === "/api/courses").length === 1) await gate.promise
-          return json([course()])
+        if (pathname === "/api/me/courses") {
+          if (seen.filter((item) => item === "/api/me/courses").length === 1) await gate.promise
+          return json(listed([course()]))
         }
         if (pathname === "/api/agent/models") return json(providers)
         return json([choice(13)])
@@ -370,13 +562,13 @@ describe("loadCatalog asked for a fresh answer", () => {
     await seed(origin, snapshot)
 
     const first = Effect.runPromise(loadCatalog(req(origin), { fresh: true }))
-    while (!seen.includes("/api/courses")) await Bun.sleep(5)
+    while (!seen.includes("/api/me/courses")) await Bun.sleep(5)
     const second = Effect.runPromise(loadCatalog(req(origin), { fresh: true }))
     await Bun.sleep(20)
     gate.resolve()
 
     await Promise.all([first, second])
-    expect(seen.filter((pathname) => pathname === "/api/courses")).toHaveLength(2)
+    expect(seen.filter((pathname) => pathname === "/api/me/courses")).toHaveLength(2)
   })
 
   // Asking past the cache does not give up the fallback: offline, the snapshot still serves.
@@ -390,6 +582,99 @@ describe("loadCatalog asked for a fresh answer", () => {
     expect(loaded.error).toBeDefined()
     expect(loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 101"])
   }, 30_000)
+})
+
+/**
+ * ⚠ A SNAPSHOT SOME ORG DID NOT ANSWER IS PARTLY AS OLD AS THAT ORG'S LAST ANSWER. Served as fresh, a
+ * re-ask after a refused Start could be handed the very assistant just refused, for another TTL.
+ */
+describe("loadCatalog with an org that did not answer", () => {
+  const serve = (unavailable: readonly object[]) => {
+    const seen: string[] = []
+    const server = Bun.serve({
+      port: 0,
+      fetch(request) {
+        const pathname = new URL(request.url).pathname
+        seen.push(pathname)
+        if (pathname === "/api/me/courses") return json(listed([course()], { unavailable }))
+        if (pathname === "/api/agent/models") return json(providers)
+        return json([choice(13)])
+      },
+    })
+    return { seen, server }
+  }
+
+  const partial = {
+    courses: [course({ code: "CS 101" })],
+    assistants: {},
+    models: [],
+    home,
+    unavailable: [org("bio")],
+  }
+
+  /**
+   * ⚠ BUT IT STILL STANDS A WHILE. Refreshed on every read, each message's guardrail check would wait
+   * out the org's timeout and be cut off before the write, and the next message would do it again.
+   */
+  test("lets such a snapshot stand, as stale, for the retry window", async () => {
+    const http = serve([])
+    using server = http.server
+    const origin = server.url.origin
+    await seed(origin, partial)
+
+    const loaded = await Effect.runPromise(loadCatalog(req(origin)))
+    expect(http.seen).toEqual([])
+    expect(loaded.kind === "ok" && loaded.stale).toBe(true)
+    expect(loaded.kind === "ok" && loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 101"])
+  })
+
+  test("does not let such a snapshot stand on its TTL", async () => {
+    const http = serve([])
+    using server = http.server
+    const origin = server.url.origin
+    await seed(origin, partial, 2 * 60_000)
+
+    const loaded = await Effect.runPromise(loadCatalog(req(origin)))
+    expect(http.seen).toContain("/api/me/courses")
+    expect(loaded.kind === "ok" && loaded.stale).toBe(false)
+    expect(loaded.kind === "ok" && loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 310"])
+  })
+
+  // An attempt a caller's deadline cuts off writes nothing; the retry window has to count from it anyway.
+  test("spaces the next retry from an attempt that was cut off", async () => {
+    const seen: string[] = []
+    using server = Bun.serve({
+      port: 0,
+      async fetch(request) {
+        seen.push(new URL(request.url).pathname)
+        await Bun.sleep(2_000)
+        return json([])
+      },
+    })
+    const origin = server.url.origin
+    await seed(origin, partial, 2 * 60_000)
+
+    const first = await Effect.runPromise(loadCatalog(req(origin), { timeout: "100 millis" }))
+    expect(first.kind === "ok" && first.stale).toBe(true)
+    const asked = seen.length
+    expect(asked).toBeGreaterThan(0)
+
+    const second = await Effect.runPromise(loadCatalog(req(origin), { timeout: "100 millis" }))
+    expect(second.kind === "ok" && second.snapshot.courses.map((c) => c.code)).toEqual(["CS 101"])
+    expect(seen.length).toBe(asked)
+  })
+
+  test("answers a fresh ask it could only partly refresh as stale", async () => {
+    const http = serve([org("bio")])
+    using server = http.server
+    const origin = server.url.origin
+    const loaded = await Effect.runPromise(loadCatalog(req(origin), { fresh: true }))
+    written.push(cacheFile(origin))
+    expect(loaded.kind).toBe("ok")
+    if (loaded.kind !== "ok") return
+    expect(loaded.stale).toBe(true)
+    expect(loaded.error).toBeUndefined()
+  })
 })
 
 /**
@@ -426,7 +711,11 @@ describe("refreshCatalog sweeps orphaned snapshots", () => {
   const origin = "https://cache-sweep.jolli.ai"
   const http = () =>
     stub((url) =>
-      url.endsWith("/api/courses") ? json([course()]) : url.endsWith("/api/agent/models") ? json(providers) : json([]),
+      url.endsWith("/api/me/courses")
+        ? json(listed([course()]))
+        : url.endsWith("/api/agent/models")
+          ? json(providers)
+          : json([]),
     )
 
   const refresh = async () => {

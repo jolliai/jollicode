@@ -235,6 +235,6 @@ function readersQueryKey(serverURL: string, sessionID: string) {
  */
 export function courseLabel(language: ReturnType<typeof useLanguage>, share: Jolli.SessionShare | undefined) {
   if (share?.courseCode) return share.courseCode
-  const course = share && share.courseId !== null ? courseById(String(share.courseId)) : undefined
+  const course = share && share.courseId !== null ? courseById(share.courseId) : undefined
   return course?.code || course?.title || language.t("session.share.thisCourse")
 }

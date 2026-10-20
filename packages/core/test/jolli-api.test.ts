@@ -6,7 +6,7 @@ import {
   fetchAssistantChoices,
   fetchConversationShares,
   fetchConversationVisibility,
-  fetchCourses,
+  fetchMyCourses,
   fetchCourseTurnLinks,
   fetchModelIndex,
   gatewayRequest,
@@ -55,6 +55,22 @@ const course = {
   isStaff: false,
 }
 
+const home = {
+  tenantSlug: "dev",
+  orgSlug: "default",
+  tenantId: "1",
+  orgId: "1",
+  institutionName: "Westfield",
+  orgName: "Computing",
+}
+
+/** The cross-org list's envelope around `courses`, each tagged with the home org. */
+const listed = (courses: readonly object[]) => ({
+  courses: courses.map((item) => ({ ...item, org: home })),
+  unavailable: [],
+  home,
+})
+
 describe("gatewayRequest", () => {
   test("keeps a subdomain tenant in the origin and names no slug", () => {
     expect(gatewayRequest("https://acme.jolli.ai", CREDENTIAL)).toEqual({
@@ -87,24 +103,25 @@ describe("gatewayRequest", () => {
   })
 })
 
-describe("fetchCourses", () => {
+describe("fetchMyCourses", () => {
   test("authenticates as the student and asks the origin, not the tenant path", async () => {
-    const http = stub(() => json([course]))
-    const courses = await Effect.runPromise(
-      fetchCourses({ origin: "https://jolli-local.me", tenantSlug: "dev", token: "jwt", identity: "student-a" }).pipe(
+    const http = stub(() => json(listed([course])))
+    const answer = await Effect.runPromise(
+      fetchMyCourses({ origin: "https://jolli-local.me", tenantSlug: "dev", token: "jwt", identity: "student-a" }).pipe(
         Effect.provide(http.layer),
       ),
     )
-    expect(courses.map((c) => c.code)).toEqual(["CS 310"])
-    expect(http.seen[0]?.url).toBe("https://jolli-local.me/api/courses")
+    expect(answer.courses.map((c) => [c.code, c.org.orgSlug])).toEqual([["CS 310", "default"]])
+    expect(answer.home?.orgSlug).toBe("default")
+    expect(http.seen[0]?.url).toBe("https://jolli-local.me/api/me/courses")
     expect(http.seen[0]?.headers["authorization"]).toBe("Bearer jwt")
     expect(http.seen[0]?.headers["x-tenant-slug"]).toBe("dev")
   })
 
   test("a subdomain tenant sends no slug header, because the host already says who it is", async () => {
-    const http = stub(() => json([]))
+    const http = stub(() => json(listed([])))
     await Effect.runPromise(
-      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(
+      fetchMyCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(
         Effect.provide(http.layer),
       ),
     )
@@ -119,23 +136,23 @@ describe("fetchCourses", () => {
   test("carries the status onto the error rather than losing it", async () => {
     const http = stub(() => json({ message: "nope" }, 404))
     const error = await Effect.runPromise(
-      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(
+      fetchMyCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(
         Effect.provide(http.layer),
         Effect.flip,
       ),
     )
     expect(error).toBeInstanceOf(JolliApiError)
     expect(error.status).toBe(404)
-    expect(error.path).toBe("/api/courses")
+    expect(error.path).toBe("/api/me/courses")
     // 404 is an answer, not a wobble: retrying it would delay a verdict the gateway already gave.
     expect(http.seen.length).toBe(1)
   })
 
   // A body the schema does not recognise is a failure, not a half-decoded course list.
   test("refuses a response it cannot decode", async () => {
-    const http = stub(() => json([{ id: "seven" }]))
+    const http = stub(() => json({ courses: [{ id: "seven" }], unavailable: [] }))
     const error = await Effect.runPromise(
-      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(
+      fetchMyCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(
         Effect.provide(http.layer),
         Effect.flip,
       ),
@@ -143,16 +160,29 @@ describe("fetchCourses", () => {
     expect(error).toBeInstanceOf(JolliApiError)
   })
 
-  // A gateway restarting under a student is the ordinary case these routes are retried for.
-  test("retries a transient failure rather than reporting the catalogue gone", async () => {
-    let attempt = 0
-    const http = stub(() => (++attempt < 3 ? json({ message: "restarting" }, 503) : json([course])))
-    const courses = await Effect.runPromise(
-      fetchCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(
+  // One org's display names are only labels: missing, they must not cost every org its courses.
+  test("reads an org whose display names are missing", async () => {
+    const nameless = { tenantSlug: "acme", orgSlug: "bio", institutionName: null }
+    const http = stub(() => json({ courses: [{ ...course, org: nameless }], unavailable: [nameless], home: nameless }))
+    const answer = await Effect.runPromise(
+      fetchMyCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(
         Effect.provide(http.layer),
       ),
     )
-    expect(courses.length).toBe(1)
+    expect(answer.courses.map((c) => c.org.orgSlug)).toEqual(["bio"])
+    expect(answer.unavailable.map((o) => o.orgSlug)).toEqual(["bio"])
+  })
+
+  // A gateway restarting under a student is the ordinary case these routes are retried for.
+  test("retries a transient failure rather than reporting the catalogue gone", async () => {
+    let attempt = 0
+    const http = stub(() => (++attempt < 3 ? json({ message: "restarting" }, 503) : json(listed([course]))))
+    const answer = await Effect.runPromise(
+      fetchMyCourses({ origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }).pipe(
+        Effect.provide(http.layer),
+      ),
+    )
+    expect(answer.courses.length).toBe(1)
     expect(http.seen.length).toBe(3)
   })
 })
@@ -508,7 +538,9 @@ describe("a request's org scope", () => {
 
   test("a scoped write carries the scope too", async () => {
     const http = stub(() => json({}))
-    await Effect.runPromise(renameConversation(scopedRequest(home, acme), "ses_1", "t").pipe(Effect.provide(http.layer)))
+    await Effect.runPromise(
+      renameConversation(scopedRequest(home, acme), "ses_1", "t").pipe(Effect.provide(http.layer)),
+    )
     const sent = http.seen[0]
     expect(sent?.method).toBe("PATCH")
     expect(sent?.headers["x-jolli-org-scope"]).toBe("1")

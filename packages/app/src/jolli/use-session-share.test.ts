@@ -17,7 +17,7 @@ const ROSTER: Jolli.ShareMember[] = [{ userId: 2, name: "Grace Hopper", detail: 
 
 /** What the sidecar answers a write or the readers read with: the readers, no roster. */
 function readersOnly(readers: Jolli.SessionReader[], status: Jolli.ShareStatus = "ok"): Jolli.SessionShare {
-  return { status, courseId: 7, courseCode: "CS 310", readers, members: [], classSize: 0, roster: "unavailable" }
+  return { status, courseId: "7", courseCode: "CS 310", readers, members: [], classSize: 0, roster: "unavailable" }
 }
 
 function fullRead(readers: Jolli.SessionReader[]): Jolli.SessionShare {

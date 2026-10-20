@@ -11,10 +11,10 @@
  * bare CLI from `auth.json`. A module that reached for one would work on exactly one of them.
  *
  * Contract verified against jolliedu's `origin/main`:
- *   GET /api/courses                          CourseRouter.ts:1289   requireAuth()
+ *   GET /api/me/courses                       MeRouter.ts            requireAuth(), fanned out across the person's orgs
  *   GET /api/courses/:id/assistant-choices    CourseRouter.ts:1993   spaces.view, 404-on-no-permission
  *   GET /api/agent/models                     AgentModelRouter.ts:21 any signed-in user
- * All three answer with a bare array — no envelope.
+ * The course list answers `{ courses, unavailable, home }`; the other two a bare array.
  *
  * And the session-share surface, verified against the same tree:
  *   POST   /api/agent/convos                        AgentConvoRouter.ts   `coding_agent` origin, see openConversation
@@ -167,6 +167,41 @@ export const CourseListItem = Schema.Struct({
   isStaff: Schema.Boolean,
 }).annotate({ identifier: "JolliApi.CourseListItem" })
 export interface CourseListItem extends Schema.Schema.Type<typeof CourseListItem> {}
+
+/**
+ * jolliedu `common/src/types/OrgScope.ts` `OrgRef`, less the ids this client does not read.
+ *
+ * ⚠ ONLY THE SLUGS ARE REQUIRED. Every course and every `unavailable` entry decodes one, so a field
+ * the client merely displays being null on one org would fail the whole list — every org's courses
+ * down over one org's label. The slugs are the address; without them a course cannot be asked about.
+ */
+export const OrgRef = Schema.Struct({
+  tenantSlug: Schema.String,
+  orgSlug: Schema.String,
+  institutionName: Schema.optional(Schema.NullOr(Schema.String)),
+  orgName: Schema.optional(Schema.NullOr(Schema.String)),
+}).annotate({ identifier: "JolliApi.OrgRef" })
+export interface OrgRef extends Schema.Schema.Type<typeof OrgRef> {}
+
+/** jolliedu `common/src/types/MyCourses.ts` `MyCourseListItem`: a course and the org it lives in. */
+export const MyCourseListItem = Schema.Struct({ ...CourseListItem.fields, org: OrgRef }).annotate({
+  identifier: "JolliApi.MyCourseListItem",
+})
+export interface MyCourseListItem extends Schema.Schema.Type<typeof MyCourseListItem> {}
+
+/**
+ * jolliedu `common/src/types/MyCourses.ts` `MyCoursesResponse`, less what this client does not read.
+ *
+ * ⚠ `home` IS OPTIONAL ON THE WIRE TYPE for a server that predates it. Without it the client cannot
+ * tell which org is home, and every course is then addressed by its org.
+ */
+export const MyCourses = Schema.Struct({
+  courses: Schema.Array(MyCourseListItem),
+  /** Orgs that did not answer in time; their courses are missing from `courses`. */
+  unavailable: Schema.Array(OrgRef),
+  home: Schema.optional(OrgRef),
+}).annotate({ identifier: "JolliApi.MyCourses" })
+export interface MyCourses extends Schema.Schema.Type<typeof MyCourses> {}
 
 /** Course skill catalog metadata, without instruction bodies. */
 export const CourseSkillChoice = Schema.Struct({
@@ -652,8 +687,14 @@ function refusalOf(json: unknown) {
   }
 }
 
-/** Every course the signed-in user can see. NOT only theirs — see `CourseListItem.viewerRole`. */
-export const fetchCourses = (request: GatewayRequest) => get(request, "/api/courses", Schema.Array(CourseListItem))
+/**
+ * Every course the signed-in user can see in every org they belong to, each tagged with its org.
+ * NOT only theirs — see `CourseListItem.viewerRole`.
+ *
+ * ⚠ ASK IT UNSCOPED. The answer names as `home` the org the request ran in, and a scoped read
+ * answers as if the scope were home; the catalogue reads `home` to keep home ids bare.
+ */
+export const fetchMyCourses = (request: GatewayRequest) => get(request, "/api/me/courses", MyCourses)
 
 /** The server stores private instructions and returns only an immutable message reference. */
 export type SkillInvocationSource = { readonly messageId: string; readonly toolIndex: number }

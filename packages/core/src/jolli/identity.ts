@@ -33,7 +33,7 @@
  * ⚠ AND THE CLAIM NAMES ARE A GUESS UNTIL SOMEBODY CHECKS A REAL TOKEN. Nothing in this repository
  * records what the gateway puts in its payload, so the chains below cover the usual OIDC spellings
  * and fall back rather than assert. If a real token turns out to carry only `sub`, the fix is to add
- * a `fetchViewer` beside `fetchCourses` in `api.ts` and map it into this same shape — one function
+ * a `fetchViewer` beside `fetchMyCourses` in `api.ts` and map it into this same shape — one function
  * body, with no change to the schema, the loader or the UI. That swap is why this is a single
  * function and not spread across callers.
  */

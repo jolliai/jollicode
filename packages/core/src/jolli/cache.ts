@@ -18,7 +18,7 @@
  * unusable on a train; `stale-if-error` is the rule, and {@link loadCatalog} reports staleness
  * rather than hiding it.
  */
-import { readdir, rename, rm, stat, readFile, mkdir, writeFile } from "node:fs/promises"
+import { readdir, rename, rm, stat, readFile, mkdir, utimes, writeFile } from "node:fs/promises"
 import path from "path"
 import { Duration, Effect } from "effect"
 import { FetchHttpClient } from "effect/unstable/http"
@@ -27,25 +27,42 @@ import { Flock } from "../util/flock"
 import { Hash } from "../util/hash"
 import {
   fetchAssistantChoices,
-  fetchCourses,
   fetchModelIndex,
+  fetchMyCourses,
   type CatalogModel,
   type CourseAssistantChoice,
-  type CourseListItem,
   JolliApiError,
   type GatewayRequest,
+  type OrgRef,
+  scopedRequest,
 } from "./api"
-import { isVisibleCourse } from "./catalog"
+import { addressOf, isVisibleCourse, type ListedCourse } from "./catalog"
+import { orgScopedId, sameOrg } from "./org-scoped-id"
 
 /** ⚠ Short on purpose: a professor's model grant should land in minutes, not at next launch. */
 const TTL = Duration.minutes(5)
 
 /**
+ * HOW LONG A SNAPSHOT SOME ORG DID NOT ANSWER STANDS BEFORE IT IS ASKED AGAIN, COUNTED FROM THE LAST
+ * ATTEMPT RATHER THAN THE LAST ANSWER.
+ *
+ * ⚠ IT CANNOT BE ZERO. An org that times out on the gateway keeps doing so for a while, and jolliedu
+ * waits its full fan-out timeout (5s) for it every time — as long as `course-guardrails.ts` gives a
+ * whole refresh. Refreshed on every read, each message would wait out that deadline, be cut off
+ * before the write, and leave the next message to do it again.
+ *
+ * ⚠ FROM THE ATTEMPT, BECAUSE AN INTERRUPTED ATTEMPT WRITES NOTHING. Spacing retries by the file's
+ * last write would let every caller past the window retry; `loadCatalog` touches the snapshot as it
+ * begins one instead.
+ */
+const RETRY = Duration.minutes(1)
+
+/**
  * HOW LONG A REFRESH MAY TAKE BEFORE THE STALE COPY WINS.
  *
  * ⚠ THE PER-REQUEST TIMEOUTS DO NOT ADD UP TO A BOUND, WHICH IS WHY THIS EXISTS. `api.ts` gives
- * each call 15 seconds, but a refresh makes three in sequence (courses, models, then the assistant
- * batch) and `Flock` waits five minutes for a lock by default — so the worst case a caller actually
+ * each call 15 seconds, but a refresh makes two in sequence (courses and models together, then the
+ * assistant batch) and `Flock` waits five minutes for a lock by default — so the worst case a caller actually
  * faces is minutes, not seconds. The callers that cannot afford that pass {@link STARTUP_DEADLINE};
  * this is the backstop for everyone else.
  *
@@ -77,6 +94,10 @@ export const STARTUP_DEADLINE = Duration.seconds(20)
  * aspirational.
  */
 /**
+ * Bumped to 3 when courses came from every org: a course carries its org and `assistants` is keyed
+ * by the course's org-scoped id, so an older build reading this snapshot would key another org's
+ * course 7 as its home course 7.
+ *
  * Bumped to 2 when models grew a `protocol` field. Older cache files carried `AgentModel[]`
  * without one, and the shallow validation in `readSnapshot` would let them through: every model
  * would then fail `runnableModels` (`catalog.ts`) as a protocol this build cannot run, leaving the
@@ -86,16 +107,29 @@ export const STARTUP_DEADLINE = Duration.seconds(20)
  * ⚠ EXPORTED so `script/seed-jolli-catalog.ts` stamps the fixture it drops with the same version
  * this reader demands; a second copy of the number there would silently write unreadable files.
  */
-export const CATALOG_SCHEMA = 2
+export const CATALOG_SCHEMA = 3
 
 /** What one tenant's snapshot holds. Raw gateway fields only — nothing derived. */
 export interface CatalogSnapshot {
   readonly schema?: number
-  /** Already hard-filtered: coding courses this viewer is actually in. */
-  readonly courses: readonly CourseListItem[]
-  /** Keyed by the course's numeric id as a string. Order is the gateway's — default first. */
+  /** Already hard-filtered: coding courses this viewer is actually in, from every org they are in. */
+  readonly courses: readonly ListedCourse[]
+  /** The org the list was answered as home, whose courses keep bare ids. See `addressOf`. */
+  readonly home?: OrgRef
+  /**
+   * Keyed by the course's id as the catalogue projects it: bare for a home course, org-scoped for
+   * any other. Order is the gateway's — default first.
+   */
   readonly assistants: Readonly<Record<string, readonly CourseAssistantChoice[]>>
   readonly models: readonly CatalogModel[]
+  /**
+   * The orgs that did not answer the fetch that produced this snapshot, whose courses are as old as
+   * the last answer they gave, or missing. Absent when every org answered.
+   *
+   * ⚠ A SNAPSHOT THAT HAS ANY IS NOT FRESH, HOWEVER RECENT. It is served `stale`, exactly as a
+   * snapshot behind a failed refresh is, and stands only for {@link RETRY} rather than the TTL.
+   */
+  readonly unavailable?: readonly OrgRef[]
   /**
    * `Date.now()` when the fetch that produced this snapshot BEGAN, which a caller asking past the
    * cache compares against when its own request began — see `loadCatalog`.
@@ -193,14 +227,14 @@ const readSnapshot = Effect.fn("Jolli.readSnapshot")(function* (file: string) {
   return value as CatalogSnapshot
 })
 
-const isFresh = Effect.fn("Jolli.isFresh")(function* (file: string) {
+const isFresh = Effect.fn("Jolli.isFresh")(function* (file: string, ttl = TTL) {
   const mtime = yield* Effect.promise(() =>
     stat(file)
       .then((info) => info.mtimeMs)
       .catch(() => undefined),
   )
   if (mtime === undefined) return false
-  return Date.now() - mtime < Duration.toMillis(TTL)
+  return Date.now() - mtime < Duration.toMillis(ttl)
 })
 
 /**
@@ -211,33 +245,58 @@ const isFresh = Effect.fn("Jolli.isFresh")(function* (file: string) {
  * indistinguishable, and a perfectly ordinary thing to meet in a list. Failing the batch would take
  * every other course down with it; an empty assistant list renders as "this course has no
  * assistants yet", which is a sentence a student can act on.
+ *
+ * ⚠ EACH COURSE'S ASSISTANTS ARE ASKED FOR IN THE COURSE'S OWN ORG. Its numeric id means another
+ * course in any other org, so an unscoped read of an org-B course reads home's course of that number.
+ *
+ * ⚠ THE MODELS ARE ASKED FOR ONCE, UNSCOPED. jolliedu serves one routing catalogue for the whole
+ * deployment, so every org the student reaches grants out of the same Registry UUIDs.
+ *
+ * ⚠ AN ANSWER THAT NAMES NO HOME KEEPS THE LAST ONE. Which org is home decides every home course's
+ * id, so one answer without it would turn each "7" into "tenant:org:7" and leave every session bound
+ * to a home course reading as bound to a course that is gone.
  */
 export const refreshCatalog = Effect.fn("Jolli.refreshCatalog")(function* (request: GatewayRequest) {
   const fetchedAt = Date.now()
-  const courses = (yield* fetchCourses(request)).filter(isVisibleCourse)
-  const models = yield* fetchModelIndex(request)
+  const file = catalogCachePath(request)
+  const [listed, models] = yield* Effect.all([fetchMyCourses(request), fetchModelIndex(request)], {
+    concurrency: 2,
+  })
+  // Read only when it can matter: usually every org answers and the answer names its home.
+  const previous = listed.unavailable.length > 0 || !listed.home ? yield* readSnapshot(file) : undefined
+  const home = listed.home ?? previous?.home
+  const fetched = listed.courses.filter(isVisibleCourse)
   const pairs = yield* Effect.forEach(
-    courses,
-    (course) =>
-      fetchAssistantChoices(request, course.id).pipe(
+    fetched,
+    (course) => {
+      const org = addressOf(course, home)
+      return fetchAssistantChoices(scopedRequest(request, org), course.id).pipe(
         Effect.catch((error) =>
           Effect.logDebug("Jolli: could not list a course's assistants", { course: course.id, error }).pipe(
             Effect.as([] as readonly CourseAssistantChoice[]),
           ),
         ),
-        Effect.map((choices) => [String(course.id), choices] as const),
-      ),
+        Effect.map((choices) => [orgScopedId(org, course.id), choices] as const),
+      )
+    },
     { concurrency: 6 },
+  )
+  const kept = carriedForward(
+    previous,
+    home,
+    listed.unavailable,
+    new Set(listed.courses.map((course) => orgScopedId(addressOf(course, home), course.id))),
   )
   const snapshot: CatalogSnapshot = {
     schema: CATALOG_SCHEMA,
-    courses,
-    assistants: Object.fromEntries(pairs),
+    courses: [...fetched, ...kept.courses],
+    ...(home ? { home } : {}),
+    assistants: { ...kept.assistants, ...Object.fromEntries(pairs) },
     models: Array.from(models.values()),
+    ...(listed.unavailable.length > 0 ? { unavailable: listed.unavailable } : {}),
     fetchedAt,
   }
 
-  const file = catalogCachePath(request)
   /**
    * Written to a sibling and renamed, so a reader never meets a half-written snapshot.
    *
@@ -252,6 +311,58 @@ export const refreshCatalog = Effect.fn("Jolli.refreshCatalog")(function* (reque
   yield* sweepOrphans(file)
   return snapshot
 })
+
+/**
+ * THE LAST SNAPSHOT'S COURSES IN AN ORG THAT DID NOT ANSWER THIS TIME, WITH THEIR ASSISTANTS.
+ *
+ * ⚠ AN ORG THAT TIMED OUT IS NOT AN ORG WITH NO COURSES. Dropping its courses would take them off
+ * the picker and leave every session bound to one reading as a course that is gone, until a refresh
+ * happened to catch that org up. The copy kept is as old as the last answer that org gave, which is
+ * the same trade `stale-if-error` makes for the whole catalogue — and served as stale for the same
+ * reason, through the snapshot's `unavailable`.
+ *
+ * ⚠ ONLY UNDER THE SAME HOME. The assistants are keyed by ids the old home decided were bare or
+ * scoped, so a snapshot answered under another home is keyed in a form this one does not read.
+ *
+ * ⚠ NEVER A COURSE THIS ANSWER ALREADY HAS. An org can be late and still send part of its list;
+ * the course it did send is the newer copy, and a second row with the same id is a duplicate in
+ * every picker.
+ *
+ * ⚠ "HAS" MEANS LISTED, NOT SHOWN. A course the answer lists but `isVisibleCourse` now hides — it
+ * stopped requiring code, or the student's role in it changed — is the server's newer word too;
+ * matched against the visible ones only, the old copy would bring it back to the picker.
+ */
+function carriedForward(
+  previous: CatalogSnapshot | undefined,
+  home: OrgRef | undefined,
+  unavailable: readonly OrgRef[],
+  listed: ReadonlySet<string>,
+) {
+  if (!previous || unavailable.length === 0 || !sameOrg(previous.home, home)) return { courses: [], assistants: {} }
+  const courses = previous.courses
+    .filter((course) => course.org && unavailable.some((org) => sameOrg(org, course.org)))
+    .map((course) => ({ course, id: orgScopedId(addressOf(course, home), course.id) }))
+    .filter((kept) => !listed.has(kept.id))
+  return {
+    courses: courses.map((kept) => kept.course),
+    assistants: Object.fromEntries(
+      courses.flatMap((kept) => (previous.assistants[kept.id] ? [[kept.id, previous.assistants[kept.id]]] : [])),
+    ),
+  }
+}
+
+/** Whether every org answered the fetch behind a snapshot. One that is not is served stale. */
+const isComplete = (snapshot: CatalogSnapshot) => !snapshot.unavailable?.length
+
+/** Whether a snapshot may answer without asking: within its TTL, or within {@link RETRY} when some org did not answer. */
+const stands = (file: string, snapshot: CatalogSnapshot) => isFresh(file, isComplete(snapshot) ? TTL : RETRY)
+
+/** Mark an attempt to refresh `file` as made now. Never fails: at worst the next caller retries sooner. */
+const touch = (file: string) =>
+  Effect.promise(() => {
+    const now = new Date()
+    return utimes(file, now, now).catch(() => {})
+  })
 
 /** Write through a sibling and a rename, so no reader meets half a file. Answers the failure, if any. */
 const writeAtomically = (file: string, contents: string) =>
@@ -383,7 +494,8 @@ const loadCatalogEffect = Effect.fn("Jolli.loadCatalog")(function* (request: Gat
   const requested = Date.now()
   if (!options?.fresh && (yield* isFresh(file))) {
     const cached = yield* readSnapshot(file)
-    if (cached) return { kind: "ok", snapshot: cached, stale: false } satisfies CatalogLoad
+    if (cached && (yield* stands(file, cached)))
+      return { kind: "ok", snapshot: cached, stale: !isComplete(cached) } satisfies CatalogLoad
   }
   // Cross-process: the desktop's main process and its sidecar can arrive here together.
   const refreshed = yield* Effect.scoped(
@@ -394,15 +506,15 @@ const loadCatalogEffect = Effect.fn("Jolli.loadCatalog")(function* (request: Gat
        * cache takes that answer only when its fetch began no earlier than its own request: one that
        * began before may predate whatever made the caller ask, but one since is exactly what it
        * asked for, and refetching it again is how queued refreshes each cost a full gateway load.
+       *
+       * ⚠ SINCE-REQUESTED STANDS EVEN WHEN SOME ORG DID NOT ANSWER IT. That org was asked as late
+       * as this caller would ask it; the answer goes back marked stale rather than asked for again.
        */
-      if (options?.fresh) {
-        const cached = yield* readSnapshot(file)
-        if (cached && (cached.fetchedAt ?? Number.NEGATIVE_INFINITY) >= requested) return cached
-      }
-      if (!options?.fresh && (yield* isFresh(file))) {
-        const cached = yield* readSnapshot(file)
-        if (cached) return cached
-      }
+      const cached = yield* readSnapshot(file)
+      if (cached && (cached.fetchedAt ?? Number.NEGATIVE_INFINITY) >= requested) return cached
+      if (!options?.fresh && cached && (yield* stands(file, cached))) return cached
+      // Spaces the next retry from this attempt, which a caller's deadline may cut off unwritten. See RETRY.
+      if (cached && !isComplete(cached)) yield* touch(file)
       return yield* refreshCatalog(request)
     }),
   ).pipe(
@@ -426,7 +538,9 @@ const loadCatalogEffect = Effect.fn("Jolli.loadCatalog")(function* (request: Gat
     ),
   )
 
-  if (refreshed.ok) return { kind: "ok", snapshot: refreshed.snapshot, stale: false } satisfies CatalogLoad
+  // Some org's courses are as old as its last answer: the whole catalogue does not get to read as fresh.
+  if (refreshed.ok)
+    return { kind: "ok", snapshot: refreshed.snapshot, stale: !isComplete(refreshed.snapshot) } satisfies CatalogLoad
 
   const stale = yield* readSnapshot(file)
   if (stale) {

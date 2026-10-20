@@ -19,6 +19,7 @@
 export * as Lookup from "./lookup"
 
 import { Jolli } from "@opencode-ai/schema/jolli"
+import { parseOrgScopedId } from "./org-scoped-id"
 
 /**
  * HOW RECENT A CATALOGUE REFRESH HAS TO BE FOR A PICKER BEING OPENED TO LET IT STAND.
@@ -33,6 +34,43 @@ export const RECHECK_INTERVAL_MS = 30_000
 export interface CatalogLike {
   readonly courses: readonly Jolli.Course[]
   readonly assistants: readonly Jolli.Assistant[]
+}
+
+/**
+ * A PICKER'S COURSES, ONE GROUP PER ORG AND EACH HEADED BY ITS ORG'S NAME, IN THE LIST'S ORDER.
+ *
+ * ⚠ ONLY WHEN THE STUDENT'S COURSES SPAN MORE THAN ONE ORG. Course ids collide across orgs and so do
+ * course codes — two schools' "CS 101" — so a list that mixes orgs has to say whose each row is. A
+ * list in one org is one unlabelled group, as it was before courses came from every org.
+ *
+ * ⚠ GROUPED BY THE ORG THE ID NAMES, NOT BY ITS DISPLAY NAME. Two orgs can share an institution and
+ * org name; counted by name they read as one org and their two "CS 101" rows sat side by side with
+ * nothing to tell them apart. A name two groups share is followed by the slugs that do differ.
+ *
+ * ⚠ THE INSTITUTION FIRST, THE ORG ONLY WHEN IT SAYS SOMETHING MORE. An institution whose one org
+ * shares its name would otherwise read "Westfield · Westfield".
+ */
+export function orgGroups(courses: readonly Jolli.Course[]) {
+  const byOrg = Array.from(
+    Map.groupBy(courses, (course) => {
+      const org = parseOrgScopedId(course.id)?.org
+      return org ? `${org.tenantSlug}/${org.orgSlug}` : ""
+    }),
+  )
+  if (byOrg.length < 2) return [{ label: undefined, rows: [...courses] }]
+  const named = byOrg.map(([slugs, rows]) => {
+    const org = rows[0].org
+    if (!org) return { slugs, label: slugs || undefined, rows }
+    const label = org.orgName === org.institutionName ? org.institutionName : `${org.institutionName} · ${org.orgName}`
+    return { slugs, label, rows }
+  })
+  return named.map((group) => ({
+    label:
+      group.slugs && named.filter((other) => other.label === group.label).length > 1
+        ? `${group.label} (${group.slugs})`
+        : group.label,
+    rows: group.rows,
+  }))
 }
 
 export function courseById(catalog: CatalogLike, id: string | undefined) {
