@@ -78,6 +78,8 @@ let worktreesCreated = 0
 let sessionCreateFails: boolean | { status: number } = false
 /** The one of those paths that raises instead of returning — nothing downstream gets to clean up. */
 let childSyncFails = false
+/** Whether promoting the new session throws: a failure after the session already exists. */
+let coursePromoteFails = false
 
 let promptValue: Prompt = [{ type: "text", content: "ls", start: 0, end: 2 }]
 const [promptStore, setPromptStore] = createStore<PromptStore>({
@@ -233,6 +235,7 @@ beforeAll(async () => {
       /** Read for the title a new session is born with — see `jolli/session-title.ts`. */
       course: () => course,
       promote(directory: string, sessionID: string, binding?: unknown) {
+        if (coursePromoteFails) throw new Error("promote failed")
         coursePromoted.push({ directory, sessionID, ...(binding ? { binding } : {}) })
       },
       draft: {
@@ -442,6 +445,7 @@ beforeEach(() => {
   worktreesCreated = 0
   sessionCreateFails = false
   childSyncFails = false
+  coursePromoteFails = false
   serverSessionSyncs = 0
   indexedSessions.length = 0
   for (const key of Object.keys(storedSessions)) delete storedSessions[key]
@@ -1001,6 +1005,104 @@ describe("prompt submit history handoff", () => {
       metadata: { jolli: metadata.jolli },
     })).handleSubmit(event())
     expect(sessionUpdates).toHaveLength(1)
+  })
+
+  /**
+   * ⚠ A TASK'S DRAFT TYPED INTO IS STILL OPENED THROUGH THE TASK. Its agent waits for the student, so
+   * the draft shows the input; the session must still be the one the gateway opens for the task — a
+   * plain `session.create` would make a chat the task could never be handed in from.
+   */
+  test("a typed first message on a task's draft opens the task's session on the gateway, then sends it", async () => {
+    courseBinding = { courseId: "7", assistantId: "42" }
+    course = { id: "7", code: "CS 310" }
+    draftState.task = { ...courseBinding, assignmentId: "40", partId: "41", label: "Lab 4 · Task 2" }
+    jolliStartAnswer = async () => ({
+      data: {
+        status: "started",
+        opener: false,
+        session: {
+          id: "ses_task",
+          directory: "/repo/worktree-a",
+          title: "New session - 2026-10-14T08:00:00.000Z",
+          time: { created: 1, updated: 1 },
+          metadata: { jolli: courseBinding, jolliOpener: { sessionID: "ses_task" } },
+        },
+      },
+    })
+
+    await submitWithHistory().handleSubmit(event())
+
+    expect(jolliStartInputs).toEqual([
+      expect.objectContaining({ courseId: "7", assistantId: "42", assignmentId: "40", partId: "41" }),
+    ])
+    expect(sessionCreateInputs).toEqual([])
+    expect(sentShell).toEqual([expect.objectContaining({ sessionID: "ses_task", command: "ls" })])
+    // Born with the server's default title, it is named by the typed message as a Start's first one is.
+    expect(sessionUpdates).toEqual([{ sessionID: "ses_task", title: "CS 310 · ls" }])
+    expect(history.promoted).toEqual(["ses_task"])
+    // The composer waited as Start's row does while the gateway opened the session, and came back after.
+    expect(draftState.startingSeen).toEqual([true])
+    expect(draftState.starting).toBe(false)
+  })
+
+  test("a refused task start keeps the typed message, sends nothing, and shows the gateway's sentence", async () => {
+    courseBinding = { courseId: "7", assistantId: "42" }
+    draftState.task = { ...courseBinding, assignmentId: "40", partId: "41", label: "Lab 4 · Task 2" }
+    const sentence = "Lab 4 stopped taking work at its due date. If you need more time, ask Prof. Okafor."
+    jolliStartAnswer = async () => ({ data: { status: "refused", code: "submissions_stopped", message: sentence } })
+
+    await submitWithHistory().handleSubmit(event())
+
+    expect(draftState.startMessage).toBe(sentence)
+    expect(sessionCreateInputs).toEqual([])
+    expect(sentShell).toEqual([])
+    expect(coursePromoted).toEqual([])
+    expect(history.discarded).toBe(1)
+    expect(draftState.starting).toBe(false)
+  })
+
+  /**
+   * ⚠ A THROW AFTER THE GATEWAY ANSWERED IS SAID ON THE DRAFT, as Start's is, not left to escape the
+   * submit unseen. The session may exist on the gateway, so the next Enter reattaches to its id.
+   */
+  test("a task start that throws after the gateway answered says so, and the next Enter reattaches", async () => {
+    courseBinding = { courseId: "7", assistantId: "42" }
+    draftState.task = { ...courseBinding, assignmentId: "40", partId: "41", label: "Lab 4 · Task 2" }
+    jolliStartAnswer = async () => ({
+      data: {
+        status: "started",
+        opener: false,
+        session: {
+          id: "ses_task",
+          directory: "/repo/worktree-a",
+          title: "New session - 2026-10-14T08:00:00.000Z",
+          time: { created: 1, updated: 1 },
+          metadata: { jolli: courseBinding, jolliOpener: { sessionID: "ses_task" } },
+        },
+      },
+    })
+    coursePromoteFails = true
+
+    await submitWithHistory().handleSubmit(event())
+
+    expect(draftState.startError).toBe("prompt.jolli.start.failed")
+    expect(sentShell).toEqual([])
+    expect(history.discarded).toBe(1)
+
+    coursePromoteFails = false
+    await submitWithHistory().handleSubmit(event())
+    const ids = jolliStartInputs.map((input) => (input as { sessionID: string }).sessionID)
+    expect(ids).toHaveLength(2)
+    expect(ids[1]).toBe(ids[0])
+  })
+
+  test("a draft with no task still makes its session with session.create", async () => {
+    courseBinding = { courseId: "7", assistantId: "42" }
+
+    await submitWithHistory().handleSubmit(event())
+
+    expect(jolliStartInputs).toEqual([])
+    expect(sessionCreateInputs).toHaveLength(1)
   })
 })
 

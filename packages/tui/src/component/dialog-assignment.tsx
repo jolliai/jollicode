@@ -115,7 +115,7 @@ export function DialogAssignmentTasks(props: { courseId: string; assignmentId: s
   const status = (task: Jolli.AssignmentTask) => {
     if (task.handedInAt) return `Handed in ${when(task.handedInAt)}`
     if (!task.owed) return "No longer needed"
-    if (task.place === "web") return "Do this task in the web chat"
+    if (task.place === "web") return "Do this task on the web"
     if (task.local) return "In progress"
     if (task.elsewhere) return "Started on another computer"
     return "Not started"
@@ -126,7 +126,7 @@ export function DialogAssignmentTasks(props: { courseId: string; assignmentId: s
     if (!found) return []
     const tasks = found.tasks.map((task) => ({
       value: { kind: "task", task } as TaskChoice,
-      title: `${task.title} · ${task.assistantName}`,
+      title: `${task.title} · ${task.name}`,
       description: status(task),
       disabled: task.place === "web" || (!task.owed && !task.handedInAt),
     }))
@@ -162,9 +162,11 @@ export function DialogAssignmentTasks(props: { courseId: string; assignmentId: s
       })
       return
     }
+    const draft = taskDraftOf(found, task)
+    if (!draft) return
     dialog.clear()
     if (route.data.type !== "home") route.navigate({ type: "home" })
-    jolli.draft.setTask(taskDraftOf(found, task))
+    jolli.draft.setTask(draft)
   }
 
   /**

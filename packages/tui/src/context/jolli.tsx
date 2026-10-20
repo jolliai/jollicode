@@ -227,7 +227,8 @@ export const { use: useJolli, provider: JolliProvider } = createSimpleContext({
       /**
        * THE TASK THE DRAFT STARTS A SESSION FOR, from `/assignment`. It fixes the course and the agent
        * — the task decides both, and an agent kept for assignments is offered nowhere else — and the
-       * first Enter is always Start, so the gateway records the task's attempt.
+       * session is opened on the gateway however it begins, so the gateway records the task's attempt:
+       * by Start when the agent speaks first, by the first typed line otherwise.
        */
       task?: TaskDraft
     }>({ courses: [], assistants: [], loaded: false, status: "unreachable" })

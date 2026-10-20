@@ -144,18 +144,24 @@ function answer(kind: Answer) {
   return json({ status: "unreachable" })
 }
 
-async function mount() {
+async function mount(options: { opensConversation?: boolean } = {}) {
+  const opensConversation = options.opensConversation ?? true
   const state = (await tmpdir()).path
   await Bun.write(`${state}/kv.json`, "{}")
   const queue: Answer[] = []
   const sent: string[] = []
+  /** Every Start's body, for what it was opened for. */
+  const starts: Array<Record<string, unknown>> = []
+  /** The sessions a message was sent to. */
+  const prompted: string[] = []
   /** Plain `session.create` calls — what a Start must never fall back to. */
   const created: unknown[] = []
   /** When set, the sidecar holds every Start until it resolves. */
   let held: PromiseWithResolvers<void> | undefined
   const events = createEventSource()
   const calls = createFetch((url) => {
-    if (url.pathname === "/jolli/course") return json(catalog)
+    if (url.pathname === "/jolli/course")
+      return json({ ...catalog, assistants: catalog.assistants.map((item) => ({ ...item, opensConversation })) })
     if (url.pathname === "/provider") return json({ all: [], default: {}, connected: [PROVIDER] })
     if (url.pathname === "/config/providers")
       return json({
@@ -171,8 +177,15 @@ async function mount() {
     const request = input instanceof Request ? input : new Request(input, init)
     const pathname = new URL(request.url).pathname
     if (pathname === "/session" && request.method === "POST") created.push(await request.clone().json())
+    const message = /^\/session\/([^/]+)\/message$/.exec(pathname)
+    if (message && request.method === "POST") {
+      prompted.push(message[1]!)
+      return json({})
+    }
     if (pathname !== "/session/jolli/start") return calls.fetch(request)
-    sent.push((await request.clone().json()).sessionID)
+    const body = await request.clone().json()
+    starts.push(body)
+    sent.push(body.sessionID)
     await held?.promise
     return answer(queue.shift() ?? "unreachable")
   }) as typeof globalThis.fetch
@@ -265,10 +278,15 @@ async function mount() {
   const app = await testRender(() => <Harness />, { width: 100, height: 30 })
   await ready
   // The pre-selected course, an agent and a model: everything a Start needs before it is sent.
-  await app.waitFor(() => !!jolli.assistant()?.opensConversation && !!local.agent.current() && !!local.model.current())
+  await app.waitFor(
+    () =>
+      jolli.assistant()?.opensConversation === opensConversation && !!local.agent.current() && !!local.model.current(),
+  )
 
   return {
     sent,
+    starts,
+    prompted,
     created,
     app,
     get jolli() {
@@ -379,6 +397,82 @@ test("a Start answered after the student left home leaves them where they are", 
     await Bun.sleep(20)
     expect(view.route.data).toEqual({ type: "session", sessionID: "ses_other" })
   } finally {
+    view.close()
+  }
+})
+
+/**
+ * ⚠ A TASK'S DRAFT TAKES A TYPED FIRST LINE WHEN ITS AGENT WAITS FOR THE STUDENT, and is still opened
+ * through the task: a plain `session.create` would make a chat the task could never be handed in from.
+ */
+test("a typed first line on a task's draft opens the task's session on the gateway, then sends it", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    view.queue("started")
+    view.prompt.set({ input: "what does this task ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.prompted.length > 0)
+    expect(view.starts).toEqual([expect.objectContaining({ courseId: "101", assignmentId: "40", partId: "41" })])
+    expect(view.created).toEqual([])
+    expect(view.prompted).toEqual(["ses_started"])
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/** ⚠ WHETHER AN AGENT THE CATALOGUE CANNOT NAME SPEAKS FIRST IS UNKNOWN, AND START CANNOT RACE AN OPENER. */
+test("a task's agent the catalogue does not hold gets Start, not a typed first line", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "999", assignmentId: "40", partId: "41", label: "Lab 4" })
+    view.queue("started")
+    view.prompt.submit()
+    await view.app.waitFor(() => view.starts.length > 0 && !view.jolli.starting())
+    expect(view.starts).toEqual([expect.objectContaining({ assistantId: "999", assignmentId: "40", partId: "41" })])
+    expect(view.created).toEqual([])
+  } finally {
+    view.close()
+  }
+})
+
+test("a refused task start sends nothing and keeps the typed line", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    view.queue("refused")
+    view.prompt.set({ input: "what does this task ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.sent.length > 0 && !view.jolli.starting())
+    await Bun.sleep(20)
+    expect(view.created).toEqual([])
+    expect(view.prompted).toEqual([])
+    expect(view.prompt.current.input).toBe("what does this task ask?")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/** ⚠ NOR DOES A TASK'S TYPED FIRST LINE: ITS SESSION IS OPENED, BUT THE STUDENT IS NOT PULLED INTO IT. */
+test("a typed first line answered after the student left home sends nothing and leaves them where they are", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    const held = view.hold()
+    view.queue("started")
+    view.prompt.set({ input: "what does this task ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.jolli.starting())
+    view.route.navigate({ type: "session", sessionID: "ses_other" })
+    held.resolve()
+    await view.app.waitFor(() => !view.jolli.starting())
+    await Bun.sleep(80)
+    expect(view.prompted).toEqual([])
+    expect(view.route.data).toEqual({ type: "session", sessionID: "ses_other" })
+  } finally {
+    view.prompt.reset()
     view.close()
   }
 })

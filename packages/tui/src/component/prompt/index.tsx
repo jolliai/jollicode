@@ -43,7 +43,7 @@ import { usePromptStash } from "../../prompt/stash"
 import { DialogStash } from "../dialog-stash"
 import { type AutocompleteRef, Autocomplete } from "./autocomplete"
 import { useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
-import type { AssistantMessage, FilePart, UserMessage } from "@opencode-ai/sdk/v2"
+import type { AssistantMessage, FilePart, OpencodeClient, UserMessage } from "@opencode-ai/sdk/v2"
 import { Locale } from "../../util/locale"
 import { errorMessage } from "../../util/error"
 import { syncAcceptedModel } from "../../util/model"
@@ -147,6 +147,12 @@ function formatEditorContext(selection: EditorSelection) {
 
 let stashed: { prompt: PromptInfo; cursor: number } | undefined
 
+/** What opening a session on the gateway takes beside its binding and the id it is made under. */
+type GatewayStartInput = Omit<
+  Parameters<OpencodeClient["session"]["jolliStart"]>[0],
+  "courseId" | "assistantId" | "sessionID"
+>
+
 export function Prompt(props: PromptProps) {
   let input: TextareaRenderable
   let anchor: BoxRenderable
@@ -169,6 +175,12 @@ export function Prompt(props: PromptProps) {
   const dialog = useDialog()
   const toast = useToast()
   const status = createMemo(() => sync.data.session_status?.[props.sessionID ?? ""] ?? { type: "idle" })
+  /**
+   * ⚠ A NEW-SESSION COMPOSER IS LOCKED WHILE THE GATEWAY OPENS ITS SESSION, which can take 45 seconds. A
+   * task's typed first line is sent once the session exists; a change made meanwhile would go out in its
+   * place, and nothing after the wait could tell the two apart.
+   */
+  const locked = createMemo(() => !!props.disabled || (!props.sessionID && jolli.starting()))
   const history = usePromptHistory()
   const stash = usePromptStash()
   const keymap = useOpencodeKeymap()
@@ -858,7 +870,7 @@ export function Prompt(props: PromptProps) {
   useBindings(() => {
     return {
       target: inputTarget,
-      enabled: inputTarget() !== undefined && !props.disabled,
+      enabled: inputTarget() !== undefined && !locked(),
       bindings: tuiConfig.keybinds.get("prompt.paste"),
     }
   })
@@ -866,7 +878,7 @@ export function Prompt(props: PromptProps) {
   useBindings(() => {
     return {
       target: inputTarget,
-      enabled: inputTarget() !== undefined && !props.disabled && store.prompt.input !== "",
+      enabled: inputTarget() !== undefined && !locked() && store.prompt.input !== "",
       bindings: tuiConfig.keybinds.get("prompt.clear"),
     }
   })
@@ -878,7 +890,7 @@ export function Prompt(props: PromptProps) {
         cursorVersion()
         return (
           inputTarget() !== undefined &&
-          !props.disabled &&
+          !locked() &&
           store.mode === "normal" &&
           !auto()?.visible &&
           input?.visualCursor.offset === 0
@@ -922,7 +934,7 @@ export function Prompt(props: PromptProps) {
       target: inputTarget,
       enabled: (() => {
         cursorVersion()
-        return inputTarget() !== undefined && !props.disabled && !auto()?.visible && input !== undefined
+        return inputTarget() !== undefined && !locked() && !auto()?.visible && input !== undefined
       })(),
       commands: [
         {
@@ -954,7 +966,7 @@ export function Prompt(props: PromptProps) {
       target: inputTarget,
       enabled: (() => {
         cursorVersion()
-        return inputTarget() !== undefined && !props.disabled && !auto()?.visible && input !== undefined
+        return inputTarget() !== undefined && !locked() && !auto()?.visible && input !== undefined
       })(),
       commands: [
         {
@@ -999,9 +1011,9 @@ export function Prompt(props: PromptProps) {
    * and become its first turn.
    */
   /**
-   * ⚠ AND A TASK'S DRAFT ALWAYS STARTS, whether its agent speaks first or not: its session is the one the
-   * gateway opens for the task, and a first line typed instead would make a plain chat the task could
-   * never be handed in from.
+   * ⚠ A TASK'S DRAFT STARTS ONLY WHEN ITS AGENT SPEAKS FIRST, like any draft. Otherwise the student types
+   * their first line, and submit opens the task's session on the gateway before sending it
+   * (`openOnGateway`), so it is still the task's session, not a plain chat with the agent.
    */
   /** The task this composer starts a session for, or the one its session was started for. */
   const taskHeader = useTaskHeader(() => props.sessionID)
@@ -1013,7 +1025,15 @@ export function Prompt(props: PromptProps) {
     return taskHeader()
   })
 
-  const opening = createMemo(() => !props.sessionID && (!!jolli.assistant()?.opensConversation || !!jolli.draft.task))
+  /**
+   * ⚠ A TASK'S AGENT THE CATALOGUE CANNOT NAME GETS START. Whether it speaks first is unknown, and Start
+   * is the safe guess: a typed line to an agent that does speak first would race its opener.
+   */
+  const opening = createMemo(() => {
+    if (props.sessionID) return false
+    const assistant = jolli.assistant()
+    return assistant ? !!assistant.opensConversation : !!jolli.draft.task
+  })
 
   let submitting = false
   async function submit() {
@@ -1134,39 +1154,68 @@ export function Prompt(props: PromptProps) {
         if (finishMoveProgress) move.finishSubmit()
         return started
       }
-      const res = await sdk.client.session.create({
-        directory,
-        workspace: workspaceID,
-        agent: agent.name,
-        model: {
-          providerID: selectedModel.providerID,
-          id: selectedModel.modelID,
-          variant,
-        },
+      if (binding && jolli.draft.task) {
+        const opened = await openOnGateway(binding, {
+          directory,
+          workspace: workspaceID,
+          agent: agent.name,
+          model: { providerID: selectedModel.providerID, id: selectedModel.modelID, variant },
+        })
+        if (!opened) {
+          if (finishMoveProgress) move.finishSubmit()
+          return false
+        }
         /**
-         * ⚠ THE BINDING IS WRITTEN AS THE SESSION IS CREATED, NOT PATCHED ON AFTERWARDS. Which
-         * course a session belongs to decides which models may run in it and who may read it, so a
-         * window where the session exists without one is a window where those questions have no
-         * answer — and the server refuses to bind a course once the first message has landed, so
-         * that window would be permanent.
+         * ⚠ A STUDENT WHO LEFT HOME DURING THE WAIT IS NOT PULLED BACK, as Start does not pull them. This
+         * composer went with them, so the line they typed is not sent; the session is the task's all the
+         * same, and is in the session list.
          */
-        ...(binding ? { metadata: { jolli: binding as unknown as Record<string, unknown> } } : {}),
-      })
-
-      if (res.error) {
-        if (finishMoveProgress) move.finishSubmit()
-        console.log("Creating a session failed:", res.error)
-
-        toast.show({
-          message: "Creating a session failed. Open console for more details.",
-          variant: "error",
+        if (route.data.type !== "home") {
+          toast.show({
+            message: "The task's session has started without your message — open it from the session list.",
+            variant: "info",
+          })
+          if (finishMoveProgress) move.finishSubmit()
+          return false
+        }
+        sessionID = opened
+      }
+      // Not a task's: a plain session, bound to the course when there is one.
+      if (sessionID == null) {
+        const res = await sdk.client.session.create({
+          directory,
+          workspace: workspaceID,
+          agent: agent.name,
+          model: {
+            providerID: selectedModel.providerID,
+            id: selectedModel.modelID,
+            variant,
+          },
+          /**
+           * ⚠ THE BINDING IS WRITTEN AS THE SESSION IS CREATED, NOT PATCHED ON AFTERWARDS. Which
+           * course a session belongs to decides which models may run in it and who may read it, so a
+           * window where the session exists without one is a window where those questions have no
+           * answer — and the server refuses to bind a course once the first message has landed, so
+           * that window would be permanent.
+           */
+          ...(binding ? { metadata: { jolli: binding as unknown as Record<string, unknown> } } : {}),
         })
 
-        return true
-      }
+        if (res.error) {
+          if (finishMoveProgress) move.finishSubmit()
+          console.log("Creating a session failed:", res.error)
 
-      sessionID = res.data.id
-      jolli.promote(sessionID, binding)
+          toast.show({
+            message: "Creating a session failed. Open console for more details.",
+            variant: "error",
+          })
+
+          return true
+        }
+
+        sessionID = res.data.id
+        jolli.promote(sessionID, binding)
+      }
     }
 
     const inputText = expandTrackedPastedText(
@@ -1312,10 +1361,27 @@ export function Prompt(props: PromptProps) {
    * opened while it waited. Nor does it navigate from anywhere but home: a student who left for
    * another session is not pulled out of it.
    */
-  async function start(
-    binding: CourseBinding,
-    input: Omit<Parameters<typeof sdk.client.session.jolliStart>[0], "courseId" | "assistantId" | "sessionID">,
-  ) {
+  async function start(binding: CourseBinding, input: GatewayStartInput) {
+    const sessionID = await openOnGateway(binding, input)
+    if (!sessionID) return false
+    if (route.data.type !== "home") {
+      toast.show({ message: "The conversation has started — open it from the session list.", variant: "info" })
+      return false
+    }
+    props.onSubmit?.()
+    route.navigate({ type: "session", sessionID })
+    return true
+  }
+
+  /**
+   * Opens a session for `binding` on the gateway — Start's, and a task draft's typed first line's —
+   * and makes it this composer's; or says why not, and answers undefined.
+   *
+   * ⚠ ONE WAY FOR BOTH. A task's session is the one the gateway opens for the task, recording its
+   * attempt, however the student begins it; made with `session.create` it would be a plain chat the
+   * task could never be handed in from. The retry under the same id holds for either.
+   */
+  async function openOnGateway(binding: CourseBinding, input: GatewayStartInput) {
     const retry = jolli.unanswered()
     const task = jolli.draft.task
     // Another task with the same agent is another conversation, never a retry of this one.
@@ -1341,17 +1407,11 @@ export function Prompt(props: PromptProps) {
     if (outcome.type === "failed") {
       if (outcome.refresh) jolli.refresh()
       toast.show({ message: outcome.message, variant: "warning", duration: 5000 })
-      return false
+      return undefined
     }
     jolli.promote(outcome.sessionID, binding)
     jolli.draft.clearTask()
-    if (route.data.type !== "home") {
-      toast.show({ message: "The conversation has started — open it from the session list.", variant: "info" })
-      return false
-    }
-    props.onSubmit?.()
-    route.navigate({ type: "session", sessionID: outcome.sessionID })
-    return true
+    return outcome.sessionID
   }
 
   function pasteText(text: string, virtualText: string) {
@@ -1642,7 +1702,7 @@ export function Prompt(props: PromptProps) {
               }}
               onCursorChange={() => setCursorVersion((value) => value + 1)}
               onKeyDown={(e: { preventDefault(): void }) => {
-                if (props.disabled) {
+                if (locked()) {
                   e.preventDefault()
                   return
                 }
@@ -1653,7 +1713,7 @@ export function Prompt(props: PromptProps) {
                 setTimeout(() => setTimeout(() => submit(), 0), 0)
               }}
               onPaste={async (event: PasteEvent) => {
-                if (props.disabled) {
+                if (locked()) {
                   event.preventDefault()
                   return
                 }
@@ -1857,12 +1917,15 @@ export function Prompt(props: PromptProps) {
             </Match>
             <Match when={!props.sessionID && jolli.starting()}>
               <box paddingLeft={3}>
-                <Spinner color={theme.accent}>The agent is writing…</Spinner>
+                {/* Only an agent that speaks first is writing; a task's typed first line waits on its session. */}
+                <Spinner color={theme.accent}>
+                  {opening() ? "The agent is writing…" : "Starting the task's session…"}
+                </Spinner>
               </box>
             </Match>
             <Match when={opening()}>
               <box paddingLeft={3}>
-                {/* A task's agent may not speak first; what Enter does then is begin the task's session. */}
+                {/* This agent speaks first, a task's as any other; Enter starts it, naming the task when there is one. */}
                 <text fg={theme.accent}>
                   {jolli.draft.task
                     ? "Press Enter to start a session for this task"

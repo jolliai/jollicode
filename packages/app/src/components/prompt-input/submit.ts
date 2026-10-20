@@ -13,8 +13,9 @@ import { useLocal, type ModelSelection } from "@/context/local"
 import { useCourseSession, type CourseBinding } from "@/jolli/session-binding"
 import { sameBinding } from "@opencode-ai/core/jolli/binding"
 import { refreshCatalog } from "@/jolli/catalog"
-import { startErrorKey } from "@/jolli/start-session"
+import { startErrorKey, type StartErrorKey } from "@/jolli/start-session"
 import { refreshAssignments } from "@/jolli/assignment-refresh"
+import type { TaskDraft } from "@/jolli/assignment-intent"
 import { defaultSessionTitle } from "@/jolli/session-title"
 import { SessionTitle } from "@opencode-ai/core/session/title"
 import { openedOnGateway, settleStart } from "@opencode-ai/core/jolli/opener"
@@ -501,66 +502,27 @@ export function createSessionStart(
     }
 
     const task = courseSession.draft.task
-    courseSession.draft.setStartError(undefined)
-    courseSession.draft.setStartMessage(undefined)
+    showStartFailure(courseSession, undefined)
     courseSession.draft.setStarting(true)
-    const scope = sdk().scope
-    const draftID = search.draftId
-    const now = Date.now()
-    const retries = (unfinished.get(scope) ?? []).filter((entry) => now - entry.at < RETRY_TTL_MS)
-    unfinished.set(scope, retries)
-    const same = (entry: (typeof retries)[number]) => sameBinding(entry, binding) && entry.partId === task?.partId
-    const reused =
-      retries.find((entry) => entry.draftID === draftID && same(entry)) ??
-      retries.find((entry) => !entry.answered && same(entry))
-    const sessionID = reused?.sessionID ?? Identifier.descending("session")
+    const opening = openOnGateway({
+      scope: sdk().scope,
+      draftID: search.draftId,
+      binding,
+      task,
+      agent: currentAgent.name,
+      model: { id: currentModel.id, providerID: currentModel.provider.id, variant },
+    })
     const result = await newSession({
       agent: currentAgent.name,
       model: { providerID: currentModel.provider.id, modelID: currentModel.id },
       variant,
       autoAccept: input.autoAccept(),
       binding,
-      directory: reused?.answered ? reused.directory : undefined,
-      create: async (target) => {
-        const answer = await settleStart(
-          target.client.session.jolliStart({
-            directory: target.directory,
-            courseId: binding.courseId,
-            assistantId: binding.assistantId,
-            ...(task ? { assignmentId: task.assignmentId, partId: task.partId } : {}),
-            sessionID,
-            agent: currentAgent.name,
-            model: { id: currentModel.id, providerID: currentModel.provider.id, variant },
-          }),
-        )
-        const before = (unfinished.get(scope) ?? []).find((entry) => entry.sessionID === sessionID)
-        settled(scope, sessionID)
-        if (answer.unanswered || answer.result?.status === "started")
-          unfinished.get(scope)?.push({
-            ...binding,
-            ...(task ? { partId: task.partId } : {}),
-            sessionID,
-            answered: !answer.unanswered || !!before?.answered,
-            draftID,
-            directory: target.directory,
-            at: Date.now(),
-          })
-        if (answer.result?.status === "started") return { session: normalizeSessionInfo(answer.result.session) }
-        if (answer.result?.status === "refused") {
-          refreshCatalog()
-          // A task's refusal is the assignment's to word; the list it was started from may be stale too.
-          if (task) {
-            refreshAssignments()
-            if (answer.result.message) courseSession.draft.setStartMessage(answer.result.message)
-          }
-        }
-        return { failure: startErrorKey(answer.result?.status === "refused" ? answer.result.code : undefined) }
-      },
+      directory: opening.directory,
+      create: opening.create,
     })
       .then((result) => {
-        if (result.status === "created") settled(scope, sessionID)
-        // The task now has a session here, which its dialog offers to continue.
-        if (result.status === "created" && task) refreshAssignments()
+        opening.settle(result)
         return result
       })
       /**
@@ -572,12 +534,102 @@ export function createSessionStart(
        */
       .catch((err) => {
         console.error("Starting the chat failed", err)
-        return { status: "not-created" as const, directory: sdk().directory, failure: startErrorKey(undefined) }
+        return {
+          status: "not-created" as const,
+          directory: sdk().directory,
+          failure: { key: startErrorKey(undefined) },
+        }
       })
       .finally(() => courseSession.draft.setStarting(false))
-    if (result.status === "not-created") courseSession.draft.setStartError(result.failure)
+    if (result.status === "not-created") showStartFailure(courseSession, result.failure)
     return result
   }
+}
+
+/**
+ * OPENING A SESSION ON THE GATEWAY: THE `create` OF START, AND OF A TASK DRAFT'S FIRST TYPED MESSAGE.
+ *
+ * ⚠ ONE WAY FOR BOTH. A task's session is the one the gateway opens for the task, recording its
+ * attempt, however the student begins it — with Start, or by typing to an agent that does not speak
+ * first; made with `session.create` instead it would be a plain chat the task could never be handed in
+ * from. The retry of a Start not seen through (`unfinished`) holds for either.
+ *
+ * `settle` is handed the result once the screen has moved, or not: only a Start that ended on its
+ * session lets its id go.
+ *
+ * ⚠ IT SAYS WHY IT FAILED, AND THE CALLER SAYS IT ON THE DRAFT — see {@link showStartFailure}.
+ */
+function openOnGateway(input: {
+  scope: string
+  draftID: string | undefined
+  binding: CourseBinding
+  task: TaskDraft | undefined
+  agent: string
+  model: { id: string; providerID: string; variant?: string }
+}) {
+  const now = Date.now()
+  const retries = (unfinished.get(input.scope) ?? []).filter((entry) => now - entry.at < RETRY_TTL_MS)
+  unfinished.set(input.scope, retries)
+  const same = (entry: (typeof retries)[number]) =>
+    sameBinding(entry, input.binding) && entry.partId === input.task?.partId
+  const reused =
+    retries.find((entry) => entry.draftID === input.draftID && same(entry)) ??
+    retries.find((entry) => !entry.answered && same(entry))
+  const sessionID = reused?.sessionID ?? Identifier.descending("session")
+  return {
+    directory: reused?.answered ? reused.directory : undefined,
+    create: async (target: { directory: string; client: DirectorySDK["client"] }) => {
+      const answer = await settleStart(
+        target.client.session.jolliStart({
+          directory: target.directory,
+          courseId: input.binding.courseId,
+          assistantId: input.binding.assistantId,
+          ...(input.task ? { assignmentId: input.task.assignmentId, partId: input.task.partId } : {}),
+          sessionID,
+          agent: input.agent,
+          model: input.model,
+        }),
+      )
+      const before = (unfinished.get(input.scope) ?? []).find((entry) => entry.sessionID === sessionID)
+      settled(input.scope, sessionID)
+      if (answer.unanswered || answer.result?.status === "started")
+        unfinished.get(input.scope)?.push({
+          ...input.binding,
+          ...(input.task ? { partId: input.task.partId } : {}),
+          sessionID,
+          answered: !answer.unanswered || !!before?.answered,
+          draftID: input.draftID,
+          directory: target.directory,
+          at: Date.now(),
+        })
+      if (answer.result?.status === "started") return { session: normalizeSessionInfo(answer.result.session) }
+      if (answer.result?.status !== "refused") return { failure: { key: startErrorKey(undefined) } }
+      refreshCatalog()
+      // A task's refusal is the assignment's to word; the list it was started from may be stale too.
+      if (input.task) refreshAssignments()
+      return {
+        failure: {
+          key: startErrorKey(answer.result.code),
+          ...(input.task && answer.result.message ? { message: answer.result.message } : {}),
+        },
+      }
+    },
+    settle: (result: NewSessionResult<unknown>) => {
+      if (result.status !== "created") return
+      settled(input.scope, sessionID)
+      // The task now has a session here, which its dialog offers to continue.
+      if (input.task) refreshAssignments()
+    },
+  }
+}
+
+/** Why opening on the gateway failed: what the draft words it as, and for a task the gateway's own sentence. */
+type StartFailure = { key: StartErrorKey; message?: string }
+
+/** Say on the draft why opening on the gateway failed; undefined clears what was said before. */
+function showStartFailure(courseSession: ReturnType<typeof useCourseSession>, failure: StartFailure | undefined) {
+  courseSession.draft.setStartError(failure?.key)
+  courseSession.draft.setStartMessage(failure?.message)
 }
 
 /** The HTTP status the SDK put under `cause` when it threw, or undefined when it got no answer. */
@@ -639,6 +691,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
 
   const errorMessage = (err: unknown) => errorText(err, language.t("common.requestFailed"))
   const newSession = createNewSession(input)
+  const [search] = useSearchParams<{ draftId?: string }>()
 
   const abort = async () => {
     const sessionID = params.id
@@ -773,50 +826,103 @@ export function createPromptSubmit(input: PromptSubmitInput) {
        * this costs (the server stops generating a title of its own).
        */
       const title = defaultSessionTitle({ course: courseSession.course()?.code, text })
+      /**
+       * ⚠ A TASK'S DRAFT IS OPENED ON THE GATEWAY EVEN WHEN ITS FIRST MESSAGE IS TYPED. Its agent does not
+       * speak first, or the draft would be showing Start; the session is still the task's, made the way
+       * Start makes it, and the typed message then goes to it as its first turn. Named by that message
+       * below, as a started session is.
+       */
+      const binding = courseSession.current()
+      const task = binding ? courseSession.draft.task : undefined
+      const opening =
+        binding && task
+          ? openOnGateway({
+              scope: sdk().scope,
+              draftID: search.draftId,
+              binding,
+              task,
+              agent: currentAgent.name,
+              model: { id: currentModel.id, providerID: currentModel.provider.id, variant },
+            })
+          : undefined
+      /**
+       * ⚠ THE COMPOSER WAITS AS START'S ROW DOES. Opening on the gateway can take as long as Start, and
+       * anything typed meanwhile would go with the `clear()` that follows the send, never sent.
+       */
+      if (opening) {
+        showStartFailure(courseSession, undefined)
+        courseSession.draft.setStarting(true)
+      }
       const result = await newSession({
         agent: currentAgent.name,
         model: { providerID: currentModel.provider.id, modelID: currentModel.id },
         variant,
         autoAccept: input.autoAccept(),
-        create: (target) =>
-          sdk()
-            .api.session.create({
-              agent: currentAgent.name,
-              model: { id: currentModel.id, providerID: currentModel.provider.id, variant },
-              location: { directory: target.directory },
-              ...(title ? { title } : {}),
-              /**
-               * ⚠ THE BINDING IS WRITTEN AS THE SESSION IS CREATED, NOT PATCHED ON AFTERWARDS. Which
-               * course a session belongs to decides which models may run in it and who may read it,
-               * so a window where the session exists without one is a window where those questions
-               * have no answer. Creating it atomically also means the server can refuse to change it
-               * later without having to allow one write first.
-               */
-              ...(courseSession.current()
-                ? { metadata: { jolli: courseSession.current() as unknown as Record<string, unknown> } }
-                : {}),
-            })
-            .then((info) => ({ session: normalizeSessionInfo(info) }))
-            .catch((err) => {
-              /**
-               * ⚠ A BOUND CREATE REFUSED AS A BAD REQUEST REFRESHES THE CATALOGUE. The server judges a
-               * new binding by the snapshot on disk, which can be newer than the list on screen: an
-               * assistant switched to speak first is refused here, and only a fresh list puts Start
-               * where this composer is. The 400 carries no reason (`HttpApiError.BadRequest` has no
-               * body), so any 400 for a bound create is taken as that — a spare refresh at worst.
-               */
-              if (courseSession.current() && httpStatus(err) === 400) refreshCatalog()
-              showToast({
-                title: language.t("prompt.toast.sessionCreateFailed.title"),
-                description: errorMessage(err),
-              })
-              return { failure: undefined }
-            }),
+        ...(opening ? { binding, directory: opening.directory } : {}),
         created: (created) => input.promoteHistory?.(created.id),
         promoted: (created, directory) =>
           submission.retarget(prompt.capture({ dir: base64Encode(directory), id: created.id })),
+        create: opening
+          ? opening.create
+          : (target) =>
+              sdk()
+                .api.session.create({
+                  agent: currentAgent.name,
+                  model: { id: currentModel.id, providerID: currentModel.provider.id, variant },
+                  location: { directory: target.directory },
+                  ...(title ? { title } : {}),
+                  /**
+                   * ⚠ THE BINDING IS WRITTEN AS THE SESSION IS CREATED, NOT PATCHED ON AFTERWARDS. Which
+                   * course a session belongs to decides which models may run in it and who may read it,
+                   * so a window where the session exists without one is a window where those questions
+                   * have no answer. Creating it atomically also means the server can refuse to change it
+                   * later without having to allow one write first.
+                   */
+                  ...(courseSession.current()
+                    ? { metadata: { jolli: courseSession.current() as unknown as Record<string, unknown> } }
+                    : {}),
+                })
+                .then((info) => ({ session: normalizeSessionInfo(info) }))
+                .catch((err) => {
+                  /**
+                   * ⚠ A BOUND CREATE REFUSED AS A BAD REQUEST REFRESHES THE CATALOGUE. The server judges a
+                   * new binding by the snapshot on disk, which can be newer than the list on screen: an
+                   * assistant switched to speak first is refused here, and only a fresh list puts Start
+                   * where this composer is. The 400 carries no reason (`HttpApiError.BadRequest` has no
+                   * body), so any 400 for a bound create is taken as that — a spare refresh at worst.
+                   */
+                  if (courseSession.current() && httpStatus(err) === 400) refreshCatalog()
+                  showToast({
+                    title: language.t("prompt.toast.sessionCreateFailed.title"),
+                    description: errorMessage(err),
+                  })
+                  return { failure: undefined as StartFailure | undefined }
+                }),
+      }).catch((err) => {
+        /**
+         * ⚠ A THROW AFTER THE GATEWAY ANSWERED IS A FAILED START ON SCREEN, as Start's is. The session
+         * may exist there by then, which is why its id is still kept: the next Enter reattaches to it.
+         * A plain session's create keeps throwing as it always has.
+         */
+        if (!opening) throw err
+        console.error("Starting the task's session failed", err)
+        return {
+          status: "not-created" as const,
+          directory: sdk().directory,
+          failure: { key: startErrorKey(undefined) } as StartFailure | undefined,
+        }
+      }).finally(() => {
+        if (opening) courseSession.draft.setStarting(false)
       })
+      opening?.settle(result)
       if (result.status === "no-directory") {
+        input.discardHistory?.()
+        return
+      }
+      // A refused or unreachable start is said where Start's is, above the composer, and the typed
+      // message stays in it for the next Enter.
+      if (opening && result.status === "not-created") {
+        showStartFailure(courseSession, result.failure)
         input.discardHistory?.()
         return
       }
@@ -840,7 +946,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
      * written the title is no longer the default, which is what keeps this to the first message.
      */
     const startedTitle =
-      !isNewSession && openedOnGateway(session) && SessionTitle.isDefault(session.title ?? "")
+      openedOnGateway(session) && SessionTitle.isDefault(session.title ?? "")
         ? defaultSessionTitle({ course: courseSession.course()?.code, text })
         : undefined
     if (startedTitle) {

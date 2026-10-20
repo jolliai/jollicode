@@ -6,7 +6,7 @@
  * so the two surfaces cannot disagree about what is due or which session a task continues.
  */
 
-import { HAND_IN_PERMISSIONS, handedInBy, taskBindingOf, toRead } from "@opencode-ai/core/jolli/assignment"
+import { HAND_IN_PERMISSIONS, handedInBy, taskBindingOf, taskLabel, toRead } from "@opencode-ai/core/jolli/assignment"
 import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
 import { createMemo, createResource, createSignal, onCleanup } from "solid-js"
 import { useEvent } from "./event"
@@ -62,7 +62,7 @@ export function useTaskHeader(sessionID: () => string | undefined) {
     const found = answer.read.assignment.tasks.find((item) => item.partId === answer.key.task.partId)
     if (!found) return undefined
     return {
-      label: `${answer.read.assignment.title} · ${found.title}`,
+      label: taskLabel(answer.read.assignment.title, found.title),
       handedIn: handedInBy(answer.read.assignment, answer.key.task, answer.key.sessionID),
     }
   }

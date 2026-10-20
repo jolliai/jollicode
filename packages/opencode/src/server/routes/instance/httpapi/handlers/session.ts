@@ -19,7 +19,7 @@ import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { NamedError } from "@opencode-ai/core/util/error"
 import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
-import { JolliApiError, openConversation, startTaskSession } from "@opencode-ai/core/jolli/api"
+import { failureOf, JolliApiError, openConversation, startTaskSession } from "@opencode-ai/core/jolli/api"
 import { TASK_KEY, taskBindingOf, taskRecord } from "@opencode-ai/core/jolli/assignment"
 import { courseBindingOf, isGatewayId, type CourseBinding } from "@opencode-ai/core/jolli/binding"
 import { JolliClosedAssistants } from "@opencode-ai/core/jolli/closed-assistants"
@@ -396,7 +396,7 @@ const startRefused = Effect.fn("SessionHttpApi.startRefused")(function* (
    * so nothing about the course or assistant changed, and this client cannot tell what it said —
    * refreshing the catalogue and telling the student the chat was refused would both be wrong.
    */
-  if (error.status === undefined || error.status < 300 || error.status === 401 || error.status >= 500) {
+  if (failureOf(error) !== "refused") {
     yield* Effect.logWarning("Jolli: start failed", { status: error.status, cause: error.cause })
     return { status: "unreachable" as const }
   }

@@ -29,7 +29,7 @@ import { useLayout } from "@/context/layout"
 import { useServerSDK } from "@/context/server-sdk"
 import { taskDraftOf } from "@opencode-ai/core/jolli/assignment"
 import { AssignmentIntent } from "@/jolli/assignment-intent"
-import { readAssignment, turnIn, type AssignmentRead } from "@/jolli/assignments"
+import { readAssignment, turnIn, useTaskTitle, type AssignmentRead } from "@/jolli/assignments"
 import { courseIntentRouteKey } from "@/jolli/course-intent"
 
 export function DialogAssignment(props: { courseId: string; assignmentId: string; title: string }) {
@@ -68,9 +68,13 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
       minute: "2-digit",
     })
 
+  const taskTitle = useTaskTitle()
+
   /** Begin a new session for the task: a draft bound to it, in the project the student works in. */
-  const start = (assignment: Jolli.Assignment, task: Jolli.AssignmentTask) => {
-    AssignmentIntent.request(taskDraftOf(assignment, task), courseIntentRouteKey(layout.route()))
+  const start = (assignment: Jolli.Assignment, task: Jolli.AssignmentTask, index: number) => {
+    const draft = taskDraftOf(assignment, task, taskTitle(index))
+    if (!draft) return
+    AssignmentIntent.request(draft, courseIntentRouteKey(layout.route()))
     dialog.close()
     sessions.session.create()
   }
@@ -147,7 +151,7 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
                 </div>
                 <ul data-component="dialog-assignment-tasks" class="flex flex-col gap-2">
                   <For each={assignment().tasks}>
-                    {(task) => (
+                    {(task, index) => (
                       <li
                         data-component="dialog-assignment-task"
                         data-part={task.partId}
@@ -155,7 +159,7 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
                       >
                         <div class="flex min-w-0 flex-1 flex-col">
                           <span class="truncate text-[13px] text-v2-text-text-base">
-                            {task.title} · {task.assistantName}
+                            {taskTitle(index())} · {task.name}
                           </span>
                           <span class="truncate text-[12px] text-v2-text-text-muted">
                             <Switch fallback={language.t("dialog.assignment.task.notStarted")}>
@@ -196,7 +200,7 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
                                     ? undefined
                                     : language.t("dialog.assignment.task.noProject")
                                 }
-                                onClick={() => start(assignment(), task)}
+                                onClick={() => start(assignment(), task, index())}
                               >
                                 {language.t("dialog.assignment.task.start")}
                               </ButtonV2>

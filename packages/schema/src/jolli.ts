@@ -671,13 +671,14 @@ export const SessionShare = Schema.Struct({
 /**
  * A STUDENT'S ASSIGNMENTS, AS JOLLI CODE LISTS THEM: THE TODO ASSIGNMENTS AND THEIR TASKS.
  *
- * ⚠ A TASK IS AN ASSIGNMENT'S PART, AND ONLY A JOLLI CODE ONE IS WORKED HERE. A web task is listed so
- * the student sees the whole assignment, never started from here: the gateway refuses that either way.
+ * ⚠ A TASK IS AN ASSIGNMENT'S PART, AND ONLY A JOLLI CODE ONE IS WORKED HERE. A web task — an agent's
+ * worked in the web chat, or one of another kind, such as a File upload — is listed so the student sees
+ * the whole assignment, never started from here: the gateway refuses that either way.
  *
  * ⚠ THE IDS ARE STRINGS, as `metadata.jolli` and the catalogue hold a course's and an assistant's.
  */
 
-/** Where a task is worked: in a Jolli Code session, or in a web chat. */
+/** Where a task is worked: in a Jolli Code session, or on the web. */
 export const AssignmentTaskPlace = Schema.Literals(["jolli_code", "web"]).annotate({
   identifier: "Jolli.AssignmentTaskPlace",
 })
@@ -695,9 +696,11 @@ export const AssignmentTask = Schema.Struct({
   partId: Schema.String,
   /** "Task 2": the task's place among the assignment's, as the gateway names it in a hand-in. */
   title: Schema.String,
-  assistantId: Schema.String,
-  assistantName: Schema.String,
-  assistantBlurb: Schema.String,
+  /** What the task is called: an agent task's agent, or another kind's own name ("Lab report"). */
+  name: Schema.String,
+  /** The agent the task is worked with; null for a task of another kind, which no agent works. */
+  assistantId: Schema.NullOr(Schema.String),
+  assistantBlurb: Schema.NullOr(Schema.String),
   place: AssignmentTaskPlace,
   /** When the student handed it in; null while it is not. */
   handedInAt: Schema.NullOr(Schema.String),

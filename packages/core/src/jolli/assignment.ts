@@ -14,7 +14,13 @@
  * then refuses, in words it chooses.
  */
 import type { Jolli } from "@opencode-ai/schema/jolli"
-import type { HandInPreview, StudentAssignment, StudentAssignmentList } from "./api"
+import type {
+  HandInPreview,
+  StudentAssignment,
+  StudentAssignmentAgentPart,
+  StudentAssignmentList,
+  StudentAssignmentPart,
+} from "./api"
 
 // ── A task's session ─────────────────────────────────────────────────────────────────────────────
 
@@ -66,15 +72,33 @@ export type TaskDraft = {
   readonly label: string
 }
 
-/** The draft a task of this assignment starts from. */
-export function taskDraftOf(assignment: Jolli.Assignment, task: Jolli.AssignmentTask): TaskDraft {
+/**
+ * The draft a task of this assignment starts from; undefined for a task with no agent, never started here.
+ *
+ * ⚠ `title` IS THE TASK'S AS THE RENDERER WORDS IT. The desktop translates "Task 2", and its composer
+ * must name the task as the dialog and the session header beside it do.
+ */
+export function taskDraftOf(
+  assignment: Jolli.Assignment,
+  task: Jolli.AssignmentTask,
+  title = task.title,
+): TaskDraft | undefined {
+  if (task.assistantId === null) return undefined
   return {
     courseId: assignment.courseId,
     assistantId: task.assistantId,
     assignmentId: assignment.id,
     partId: task.partId,
-    label: `${assignment.title} · ${task.title}`,
+    label: taskLabel(assignment.title, title),
   }
+}
+
+/**
+ * HOW A TASK IS NAMED BESIDE ITS COMPOSER: "Lab 4: Linked lists · Task 2". The draft's label and a
+ * started session's header are both this, so the line does not change when the session starts.
+ */
+export function taskLabel(assignmentTitle: string, taskTitle: string) {
+  return `${assignmentTitle} · ${taskTitle}`
 }
 
 /** The record the start route writes under {@link TASK_KEY}. */
@@ -114,8 +138,9 @@ export function todoAssignments(
           title: item.title,
           dueAt: item.dueAt,
           stopAtDue: item.stopAtDue,
-          tasksHandedIn: (item.tasks ?? []).filter((task) => task.submitted).length,
-          tasksTotal: (item.tasks ?? []).length,
+          // Every kind's tasks, as the assignment's dialog counts them: `tasks` holds the agent ones alone.
+          tasksHandedIn: item.progress.partsSubmitted,
+          tasksTotal: item.progress.partsTotal,
         })),
     )
     .toSorted(byDue)
@@ -157,6 +182,21 @@ export function projectAssignment(
   now: number,
 ): Jolli.Assignment {
   const tasks = assignment.parts.map((part, index): Jolli.AssignmentTask => {
+    if (!isAgentPart(part)) {
+      return {
+        partId: String(part.id),
+        title: `Task ${index + 1}`,
+        name: part.name,
+        assistantId: null,
+        assistantBlurb: null,
+        place: "web",
+        handedInAt: part.submission?.submittedAt ?? null,
+        handedInSessionID: null,
+        owed: part.owed,
+        local: null,
+        elsewhere: false,
+      }
+    }
     const place = part.workedIn === "jolli_code" ? ("jolli_code" as const) : ("web" as const)
     const handedIn = part.submission
       ? part.attempts.find((attempt) => attempt.id === part.submission?.attemptId)
@@ -171,8 +211,8 @@ export function projectAssignment(
     return {
       partId: String(part.id),
       title: `Task ${index + 1}`,
+      name: part.assistantName,
       assistantId: String(part.assistantId),
-      assistantName: part.assistantName,
       assistantBlurb: part.assistantBlurb,
       place,
       handedInAt: part.submission?.submittedAt ?? null,
@@ -208,8 +248,18 @@ export function projectAssignment(
 /** Every session id the assignment's Jolli Code tasks were started under, for the local lookup. */
 export function taskSessionIDs(assignment: StudentAssignment) {
   return assignment.parts
+    .filter(isAgentPart)
     .filter((part) => part.workedIn === "jolli_code")
     .flatMap((part) => part.attempts.map((attempt) => attempt.conversationId))
+}
+
+/**
+ * WHETHER A PART IS AN AGENT'S, AND SO MAY BE WORKED HERE.
+ *
+ * ⚠ BY ITS AGENT, NOT ITS `kind`, which a server that predates task kinds leaves out of an agent part.
+ */
+export function isAgentPart(part: StudentAssignmentPart): part is StudentAssignmentAgentPart {
+  return "assistantId" in part
 }
 
 /**
@@ -368,7 +418,7 @@ export function turnInBlocker(assignment: Jolli.Assignment): string | undefined 
   const left = assignment.tasks.filter((task) => task.owed && task.handedInAt === null)
   if (left.length === 0) return undefined
   const named = left.map(
-    (task) => `${task.title} (${task.assistantName})` + (task.place === "web" ? ", which is done in the web chat" : ""),
+    (task) => `${task.title} (${task.name})` + (task.place === "web" ? ", which is done on the web" : ""),
   )
   return `${assignment.title} can't be turned in yet. Still to hand in: ${named.join("; ")}.`
 }
@@ -389,8 +439,8 @@ export function turnInLines(assignment: Jolli.Assignment, locale?: string): stri
       .filter((task) => task.owed)
       .map((task) =>
         task.handedInAt
-          ? `${task.title} · ${task.assistantName} · submitted ${day(task.handedInAt)}`
-          : `${task.title} · ${task.assistantName} · not submitted`,
+          ? `${task.title} · ${task.name} · submitted ${day(task.handedInAt)}`
+          : `${task.title} · ${task.name} · not submitted`,
       ),
   ].map(clip)
 }

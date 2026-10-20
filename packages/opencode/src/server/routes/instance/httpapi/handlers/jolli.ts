@@ -9,6 +9,7 @@
  * failed request on a screen whose own empty state already says the right thing.
  */
 import {
+  failureOf,
   fetchConversationShares,
   fetchConversationVisibility,
   fetchCourseMembers,
@@ -38,7 +39,7 @@ import { viewerFromToken } from "@opencode-ai/core/jolli/identity"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { classSizeOf, projectMembers, projectReaders, refusalOf, WRITABLE_ACCESS } from "@opencode-ai/core/jolli/share"
 import { Jolli } from "@opencode-ai/schema/jolli"
-import { Effect, Layer, Option } from "effect"
+import { Effect, Layer, Option, Schema } from "effect"
 import { Session } from "@/session/session"
 import { SessionID } from "@/session/schema"
 import { FetchHttpClient } from "effect/unstable/http"
@@ -293,7 +294,7 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
       token: string,
     ) {
       if (error.status === 401) yield* session.refused(token).pipe(Effect.catch(() => Effect.void))
-      if (error.status === undefined || error.status === 401 || error.status >= 500) {
+      if (failureOf(error) !== "refused") {
         yield* Effect.logDebug("Jolli: assignment call failed", { status: error.status, cause: error.cause })
         return UNREACHABLE_ASSIGNMENT
       }
@@ -314,9 +315,11 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
      */
     const localSessions = Effect.fn("JolliHttpApi.localSessions")(function* (ids: ReadonlyArray<string>) {
       const found = yield* Effect.forEach(
-        ids,
+        // ⚠ The gateway's ids are not checked as session ids. One that is not can be no session here, and
+        // `SessionID.make` would throw it as a defect, past the catch below.
+        ids.filter(Schema.is(SessionID)),
         (id) =>
-          sessions.get(SessionID.make(id)).pipe(
+          sessions.get(id).pipe(
             Effect.map((info) =>
               info.time.archived === undefined
                 ? [[id, { directory: info.directory, updated: info.time.updated }] as const]
@@ -415,6 +418,18 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
           Effect.sync(() => JolliAssignmentCache.turnedIn(request.identity, ctx.params.courseId, read, Date.now())),
         ),
         Effect.flatMap((read) => answerFor(course, read)),
+        /**
+         * ⚠ A TURN-IN THAT FAILED WITHOUT A REFUSAL MAY HAVE LANDED, as the hand-in tools' writes may: the
+         * kept copies go, so the student's retry reads what the gateway now has rather than offering a
+         * turn-in it would refuse as already done.
+         */
+        Effect.tapError((error) =>
+          failureOf(error) === "failed"
+            ? Effect.sync(() =>
+                JolliAssignmentCache.forget(request.identity, ctx.params.courseId, ctx.params.assignmentId),
+              )
+            : Effect.void,
+        ),
         Effect.catch((error) => assignmentFailed(error, request.token)),
       )
     })
