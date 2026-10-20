@@ -1,12 +1,17 @@
 import { describe, expect, test } from "bun:test"
 import { Brand } from "@opencode-ai/core/brand"
 import { providerIdFor, SUPPORTED_PROTOCOLS } from "@opencode-ai/core/jolli/gateway-config"
-import { jolliCodingAgentHeaders, jolliMcpReport, jolliToolErrors } from "@/session/llm/request"
+import { Effect } from "effect"
+import { jolliCodingAgentHeaders, jolliMcpReport, jolliToolErrors, LLMRequestPrep } from "@/session/llm/request"
 import { MessageID, PartID, SessionID } from "@/session/schema"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { SessionCompaction } from "@/session/compaction"
+import type { Agent } from "@/agent/agent"
+import type { RuntimeFlags } from "@/effect/runtime-flags"
+import type { Plugin } from "@/plugin"
+import type { Provider } from "@/provider/provider"
 
 describe("jolli coding-agent request headers", () => {
   test("carries compacted legacy skill snapshots without including their instruction bodies", () => {
@@ -400,5 +405,67 @@ describe("jolliMcpReport", () => {
       mcpServers: [],
       mcpToolOverrides: [],
     })
+  })
+
+  test("the request-level tenant header overrides the provider's", async () => {
+    const providerID = providerIdFor("openai")
+    const sessionID = SessionID.descending()
+    const model = {
+      id: "model-uuid-1",
+      providerID,
+      api: { id: "gpt-5.4", url: "https://jolli.example/api", npm: "@ai-sdk/openai" },
+      name: "gpt-5.4",
+      capabilities: {
+        temperature: true,
+        reasoning: false,
+        attachment: false,
+        toolcall: true,
+        input: { text: true, audio: false, image: false, video: false, pdf: false },
+        output: { text: true, audio: false, image: false, video: false, pdf: false },
+        interleaved: false,
+      },
+      cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+      limit: { context: 128000, output: 4096 },
+      status: "active",
+      options: {},
+      headers: { "X-Tenant-Slug": "home", "x-other": "kept" },
+    }
+    const prepared = await Effect.runPromise(
+      LLMRequestPrep.prepare({
+        user: {
+          id: "msg_user-test",
+          sessionID,
+          role: "user",
+          time: { created: Date.now() },
+          agent: "test",
+          model: { providerID, modelID: "gpt-5.4" },
+        } as unknown as SessionV1.User,
+        sessionID,
+        turnID: MessageID.ascending(),
+        clientAttemptID: "attempt-1",
+        stepIndex: 0,
+        courseID: "acme:main:12",
+        courseAssistantID: "acme:main:5",
+        model: model as unknown as Provider.Model,
+        agent: { name: "test", mode: "primary", options: {}, permission: [] } as unknown as Agent.Info,
+        system: [],
+        messages: [{ role: "user", content: "Hello" }],
+        tools: {},
+        provider: { id: providerID, options: {} } as unknown as Provider.Info,
+        auth: undefined,
+        plugin: {
+          trigger: (_name: string, _input: unknown, output: unknown) => Effect.succeed(output),
+          list: () => Effect.succeed([]),
+          init: () => Effect.void,
+        } as unknown as Plugin.Interface,
+        flags: { outputTokenMax: 32_000, client: "test" } as unknown as RuntimeFlags.Info,
+        isWorkflow: false,
+      }),
+    )
+    const names = Object.keys(prepared.headers).filter((name) => name.toLowerCase() === "x-tenant-slug")
+    expect(names).toEqual(["x-tenant-slug"])
+    expect(prepared.headers["x-tenant-slug"]).toBe("acme")
+    expect(prepared.headers["x-org-slug"]).toBe("main")
+    expect(prepared.headers["x-other"]).toBe("kept")
   })
 })

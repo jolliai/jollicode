@@ -23,6 +23,7 @@ import {
   handIn,
   JolliApiError,
   previewHandIn,
+  scopedRequest,
   turnInAssignment,
   type GatewayRequest,
 } from "@opencode-ai/core/jolli/api"
@@ -41,6 +42,7 @@ import {
 } from "@opencode-ai/core/jolli/assignment"
 import { JolliAssignmentCache } from "@opencode-ai/core/jolli/assignment-cache"
 import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
+import { parseCourseBinding, type OrgScope } from "@opencode-ai/core/jolli/org-scoped-id"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { Effect } from "effect"
@@ -68,7 +70,10 @@ const unconfirmed = (act: Act) =>
 
 /** What a tool needs of the session it runs in: its course, its task, and when it started. */
 type TaskSession = {
+  /** The course as the session is bound to it, an org-scoped id: what approvals and kept copies are filed under. */
   courseId: string
+  /** The course's org, which every call about the task is made in, and its numeric id there. */
+  course: { readonly org?: OrgScope; readonly id: number }
   assignmentId: string
   partId: string
   startHead: string | undefined
@@ -88,11 +93,14 @@ export async function JolliAssignmentPlugin(
       Effect.gen(function* () {
         const sessions = yield* Session.Service
         const info = yield* sessions.get(SessionID.make(sessionID))
-        const course = courseBindingOf(info)
+        const binding = courseBindingOf(info)
         const task = taskBindingOf(info)
-        if (!course || !task) return undefined
+        // A binding that does not parse names no course the task could be handed in to.
+        const ids = parseCourseBinding(binding)
+        if (!binding || !ids || !task) return undefined
         return {
-          courseId: course.courseId,
+          courseId: binding.courseId,
+          course: { org: ids.org, id: ids.courseId },
           assignmentId: task.assignmentId,
           partId: task.partId,
           startHead: task.startHead,
@@ -102,12 +110,16 @@ export async function JolliAssignmentPlugin(
     )
   }
 
-  /** A gateway request with a fresh token, or undefined when there is none to make. */
-  function gateway() {
+  /**
+   * A gateway request with a fresh token, made in the org of the task's course, or undefined when
+   * there is none to make.
+   */
+  function gateway(task: TaskSession) {
     return run(
       Effect.gen(function* () {
         const jolli = yield* JolliSession.Service
-        return yield* jolli.request()
+        const request = yield* jolli.request()
+        return request && scopedRequest(request, task.course.org)
       }).pipe(Effect.catchCause(() => Effect.succeed(undefined))),
     )
   }
@@ -159,7 +171,7 @@ export async function JolliAssignmentPlugin(
   /** The assignment as the gateway now has it, or undefined when it cannot be read either. */
   function reread(request: GatewayRequest, task: TaskSession) {
     return run(
-      fetchStudentAssignment(request, Number(task.courseId), Number(task.assignmentId)).pipe(
+      fetchStudentAssignment(request, task.course.id, Number(task.assignmentId)).pipe(
         Effect.provide(FetchHttpClient.layer),
         Effect.catch(() => Effect.succeed(undefined)),
       ),
@@ -206,11 +218,11 @@ export async function JolliAssignmentPlugin(
         async execute(args, context) {
           const task = await taskSessionOf(context.sessionID)
           if (!task) return NOT_A_TASK
-          const request = await gateway()
+          const request = await gateway(task)
           if (!request) return unreachable(HAND_IN)
           const report = await project(task, context.directory)
           const ids = {
-            courseId: Number(task.courseId),
+            courseId: task.course.id,
             assignmentId: Number(task.assignmentId),
             partId: Number(task.partId),
             publicSessionId: context.sessionID,
@@ -276,11 +288,11 @@ export async function JolliAssignmentPlugin(
         async execute(_args, context) {
           const task = await taskSessionOf(context.sessionID)
           if (!task) return NOT_A_TASK
-          const request = await gateway()
+          const request = await gateway(task)
           if (!request) return unreachable(TURN_IN)
           const read = await call(
             request,
-            fetchStudentAssignment(request, Number(task.courseId), Number(task.assignmentId)).pipe(
+            fetchStudentAssignment(request, task.course.id, Number(task.assignmentId)).pipe(
               Effect.provide(FetchHttpClient.layer),
             ),
             TURN_IN,
@@ -305,7 +317,7 @@ export async function JolliAssignmentPlugin(
           const turned = await call(
             request,
             turnInAssignment(request, {
-              courseId: Number(task.courseId),
+              courseId: task.course.id,
               assignmentId: Number(task.assignmentId),
             }).pipe(Effect.provide(FetchHttpClient.layer)),
             TURN_IN,

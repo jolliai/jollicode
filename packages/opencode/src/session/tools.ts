@@ -25,6 +25,8 @@ import { isRecord } from "@/util/record"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { courseToolRules, listMcpTools } from "@/plugin/jolli-mcp-tools"
 import { HAND_IN_PERMISSIONS, taskBindingOf } from "@opencode-ai/core/jolli/assignment"
+import { bindingOrg } from "@opencode-ai/core/jolli/org-scoped-id"
+import { JolliMcpCall } from "@/mcp/jolli-call"
 
 const MCP_RESOURCE_TOOLS = {
   list: "list_mcp_resources",
@@ -73,6 +75,9 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   const mcp = yield* MCP.Service
   const truncate = yield* Truncate.Service
   const flags = yield* RuntimeFlags.Service
+  // The org this session's course lives in: every MCP call it makes — tools and resources alike —
+  // is made there, so a course server answers about this course and not the home org's namesake.
+  const org = bindingOrg(input.session)
 
   const toolIndices = new Map<string, number>()
   // Ordinals count calls within one provider response. A retried stream reuses these tools, but the
@@ -242,7 +247,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
               always: permissionPatterns,
             })
 
-            const resources = Object.values(yield* mcp.resources(parsed.server))
+            const resources = Object.values(yield* mcp.resources(parsed.server, org))
             const filtered = resources
               .filter((resource) => !parsed.server || resource.client === parsed.server)
               .toSorted((a, b) =>
@@ -325,7 +330,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
               always: permissionPatterns,
             })
 
-            const templates = Object.values(yield* mcp.resourceTemplates(parsed.server))
+            const templates = Object.values(yield* mcp.resourceTemplates(parsed.server, org))
             const filtered = templates
               .filter((template) => !parsed.server || template.client === parsed.server)
               .toSorted((a, b) =>
@@ -405,7 +410,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
               always: [`mcp:${parsed.server}:*`],
             })
 
-            const content = yield* mcp.readResource(parsed.server, parsed.uri)
+            const content = yield* mcp.readResource(parsed.server, parsed.uri, org)
             if (!content) throw new Error(`Failed to read MCP resource: ${parsed.server}/${parsed.uri}`)
 
             const formatted = formatMcpResourceContent(parsed.server, parsed.uri, content)
@@ -473,7 +478,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
           )
           const result: Awaited<ReturnType<NonNullable<typeof execute>>> = yield* Effect.gen(function* () {
             yield* ctx.ask({ permission: key, metadata: {}, patterns: ["*"], always: ["*"] })
-            return yield* Effect.promise(() => execute(args, opts))
+            return yield* Effect.promise(() => JolliMcpCall.run({ org }, () => execute(args, opts)))
           }).pipe(
             Effect.withSpan("Tool.execute", {
               attributes: {

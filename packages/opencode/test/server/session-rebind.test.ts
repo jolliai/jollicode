@@ -199,6 +199,23 @@ describe("refuseBindingOutsideStart", () => {
     expect(await refused(bound("7", "12"), bound("7", "12"))).toBe(false)
   })
 
+  /**
+   * ⚠ A BINDING EVERY READER WOULD TAKE AS NONE. Stored, its turns would reach the gateway naming no
+   * course and run outside the course's rules.
+   */
+  test("refuses a new binding that names no course: a malformed id, or a pair naming two orgs", async () => {
+    for (const [courseId, assistantId] of [
+      ["abc", "13"],
+      ["0", "13"],
+      ["7", "1.5"],
+      ["acme:12", "acme:main:13"],
+      ["acme:main:7", "beta:north:13"],
+      ["acme:main:7", "13"],
+    ])
+      expect(await refused(undefined, bound(courseId, assistantId))).toBe(true)
+    expect(await refused(undefined, bound("acme:main:7", "acme:main:13"))).toBe(false)
+  })
+
   test("permits what the catalogue cannot judge, and anything unbound", async () => {
     expect(await refused(undefined, bound("7", "99"))).toBe(false)
     expect(await refused(undefined, undefined)).toBe(false)

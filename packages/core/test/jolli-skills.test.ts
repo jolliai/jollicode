@@ -589,6 +589,74 @@ describe("course skill loading", () => {
     }
   })
 
+  test("an org-scoped binding reads the assistant choices in its org, by the numeric ids", async () => {
+    const scopes: (string | null)[] = []
+    const remote = gateway((path, request) => {
+      scopes.push(
+        request.headers.get("x-jolli-org-scope") &&
+          `${request.headers.get("x-tenant-slug")}/${request.headers.get("x-org-slug")}`,
+      )
+      if (path.includes("assistant-choices"))
+        return Response.json([
+          {
+            id: 11,
+            name: "Tutor",
+            blurb: "",
+            icon: "book",
+            accent: 0,
+            worksThroughProblems: true,
+            answersFromMaterialsOnly: false,
+            showCitations: false,
+            modelId: "model",
+            allowedModelIds: [],
+            skills: [choice],
+          },
+        ])
+      return Response.json({}, { status: 404 })
+    })
+    const scoped = {
+      id: "ses_course_org",
+      metadata: { jolli: { courseId: "acme:main:7", assistantId: "acme:main:11" } },
+    }
+    try {
+      expect(await Effect.runPromise(JolliSkills.list(remote.jolli, scoped))).toEqual([
+        { ...choice, toolName: "course:quiz" },
+      ])
+      expect(remote.seen).toEqual(["/api/agent/convos/ses_course_org/skills", "/api/courses/7/assistant-choices"])
+      expect(scopes).toEqual(["acme/main", "acme/main"])
+    } finally {
+      await remote.server.stop(true)
+    }
+  })
+
+  test("an org-scoped session invokes and forks its course skills in its org", async () => {
+    const scopes: (string | null)[] = []
+    const remote = gateway((path, request) => {
+      scopes.push(request.headers.get("x-org-slug"))
+      if (path.endsWith("/invocations")) return Response.json(reference)
+      if (path.endsWith("/fork")) return Response.json([])
+      return Response.json([choice])
+    })
+    const scoped = {
+      id: "ses_course_org",
+      metadata: { jolli: { courseId: "acme:main:7", assistantId: "acme:main:11" } },
+    }
+    try {
+      await Effect.runPromise(JolliSkills.load(remote.jolli, scoped, "course:quiz", "course-call"))
+      await Effect.runPromise(
+        JolliSkills.fork(remote.jolli, { source: scoped, sessionID: "ses_fork", references: [reference] }),
+      )
+      expect(remote.seen).toEqual([
+        "/api/agent/convos/ses_course_org/skills",
+        "/api/agent/convos/ses_course_org/skills/8/invocations",
+        "/api/agent/convos/ses_course_org/skills/fork",
+      ])
+      expect(scopes).toEqual(["main", "main", "main"])
+    } finally {
+      await remote.server.stop(true)
+    }
+  })
+
   test("renews a refused credential and records an invocation without downloading instructions", async () => {
     const remote = gateway((path, request) => {
       if (request.headers.get("authorization") === "Bearer test-token") return Response.json({}, { status: 401 })
@@ -870,7 +938,7 @@ describe("course skill loading", () => {
     try {
       const refs = Array.from({ length: 101 }, (_, index) => ({ ...reference, messageId: index + 1 }))
       const copies = await Effect.runPromise(
-        JolliSkills.fork(remote.jolli, { sourceSessionID: session.id, sessionID: "ses_fork", references: refs }),
+        JolliSkills.fork(remote.jolli, { source: session, sessionID: "ses_fork", references: refs }),
       )
       expect(copies).toHaveLength(101)
       expect(batches).toEqual([100, 1])

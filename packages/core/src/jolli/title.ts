@@ -10,13 +10,24 @@
  * all end here as a log line, and the local title is untouched either way.
  */
 import { Effect, Schedule } from "effect"
-import { renameConversation } from "./api"
+import { renameConversation, scopedRequest } from "./api"
+import type { SessionLike } from "./binding"
+import { bindingOrg } from "./org-scoped-id"
 import { JolliSession } from "./session"
 
-export const syncTitle = Effect.fn("Jolli.syncTitle")(function* (sessionID: string, title: string) {
+/**
+ * ⚠ THE SESSION, NOT ITS ID, because the conversation lives in the org its course binding names, and
+ * a rename sent anywhere else would find nothing there to rename.
+ */
+export const syncTitle = Effect.fn("Jolli.syncTitle")(function* (
+  target: SessionLike & { readonly id: string },
+  title: string,
+) {
+  const sessionID = target.id
   const session = yield* JolliSession.Service
-  const request = yield* session.request().pipe(Effect.catch(() => Effect.succeed(undefined)))
-  if (!request) return
+  const signedIn = yield* session.request().pipe(Effect.catch(() => Effect.succeed(undefined)))
+  if (!signedIn) return
+  const request = scopedRequest(signedIn, bindingOrg(target))
   yield* renameConversation(request, sessionID, title).pipe(
     /**
      * ⚠ 404 IS RETRIED BECAUSE THE TITLE CAN OUTRUN THE CONVERSATION. The title is generated

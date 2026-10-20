@@ -25,6 +25,7 @@ import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { buildPrompt, CONVERSATION_OPEN } from "@opencode-ai/core/session/compaction"
 import { SessionCompactionEvent } from "@opencode-ai/schema/session-compaction-event"
+import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
 import { CourseSkillHistory } from "@opencode-ai/core/jolli/skill-history"
 import { CODING_CONTINUATION } from "@opencode-ai/core/jolli/coding-headers"
 
@@ -417,6 +418,11 @@ const layer = Layer.effect(
         }
       }
 
+      // Only for the org the summary is asked in; a session deleted mid-compaction has no binding to
+      // name one, and that is no reason to fail a compaction that did not need the session before.
+      const courseBinding = courseBindingOf(
+        yield* session.get(input.sessionID).pipe(Effect.catch(() => Effect.succeed(undefined))),
+      )
       const agent = yield* agents.get("compaction")
       const model = agent.model
         ? yield* provider.getModel(agent.model.providerID, agent.model.modelID).pipe(Effect.orDie)
@@ -530,6 +536,8 @@ const layer = Layer.effect(
         agent,
         sessionID: input.sessionID,
         requestKind: "compaction",
+        courseID: courseBinding?.courseId,
+        courseAssistantID: courseBinding?.assistantId,
         tools: {},
         system: [],
         messages: [

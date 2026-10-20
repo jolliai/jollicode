@@ -12,6 +12,7 @@
  * name alone says nothing about where a request is going. The student's token only goes to a Jolli
  * origin — the same allowlist sign-in and the gateway requests are held to.
  */
+import { orgScopeHeaders, type OrgScope } from "./org-scoped-id"
 import { isJolliOriginAllowed } from "./origin"
 
 /** The server key the tenant's discovery answer uses, and so the prefix of every tool it contributes. */
@@ -32,6 +33,17 @@ export interface JolliMcpCredential {
  * one credential is ever sent there, whatever case a config wrote the header name in. Elsewhere the
  * request is passed through as configured and carries no Jolli credential.
  *
+ * A request made in another org names that org, read through `scope` when the request goes out.
+ * Its headers are set, not added, so a tenant header the entry was configured with is replaced
+ * rather than sent alongside the target. A request made for no session — the handshake, the tool
+ * listing — or for one with no org names none and reaches the home org as before. The lookup is
+ * required, not defaulted: a caller that left it out would still type-check and quietly send every
+ * course call to the home org.
+ *
+ * ⚠ `scope` IS SYNCHRONOUS AND CANNOT FAIL. The caller names the org of the session it acts for —
+ * read off a session it already holds — before the call starts, so there is no session read here
+ * that could fail and leave the request with no right org to go to.
+ *
  * ⚠ THE SAME ATTACH-RENEW-RETRY SHAPE AS THE MODEL PROVIDERS' `fetch` IN `plugin/jolli.ts`, KEPT
  * APART ON PURPOSE. That one sits on every model call, is handed a `Request` on some SDK paths and so
  * has to clone its body before the first send, and strips vendor key headers off foreign
@@ -42,13 +54,16 @@ export interface JolliMcpCredential {
  */
 export function jolliMcpFetch(
   credential: JolliMcpCredential,
+  scope: () => OrgScope | undefined,
   send: (input: string | URL, init?: RequestInit) => Promise<Response> = fetch,
 ) {
   return async function jolliMcpRequest(input: string | URL, init?: RequestInit): Promise<Response> {
     if (!isJolliOriginAllowed(input.toString())) return send(input, init)
+    const org = scope()
     const headers = new Headers(init?.headers)
     const token = await untilAborted(credential.token(), init?.signal)
     headers.set("authorization", `Bearer ${token}`)
+    for (const [name, value] of Object.entries(orgScopeHeaders(org))) headers.set(name, value)
     const answer = await send(input, { ...init, headers })
     if (answer.status !== 401) return answer
 

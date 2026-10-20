@@ -730,7 +730,7 @@ const layer: Layer.Layer<
       const id = SessionID.descending()
       // A fork never depends on Jolli being reachable: references left uncopied stay scoped to the
       // source session on the server, so the gateway restores them as unavailable instead.
-      const copies = yield* JolliSkills.fork(jolli, { sourceSessionID: original.id, sessionID: id, references }).pipe(
+      const copies = yield* JolliSkills.fork(jolli, { source: original, sessionID: id, references }).pipe(
         Effect.catch((error) =>
           Effect.logWarning("Jolli: course skill snapshots were not copied to the fork", {
             sessionID: original.id,

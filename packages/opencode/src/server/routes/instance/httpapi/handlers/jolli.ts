@@ -15,6 +15,7 @@ import {
   fetchCourseMembers,
   fetchStudentAssignment,
   fetchStudentAssignments,
+  scopedRequest,
   shareConversation,
   turnInAssignment,
   unshareConversation,
@@ -32,6 +33,7 @@ import {
 } from "@opencode-ai/core/jolli/assignment"
 import { JolliAssignmentCache } from "@opencode-ai/core/jolli/assignment-cache"
 import { isGatewayId } from "@opencode-ai/core/jolli/binding"
+import { bindingOrg, parseOrgScopedId } from "@opencode-ai/core/jolli/org-scoped-id"
 import { loadCatalog } from "@opencode-ai/core/jolli/cache"
 import { JolliClosedAssistants } from "@opencode-ai/core/jolli/closed-assistants"
 import { projectCatalog, today } from "@opencode-ai/core/jolli/catalog"
@@ -158,6 +160,35 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
     const gateway = () => session.request().pipe(Effect.catch(() => Effect.succeed(undefined)))
 
     /**
+     * THE GATEWAY TO ASK ABOUT ONE SESSION: in the org its course names, where its conversation lives.
+     * A session this machine does not hold, or one bound to no org, is asked about without a scope.
+     *
+     * ⚠ A SESSION THAT IS HERE BUT CANNOT BE READ IS UNREACHABLE, NOT UNSCOPED. Its org is unknown;
+     * sent to the home org, a scoped conversation's read answers "not found" and a share write is
+     * refused — a final answer for what was a passing failure. Undefined answers "unreachable",
+     * which the panel offers to retry.
+     */
+    const gatewayFor = Effect.fn("JolliHttpApi.gatewayFor")(function* (sessionID: string) {
+      const request = yield* gateway()
+      if (!request) return undefined
+      // ⚠ Checked first: `sessions.get` would throw an id that is not a session id as a defect.
+      if (!Schema.is(SessionID)(sessionID)) return request
+      const read = yield* sessions.get(sessionID).pipe(
+        Effect.map((info) => ({ info })),
+        // Not held on this machine: there is no binding here to name an org.
+        Effect.catch(() => Effect.succeed({ info: undefined })),
+        Effect.catchCause((cause) =>
+          Effect.logWarning("Jolli: could not read the session for its org", {
+            sessionID,
+            cause: String(cause),
+          }).pipe(Effect.as(undefined)),
+        ),
+      )
+      if (!read) return undefined
+      return scopedRequest(request, bindingOrg(read.info))
+    })
+
+    /**
      * ONE FAILED GATEWAY CALL, AS AN ANSWER.
      *
      * ⚠ 404 IS `unsynced`, NOT AN OUTAGE. jolliedu answers "not yours" and "not there" alike, and
@@ -195,7 +226,7 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
     })
 
     const share = Effect.fn("JolliHttpApi.share")(function* (ctx: { params: { sessionID: string } }) {
-      const request = yield* gateway()
+      const request = yield* gatewayFor(ctx.params.sessionID)
       if (!request) return shareAnswer("unreachable")
       const credential = yield* session.current()
       const viewer = credential ? viewerFromToken(credential.access_token) : undefined
@@ -203,6 +234,9 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
         Effect.flatMap((visibility) => {
           if (visibility.courseId === null) return Effect.succeed(answered(visibility))
           /**
+           * ⚠ THE ROSTER IS READ IN THE SESSION'S ORG, the conversation's own: the course id it answered
+           * with is that org's.
+           *
            * ⚠ AN UNREADABLE ROSTER EMPTIES THE PICKER, NOT THE PANEL. jolliedu's rule: the grants
            * already made are the half of this panel that matters most, and they came with the
            * conversation read that just succeeded.
@@ -231,7 +265,7 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
      * so this answers the way a write does and leaves `members` to the panel's full read.
      */
     const shareReaders = Effect.fn("JolliHttpApi.shareReaders")(function* (ctx: { params: { sessionID: string } }) {
-      const request = yield* gateway()
+      const request = yield* gatewayFor(ctx.params.sessionID)
       if (!request) return shareAnswer("unreachable")
       return yield* fetchConversationShares(request, ctx.params.sessionID).pipe(
         Effect.map((visibility) => answered(visibility)),
@@ -246,7 +280,7 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
       // The schema admits any integer; the path route (`subjectOf`) admits only a real user id.
       if (ctx.payload.subject !== Jolli.EVERYONE && ctx.payload.subject <= 0)
         return { ...shareAnswer("refused"), refusal: "unknown" as const }
-      const request = yield* gateway()
+      const request = yield* gatewayFor(ctx.params.sessionID)
       if (!request) return shareAnswer("unreachable")
       return yield* shareConversation(request, ctx.params.sessionID, ctx.payload.subject, WRITABLE_ACCESS).pipe(
         Effect.map((visibility) => answered(visibility)),
@@ -259,7 +293,7 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
     }) {
       const subject = subjectOf(ctx.params.subject)
       if (subject === undefined) return { ...shareAnswer("refused"), refusal: "unknown" as const }
-      const request = yield* gateway()
+      const request = yield* gatewayFor(ctx.params.sessionID)
       if (!request) return shareAnswer("unreachable")
       return yield* unshareConversation(request, ctx.params.sessionID, subject).pipe(
         Effect.map((visibility) => answered(visibility)),
@@ -355,8 +389,14 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
       if (!courses) return { status: "unreachable" as const, assignments: [] }
       const read = yield* Effect.forEach(
         courses,
-        (course) =>
-          fetchStudentAssignments(request, Number(course.id)).pipe(
+        (course) => {
+          const parsed = parseOrgScopedId(course.id)
+          // A course id that does not parse is one whose assignments cannot be asked for, like one that failed.
+          if (!parsed)
+            return Effect.logWarning("Jolli: a course's id does not name a course", { courseId: course.id }).pipe(
+              Effect.as(undefined),
+            )
+          return fetchStudentAssignments(scopedRequest(request, parsed.org), parsed.id).pipe(
             Effect.map((list) => ({ course, list })),
             Effect.catch((error) =>
               Effect.gen(function* () {
@@ -368,7 +408,8 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
                 return undefined
               }),
             ),
-          ),
+          )
+        },
         { concurrency: 4 },
       )
       const lists = read.filter((item) => item !== undefined)
@@ -382,19 +423,39 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
       return { status: "ok" as const, assignments: todo }
     })
 
+    /**
+     * WHAT AN ASSIGNMENT ROUTE ADDRESSES: the course's numeric id, a request made in its org, and the
+     * course as the catalogue shows it — or undefined when the ids name nothing or nobody is signed in.
+     *
+     * ⚠ THE COURSE IS AN ORG-SCOPED ID, AND IT IS NOT DECODED AGAIN. The router has already
+     * percent-decoded the segment, so an encoded `:` arrives as `:`; decoding twice would turn a
+     * literal `%25` into something the client never sent.
+     */
+    const assignmentTarget = Effect.fn("JolliHttpApi.assignmentTarget")(function* (params: {
+      courseId: string
+      assignmentId: string
+    }) {
+      const parsed = parseOrgScopedId(params.courseId)
+      if (!parsed || !isGatewayId(params.assignmentId)) return undefined
+      const signedIn = yield* gateway()
+      if (!signedIn) return undefined
+      // The catalogue is the signed-in account's own, read without a scope.
+      const course = yield* courseOf(signedIn, params.courseId)
+      return { courseId: parsed.id, request: scopedRequest(signedIn, parsed.org), course }
+    })
+
     const assignment = Effect.fn("JolliHttpApi.assignment")(function* (ctx: {
       params: { courseId: string; assignmentId: string }
       query: { fresh?: boolean }
     }) {
-      if (!isGatewayId(ctx.params.courseId) || !isGatewayId(ctx.params.assignmentId)) return UNREACHABLE_ASSIGNMENT
-      const request = yield* gateway()
-      if (!request) return UNREACHABLE_ASSIGNMENT
-      const course = yield* courseOf(request, ctx.params.courseId)
+      const target = yield* assignmentTarget(ctx.params)
+      if (!target) return UNREACHABLE_ASSIGNMENT
+      const { request, course } = target
       const kept = ctx.query.fresh
         ? undefined
         : JolliAssignmentCache.assignment(request.identity, ctx.params.courseId, ctx.params.assignmentId, Date.now())
       if (kept) return yield* answerFor(course, kept)
-      return yield* fetchStudentAssignment(request, Number(ctx.params.courseId), Number(ctx.params.assignmentId)).pipe(
+      return yield* fetchStudentAssignment(request, target.courseId, Number(ctx.params.assignmentId)).pipe(
         Effect.tap((read) =>
           Effect.sync(() => JolliAssignmentCache.keep(request.identity, ctx.params.courseId, read, Date.now())),
         ),
@@ -406,12 +467,11 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
     const turnIn = Effect.fn("JolliHttpApi.turnIn")(function* (ctx: {
       params: { courseId: string; assignmentId: string }
     }) {
-      if (!isGatewayId(ctx.params.courseId) || !isGatewayId(ctx.params.assignmentId)) return UNREACHABLE_ASSIGNMENT
-      const request = yield* gateway()
-      if (!request) return UNREACHABLE_ASSIGNMENT
-      const course = yield* courseOf(request, ctx.params.courseId)
+      const target = yield* assignmentTarget(ctx.params)
+      if (!target) return UNREACHABLE_ASSIGNMENT
+      const { request, course } = target
       return yield* turnInAssignment(request, {
-        courseId: Number(ctx.params.courseId),
+        courseId: target.courseId,
         assignmentId: Number(ctx.params.assignmentId),
       }).pipe(
         Effect.tap((read) =>

@@ -1,5 +1,6 @@
 import { courseBindingOf, type SessionLike } from "@opencode-ai/core/jolli/binding"
 import { JOLLI_MCP_SERVER } from "@opencode-ai/core/jolli/mcp"
+import { parseCourseBinding } from "@opencode-ai/core/jolli/org-scoped-id"
 import { JolliSources } from "@opencode-ai/core/jolli/sources"
 import type { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { Effect } from "effect"
@@ -28,16 +29,13 @@ export type ListKind = "materials" | "assignments" | "attachments"
 /**
  * The session's course binding as the course tools take it, or undefined when it has none usable.
  *
- * Metadata values are string-typed, but the Jolliedu tool schema takes numeric ids. Anything that
- * is not a positive integer reads as "no binding", so a malformed row cannot make the arguments
- * worse than leaving them out.
+ * Metadata values are org-scoped id strings, but the Jolliedu tool schema takes numeric ids — the org
+ * travels as the call's scope, not as an argument. Anything that does not parse reads as "no
+ * binding", so a malformed row cannot make the arguments worse than leaving them out.
  */
 export function courseToolBindingOf(session: SessionLike | undefined) {
-  const binding = courseBindingOf(session)
-  const courseId = binding ? toPositiveInt(binding.courseId) : undefined
-  const assistantId = binding ? toPositiveInt(binding.assistantId) : undefined
-  if (courseId === undefined || assistantId === undefined) return undefined
-  return { courseId, assistantId }
+  const ids = parseCourseBinding(courseBindingOf(session))
+  return ids && { courseId: ids.courseId, assistantId: ids.assistantId }
 }
 
 /**
@@ -146,9 +144,4 @@ export function projectJolliToolDefinition(tool: string, description: string, pa
       kind === "materials" ? "afterId" : kind === "assignments" ? "page" : "cursor",
     ),
   }
-}
-
-function toPositiveInt(value: string) {
-  const parsed = Number(value)
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
 }

@@ -16,6 +16,8 @@ import { Auth } from "../../src/auth"
 import { Config } from "../../src/config/config"
 import { Installation } from "../../src/installation"
 import { Session } from "../../src/session/session"
+import { SessionID } from "../../src/session/schema"
+import { NotFoundError } from "../../src/storage/storage"
 import { MoveSession } from "@opencode-ai/core/control-plane/move-session"
 import { ServerAuth } from "../../src/server/auth"
 import { RootHttpApi } from "../../src/server/routes/instance/httpapi/api"
@@ -44,6 +46,7 @@ function apiLayer(
   credential?: { baseUrl?: string; token?: string; subject?: string; email?: string },
   refused?: (token: string) => void,
   gateway: typeof globalThis.fetch = globalThis.fetch,
+  local: ReadonlyArray<Session.Info> = [],
 ) {
   const request =
     credential?.baseUrl && credential.token
@@ -99,8 +102,17 @@ function apiLayer(
     Layer.provide(Layer.mock(Auth.Service)({})),
     Layer.provide(Layer.mock(Config.Service)({})),
     Layer.provide(Layer.mock(MoveSession.Service)({})),
-    // The assignment routes look a task's sessions up on this machine; no case here has one.
-    Layer.provide(Layer.mock(Session.Service)({})),
+    // The assignment routes look a task's sessions up on this machine, and the share routes a session's course.
+    Layer.provide(
+      Layer.mock(Session.Service)({
+        get: (id) => {
+          // A session held here whose row cannot be read: the database is locked, say.
+          if (id === "ses_unreadable") return Effect.die(new Error("database is locked"))
+          const found = local.find((info) => info.id === id)
+          return found ? Effect.succeed(found) : Effect.fail(new NotFoundError({ message: `Session not found: ${id}` }))
+        },
+      }),
+    ),
     Layer.provide(Layer.mock(Installation.Service)({})),
     Layer.provide(ServerAuth.Config.configLayer({ password: Option.none(), username: "opencode" })),
     /**
@@ -518,7 +530,8 @@ describe("jolli HttpApi — asked for a fresh catalogue", () => {
  * ⚠ AND IT ANSWERS ONLY THE GATEWAY'S HOST. The `Fetch` reference it replaces is also what this
  * test's own client reads to reach the server under test, so anything else goes to the real fetch.
  */
-type GatewayCall = { method: string; path: string; body?: unknown }
+/** `scope` is the org a call was scoped to, as `tenant/org`; a call with no scope has none. */
+type GatewayCall = { method: string; path: string; body?: unknown; scope?: string }
 
 function gatewayStub(answer: (call: GatewayCall) => Response) {
   const calls: GatewayCall[] = []
@@ -530,6 +543,9 @@ function gatewayStub(answer: (call: GatewayCall) => Response) {
       method: request.method,
       path: new URL(request.url).pathname,
       ...(text ? { body: JSON.parse(text) } : {}),
+      ...(request.headers.get("x-jolli-org-scope")
+        ? { scope: `${request.headers.get("x-tenant-slug")}/${request.headers.get("x-org-slug")}` }
+        : {}),
     }
     calls.push(call)
     return answer(call)
@@ -553,9 +569,14 @@ const ROSTER = [
   { userId: 3, role: "course-student", userName: "Alan Turing", userEmail: "alan@jolli.ai" },
 ]
 
-const signedInAs = (fetch: typeof globalThis.fetch) =>
+const signedInAs = (fetch: typeof globalThis.fetch, local: ReadonlyArray<Session.Info> = []) =>
   testEffect(
-    apiLayer({ baseUrl: "https://acme.jolli.ai", token: fakeToken({ email: "ada@jolli.ai" }) }, undefined, fetch),
+    apiLayer(
+      { baseUrl: "https://acme.jolli.ai", token: fakeToken({ email: "ada@jolli.ai" }) },
+      undefined,
+      fetch,
+      local,
+    ),
   )
 
 const sharePath = (sessionID: string) => JolliPaths.share.replace(":sessionID", sessionID)
@@ -714,6 +735,56 @@ describe("jolli HttpApi — session share", () => {
   )
 })
 
+describe("jolli HttpApi — an org-scoped session's share", () => {
+  // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- only `id` and `metadata` are read.
+  const scopedSession = {
+    id: SessionID.make("ses_org"),
+    metadata: { jolli: { courseId: "acme:main:7", assistantId: "acme:main:12" } },
+  } as unknown as Session.Info
+  const read = gatewayStub((call) =>
+    call.path === "/api/agent/convos/ses_org" ? reply({ visibility: VISIBILITY }) : reply(ROSTER),
+  )
+  signedInAs(read.fetch, [scopedSession]).live("reads the conversation and the roster in the session's org", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(sharePath("ses_org")).pipe(HttpClient.execute)
+      expect(((yield* response.json) as { status: string }).status).toBe("ok")
+      expect(read.calls).toEqual([
+        { method: "GET", path: "/api/agent/convos/ses_org", scope: "acme/main" },
+        { method: "GET", path: "/api/spaces/7/members", scope: "acme/main" },
+      ])
+    }),
+  )
+
+  const writes = gatewayStub(() => reply(VISIBILITY))
+  signedInAs(writes.fetch, [scopedSession]).live("reads and writes the grants in the session's org", () =>
+    Effect.gen(function* () {
+      yield* HttpClientRequest.get(JolliPaths.shareReaders.replace(":sessionID", "ses_org")).pipe(HttpClient.execute)
+      yield* HttpClientRequest.post(sharePath("ses_org")).pipe(
+        HttpClientRequest.bodyJsonUnsafe({ subject: 2 }),
+        HttpClient.execute,
+      )
+      yield* HttpClientRequest.delete(`${sharePath("ses_org")}/everyone`).pipe(HttpClient.execute)
+      expect(writes.calls.map((call) => call.scope)).toEqual(["acme/main", "acme/main", "acme/main"])
+    }),
+  )
+})
+
+describe("jolli HttpApi — a session whose course cannot be read", () => {
+  const stub = gatewayStub(() => reply({ visibility: VISIBILITY }))
+  signedInAs(stub.fetch).live("answers unreachable rather than asking the home org about it", () =>
+    Effect.gen(function* () {
+      const read = yield* HttpClientRequest.get(sharePath("ses_unreadable")).pipe(HttpClient.execute)
+      expect(((yield* read.json) as { status: string }).status).toBe("unreachable")
+      const write = yield* HttpClientRequest.post(sharePath("ses_unreadable")).pipe(
+        HttpClientRequest.bodyJsonUnsafe({ subject: 2 }),
+        HttpClient.execute,
+      )
+      expect(((yield* write.json) as { status: string }).status).toBe("unreachable")
+      expect(stub.calls).toEqual([])
+    }),
+  )
+})
+
 const assignmentPath = (courseId: string, assignmentId: string) =>
   JolliPaths.assignment.replace(":courseId", courseId).replace(":assignmentId", assignmentId)
 
@@ -752,13 +823,45 @@ describe("jolli HttpApi — an assignment", () => {
   )
   signedInAs(foreign.fetch).live("reads an assignment whose task names a session id that is not one", () =>
     Effect.gen(function* () {
-      const response = yield* HttpClientRequest.get(`${assignmentPath("7", "40")}?fresh=true`).pipe(
-        HttpClient.execute,
-      )
+      const response = yield* HttpClientRequest.get(`${assignmentPath("7", "40")}?fresh=true`).pipe(HttpClient.execute)
       expect(response.status).toBe(200)
       const body = (yield* response.json) as { status: string; assignment: { tasks: { local: unknown }[] } }
       expect(body.status).toBe("ok")
       expect(body.assignment.tasks[0]?.local).toBeNull()
+    }),
+  )
+
+  const scoped = gatewayStub((call) =>
+    call.path.endsWith("/assignments/40/student-view") ? reply(STUDENT_ASSIGNMENT) : reply({}, 404),
+  )
+  signedInAs(scoped.fetch).live("reads an org-scoped course's assignment in that org, by its numeric id", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.get(
+        `${assignmentPath(encodeURIComponent("acme:main:7"), "40")}?fresh=true`,
+      ).pipe(HttpClient.execute)
+      expect(((yield* response.json) as { status: string }).status).toBe("ok")
+      // The catalogue naming the course is the account's own, read without a scope.
+      expect(scoped.calls).toEqual([
+        { method: "GET", path: "/api/courses" },
+        { method: "GET", path: "/api/courses/7/assignments/40/student-view", scope: "acme/main" },
+      ])
+    }),
+  )
+
+  const never = gatewayStub(() => reply({}, 404))
+  signedInAs(never.fetch).live("answers unreachable for a course id that names half an org, asking nobody", () =>
+    Effect.gen(function* () {
+      for (const courseId of ["acme:7", "a:b:c:7", "acme:main:07"]) {
+        const response = yield* HttpClientRequest.get(assignmentPath(encodeURIComponent(courseId), "40")).pipe(
+          HttpClient.execute,
+        )
+        expect(yield* response.json).toEqual({ status: "unreachable" })
+        const turnIn = yield* HttpClientRequest.post(
+          `${assignmentPath(encodeURIComponent(courseId), "40")}/turn-in`,
+        ).pipe(HttpClient.execute)
+        expect(yield* turnIn.json).toEqual({ status: "unreachable" })
+      }
+      expect(never.calls).toEqual([])
     }),
   )
 

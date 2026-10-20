@@ -39,6 +39,7 @@
 import { Duration, Effect, Schedule, Schema } from "effect"
 import { HttpClient, HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 import { Brand } from "../brand"
+import { orgScopeHeaders, type OrgScope } from "./org-scoped-id"
 import { isJolliOriginAllowed, parseJolliUrl } from "./origin"
 import { Jolli } from "@opencode-ai/schema/jolli"
 
@@ -100,6 +101,16 @@ export interface GatewayRequest {
    * ⚠ IT IS NOT A SECRET AND MUST NOT BE USED AS ONE. Only `token` authenticates anything.
    */
   readonly identity: string
+  /**
+   * WHICH ORG THIS REQUEST RUNS IN, when it is not the home one. Its tenant and org replace the
+   * base URL's tenant header on the wire. It is per-request, so the catalogue cache key does not read it.
+   */
+  readonly scope?: OrgScope
+}
+
+/** The same request, aimed at `org`; with no org it is returned untouched. */
+export function scopedRequest(request: GatewayRequest, org: OrgScope | undefined): GatewayRequest {
+  return org ? { ...request, scope: org } : request
 }
 
 /** What a caller must hold to address the gateway: something to send, and something to file it under. */
@@ -550,6 +561,8 @@ const get = Effect.fn("Jolli.get")(function* <A, I>(request: GatewayRequest, pat
     HttpClientRequest.setHeader("User-Agent", Brand.userAgent()),
     // The API is mounted on the origin, so a path-addressed tenant names itself in a header.
     request.tenantSlug ? HttpClientRequest.setHeader("x-tenant-slug", request.tenantSlug) : (r) => r,
+    // After the home tenant's header, so the scope's tenant wins rather than being appended to it.
+    HttpClientRequest.setHeaders(orgScopeHeaders(request.scope)),
     http.execute,
     Effect.flatMap(HttpClientResponse.schemaBodyJson(schema)),
     Effect.timeout("15 seconds"),
@@ -611,6 +624,8 @@ const send = Effect.fn("Jolli.send")(function* <A, I>(
     HttpClientRequest.bearerToken(request.token),
     HttpClientRequest.setHeader("User-Agent", Brand.userAgent()),
     request.tenantSlug ? HttpClientRequest.setHeader("x-tenant-slug", request.tenantSlug) : (r) => r,
+    // After the home tenant's header, so the scope's tenant wins rather than being appended to it.
+    HttpClientRequest.setHeaders(orgScopeHeaders(request.scope)),
     body === undefined ? Effect.succeed : HttpClientRequest.bodyJson(body),
     Effect.flatMap((r) => http.execute(r)),
     Effect.timeout(timeout),

@@ -195,10 +195,11 @@ describe("JolliCourseGuardrails.assignmentsIncluded", () => {
     fetch: typeof globalThis.fetch,
     renewed: JolliSession.Interface["request"] = () =>
       Effect.succeed(gatewayRequest(baseUrl, { token: "jwt", identity: "student-a" })),
+    bound = binding,
   ) {
     const unused = () => Effect.die("not used by this read")
     return Effect.runPromise(
-      JolliCourseGuardrails.assignmentsIncluded(binding).pipe(
+      JolliCourseGuardrails.assignmentsIncluded(bound).pipe(
         Effect.provideService(
           JolliSession.Service,
           JolliSession.Service.of({
@@ -274,6 +275,24 @@ describe("JolliCourseGuardrails.assignmentsIncluded", () => {
     expect(await included("https://assignments-tenants.jolli.dev/north", http.fetch)).toBe(true)
     expect(await included("https://assignments-tenants.jolli.dev/south", http.fetch)).toBe(true)
     expect(http.reads).toHaveLength(2)
+  })
+
+  test("an org-scoped binding reads the assistant choices in its org, by the numeric ids", async () => {
+    const origin = "https://assignments-org.jolli.dev"
+    const sent: { url: string; scope: string | null }[] = []
+    const fetch = ((input: string | URL | Request, init?: RequestInit) => {
+      const request = input instanceof Request ? new Request(input, init) : new Request(String(input), init)
+      sent.push({
+        url: request.url,
+        scope:
+          request.headers.get("x-jolli-org-scope") &&
+          `${request.headers.get("x-tenant-slug")}/${request.headers.get("x-org-slug")}`,
+      })
+      return Promise.resolve(choices(true))
+    }) as typeof globalThis.fetch
+    const scoped = { courseId: "acme:main:7", assistantId: "acme:main:12" }
+    expect(await included(origin, fetch, undefined, scoped)).toBe(true)
+    expect(sent).toEqual([{ url: `${origin}/api/courses/7/assistant-choices`, scope: "acme/main" }])
   })
 
   test("reads again once the last reading is old, so a teacher's change reaches the next turn", async () => {

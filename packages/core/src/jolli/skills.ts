@@ -12,8 +12,10 @@ import {
   type CourseSkillReference,
   type CourseSkillChoice,
   type GatewayRequest,
+  scopedRequest,
 } from "./api"
 import { courseBindingOf, type SessionLike } from "./binding"
+import { bindingOrg, parseCourseBinding, type OrgScope } from "./org-scoped-id"
 import type { JolliStore } from "./store"
 import { JolliSession } from "./session"
 import { parseJolliUrl } from "./origin"
@@ -33,12 +35,14 @@ const catalogs = new WeakMap<JolliSession.Interface, Map<string, CatalogEntry>>(
 export const isRefused = (error: JolliApiError) =>
   error.status !== undefined && [400, 401, 403, 404, 409].includes(error.status)
 
+/** A skill call, made in `org` — the org of the session it is about, which its conversation lives in. */
 const request = <A>(
   jolli: JolliSession.Interface,
+  org: OrgScope | undefined,
   operation: (request: GatewayRequest) => Effect.Effect<A, JolliApiError, HttpClient.HttpClient>,
 ) =>
   Effect.gen(function* () {
-    const gateway = yield* jolli.request().pipe(
+    const signedIn = yield* jolli.request().pipe(
       Effect.timeout("5 seconds"),
       Effect.mapError(
         (cause) =>
@@ -50,12 +54,13 @@ const request = <A>(
           }),
       ),
     )
-    if (!gateway)
+    if (!signedIn)
       return yield* new JolliApiError({
         path: "/api/agent/convos",
         status: 401,
         message: "Sign in to Jolli to load course skills",
       })
+    const gateway = scopedRequest(signedIn, org)
     return yield* operation(gateway).pipe(
       Effect.catch((error) => {
         if (error.status !== 401) return Effect.fail(error)
@@ -88,7 +93,9 @@ export const list = (
   refresh = false,
 ): Effect.Effect<Summary[], JolliApiError> => {
   const binding = courseBindingOf(session)
-  if (!session || !binding) return Effect.succeed([])
+  // A binding that does not parse is no binding: it names no course this client could ask about.
+  const ids = parseCourseBinding(binding)
+  if (!session || !ids) return Effect.succeed([])
   return Effect.gen(function* () {
     const scope = scopeOf(yield* jolli.current())
     if (!scope) {
@@ -108,7 +115,7 @@ export const list = (
     if (!refresh && entry.value && Date.now() - entry.checkedAt < 60_000) return yield* Effect.fromResult(entry.value)
     if (!entry.pending) {
       const pending: Effect.Effect<Summary[], JolliApiError> = yield* Effect.cached(
-        request(jolli, (gateway) => {
+        request(jolli, ids.org, (gateway) => {
           if (
             gateway.origin !== scope.origin ||
             gateway.tenantSlug !== scope.tenantSlug ||
@@ -124,10 +131,10 @@ export const list = (
             Effect.catch((error) => {
               if (error.status !== 404) return Effect.fail(error)
               // An unsynced CLI session may read public metadata without creating a remote conversation.
-              return fetchAssistantChoices(gateway, Number(binding.courseId)).pipe(
+              return fetchAssistantChoices(gateway, ids.courseId).pipe(
                 Effect.flatMap((choices) => {
-                  const assistant = choices.find((choice) => choice.id === Number(binding.assistantId))
-                  return assistant ? Effect.succeed(assistant.skills ?? []) : Effect.fail(error)
+                  const bound = choices.find((choice) => choice.id === ids.assistantId)
+                  return bound ? Effect.succeed(bound.skills ?? []) : Effect.fail(error)
                 }),
               )
             }),
@@ -219,7 +226,7 @@ export const invoke = (
 ) =>
   Effect.gen(function* () {
     const name = selected.toolName
-    const reference = yield* request(jolli, (gateway) =>
+    const reference = yield* request(jolli, bindingOrg(session), (gateway) =>
       createCourseSkillReference(gateway, {
         sessionID: session.id,
         skillId: selected.id,
@@ -253,11 +260,16 @@ export const invoke = (
 
 export const render = (reference: CourseSkillReference) => JSON.stringify(reference)
 
-/** Forks keep every historical snapshot, including older versions of the same skill. */
+/**
+ * Forks keep every historical snapshot, including older versions of the same skill.
+ *
+ * The source session, not its id: the copies are made in the org its conversation lives in, which
+ * the fork inherits along with the binding.
+ */
 export const fork = (
   jolli: JolliSession.Interface,
   input: {
-    readonly sourceSessionID: string
+    readonly source: Session
     readonly sessionID: string
     readonly references: ReadonlyArray<CourseSkillReference>
   },
@@ -266,6 +278,9 @@ export const fork = (
     Array.from({ length: Math.ceil(input.references.length / 100) }, (_, index) =>
       input.references.slice(index * 100, (index + 1) * 100),
     ),
-    (references) => request(jolli, (gateway) => forkCourseSkills(gateway, { ...input, references })),
+    (references) =>
+      request(jolli, bindingOrg(input.source), (gateway) =>
+        forkCourseSkills(gateway, { sourceSessionID: input.source.id, sessionID: input.sessionID, references }),
+      ),
     { concurrency: 1 },
   ).pipe(Effect.map((groups) => groups.flat()))

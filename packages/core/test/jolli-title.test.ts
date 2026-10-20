@@ -46,19 +46,33 @@ describe("syncTitle", () => {
   it.effect("patches the conversation named by the session id with the title", () =>
     Effect.gen(function* () {
       const h = harness({ request: REQUEST, respond: () => json({}) })
-      yield* syncTitle("ses_1", "Fix the linked list").pipe(Effect.provide(h.layer))
+      yield* syncTitle({ id: "ses_1" }, "Fix the linked list").pipe(Effect.provide(h.layer))
       expect(h.seen).toHaveLength(1)
       expect(h.seen[0]?.method).toBe("PATCH")
       expect(h.seen[0]?.url).toBe("https://acme.jolli.ai/api/agent/convos/ses_1")
       expect(h.seen[0]?.headers["authorization"]).toBe("Bearer jwt")
+      expect(h.seen[0]?.headers["x-jolli-org-scope"]).toBeUndefined()
       expect(bodyOf(h.seen[0])).toEqual({ title: "Fix the linked list" })
+    }),
+  )
+
+  it.effect("renames the conversation of an org-scoped session in its org", () =>
+    Effect.gen(function* () {
+      const h = harness({ request: REQUEST, respond: () => json({}) })
+      const session = { id: "ses_1", metadata: { jolli: { courseId: "acme:main:7", assistantId: "acme:main:12" } } }
+      yield* syncTitle(session, "Title").pipe(Effect.provide(h.layer))
+      expect(h.seen[0]?.headers).toMatchObject({
+        "x-jolli-org-scope": "1",
+        "x-tenant-slug": "acme",
+        "x-org-slug": "main",
+      })
     }),
   )
 
   it.effect("sends nothing when there is no usable credential", () =>
     Effect.gen(function* () {
       const h = harness({ respond: () => json({}) })
-      yield* syncTitle("ses_1", "Title").pipe(Effect.provide(h.layer))
+      yield* syncTitle({ id: "ses_1" }, "Title").pipe(Effect.provide(h.layer))
       expect(h.seen).toHaveLength(0)
     }),
   )
@@ -66,7 +80,7 @@ describe("syncTitle", () => {
   it.effect("waits out a conversation the gateway has not created yet", () =>
     Effect.gen(function* () {
       const h = harness({ request: REQUEST, respond: (attempt) => (attempt < 3 ? json({}, 404) : json({})) })
-      const fiber = yield* syncTitle("ses_1", "Title").pipe(Effect.provide(h.layer), Effect.forkChild)
+      const fiber = yield* syncTitle({ id: "ses_1" }, "Title").pipe(Effect.provide(h.layer), Effect.forkChild)
       yield* TestClock.adjust("30 seconds")
       yield* Fiber.join(fiber)
       expect(h.seen).toHaveLength(3)
@@ -76,7 +90,7 @@ describe("syncTitle", () => {
   it.effect("gives up on a conversation that never appears, without failing", () =>
     Effect.gen(function* () {
       const h = harness({ request: REQUEST, respond: () => json({}, 404) })
-      const fiber = yield* syncTitle("ses_1", "Title").pipe(Effect.provide(h.layer), Effect.forkChild)
+      const fiber = yield* syncTitle({ id: "ses_1" }, "Title").pipe(Effect.provide(h.layer), Effect.forkChild)
       yield* TestClock.adjust("1 minute")
       yield* Fiber.join(fiber)
       expect(h.seen).toHaveLength(5)
@@ -86,7 +100,7 @@ describe("syncTitle", () => {
   it.effect("renews a refused token instead of retrying the rename", () =>
     Effect.gen(function* () {
       const h = harness({ request: REQUEST, respond: () => json({ error: "Unauthorized" }, 401) })
-      yield* syncTitle("ses_1", "Title").pipe(Effect.provide(h.layer))
+      yield* syncTitle({ id: "ses_1" }, "Title").pipe(Effect.provide(h.layer))
       expect(h.seen).toHaveLength(1)
       expect(h.refused).toEqual(["jwt"])
     }),
@@ -95,7 +109,7 @@ describe("syncTitle", () => {
   it.effect("swallows any other refusal", () =>
     Effect.gen(function* () {
       const h = harness({ request: REQUEST, respond: () => json({ error: "boom" }, 500) })
-      yield* syncTitle("ses_1", "Title").pipe(Effect.provide(h.layer))
+      yield* syncTitle({ id: "ses_1" }, "Title").pipe(Effect.provide(h.layer))
       expect(h.seen).toHaveLength(1)
       expect(h.refused).toEqual([])
     }),

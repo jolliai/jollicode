@@ -14,7 +14,8 @@
  * synced to it yet — has no links either, and is no failure: it is not logged as one on every turn.
  */
 export * as CourseLinks from "./course-links"
-import { fetchCourseTurnLinks } from "@opencode-ai/core/jolli/api"
+import { fetchCourseTurnLinks, scopedRequest } from "@opencode-ai/core/jolli/api"
+import { bindingOrg } from "@opencode-ai/core/jolli/org-scoped-id"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { JolliSources } from "@opencode-ai/core/jolli/sources"
 import { Effect } from "effect"
@@ -32,8 +33,10 @@ export const attach = Effect.fn("CourseLinks.attach")(function* (input: {
   const jolli = yield* JolliSession.Service
   const turn = yield* CourseSources.answerOf(sessions, input)
   if (!turn?.answerPart || turn.answerPart.metadata?.assignmentsUrl !== undefined) return
-  const request = yield* jolli.request()
-  if (!request) return
+  const signedIn = yield* jolli.request()
+  if (!signedIn) return
+  // Asked in the org the session's course names, where its conversation lives.
+  const request = scopedRequest(signedIn, bindingOrg(yield* sessions.get(input.sessionID)))
   const links = yield* fetchCourseTurnLinks(request, input.sessionID, input.userMessageID).pipe(
     Effect.catch((error) => (error.status === 404 ? Effect.succeed(undefined) : Effect.fail(error))),
   )

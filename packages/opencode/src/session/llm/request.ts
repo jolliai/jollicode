@@ -9,7 +9,7 @@ import type { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "../system"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
-import { jolliCodingAgentHeaders } from "@opencode-ai/core/jolli/coding-headers"
+import { jolliCodingAgentHeaders, overrideHeaders } from "@opencode-ai/core/jolli/coding-headers"
 import { Effect, Record } from "effect"
 import { jsonSchema, tool as aiTool, type ModelMessage, type Tool } from "ai"
 import type { Plugin } from "@/plugin"
@@ -255,24 +255,26 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
     tools: Object.fromEntries(Object.entries(tools).toSorted(([a], [b]) => a.localeCompare(b))),
     params,
     messageTransformOptions: options,
-    headers: {
-      ...(input.model.providerID.startsWith("opencode")
-        ? {
-            ...(opencodeProjectID ? { "x-jollicode-project": opencodeProjectID } : {}),
-            "x-jollicode-session": input.sessionID,
-            "x-jollicode-request": input.user.id,
-            "x-jollicode-client": input.flags.client,
-            "User-Agent": USER_AGENT,
-          }
-        : {
-            "x-session-affinity": input.sessionID,
-            "X-Session-Id": input.sessionID,
-            "User-Agent": USER_AGENT,
-          }),
-      ...(input.parentSessionID ? { "x-parent-session-id": input.parentSessionID } : {}),
-      ...input.model.headers,
-      ...headers,
-      ...jolliCodingAgentHeaders({
+    headers: overrideHeaders(
+      {
+        ...(input.model.providerID.startsWith("opencode")
+          ? {
+              ...(opencodeProjectID ? { "x-jollicode-project": opencodeProjectID } : {}),
+              "x-jollicode-session": input.sessionID,
+              "x-jollicode-request": input.user.id,
+              "x-jollicode-client": input.flags.client,
+              "User-Agent": USER_AGENT,
+            }
+          : {
+              "x-session-affinity": input.sessionID,
+              "X-Session-Id": input.sessionID,
+              "User-Agent": USER_AGENT,
+            }),
+        ...(input.parentSessionID ? { "x-parent-session-id": input.parentSessionID } : {}),
+        ...input.model.headers,
+        ...headers,
+      },
+      jolliCodingAgentHeaders({
         providerID: input.model.providerID,
         sessionID: input.sessionID,
         requestKind: input.requestKind,
@@ -293,7 +295,7 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
           mcpToolServers: input.mcpToolServers,
         }),
       }),
-    },
+    ),
   }
 })
 
