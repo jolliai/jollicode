@@ -15,7 +15,7 @@
  * whichever side of the box it appears on.
  */
 
-import { For, Show } from "solid-js"
+import { For, Index, Show } from "solid-js"
 import { Icon } from "@opencode-ai/ui/icon"
 // ⚠ THE V2 SET, because the assistant glyphs were added there — `Icon` above is a different registry.
 import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
@@ -77,43 +77,50 @@ export function PromptCourseSelector(props: { onDone?: () => void }) {
       </MenuV2.Trigger>
       <MenuV2.Portal>
         <MenuV2.Content class="w-[260px]">
-          <MenuV2.Group>
-            <MenuV2.GroupLabel>{language.t("prompt.course.group")}</MenuV2.GroupLabel>
-            <For each={courses()}>
-              {(course) => (
-                <MenuV2.Item
-                  /**
-                   * ⚠ A COURSE THAT CANNOT BE STARTED IS SHOWN AND REFUSED, NOT HIDDEN, AND THE ROW
-                   * SAYS WHY. This used to cover one case — published, but no assistant configured.
-                   * It now covers four more, because the gateway sends every course a student is in
-                   * rather than only the runnable ones. A list that omitted them could not say "your
-                   * course opens next week"; an empty list says nothing at all, and a student whose
-                   * only course is still a draft would be staring at it.
-                   *
-                   * ⚠ EACH REASON GETS ITS OWN SENTENCE. They lead to different next actions — wait
-                   * for the teacher, wait for term, ask the teacher, nothing — so collapsing them
-                   * into one "unavailable" would throw away the only useful part.
-                   */
-                  disabled={!canStartSession(course.id, binding.now())}
-                  onSelect={() => binding.draft.setCourse(course.id)}
-                >
-                  <CourseAccent accent={course.accent} />
-                  <span class="min-w-0 flex-1 truncate">
-                    {course.code}
-                    <span class="text-v2-text-text-faint"> · {course.title}</span>
-                    <Show when={blockedReason(course, binding.now())}>
-                      {(reason) => (
-                        <span class="text-v2-text-text-faint"> · {language.t(BLOCKED_REASON[reason()])}</span>
-                      )}
-                    </Show>
-                  </span>
-                  <Show when={current()?.id === course.id}>
-                    <Icon name="check" size="small" class="shrink-0" />
-                  </Show>
-                </MenuV2.Item>
-              )}
-            </For>
-          </MenuV2.Group>
+          {/* One group per org when the courses span several, each headed by its org; otherwise one.
+              ⚠ `Index`, NOT `For`: `orgGroups` answers new group objects on every catalogue change, so
+              keyed by reference each change would rebuild every row and drop the keyboard highlight. */}
+          <Index each={Lookup.orgGroups(courses())}>
+            {(group) => (
+              <MenuV2.Group>
+                <MenuV2.GroupLabel>{group().label ?? language.t("prompt.course.group")}</MenuV2.GroupLabel>
+                <For each={group().rows}>
+                  {(course) => (
+                    <MenuV2.Item
+                      /**
+                       * ⚠ A COURSE THAT CANNOT BE STARTED IS SHOWN AND REFUSED, NOT HIDDEN, AND THE ROW
+                       * SAYS WHY. This used to cover one case — published, but no assistant configured.
+                       * It now covers four more, because the gateway sends every course a student is in
+                       * rather than only the runnable ones. A list that omitted them could not say "your
+                       * course opens next week"; an empty list says nothing at all, and a student whose
+                       * only course is still a draft would be staring at it.
+                       *
+                       * ⚠ EACH REASON GETS ITS OWN SENTENCE. They lead to different next actions — wait
+                       * for the teacher, wait for term, ask the teacher, nothing — so collapsing them
+                       * into one "unavailable" would throw away the only useful part.
+                       */
+                      disabled={!canStartSession(course.id, binding.now())}
+                      onSelect={() => binding.draft.setCourse(course.id)}
+                    >
+                      <CourseAccent accent={course.accent} />
+                      <span class="min-w-0 flex-1 truncate">
+                        {course.code}
+                        <span class="text-v2-text-text-faint"> · {course.title}</span>
+                        <Show when={blockedReason(course, binding.now())}>
+                          {(reason) => (
+                            <span class="text-v2-text-text-faint"> · {language.t(BLOCKED_REASON[reason()])}</span>
+                          )}
+                        </Show>
+                      </span>
+                      <Show when={current()?.id === course.id}>
+                        <Icon name="check" size="small" class="shrink-0" />
+                      </Show>
+                    </MenuV2.Item>
+                  )}
+                </For>
+              </MenuV2.Group>
+            )}
+          </Index>
         </MenuV2.Content>
       </MenuV2.Portal>
     </MenuV2>

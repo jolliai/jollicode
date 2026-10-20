@@ -21,6 +21,7 @@ import type {
   StudentAssignmentList,
   StudentAssignmentPart,
 } from "./api"
+import { orgScopedId, parseOrgScopedId } from "./org-scoped-id"
 
 // ── A task's session ─────────────────────────────────────────────────────────────────────────────
 
@@ -181,6 +182,8 @@ export function projectAssignment(
   locals: ReadonlyMap<string, LocalSession>,
   now: number,
 ): Jolli.Assignment {
+  // A task's assistant lives in its course's org, so its id names that org as the course's does.
+  const org = parseOrgScopedId(course.id)?.org
   const tasks = assignment.parts.map((part, index): Jolli.AssignmentTask => {
     if (!isAgentPart(part)) {
       return {
@@ -212,7 +215,7 @@ export function projectAssignment(
       partId: String(part.id),
       title: `Task ${index + 1}`,
       name: part.assistantName,
-      assistantId: String(part.assistantId),
+      assistantId: orgScopedId(org, part.assistantId),
       assistantBlurb: part.assistantBlurb,
       place,
       handedInAt: part.submission?.submittedAt ?? null,

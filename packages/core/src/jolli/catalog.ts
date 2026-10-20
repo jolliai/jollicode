@@ -11,8 +11,27 @@
  */
 import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
 import { Jolli } from "@opencode-ai/schema/jolli"
-import type { CatalogModel, CourseAssistantChoice, CourseListItem } from "./api"
+import type { CatalogModel, CourseAssistantChoice, CourseListItem, OrgRef } from "./api"
 import { isSupportedProtocol, providerIdFor, type JolliModel, type SupportedProtocol } from "./gateway-config"
+import { orgScopedId, sameOrg, type OrgScope } from "./org-scoped-id"
+
+/** A listed course and the org it lives in; none for a list that names no org. */
+export type ListedCourse = CourseListItem & { readonly org?: OrgRef }
+
+/**
+ * THE ORG A LISTED COURSE IS ADDRESSED BY, OR NONE FOR A HOME COURSE.
+ *
+ * ⚠ A HOME COURSE KEEPS ITS BARE ID, so a student in one org sends no scope header at all and every
+ * session already bound to a home course still finds it. Only a course in another org names its org.
+ *
+ * ⚠ NO KNOWN HOME MEANS EVERY ORG IS NAMED. A server that predates `home` gives no way to tell, and a
+ * scoped request to the caller's own org is answered there all the same.
+ */
+export function addressOf(course: ListedCourse, home: OrgRef | undefined): OrgScope | undefined {
+  if (!course.org) return undefined
+  if (home && sameOrg(course.org, home)) return undefined
+  return { tenantSlug: course.org.tenantSlug, orgSlug: course.org.orgSlug }
+}
 
 /**
  * The provider segment of a grant key whose model the runnable catalogue does not carry — one that
@@ -217,12 +236,14 @@ const MODEL_TIER: Record<string, Jolli.ModelTier | undefined> = {
 const modelKey = (uuid: string, protocol: SupportedProtocol) => `${providerIdFor(protocol)}/${uuid}`
 
 export function toCourse(input: {
-  item: CourseListItem
+  item: ListedCourse
+  /** The org the course is addressed by; see {@link addressOf}. */
+  org?: OrgScope
   entryState: Jolli.CourseEntryState
   assistantIds: readonly string[]
 }): Jolli.Course {
   return {
-    id: String(input.item.id),
+    id: orgScopedId(input.org, input.item.id),
     code: input.item.code,
     title: input.item.name,
     kind: "code",
@@ -233,6 +254,15 @@ export function toCourse(input: {
     entryState: input.entryState,
     endsOn: input.item.endsOn,
     isStaff: input.item.isStaff,
+    // A missing display name reads as its slug: a label to tell the org apart by, if not a pretty one.
+    ...(input.item.org
+      ? {
+          org: {
+            institutionName: input.item.org.institutionName ?? input.item.org.tenantSlug,
+            orgName: input.item.org.orgName ?? input.item.org.orgSlug,
+          },
+        }
+      : {}),
   }
 }
 
@@ -250,6 +280,8 @@ export function toCourse(input: {
 export function toAssistant(input: {
   choice: CourseAssistantChoice
   courseId: string
+  /** The org the course is addressed by, which its assistants are addressed by too. */
+  org?: OrgScope
   isDefault: boolean
   models: ReadonlyMap<string, RunnableModel>
 }): Jolli.Assistant {
@@ -274,7 +306,7 @@ export function toAssistant(input: {
       : surviving
   const preferred = input.models.get(input.choice.modelId)
   return {
-    id: String(input.choice.id),
+    id: orgScopedId(input.org, input.choice.id),
     courseId: input.courseId,
     name: input.choice.name,
     kind: "code",
@@ -414,7 +446,8 @@ export function grantedModelIds(
  */
 export function projectCatalog(
   snapshot: {
-    readonly courses: readonly CourseListItem[]
+    readonly courses: readonly ListedCourse[]
+    readonly home?: OrgRef
     readonly assistants: Readonly<Record<string, readonly CourseAssistantChoice[]>>
     readonly models: readonly CatalogModel[]
   },
@@ -430,16 +463,18 @@ export function projectCatalog(
   }
 
   for (const item of snapshot.courses) {
-    const courseId = String(item.id)
+    const org = addressOf(item, snapshot.home)
+    const courseId = orgScopedId(org, item.id)
     const choices = snapshot.assistants[courseId] ?? []
     for (const [index, choice] of choices.entries()) {
-      assistants.push(toAssistant({ choice, courseId, isDefault: index === 0, models }))
+      assistants.push(toAssistant({ choice, courseId, org, isDefault: index === 0, models }))
     }
     courses.push(
       toCourse({
         item,
+        org,
         entryState: courseEntryState(item, now),
-        assistantIds: choices.map((choice) => String(choice.id)),
+        assistantIds: choices.map((choice) => orgScopedId(org, choice.id)),
       }),
     )
   }

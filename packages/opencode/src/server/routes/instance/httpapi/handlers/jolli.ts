@@ -33,7 +33,7 @@ import {
 } from "@opencode-ai/core/jolli/assignment"
 import { JolliAssignmentCache } from "@opencode-ai/core/jolli/assignment-cache"
 import { isGatewayId } from "@opencode-ai/core/jolli/binding"
-import { bindingOrg, parseOrgScopedId } from "@opencode-ai/core/jolli/org-scoped-id"
+import { bindingOrg, orgScopedId, parseOrgScopedId } from "@opencode-ai/core/jolli/org-scoped-id"
 import { loadCatalog } from "@opencode-ai/core/jolli/cache"
 import { JolliClosedAssistants } from "@opencode-ai/core/jolli/closed-assistants"
 import { projectCatalog, today } from "@opencode-ai/core/jolli/catalog"
@@ -212,18 +212,26 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
       return shareAnswer("unreachable")
     })
 
-    const answered = (
-      visibility: ConversationVisibility,
-      roster?: { members: Jolli.ShareMember[]; classSize: number },
-    ): Jolli.SessionShare => ({
-      status: "ok",
-      courseId: visibility.courseId,
-      courseCode: visibility.courseCode,
-      readers: projectReaders(visibility),
-      members: roster?.members ?? [],
-      classSize: roster?.classSize ?? 0,
-      roster: roster ? "ok" : "unavailable",
-    })
+    /**
+     * The answer to a share read or write made with `request`.
+     *
+     * ⚠ IT TAKES THE REQUEST, NOT ITS ORG. The gateway's course id is the org's the read ran in, and
+     * is named so; handing over the request itself leaves no second org a route could pass instead.
+     */
+    const answered =
+      (request: GatewayRequest) =>
+      (
+        visibility: ConversationVisibility,
+        roster?: { members: Jolli.ShareMember[]; classSize: number },
+      ): Jolli.SessionShare => ({
+        status: "ok",
+        courseId: visibility.courseId === null ? null : orgScopedId(request.scope, visibility.courseId),
+        courseCode: visibility.courseCode,
+        readers: projectReaders(visibility),
+        members: roster?.members ?? [],
+        classSize: roster?.classSize ?? 0,
+        roster: roster ? "ok" : "unavailable",
+      })
 
     const share = Effect.fn("JolliHttpApi.share")(function* (ctx: { params: { sessionID: string } }) {
       const request = yield* gatewayFor(ctx.params.sessionID)
@@ -232,7 +240,7 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
       const viewer = credential ? viewerFromToken(credential.access_token) : undefined
       return yield* fetchConversationVisibility(request, ctx.params.sessionID).pipe(
         Effect.flatMap((visibility) => {
-          if (visibility.courseId === null) return Effect.succeed(answered(visibility))
+          if (visibility.courseId === null) return Effect.succeed(answered(request)(visibility))
           /**
            * ⚠ THE ROSTER IS READ IN THE SESSION'S ORG, the conversation's own: the course id it answered
            * with is that org's.
@@ -243,14 +251,17 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
            */
           return fetchCourseMembers(request, visibility.courseId).pipe(
             Effect.map((roster) =>
-              answered(visibility, { members: projectMembers(roster, viewer?.email), classSize: classSizeOf(roster) }),
+              answered(request)(visibility, {
+                members: projectMembers(roster, viewer?.email),
+                classSize: classSizeOf(roster),
+              }),
             ),
             // Logged, not surfaced: the panel says the roster is unavailable, and this says why.
             Effect.catch((error) =>
               Effect.logWarning("Jolli: course roster unavailable", {
                 courseId: visibility.courseId,
                 status: error.status,
-              }).pipe(Effect.as(answered(visibility))),
+              }).pipe(Effect.as(answered(request)(visibility))),
             ),
           )
         }),
@@ -268,7 +279,7 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
       const request = yield* gatewayFor(ctx.params.sessionID)
       if (!request) return shareAnswer("unreachable")
       return yield* fetchConversationShares(request, ctx.params.sessionID).pipe(
-        Effect.map((visibility) => answered(visibility)),
+        Effect.map(answered(request)),
         Effect.catch((error) => failed(error, request.token)),
       )
     })
@@ -283,7 +294,7 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
       const request = yield* gatewayFor(ctx.params.sessionID)
       if (!request) return shareAnswer("unreachable")
       return yield* shareConversation(request, ctx.params.sessionID, ctx.payload.subject, WRITABLE_ACCESS).pipe(
-        Effect.map((visibility) => answered(visibility)),
+        Effect.map(answered(request)),
         Effect.catch((error) => failed(error, request.token)),
       )
     })
@@ -296,7 +307,7 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
       const request = yield* gatewayFor(ctx.params.sessionID)
       if (!request) return shareAnswer("unreachable")
       return yield* unshareConversation(request, ctx.params.sessionID, subject).pipe(
-        Effect.map((visibility) => answered(visibility)),
+        Effect.map(answered(request)),
         Effect.catch((error) => failed(error, request.token)),
       )
     })

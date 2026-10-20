@@ -42,6 +42,46 @@ const assistant = (
 
 const catalog = (courses: Jolli.Course[], assistants: Jolli.Assistant[]) => ({ courses, assistants })
 
+describe("orgGroups", () => {
+  const at = (id: string, institutionName: string, orgName: string) => ({
+    ...course(id, "open"),
+    org: { institutionName, orgName },
+  })
+  const read = (courses: Jolli.Course[]) =>
+    Lookup.orgGroups(courses).map((group) => [group.label, group.rows.map((row) => row.id)])
+
+  // A student in one org reads the list as before: no org named over it.
+  test("names no org when every course is in one", () => {
+    expect(read([at("1", "Westfield", "Computing"), at("2", "Westfield", "Computing")])).toEqual([
+      [undefined, ["1", "2"]],
+    ])
+  })
+
+  test("names each course's org once the list spans more than one", () => {
+    expect(
+      read([
+        at("1", "Westfield", "Computing"),
+        at("acme:bio:1", "Northgate", "Northgate"),
+        at("2", "Westfield", "Computing"),
+      ]),
+    ).toEqual([
+      ["Westfield · Computing", ["1", "2"]],
+      ["Northgate", ["acme:bio:1"]],
+    ])
+  })
+
+  /**
+   * ⚠ TWO ORGS CAN SHARE BOTH NAMES. Counted by name they were one org, and their two "CS 101" rows
+   * sat under no heading at all; the slugs the ids carry are what differ.
+   */
+  test("tells apart two orgs that share their names", () => {
+    expect(read([at("1", "Westfield", "Westfield"), at("acme:west:1", "Westfield", "Westfield")])).toEqual([
+      ["Westfield", ["1"]],
+      ["Westfield (acme/west)", ["acme:west:1"]],
+    ])
+  })
+})
+
 describe("assistantsForCourse", () => {
   /**
    * The gateway withholds `isDefault` and expresses the professor's default by sorting it first, so

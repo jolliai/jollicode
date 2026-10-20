@@ -22,7 +22,7 @@ const members: Jolli.ShareMember[] = [
 
 const share = (patch: Partial<Jolli.SessionShare> = {}): Jolli.SessionShare => ({
   status: "ok",
-  courseId: 7,
+  courseId: "7",
   courseCode: "CS 310",
   readers: [],
   members,

@@ -139,7 +139,10 @@ export const DEFAULT_ASSISTANT_ICON: AssistantIcon = "Sparkles"
 
 export interface Course extends Schema.Schema.Type<typeof Course> {}
 export const Course = Schema.Struct({
-  /** `String()` of the gateway's numeric id. Everything above `api.ts` sees only strings. */
+  /**
+   * The gateway's numeric id as a string, prefixed `tenant:org:` for a course outside the student's
+   * home org (`core/jolli/org-scoped-id.ts`). Everything above `api.ts` passes it around whole.
+   */
   id: Schema.String,
   /** What a student calls it out loud. "CS 310". */
   code: Schema.String,
@@ -168,6 +171,14 @@ export const Course = Schema.Struct({
    * ⚠ OPTIONAL BECAUSE A CATALOGUE CACHED BEFORE IT EXISTED STILL READS AS ONE; absent is a student.
    */
   isStaff: Schema.Boolean.pipe(optional),
+  /**
+   * The institution and org the course lives in, for telling two orgs' "CS 101" apart. Display
+   * names only: which org it is, the id says (`core/jolli/org-scoped-id.ts`).
+   *
+   * ⚠ OPTIONAL BECAUSE A CATALOGUE THAT NAMES NO ORG STILL READS AS ONE. It is NOT a home-org flag:
+   * a home course carries its org as every other does, and only its bare id marks it home.
+   */
+  org: Schema.Struct({ institutionName: Schema.String, orgName: Schema.String }).pipe(optional),
 }).annotate({ identifier: "Jolli.Course" })
 
 /**
@@ -644,7 +655,8 @@ export type ShareRefusal = typeof ShareRefusal.Type
 export interface SessionShare extends Schema.Schema.Type<typeof SessionShare> {}
 export const SessionShare = Schema.Struct({
   status: ShareStatus,
-  courseId: Schema.NullOr(Schema.Int),
+  /** The session's course, as the catalogue names it: org-scoped outside the home org. */
+  courseId: Schema.NullOr(Schema.String),
   courseCode: Schema.NullOr(Schema.String),
   readers: Schema.Array(SessionReader),
   members: Schema.Array(ShareMember),

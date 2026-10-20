@@ -491,6 +491,69 @@ describe("projectCatalog", () => {
   })
 })
 
+describe("projectCatalog — courses from more than one org", () => {
+  const org = (orgSlug: string, orgName: string) => ({
+    tenantSlug: "acme",
+    orgSlug,
+    tenantId: "t1",
+    orgId: orgSlug,
+    institutionName: "Westfield",
+    orgName,
+  })
+  const home = org("cs", "Computing")
+  const other = org("bio", "Biology")
+  // Course 7 in both orgs: the collision that is the normal case, since each org numbers from 1.
+  const snapshot = {
+    courses: [
+      { ...course({ id: 7 }), org: home },
+      { ...course({ id: 7, code: "BIO 7" }), org: other },
+    ],
+    home,
+    assistants: {
+      "7": [choice({ id: 12, name: "Home tutor" })],
+      "acme:bio:7": [choice({ id: 12, name: "Lab tutor" })],
+    },
+    models: Array.from(catalogue.values()),
+  }
+
+  test("a home course keeps its bare ids and another org's names its org", () => {
+    const projected = projectCatalog(snapshot, "2026-09-21")
+    expect(projected.courses.map((c) => [c.id, c.assistantIds])).toEqual([
+      ["7", ["12"]],
+      ["acme:bio:7", ["acme:bio:12"]],
+    ])
+    expect(projected.assistants.map((a) => [a.id, a.courseId, a.name])).toEqual([
+      ["12", "7", "Home tutor"],
+      ["acme:bio:12", "acme:bio:7", "Lab tutor"],
+    ])
+  })
+
+  test("each course carries the names of the org it lives in", () => {
+    const projected = projectCatalog(snapshot, "2026-09-21")
+    expect(projected.courses.map((c) => c.org?.orgName)).toEqual(["Computing", "Biology"])
+  })
+
+  // An org the gateway names only by its slugs is still told apart, by them.
+  test("an org without display names is labelled by its slugs", () => {
+    const nameless = { tenantSlug: "acme", orgSlug: "bio", institutionName: null, orgName: null }
+    const projected = projectCatalog(
+      { ...snapshot, courses: [{ ...course({ id: 7, code: "BIO 7" }), org: nameless }] },
+      "2026-09-21",
+    )
+    expect(projected.courses.map((c) => c.org)).toEqual([{ institutionName: "acme", orgName: "bio" }])
+  })
+
+  // A server that predates `home` cannot say which org is home, so none is assumed.
+  test("with no home named, every course is addressed by its org", () => {
+    const projected = projectCatalog(
+      { ...snapshot, home: undefined, assistants: { "acme:cs:7": [choice({ id: 12 })] } },
+      "2026-09-21",
+    )
+    expect(projected.courses.map((c) => c.id)).toEqual(["acme:cs:7", "acme:bio:7"])
+    expect(projected.assistants.map((a) => a.id)).toEqual(["acme:cs:12"])
+  })
+})
+
 describe("runnableModels", () => {
   test("keeps every protocol this build declares a provider for, keyed by UUID", () => {
     const runnable = runnableModels([

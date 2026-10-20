@@ -3,7 +3,7 @@ import { afterAll, describe, expect } from "bun:test"
 import { mkdir, readFile, rm, utimes, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { Global } from "@opencode-ai/core/global"
-import { catalogCachePath } from "@opencode-ai/core/jolli/cache"
+import { CATALOG_SCHEMA, catalogCachePath } from "@opencode-ai/core/jolli/cache"
 import { base64Encode } from "@opencode-ai/core/util/encode"
 import { Hash } from "@opencode-ai/core/util/hash"
 import { Context, Effect, Layer, Option } from "effect"
@@ -299,7 +299,7 @@ await mkdir(Global.Path.cache, { recursive: true })
 await writeFile(
   cacheFile,
   JSON.stringify({
-    schema: 2,
+    schema: CATALOG_SCHEMA,
     courses: [
       {
         id: 7,
@@ -478,6 +478,16 @@ const freshFile = catalogCachePath({ origin: FRESH_TENANT, token: TOKEN, identit
 await writeFile(freshFile, await readFile(cacheFile, "utf8"))
 afterAll(() => rm(freshFile, { force: true }))
 
+/** The org the signed-in student's sign-in is homed in, as the cross-org course list names it. */
+const HOME_ORG = {
+  tenantSlug: "acme",
+  orgSlug: "main",
+  tenantId: "t1",
+  orgId: "o1",
+  institutionName: "Acme University",
+  orgName: "Acme University",
+}
+
 const freshCalls: string[] = []
 const answering = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
   const request = new Request(input, init)
@@ -486,20 +496,25 @@ const answering = (async (input: Parameters<typeof fetch>[0], init?: RequestInit
   const path = url.pathname
   freshCalls.push(path)
   const body =
-    path === "/api/courses"
-      ? [
-          {
-            id: 7,
-            name: "Systems Programming",
-            description: null,
-            code: "CS 311",
-            status: "published",
-            requiresCoding: true,
-            endsOn: null,
-            viewerRole: "course-student",
-            isStaff: false,
-          },
-        ]
+    path === "/api/me/courses"
+      ? {
+          courses: [
+            {
+              id: 7,
+              name: "Systems Programming",
+              description: null,
+              code: "CS 311",
+              status: "published",
+              requiresCoding: true,
+              endsOn: null,
+              viewerRole: "course-student",
+              isStaff: false,
+              org: HOME_ORG,
+            },
+          ],
+          unavailable: [],
+          home: HOME_ORG,
+        }
       : []
   return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } })
 }) as typeof fetch
@@ -516,7 +531,7 @@ describe("jolli HttpApi — asked for a fresh catalogue", () => {
       const fresh = yield* HttpClientRequest.get(`${JolliPaths.course}?fresh=true`).pipe(HttpClient.execute)
       expect(fresh.status).toBe(200)
       expect(yield* fresh.json).toMatchObject({ status: "ok", courses: [{ code: "CS 311" }] })
-      expect(freshCalls).toContain("/api/courses")
+      expect(freshCalls).toContain("/api/me/courses")
     }),
   )
 })
@@ -606,7 +621,7 @@ describe("jolli HttpApi — session share", () => {
       const response = yield* HttpClientRequest.get(sharePath("ses_1")).pipe(HttpClient.execute)
       expect(yield* response.json).toEqual({
         status: "ok",
-        courseId: 7,
+        courseId: "7",
         courseCode: "CS 310",
         readers: [{ kind: "person", userId: 2, name: "Grace Hopper", detail: "grace@jolli.ai", access: "view" }],
         members: [
@@ -655,7 +670,7 @@ describe("jolli HttpApi — session share", () => {
       const response = yield* HttpClientRequest.get(readersPath("ses_1")).pipe(HttpClient.execute)
       expect(yield* response.json).toEqual({
         status: "ok",
-        courseId: 7,
+        courseId: "7",
         courseCode: "CS 310",
         readers: [{ kind: "person", userId: 2, name: "Grace Hopper", detail: "grace@jolli.ai", access: "view" }],
         members: [],
@@ -747,7 +762,8 @@ describe("jolli HttpApi — an org-scoped session's share", () => {
   signedInAs(read.fetch, [scopedSession]).live("reads the conversation and the roster in the session's org", () =>
     Effect.gen(function* () {
       const response = yield* HttpClientRequest.get(sharePath("ses_org")).pipe(HttpClient.execute)
-      expect(((yield* response.json) as { status: string }).status).toBe("ok")
+      // The gateway's course 7 is that org's, so the answer names it as the catalogue does.
+      expect(((yield* response.json) as { status: string; courseId: string }).courseId).toBe("acme:main:7")
       expect(read.calls).toEqual([
         { method: "GET", path: "/api/agent/convos/ses_org", scope: "acme/main" },
         { method: "GET", path: "/api/spaces/7/members", scope: "acme/main" },
@@ -842,7 +858,8 @@ describe("jolli HttpApi — an assignment", () => {
       expect(((yield* response.json) as { status: string }).status).toBe("ok")
       // The catalogue naming the course is the account's own, read without a scope.
       expect(scoped.calls).toEqual([
-        { method: "GET", path: "/api/courses" },
+        { method: "GET", path: "/api/me/courses" },
+        { method: "GET", path: "/api/agent/models" },
         { method: "GET", path: "/api/courses/7/assignments/40/student-view", scope: "acme/main" },
       ])
     }),

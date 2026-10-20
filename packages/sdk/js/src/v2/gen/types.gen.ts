@@ -3893,6 +3893,10 @@ export type JolliCourse = {
   entryState: JolliCourseEntryState
   endsOn: string
   isStaff?: boolean
+  org?: {
+    institutionName: string
+    orgName: string
+  }
 }
 
 export type JolliAssistantKind = "standard" | "code"
@@ -4012,7 +4016,7 @@ export type JolliShareRefusal =
 
 export type JolliSessionShare = {
   status: JolliShareStatus
-  courseId: number
+  courseId: string
   courseCode: string
   readers: Array<JolliSessionReader>
   members: Array<JolliShareMember>
