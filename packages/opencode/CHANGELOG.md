@@ -4,6 +4,9 @@
 
 ## 0.0.3
 
+- **Assignments.** Run `/assignment` to see your course's TODO assignments and their due dates. Open one to start or continue each task in its own chat, and turn the assignment in once every task is handed in. Tasks you do on the web are listed too.
+- **Hand in from the chat.** In a task's chat, ask the assistant to hand in your work. It shows you exactly what it will hand in, and nothing is handed in until you approve.
+- **Assignments link.** When you ask about assignments the assistant can't look up, the answer links to your course's assignments page. A course material that belongs to an assignment links to it.
 - **Assistants that open the conversation.** When a course assistant is set to speak first, clear the prompt and press Enter, and the assistant writes the opening message.
 - **Closed assistants.** When your teacher closes an assistant, Jolli Code tells you so instead of failing, and the course picker shows when no assistant is open right now.
 - **Course skills.** A course assistant's skills show up as `/course:<name>` commands and in the skill list. The assistant loads one only when it needs it.
