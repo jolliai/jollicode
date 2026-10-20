@@ -195,6 +195,111 @@ test("refreshes effective catalog data after catalog updates", async () => {
   }
 })
 
+test("refreshes integration updates for locations it has not loaded", async () => {
+  const events = createEventSource()
+  const other = "/tmp/other"
+  const calls = createFetch((url) => {
+    if (!["/api/integration", "/api/model", "/api/provider"].includes(url.pathname)) return
+    if (!url.search.includes(encodeURIComponent(other))) return
+    return json({
+      location: { directory: other, project: { id: "proj_other", directory: other } },
+      data: url.pathname === "/api/integration" ? [{ id: "openai", name: "OpenAI", methods: [{ type: "key" }] }] : [],
+    })
+  }, events)
+  let data!: ReturnType<typeof useData>
+  let ready!: () => void
+  const mounted = new Promise<void>((resolve) => {
+    ready = resolve
+  })
+
+  function Probe() {
+    data = useData()
+    onMount(ready)
+    return <box />
+  }
+
+  const app = await testRender(() => (
+    <TestTuiContexts>
+      <SDKProvider url="http://test" directory={directory} events={events.source} fetch={calls.fetch}>
+        <ProjectProvider>
+          <DataProvider>
+            <Probe />
+          </DataProvider>
+        </ProjectProvider>
+      </SDKProvider>
+    </TestTuiContexts>
+  ))
+
+  try {
+    await mounted
+    await wait(() => data.location.integration.list() !== undefined)
+
+    events.emit({
+      directory: other,
+      project: "proj_other",
+      payload: { id: "evt_integration", type: "integration.updated", properties: {} },
+    })
+    await wait(() => data.location.integration.list({ directory: other })?.length === 1)
+    await wait(() => data.location.provider.list({ directory: other }) !== undefined)
+    expect(data.location.integration.list()).toEqual([])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("refreshes reference updates for the location they came from", async () => {
+  const events = createEventSource()
+  const other = "/tmp/other"
+  const calls = createFetch((url) => {
+    if (url.pathname !== "/api/reference") return
+    const elsewhere = url.search.includes(encodeURIComponent(other))
+    return json({
+      location: elsewhere
+        ? { directory: other, project: { id: "proj_other", directory: other } }
+        : { directory, project: { id: "proj_test", directory } },
+      data: elsewhere ? [{ name: "docs", path: "/docs", source: { type: "local", path: "/docs" } }] : [],
+    })
+  }, events)
+  let data!: ReturnType<typeof useData>
+  let ready!: () => void
+  const mounted = new Promise<void>((resolve) => {
+    ready = resolve
+  })
+
+  function Probe() {
+    data = useData()
+    onMount(ready)
+    return <box />
+  }
+
+  const app = await testRender(() => (
+    <TestTuiContexts>
+      <SDKProvider url="http://test" directory={directory} events={events.source} fetch={calls.fetch}>
+        <ProjectProvider>
+          <DataProvider>
+            <Probe />
+          </DataProvider>
+        </ProjectProvider>
+      </SDKProvider>
+    </TestTuiContexts>
+  ))
+
+  try {
+    await mounted
+    await wait(() => data.location.reference.list() !== undefined)
+
+    events.emit({
+      directory: other,
+      project: "proj_other",
+      payload: { id: "evt_reference", type: "reference.updated", properties: {} },
+    })
+    await wait(() => data.location.reference.list({ directory: other })?.length === 1)
+    expect(data.location.reference.list()).toEqual([])
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
 test("refreshes references after updates", async () => {
   const events = createEventSource()
   let requests = 0

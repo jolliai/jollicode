@@ -1225,6 +1225,7 @@ export const dict = {
   "prompt.jolli.start.button": "Έναρξη",
   "prompt.jolli.start.writing": "Ο πράκτορας γράφει…",
   "prompt.jolli.start.failed": "Δεν ήταν δυνατή η έναρξη της συνομιλίας. Δοκιμάστε ξανά.",
+  "prompt.jolli.start.heldBack": "Ο πράκτορας ξεκίνησε πρώτος τη συνομιλία, γι' αυτό το μήνυμά σας δεν στάλθηκε. Σας περιμένει στο πεδίο εισαγωγής.",
   "prompt.jolli.closed.notice": "Αυτός ο πράκτορας έκλεισε. Μπορείτε ακόμη να διαβάσετε αυτή τη συνομιλία.",
   "prompt.jolli.refusal.notOpen": "Αυτός ο πράκτορας δεν έχει ανοίξει ακόμη.",
   "prompt.jolli.refusal.closed": "Αυτός ο πράκτορας έκλεισε.",

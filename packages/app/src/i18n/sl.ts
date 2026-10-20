@@ -1221,6 +1221,7 @@ export const dict = {
   "prompt.jolli.start.button": "Začni",
   "prompt.jolli.start.writing": "Agent piše…",
   "prompt.jolli.start.failed": "Klepeta ni bilo mogoče začeti. Poskusi znova.",
+  "prompt.jolli.start.heldBack": "Pogovor je prvi začel agent, zato tvoje sporočilo ni bilo poslano. Čaka v polju za vnos.",
   "prompt.jolli.closed.notice": "Ta agent je zaprt. Ta klepet lahko še vedno bereš.",
   "prompt.jolli.refusal.notOpen": "Ta agent še ni odprt.",
   "prompt.jolli.refusal.closed": "Ta agent je zaprt.",

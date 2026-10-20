@@ -1232,6 +1232,7 @@ export const dict: Record<string, string> = {
   "prompt.jolli.start.button": "འགོ་བཙུགས།",
   "prompt.jolli.start.writing": "ལས་ཚབ་ཀྱིས་འབྲི་དོ…",
   "prompt.jolli.start.failed": "ཁ་སླབ་འགོ་བཙུགས་མ་ཚུགས། ལོག་སྟེ་འབད་རྩོལ་བསྐྱེད།",
+  "prompt.jolli.start.heldBack": "ལས་ཚབ་ཀྱིས་ཁ་སླབ་ཧེ་མ་ར་འགོ་བཙུགས་ཡི། དེ་འབདཝ་ལས་ཁྱོད་ཀྱི་འཕྲིན་དོན་མ་བཏང་། ནང་བཙུགས་སྒྲོམ་ནང་སྒུག་སྡོད་ཡོདཔ་ཨིན།",
   "prompt.jolli.closed.notice": "ལས་ཚབ་འདི་ཁ་བསྡམས་ཡོད། ཁྱོད་ཀྱིས་ཁ་སླབ་འདི་ད་ལྟོ་ཡང་ལྷག་ཚུགས།",
   "prompt.jolli.refusal.notOpen": "ལས་ཚབ་འདི་ད་ལྟོ་ཡང་ཁ་ཕྱེ་མེད།",
   "prompt.jolli.refusal.closed": "ལས་ཚབ་འདི་ཁ་བསྡམས་ཡོད།",

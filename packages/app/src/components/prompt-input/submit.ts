@@ -236,14 +236,15 @@ export type NewSessionRequest<Failure> = {
   directory?: string
   /**
    * Makes the session in `target.directory`, or says why it did not. Nothing is promoted without a
-   * session, and the reason comes back on the `not-created` result.
+   * session, and the reason comes back on the `not-created` result. A session the gateway opened says
+   * whether it came with an opener.
    */
   create: (target: {
     directory: string
     client: DirectorySDK["client"]
-  }) => Promise<{ session: Session } | { failure: Failure }>
+  }) => Promise<{ session: Session; opener?: boolean } | { failure: Failure }>
   /** As soon as the session exists, before the screen moves onto it. */
-  created?: (session: Session) => void
+  created?: (session: Session, opener: boolean) => void
   /** Inside the transition that moves the screen onto the session, after everything else. */
   promoted?: (session: Session, directory: string) => void
 }
@@ -251,7 +252,7 @@ export type NewSessionRequest<Failure> = {
 export type NewSessionResult<Failure> =
   | { status: "no-directory" }
   | { status: "not-created"; directory: string; failure: Failure }
-  | { status: "created"; session: Session; directory: string }
+  | { status: "created"; session: Session; directory: string; opener: boolean }
 
 /** Which directory a new session goes in, and the draft's worktree choice it is read from. */
 export type NewSessionWorktreeInput = {
@@ -368,7 +369,7 @@ export function createNewSession(input: NewSessionWorktreeInput) {
     input.onNewSessionWorktreeReset?.()
 
     seed(sessionDirectory, session)
-    request.created?.(session)
+    request.created?.(session, !!made.opener)
     await startTransition(() => {
       if (request.autoAccept) permissionState.enableAutoAccept(session.id, sessionDirectory)
       local.session.promote(sessionDirectory, session.id, {
@@ -393,7 +394,7 @@ export function createNewSession(input: NewSessionWorktreeInput) {
       if (!draft && location.pathname === from) navigate(`/${base64Encode(sessionDirectory)}/session/${session.id}`)
       request.promoted?.(session, sessionDirectory)
     })
-    return { status: "created", session, directory: sessionDirectory }
+    return { status: "created", session, directory: sessionDirectory, opener: !!made.opener }
   }
 }
 
@@ -602,7 +603,9 @@ function openOnGateway(input: {
           directory: target.directory,
           at: Date.now(),
         })
-      if (answer.result?.status === "started") return { session: normalizeSessionInfo(answer.result.session) }
+      // The opener, which a typed first message must not talk over.
+      if (answer.result?.status === "started")
+        return { session: normalizeSessionInfo(answer.result.session), opener: answer.result.opener }
       if (answer.result?.status !== "refused") return { failure: { key: startErrorKey(undefined) } }
       refreshCatalog()
       // A task's refusal is the assignment's to word; the list it was started from may be stale too.
@@ -830,7 +833,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
        * ⚠ A TASK'S DRAFT IS OPENED ON THE GATEWAY EVEN WHEN ITS FIRST MESSAGE IS TYPED. Its agent does not
        * speak first, or the draft would be showing Start; the session is still the task's, made the way
        * Start makes it, and the typed message then goes to it as its first turn. Named by that message
-       * below, as a started session is.
+       * below, as a started session is, and only once it is sent: an opener can still hold it back.
        */
       const binding = courseSession.current()
       const task = binding ? courseSession.draft.task : undefined
@@ -845,6 +848,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
               model: { id: currentModel.id, providerID: currentModel.provider.id, variant },
             })
           : undefined
+      const heldBack = (opener: boolean) => opener && mode !== "shell"
       /**
        * ⚠ THE COMPOSER WAITS AS START'S ROW DOES. Opening on the gateway can take as long as Start, and
        * anything typed meanwhile would go with the `clear()` that follows the send, never sent.
@@ -859,7 +863,14 @@ export function createPromptSubmit(input: PromptSubmitInput) {
         variant,
         autoAccept: input.autoAccept(),
         ...(opening ? { binding, directory: opening.directory } : {}),
-        created: (created) => input.promoteHistory?.(created.id),
+        /**
+         * ⚠ PROMOTED HERE, BEFORE THE TRANSITION THAT SHOWS THE SESSION. Its composer reads the history from
+         * storage as it is made and writes it back whole, so an entry promoted after that is lost to it. A
+         * message held back for an opener is the exception: it was not sent, and is discarded below.
+         */
+        created: (created, opener) => {
+          if (!heldBack(opener)) input.promoteHistory?.(created.id)
+        },
         promoted: (created, directory) =>
           submission.retarget(prompt.capture({ dir: base64Encode(directory), id: created.id })),
         create: opening
@@ -924,6 +935,29 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       if (opening && result.status === "not-created") {
         showStartFailure(courseSession, result.failure)
         input.discardHistory?.()
+        return
+      }
+      // The list said the agent does not speak first; a fresh one puts Start on the next draft.
+      if (result.status === "created" && result.opener) refreshCatalog()
+      /**
+       * ⚠ AN OPENER THE CATALOGUE DID NOT FORESEE HOLDS THE MESSAGE BACK. The list on screen said the agent
+       * does not speak first, but the gateway wrote it an opener: sent now, the message would talk over a
+       * turn the student has not read. The message is put in the session's input instead — the draft's
+       * went with the draft when it was promoted — to send once they have. A shell command is run all the
+       * same: it asks the model nothing, so it talks over no one, and the session's composer would not
+       * come back in shell mode to run it.
+       */
+      if (result.status === "created" && heldBack(result.opener)) {
+        input.discardHistory?.()
+        /**
+         * ⚠ THE COMPOSER IT WAS TYPED IN IS EMPTIED AS A SENT ONE IS. Without a draft tab to promote, that is
+         * the directory's New session input, and the message left there would go out again, to a plain
+         * session, the next time Enter is pressed in it.
+         */
+        submission.clear()
+        submission.target().set(submission.prompt, input.promptLength(submission.prompt))
+        // Said out loud: a student who moved on during the wait would otherwise wait on a reply to nothing.
+        showToast({ description: language.t("prompt.jolli.start.heldBack") })
         return
       }
       sessionDirectory = result.directory

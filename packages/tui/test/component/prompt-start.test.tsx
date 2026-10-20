@@ -7,7 +7,7 @@
  * under the same id, since the gateway may have made the conversation all the same; a rejected or
  * refused one made nothing and the next takes a fresh id. The sidecar is a fake `fetch`.
  */
-import { afterAll, expect, test } from "bun:test"
+import { afterAll, expect, setSystemTime, test } from "bun:test"
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { testRender, useRenderer } from "@opentui/solid"
 import { createSignal, onCleanup, onMount, Show } from "solid-js"
@@ -127,14 +127,14 @@ const model = {
   variants: {},
 }
 
-/** How the fake sidecar answers one Start. */
-type Answer = "rejected" | "failed" | "dropped" | "refused" | "unreachable" | "started"
+/** How the fake sidecar answers one Start; `opened` is started with an opener. */
+type Answer = "rejected" | "failed" | "dropped" | "refused" | "unreachable" | "started" | "opened"
 
 function answer(kind: Answer) {
-  if (kind === "started")
+  if (kind === "started" || kind === "opened")
     return json({
       status: "started",
-      opener: false,
+      opener: kind === "opened",
       session: { id: "ses_started", directory, title: "", time: { created: 1, updated: 1 } },
     })
   if (kind === "rejected") return json({ name: "BadRequest", data: {} }, { status: 400 })
@@ -144,24 +144,40 @@ function answer(kind: Answer) {
   return json({ status: "unreachable" })
 }
 
-async function mount(options: { opensConversation?: boolean } = {}) {
+/** A second course, for a draft moved from one course to another. */
+const secondCourse = {
+  course: { ...catalog.courses[0], id: "102", code: "C 102", title: "C 102", assistantIds: ["2"] },
+  assistant: { ...catalog.assistants[0], id: "2", courseId: "102", name: "Second" },
+}
+
+async function mount(
+  options: { opensConversation?: boolean; secondCourse?: boolean; createFails?: boolean; promptFails?: boolean } = {},
+) {
   const opensConversation = options.opensConversation ?? true
+  const courses = options.secondCourse ? [...catalog.courses, secondCourse.course] : catalog.courses
+  const assistants = options.secondCourse ? [...catalog.assistants, secondCourse.assistant] : catalog.assistants
   const state = (await tmpdir()).path
   await Bun.write(`${state}/kv.json`, "{}")
   const queue: Answer[] = []
   const sent: string[] = []
   /** Every Start's body, for what it was opened for. */
   const starts: Array<Record<string, unknown>> = []
-  /** The sessions a message was sent to. */
+  /** The sessions a message was sent to, and what each message said. */
   const prompted: string[] = []
+  const said: string[] = []
+  /** The sessions a shell command was run in, and how often the catalogue was read. */
+  const shelled: string[] = []
+  const catalogs = { read: 0 }
   /** Plain `session.create` calls — what a Start must never fall back to. */
   const created: unknown[] = []
-  /** When set, the sidecar holds every Start until it resolves. */
+  /** When set, the sidecar holds every Start and plain `session.create` until it resolves. */
   let held: PromiseWithResolvers<void> | undefined
   const events = createEventSource()
   const calls = createFetch((url) => {
-    if (url.pathname === "/jolli/course")
-      return json({ ...catalog, assistants: catalog.assistants.map((item) => ({ ...item, opensConversation })) })
+    if (url.pathname === "/jolli/course") {
+      catalogs.read++
+      return json({ ...catalog, courses, assistants: assistants.map((item) => ({ ...item, opensConversation })) })
+    }
     if (url.pathname === "/provider") return json({ all: [], default: {}, connected: [PROVIDER] })
     if (url.pathname === "/config/providers")
       return json({
@@ -176,10 +192,27 @@ async function mount(options: { opensConversation?: boolean } = {}) {
   const fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = input instanceof Request ? input : new Request(input, init)
     const pathname = new URL(request.url).pathname
-    if (pathname === "/session" && request.method === "POST") created.push(await request.clone().json())
+    if (pathname === "/session" && request.method === "POST") {
+      created.push(await request.clone().json())
+      await held?.promise
+      if (options.createFails) return new Response("boom", { status: 500 })
+      return json({ id: "ses_plain", directory, title: "", time: { created: 1, updated: 1 } })
+    }
     const message = /^\/session\/([^/]+)\/message$/.exec(pathname)
+    const shell = /^\/session\/([^/]+)\/shell$/.exec(pathname)
+    if (shell && request.method === "POST") {
+      shelled.push(shell[1])
+      return json({})
+    }
     if (message && request.method === "POST") {
+      if (options.promptFails) return new Response("boom", { status: 500 })
       prompted.push(message[1]!)
+      const body = await request.clone().json()
+      said.push(
+        body.parts
+          .flatMap((part: { type: string; text?: string }) => (part.type === "text" ? [part.text] : []))
+          .join(""),
+      )
       return json({})
     }
     if (pathname !== "/session/jolli/start") return calls.fetch(request)
@@ -195,7 +228,10 @@ async function mount(options: { opensConversation?: boolean } = {}) {
   let local!: ReturnType<typeof useLocal>
   let route!: ReturnType<typeof useRoute>
   const [shown, setShown] = createSignal(true)
+  const [sessionID, setSessionID] = createSignal<string>()
   let prompt: PromptRef | undefined
+  /** How often the composer told its page a prompt was submitted. */
+  const submits = { count: 0 }
   let mounted!: () => void
   const ready = new Promise<void>((resolve) => {
     mounted = resolve
@@ -213,7 +249,7 @@ async function mount(options: { opensConversation?: boolean } = {}) {
     })
     return (
       <Show when={shown()}>
-        <Prompt ref={(ref) => (prompt = ref)} />
+        <Prompt ref={(ref) => (prompt = ref)} sessionID={sessionID()} onSubmit={() => submits.count++} />
       </Show>
     )
   }
@@ -277,6 +313,11 @@ async function mount(options: { opensConversation?: boolean } = {}) {
 
   const app = await testRender(() => <Harness />, { width: 100, height: 30 })
   await ready
+  // Two courses are a choice, so nothing is pre-selected: the first is picked as a student would pick it.
+  if (options.secondCourse) {
+    await app.waitFor(() => jolli.courses().length === 2)
+    jolli.draft.setCourse("101")
+  }
   // The pre-selected course, an agent and a model: everything a Start needs before it is sent.
   await app.waitFor(
     () =>
@@ -287,8 +328,21 @@ async function mount(options: { opensConversation?: boolean } = {}) {
     sent,
     starts,
     prompted,
+    said,
+    shelled,
+    catalogs,
     created,
+    submits,
     app,
+    /** What the prompt history holds on disk, oldest first. */
+    async history() {
+      const file = Bun.file(`${state}/prompt-history.jsonl`)
+      if (!(await file.exists())) return []
+      return (await file.text())
+        .split("\n")
+        .filter(Boolean)
+        .map((line): unknown => JSON.parse(line))
+    },
     get jolli() {
       return jolli
     },
@@ -302,14 +356,15 @@ async function mount(options: { opensConversation?: boolean } = {}) {
     queue(kind: Answer) {
       queue.push(kind)
     },
-    /** Hold every Start at the sidecar until the returned handle is resolved. */
+    /** Hold every Start and plain `session.create` at the sidecar until the returned handle is resolved. */
     hold() {
       held = Promise.withResolvers<void>()
       return held
     },
-    /** Unmount the composer and mount a fresh one, as leaving home and coming back does. */
-    remount() {
+    /** Unmount the composer and mount a fresh one: home's, or the session's when one is named. */
+    remount(session?: string) {
       setShown(false)
+      setSessionID(session)
       setShown(true)
     },
     /** Submit once, answering the Start it sends with `kind`, and wait for the answer to land. */
@@ -455,22 +510,598 @@ test("a refused task start sends nothing and keeps the typed line", async () => 
   }
 })
 
-/** ⚠ NOR DOES A TASK'S TYPED FIRST LINE: ITS SESSION IS OPENED, BUT THE STUDENT IS NOT PULLED INTO IT. */
-test("a typed first line answered after the student left home sends nothing and leaves them where they are", async () => {
+/**
+ * ⚠ NOR DOES A TASK'S TYPED FIRST LINE, WHICH IS STILL SENT TO THE TASK'S SESSION. Home's composer goes with
+ * the student; the line must not be restored into the input they reach, where Enter would send it elsewhere.
+ * A paste in it is still sent whole, though the composer's extmarks went with it.
+ */
+test("a typed first line answered after the student left home is sent to the task's session, not restored elsewhere", async () => {
   const view = await mount({ opensConversation: false })
   try {
     view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
     const held = view.hold()
     view.queue("started")
+    const pasted = "[Pasted ~2 lines]"
+    view.prompt.set({
+      input: `${pasted} what does this ask?`,
+      parts: [
+        { type: "text", text: "line one\nline two", source: { text: { start: 0, end: pasted.length, value: pasted } } },
+      ],
+    })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.jolli.starting())
+    view.remount()
+    view.route.navigate({ type: "session", sessionID: "ses_other" })
+    held.resolve()
+    await view.app.waitFor(() => view.prompted.length > 0)
+    await Bun.sleep(80)
+    expect(view.prompted).toEqual(["ses_started"])
+    expect(view.said).toEqual(["line one\nline two what does this ask?"])
+    expect(view.route.data).toEqual({ type: "session", sessionID: "ses_other" })
+    expect(view.prompt.current.input).toBe("")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/**
+ * ⚠ AN OPENER THE CATALOGUE DID NOT FORESEE HOLDS THE TYPED LINE BACK. The student is taken to the session
+ * to read it, and the line goes with them to the session's input rather than talking over it.
+ */
+test("a typed first line whose task's agent turns out to open the session is held back for its input", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    view.queue("opened")
+    view.prompt.set({ input: "what does this task ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.route.data.type === "session")
+    await Bun.sleep(80)
+    expect(view.prompted).toEqual([])
+    expect(view.route.data).toEqual({ type: "session", sessionID: "ses_started" })
+    // Not home's to restore: only the session's composer takes the line.
+    view.remount()
+    expect(view.prompt.current.input).toBe("")
+    view.remount("ses_started")
+    await view.app.waitFor(() => view.prompt.current.input === "what does this task ask?")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/**
+ * ⚠ A LINE HELD BACK FOR AN OPENER WAITS FOR THE TASK'S SESSION WHEREVER THE STUDENT WENT. The composer it
+ * was typed in is gone, and the one they came back to must not have it either.
+ */
+test("a typed first line held back for an opener after the student came back home waits for the task's session", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    const held = view.hold()
+    view.queue("opened")
     view.prompt.set({ input: "what does this task ask?", parts: [] })
     view.prompt.submit()
     await view.app.waitFor(() => view.jolli.starting())
+    view.remount("ses_other")
+    view.remount()
+    held.resolve()
+    await view.app.waitFor(() => view.route.data.type === "session")
+    await Bun.sleep(80)
+    expect(view.prompted).toEqual([])
+    expect(view.prompt.current.input).toBe("")
+    view.remount("ses_started")
+    await view.app.waitFor(() => view.prompt.current.input === "what does this task ask?")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+test("a typed first line held back for an opener while the student is away is not restored where they are", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    const held = view.hold()
+    view.queue("opened")
+    view.prompt.set({ input: "what does this task ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.jolli.starting())
+    view.remount("ses_other")
     view.route.navigate({ type: "session", sessionID: "ses_other" })
     held.resolve()
     await view.app.waitFor(() => !view.jolli.starting())
     await Bun.sleep(80)
     expect(view.prompted).toEqual([])
     expect(view.route.data).toEqual({ type: "session", sessionID: "ses_other" })
+    view.remount("ses_other")
+    expect(view.prompt.current.input).toBe("")
+    view.remount("ses_started")
+    await view.app.waitFor(() => view.prompt.current.input === "what does this task ask?")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/**
+ * ⚠ A LINE THAT WAS NOT SENT AT ALL GOES BACK TO HOME'S DRAFT OF ITS TASK, AND NOWHERE ELSE. The session the
+ * student went to must not get it, and neither may home while its draft is another task's.
+ */
+test("a refused typed first line answered after the student left home goes back to its task's draft only", async () => {
+  const view = await mount({ opensConversation: false })
+  const task = { courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" }
+  try {
+    view.jolli.draft.setTask(task)
+    const held = view.hold()
+    view.queue("refused")
+    view.prompt.set({ input: "这道题问什么", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.jolli.starting())
+    view.remount("ses_other")
+    view.route.navigate({ type: "session", sessionID: "ses_other" })
+    held.resolve()
+    await view.app.waitFor(() => !view.jolli.starting())
+    await Bun.sleep(80)
+    expect(view.prompted).toEqual([])
+    expect(view.created).toEqual([])
+    view.remount("ses_other")
+    expect(view.prompt.current.input).toBe("")
+
+    view.jolli.draft.setTask({ ...task, partId: "42", label: "Lab 5" })
+    view.remount()
+    expect(view.prompt.current.input).toBe("")
+
+    // Home's draft becomes the task again without the composer remounting.
+    view.jolli.draft.setTask(task)
+    await view.app.waitFor(() => view.prompt.current.input === "这道题问什么")
+    // The cursor is at the end of the line as the composer measures it, so typing appends.
+    view.prompt.focus()
+    await view.app.mockInput.typeText("?")
+    await view.app.waitFor(() => view.prompt.current.input === "这道题问什么?")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/**
+ * ⚠ THE COMPOSER THE LINE WAS TYPED IN MAY BE DESTROYED BEFORE THE GATEWAY ANSWERS. Sending from it must not
+ * touch its buffer, and the line it sent must not come back to the task's draft to be sent again.
+ */
+test("a typed first line answered after its composer was destroyed is sent once and not held", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    const held = view.hold()
+    view.queue("started")
+    view.prompt.set({ input: "what does this ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.jolli.starting())
+    view.remount("ses_other")
+    view.route.navigate({ type: "session", sessionID: "ses_other" })
+    // Long enough for the renderer to destroy the unmounted composer.
+    await Bun.sleep(50)
+    held.resolve()
+    await view.app.waitFor(() => view.prompted.length > 0)
+    await Bun.sleep(80)
+    expect(view.prompted).toEqual(["ses_started"])
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    view.remount()
+    await Bun.sleep(20)
+    expect(view.prompt.current.input).toBe("")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+test("a refused typed first line comes back to home's draft the student already returned to", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    const held = view.hold()
+    view.queue("refused")
+    view.prompt.set({ input: "what does this ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.jolli.starting())
+    view.remount("ses_other")
+    view.remount()
+    expect(view.prompt.current.input).toBe("")
+    held.resolve()
+    await view.app.waitFor(() => view.prompt.current.input === "what does this ask?")
+    expect(view.prompted).toEqual([])
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/**
+ * ⚠ NOT ONLY A TASK'S LINE IS THE SUBMIT'S ONCE TAKEN. A plain session's `session.create` can take as long,
+ * and a line stashed for the next composer while it is also sent would go out twice on the next Enter.
+ */
+test("a plain first line answered after its composer unmounted is sent once and not restored", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    const held = view.hold()
+    view.prompt.set({ input: "hello there", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.created.length > 0)
+    view.remount()
+    expect(view.prompt.current.input).toBe("")
+    held.resolve()
+    await view.app.waitFor(() => view.prompted.length > 0)
+    await Bun.sleep(80)
+    expect(view.prompted).toEqual(["ses_plain"])
+    expect(view.said).toEqual(["hello there"])
+    expect(view.prompt.current.input).toBe("")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/** ⚠ A SHELL COMMAND IS RUN THROUGH AN OPENER, as the desktop runs it: it asks the model nothing. */
+test("a typed first shell command on a task's draft runs though the gateway wrote an opener", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    view.prompt.focus()
+    await view.app.mockInput.typeText("!")
+    view.prompt.set({ input: "ls", parts: [] })
+    view.queue("opened")
+    const before = view.catalogs.read
+    view.prompt.submit()
+    // Polled by time: the command goes out after the gateway answers, with nothing redrawn meanwhile.
+    const deadline = Date.now() + 2000
+    while (view.shelled.length === 0 && Date.now() < deadline) await Bun.sleep(10)
+    expect(view.shelled).toEqual(["ses_started"])
+    expect(view.prompted).toEqual([])
+    // The catalogue was wrong about the agent all the same.
+    expect(view.catalogs.read).toBeGreaterThan(before)
+    while (view.route.data.type !== "session" && Date.now() < deadline) await Bun.sleep(10)
+    expect(view.route.data).toEqual({ type: "session", sessionID: "ses_started" })
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/**
+ * ⚠ A START'S `clearTask` DOES NOT RESTORE HOME'S HELD LINE INTO THE COMPOSER IT IS LEAVING. The draft turns
+ * plain before the Start ends; filled then, the composer would go with the student and take the line along.
+ */
+test("a plain line held for home survives a task's Start and comes back to home's plain draft", async () => {
+  const view = await mount({ opensConversation: false, createFails: true })
+  try {
+    const held = view.hold()
+    view.prompt.set({ input: "hello there", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.created.length > 0)
+    view.remount("ses_other")
+    held.resolve()
+    await Bun.sleep(80)
+    expect(view.prompted).toEqual([])
+
+    // An agent the catalogue cannot name gets Start, which an empty composer sends.
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "999", assignmentId: "40", partId: "41", label: "Lab 4" })
+    view.remount()
+    expect(view.prompt.current.input).toBe("")
+    await view.start("started")
+    await Bun.sleep(20)
+    expect(view.jolli.draft.task).toBeUndefined()
+    expect(view.prompt.current.input).toBe("")
+
+    view.remount()
+    await view.app.waitFor(() => view.prompt.current.input === "hello there")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/**
+ * ⚠ A HELD LINE IS NOT CROWDED OUT BY A STASH. Restored second, it would stay held and fill some later mount
+ * of the session, long after. Nor does the stash go on to whichever composer mounts next, skipping this one
+ * unseen: it goes back to the session it was typed in.
+ */
+test("a line held for a session is restored before a stash, and the stash goes back to its own session", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    const held = view.hold()
+    view.queue("opened")
+    view.prompt.set({ input: "what does this task ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.jolli.starting())
+    view.remount("ses_other")
+    view.route.navigate({ type: "session", sessionID: "ses_other" })
+    view.prompt.set({ input: "typed elsewhere", parts: [] })
+    held.resolve()
+    await view.app.waitFor(() => !view.jolli.starting())
+    await Bun.sleep(80)
+
+    view.remount("ses_started")
+    await view.app.waitFor(() => view.prompt.current.input === "what does this task ask?")
+    view.prompt.reset()
+    view.remount("ses_third")
+    await Bun.sleep(20)
+    expect(view.prompt.current.input).toBe("")
+    view.remount("ses_other")
+    await view.app.waitFor(() => view.prompt.current.input === "typed elsewhere")
+    view.prompt.reset()
+    view.remount("ses_started")
+    await Bun.sleep(20)
+    expect(view.prompt.current.input).toBe("")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/** ⚠ HOME'S PLAIN LINE IS HELD FOR ITS COURSE: restored into another course's draft, Enter would send it there. */
+test("a plain line held for home comes back to its course's draft only", async () => {
+  const view = await mount({ opensConversation: false, secondCourse: true, createFails: true })
+  try {
+    const held = view.hold()
+    view.prompt.set({ input: "hello there", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.created.length > 0)
+    view.remount("ses_other")
+    held.resolve()
+    await Bun.sleep(80)
+
+    view.jolli.draft.setCourse("102")
+    view.remount()
+    await Bun.sleep(20)
+    expect(view.prompt.current.input).toBe("")
+
+    // Home's draft goes back to the course without the composer remounting.
+    view.jolli.draft.setCourse("101")
+    await view.app.waitFor(() => view.prompt.current.input === "hello there")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/** ⚠ WHAT IS LEFT TYPED IN A COMPOSER STILL GOES TO THE NEXT ONE, as it did before lines were held. */
+test("a line left typed in one composer is restored into the next, whatever its owner", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.prompt.set({ input: "half a thought", parts: [] })
+    view.remount("ses_other")
+    await view.app.waitFor(() => view.prompt.current.input === "half a thought")
+    view.remount()
+    await view.app.waitFor(() => view.prompt.current.input === "half a thought")
+    view.prompt.reset()
+    view.remount("ses_other")
+    await Bun.sleep(20)
+    expect(view.prompt.current.input).toBe("")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/** ⚠ A LINE HELD FOR A COMPOSER THAT HAS SOMETHING TYPED IN IT DOES NOT OVERWRITE IT, and waits for the next mount. */
+test("a line held for a composer already holding typed text waits for its next mount", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    const held = view.hold()
+    view.queue("refused")
+    view.prompt.set({ input: "what does this ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.jolli.starting())
+    view.remount("ses_other")
+    view.remount()
+    view.prompt.set({ input: "typed meanwhile", parts: [] })
+    held.resolve()
+    await view.app.waitFor(() => !view.jolli.starting())
+    await Bun.sleep(80)
+    expect(view.prompt.current.input).toBe("typed meanwhile")
+    view.prompt.reset()
+    view.remount()
+    await view.app.waitFor(() => view.prompt.current.input === "what does this ask?")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/** ⚠ THE PAGE HEARS OF A SUBMIT ONLY WHILE ITS COMPOSER IS THE ONE ON SCREEN. */
+test("the page is told of a sent line, but not of one sent after the student left home", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.prompt.set({ input: "hello there", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.prompted.length === 1)
+    expect(view.submits.count).toBe(1)
+
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    const held = view.hold()
+    view.queue("started")
+    view.prompt.set({ input: "what does this ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.jolli.starting())
+    view.route.navigate({ type: "session", sessionID: "ses_other" })
+    held.resolve()
+    await view.app.waitFor(() => view.prompted.length === 2)
+    await Bun.sleep(80)
+    expect(view.prompted).toEqual(["ses_plain", "ses_started"])
+    expect(view.submits.count).toBe(1)
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/** ⚠ A HELD LINE OUTLIVES `held` IN THE HISTORY: it is dropped there after `HELD_FOR`, and with the TUI. */
+test("a typed first line held back for an opener is also kept in the prompt history", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    view.queue("opened")
+    view.prompt.set({ input: "what does this task ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.route.data.type === "session")
+    expect(view.prompted).toEqual([])
+    const deadline = Date.now() + 2000
+    while ((await view.history()).length === 0 && Date.now() < deadline) await Bun.sleep(10)
+    expect(await view.history()).toEqual([expect.objectContaining({ input: "what does this task ask?" })])
+    // Taken by the session's composer, so the line held for it does not outlast this test.
+    view.remount("ses_started")
+    await view.app.waitFor(() => view.prompt.current.input === "what does this task ask?")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/**
+ * ⚠ A LINE SENT AFTER THE STUDENT LEFT HOME THAT FAILS IS NOT PUT BACK IN THE TASK'S SESSION. The request lasts
+ * the whole turn and can fail after the message was recorded; put back, one Enter would send it twice. The
+ * prompt history has it.
+ */
+test("a typed first line that fails to send after the student left home is kept in the history, not the session's input", async () => {
+  const view = await mount({ opensConversation: false, promptFails: true })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    const held = view.hold()
+    view.queue("started")
+    view.prompt.set({ input: "what does this ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.jolli.starting())
+    view.remount("ses_other")
+    view.route.navigate({ type: "session", sessionID: "ses_other" })
+    held.resolve()
+    await view.app.waitFor(() => !view.jolli.starting())
+    await Bun.sleep(80)
+    expect(view.prompted).toEqual([])
+    expect(view.prompt.current.input).toBe("")
+    view.remount("ses_started")
+    await Bun.sleep(20)
+    expect(view.prompt.current.input).toBe("")
+    expect(await view.history()).toEqual([expect.objectContaining({ input: "what does this ask?" })])
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/**
+ * ⚠ A COMPOSER THAT ONLY REMOUNTS GETS BACK WHAT WAS BEING TYPED IN IT, a line held for it notwithstanding. The
+ * held line waits for a later mount, as it does when it arrives while something is typed.
+ */
+test("a composer remounted with typed text keeps it over a line held for it, which comes back later", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    const held = view.hold()
+    view.queue("refused")
+    view.prompt.set({ input: "what does this ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.jolli.starting())
+    view.remount("ses_other")
+    view.remount()
+    view.prompt.set({ input: "typed meanwhile", parts: [] })
+    held.resolve()
+    await view.app.waitFor(() => !view.jolli.starting())
+    await Bun.sleep(80)
+    expect(view.prompt.current.input).toBe("typed meanwhile")
+
+    view.remount()
+    await view.app.waitFor(() => view.prompt.current.input === "typed meanwhile")
+    view.prompt.reset()
+    view.remount()
+    await view.app.waitFor(() => view.prompt.current.input === "what does this ask?")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/**
+ * ⚠ A STASH CARRIED INTO ANOTHER OWNER'S COMPOSER COMES BACK AS TEXT. A shell command typed on home and carried
+ * into a session would otherwise run in that session on one Enter.
+ */
+test("a shell line stashed on home comes back into another session's composer as text", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.prompt.focus()
+    await view.app.mockInput.typeText("!")
+    view.prompt.set({ input: "ls", parts: [] })
+    view.remount("ses_b")
+    await view.app.waitFor(() => view.prompt.current.input === "ls")
+    view.prompt.submit()
+    const deadline = Date.now() + 2000
+    while (view.prompted.length + view.shelled.length === 0 && Date.now() < deadline) await Bun.sleep(10)
+    expect(view.prompted).toEqual(["ses_b"])
+    expect(view.shelled).toEqual([])
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/**
+ * ⚠ A LINE ONLY TYPED, NEVER SUBMITTED, DOES NOT EXPIRE WHEN IT IS HELD. Put aside so a held line can take its
+ * composer, it is a draft the student knows was not sent, and it is nowhere else to find.
+ */
+test("a draft put aside for a held line is still there after the held lines expire", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    view.queue("opened")
+    view.prompt.set({ input: "what does this task ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.route.data.type === "session")
+    // Typed in another session, then the task's session is opened: its held line takes the composer.
+    view.remount("ses_a")
+    view.prompt.set({ input: "half a thought", parts: [] })
+    view.remount("ses_started")
+    await view.app.waitFor(() => view.prompt.current.input === "what does this task ask?")
+    view.prompt.reset()
+    setSystemTime(new Date(Date.now() + 31 * 60 * 1000))
+    view.remount("ses_a")
+    await view.app.waitFor(() => view.prompt.current.input === "half a thought")
+  } finally {
+    setSystemTime()
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+/**
+ * ⚠ A HELD LINE LEFT WAITING IS NOT RESTORED BY A NEW DRAFT OBJECT FOR THE SAME OWNER. A catalogue refresh
+ * replaces the draft without changing whose composer this is; filling it then would put a line into a
+ * composer the student just cleared, at a moment of nobody's choosing.
+ */
+test("a held line left waiting is not restored when the draft is replaced for the same owner", async () => {
+  const view = await mount({ opensConversation: false })
+  const task = { courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" }
+  try {
+    view.jolli.draft.setTask(task)
+    const held = view.hold()
+    view.queue("refused")
+    view.prompt.set({ input: "what does this ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.jolli.starting())
+    view.remount("ses_other")
+    view.remount()
+    // Typing in home's composer again, so the refused line is held rather than restored.
+    view.prompt.set({ input: "something else", parts: [] })
+    held.resolve()
+    await view.app.waitFor(() => !view.jolli.starting())
+    await Bun.sleep(80)
+    expect(view.prompt.current.input).toBe("something else")
+    view.prompt.reset()
+    view.jolli.draft.setTask({ ...task })
+    await Bun.sleep(80)
+    expect(view.prompt.current.input).toBe("")
   } finally {
     view.prompt.reset()
     view.close()

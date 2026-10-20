@@ -1216,6 +1216,7 @@ export const dict = {
   "prompt.jolli.start.button": "Սկսել",
   "prompt.jolli.start.writing": "Գործակալը գրում է…",
   "prompt.jolli.start.failed": "Չհաջողվեց սկսել զրույցը։ Փորձիր նորից։",
+  "prompt.jolli.start.heldBack": "Զրույցն առաջինը սկսեց գործակալը, ուստի քո հաղորդագրությունը չուղարկվեց։ Այն սպասում է մուտքագրման դաշտում։",
   "prompt.jolli.closed.notice": "Այս գործակալը փակվել է։ Դու դեռ կարող ես կարդալ այս զրույցը։",
   "prompt.jolli.refusal.notOpen": "Այս գործակալը դեռ բաց չէ։",
   "prompt.jolli.refusal.closed": "Այս գործակալը փակվել է։",

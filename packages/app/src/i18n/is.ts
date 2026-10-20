@@ -1208,6 +1208,7 @@ export const dict = {
   "prompt.jolli.start.button": "Hefja",
   "prompt.jolli.start.writing": "Fulltrúinn er að skrifa…",
   "prompt.jolli.start.failed": "Ekki tókst að hefja spjallið. Reyndu aftur.",
+  "prompt.jolli.start.heldBack": "Fulltrúinn hóf samtalið fyrst, svo skilaboðin þín voru ekki send. Þau bíða í innsláttarreitnum.",
   "prompt.jolli.closed.notice": "Þessum fulltrúa hefur verið lokað. Þú getur enn lesið þetta spjall.",
   "prompt.jolli.refusal.notOpen": "Þessi fulltrúi hefur ekki verið opnaður enn.",
   "prompt.jolli.refusal.closed": "Þessum fulltrúa hefur verið lokað.",

@@ -1223,6 +1223,7 @@ export const dict = {
   "prompt.jolli.start.button": "開始",
   "prompt.jolli.start.writing": "エージェントが入力中…",
   "prompt.jolli.start.failed": "チャットを開始できませんでした。もう一度お試しください。",
+  "prompt.jolli.start.heldBack": "エージェントが先に会話を始めたため、メッセージは送信されませんでした。入力欄に残っています。",
   "prompt.jolli.closed.notice": "このエージェントは終了しました。このチャットは引き続き閲覧できます。",
   "prompt.jolli.refusal.notOpen": "このエージェントはまだ開いていません。",
   "prompt.jolli.refusal.closed": "このエージェントは終了しました。",

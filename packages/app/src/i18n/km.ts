@@ -1201,6 +1201,7 @@ export const dict = {
   "prompt.jolli.start.button": "ចាប់ផ្តើម",
   "prompt.jolli.start.writing": "ភ្នាក់ងារកំពុងសរសេរ…",
   "prompt.jolli.start.failed": "មិនអាចចាប់ផ្តើមការជជែកបានទេ។ សូមព្យាយាមម្តងទៀត។",
+  "prompt.jolli.start.heldBack": "ភ្នាក់ងារបានចាប់ផ្តើមការសន្ទនាមុន ដូច្នេះសាររបស់អ្នកមិនត្រូវបានផ្ញើទេ។ វាកំពុងរង់ចាំនៅក្នុងប្រអប់បញ្ចូល។",
   "prompt.jolli.closed.notice": "ភ្នាក់ងារនេះបានបិទហើយ។ អ្នកនៅតែអាចអានការជជែកនេះបាន។",
   "prompt.jolli.refusal.notOpen": "ភ្នាក់ងារនេះមិនទាន់បើកនៅឡើយទេ។",
   "prompt.jolli.refusal.closed": "ភ្នាក់ងារនេះបានបិទហើយ។",

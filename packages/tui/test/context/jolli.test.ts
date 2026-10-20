@@ -164,10 +164,12 @@ describe("startOutcome", () => {
     expect(startOutcome({ status: "started", session, opener: true })).toEqual({
       type: "started",
       sessionID: "ses_started",
+      opener: true,
     })
     expect(startOutcome({ status: "started", session, opener: false })).toEqual({
       type: "started",
       sessionID: "ses_started",
+      opener: false,
     })
   })
 

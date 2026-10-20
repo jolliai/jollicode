@@ -1219,6 +1219,7 @@ export const dict = {
   "prompt.jolli.start.button": "Aloita",
   "prompt.jolli.start.writing": "Agentti kirjoittaa…",
   "prompt.jolli.start.failed": "Keskustelun aloittaminen epäonnistui. Yritä uudelleen.",
+  "prompt.jolli.start.heldBack": "Agentti aloitti keskustelun ensin, joten viestiäsi ei lähetetty. Se odottaa syöttökentässä.",
   "prompt.jolli.closed.notice": "Tämä agentti on suljettu. Voit yhä lukea tämän keskustelun.",
   "prompt.jolli.refusal.notOpen": "Tämä agentti ei ole vielä avoinna.",
   "prompt.jolli.refusal.closed": "Tämä agentti on suljettu.",

@@ -1241,6 +1241,7 @@ export const dict = {
   "prompt.jolli.start.button": "Rozpocznij",
   "prompt.jolli.start.writing": "Agent pisze…",
   "prompt.jolli.start.failed": "Nie udało się rozpocząć czatu. Spróbuj ponownie.",
+  "prompt.jolli.start.heldBack": "Agent pierwszy rozpoczął rozmowę, więc twoja wiadomość nie została wysłana. Czeka w polu wprowadzania.",
   "prompt.jolli.closed.notice": "Ten agent został zamknięty. Nadal możesz przeczytać ten czat.",
   "prompt.jolli.refusal.notOpen": "Ten agent nie jest jeszcze otwarty.",
   "prompt.jolli.refusal.closed": "Ten agent został zamknięty.",

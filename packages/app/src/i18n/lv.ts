@@ -1216,6 +1216,7 @@ export const dict = {
   "prompt.jolli.start.button": "Sākt",
   "prompt.jolli.start.writing": "Aģents raksta…",
   "prompt.jolli.start.failed": "Neizdevās sākt tērzēšanu. Mēģini vēlreiz.",
+  "prompt.jolli.start.heldBack": "Sarunu pirmais sāka aģents, tāpēc tava ziņa netika nosūtīta. Tā gaida ievades laukā.",
   "prompt.jolli.closed.notice": "Šis aģents ir slēgts. Tu joprojām vari lasīt šo tērzēšanu.",
   "prompt.jolli.refusal.notOpen": "Šis aģents vēl nav atvērts.",
   "prompt.jolli.refusal.closed": "Šis aģents ir slēgts.",

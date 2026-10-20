@@ -1215,6 +1215,7 @@ export const dict = {
   "prompt.jolli.start.button": "Nis",
   "prompt.jolli.start.writing": "Agjenti po shkruan…",
   "prompt.jolli.start.failed": "Biseda nuk mund të nisej. Provo përsëri.",
+  "prompt.jolli.start.heldBack": "Agjenti e nisi i pari bisedën, prandaj mesazhi yt nuk u dërgua. Të pret te fusha e hyrjes.",
   "prompt.jolli.closed.notice": "Ky agjent është mbyllur. Mund ta lexosh ende këtë bisedë.",
   "prompt.jolli.refusal.notOpen": "Ky agjent nuk është hapur ende.",
   "prompt.jolli.refusal.closed": "Ky agjent është mbyllur.",

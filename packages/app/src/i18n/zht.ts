@@ -1275,6 +1275,7 @@ export const dict = {
   "prompt.jolli.start.button": "開始",
   "prompt.jolli.start.writing": "代理程式正在輸入…",
   "prompt.jolli.start.failed": "無法開始對話，請再試一次。",
+  "prompt.jolli.start.heldBack": "代理程式已先開啟對話，你的訊息沒有送出，仍保留在輸入框中。",
   "prompt.jolli.closed.notice": "此代理程式已關閉，你仍可閱讀此對話。",
   "prompt.jolli.refusal.notOpen": "此代理程式尚未開放。",
   "prompt.jolli.refusal.closed": "此代理程式已關閉。",

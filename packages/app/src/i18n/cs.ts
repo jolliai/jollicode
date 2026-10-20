@@ -1221,6 +1221,7 @@ export const dict = {
   "prompt.jolli.start.button": "Začít",
   "prompt.jolli.start.writing": "Agent píše…",
   "prompt.jolli.start.failed": "Chat se nepodařilo zahájit. Zkuste to znovu.",
+  "prompt.jolli.start.heldBack": "Agent zahájil konverzaci jako první, takže vaše zpráva nebyla odeslána. Čeká ve vstupním poli.",
   "prompt.jolli.closed.notice": "Tento agent je uzavřen. Tento chat si stále můžete přečíst.",
   "prompt.jolli.refusal.notOpen": "Tento agent ještě není otevřen.",
   "prompt.jolli.refusal.closed": "Tento agent je uzavřen.",

@@ -1198,6 +1198,7 @@ export const dict = {
   "prompt.jolli.start.button": "ເລີ່ມ",
   "prompt.jolli.start.writing": "ຕົວແທນກຳລັງຂຽນ…",
   "prompt.jolli.start.failed": "ບໍ່ສາມາດເລີ່ມການສົນທະນາໄດ້. ລອງໃໝ່ອີກຄັ້ງ.",
+  "prompt.jolli.start.heldBack": "ຕົວແທນເລີ່ມການສົນທະນາກ່ອນ, ສະນັ້ນຂໍ້ຄວາມຂອງທ່ານບໍ່ໄດ້ຖືກສົ່ງ. ມັນກຳລັງລໍຖ້າຢູ່ໃນຊ່ອງປ້ອນຂໍ້ມູນ.",
   "prompt.jolli.closed.notice": "ຕົວແທນນີ້ປິດແລ້ວ. ທ່ານຍັງສາມາດອ່ານການສົນທະນານີ້ໄດ້.",
   "prompt.jolli.refusal.notOpen": "ຕົວແທນນີ້ຍັງບໍ່ເປີດເທື່ອ.",
   "prompt.jolli.refusal.closed": "ຕົວແທນນີ້ປິດແລ້ວ.",

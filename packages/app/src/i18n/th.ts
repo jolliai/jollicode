@@ -1287,6 +1287,7 @@ export const dict = {
   "prompt.jolli.start.button": "เริ่ม",
   "prompt.jolli.start.writing": "เอเจนต์กำลังพิมพ์…",
   "prompt.jolli.start.failed": "ไม่สามารถเริ่มแชทได้ โปรดลองอีกครั้ง",
+  "prompt.jolli.start.heldBack": "เอเจนต์เริ่มการสนทนาก่อน ข้อความของคุณจึงยังไม่ถูกส่ง ข้อความรออยู่ในช่องป้อนข้อความ",
   "prompt.jolli.closed.notice": "เอเจนต์นี้ปิดแล้ว คุณยังอ่านแชทนี้ได้",
   "prompt.jolli.refusal.notOpen": "เอเจนต์นี้ยังไม่เปิด",
   "prompt.jolli.refusal.closed": "เอเจนต์นี้ปิดแล้ว",

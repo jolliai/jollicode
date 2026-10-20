@@ -1227,6 +1227,7 @@ export const dict = {
   "prompt.jolli.start.button": "စတင်ရန်",
   "prompt.jolli.start.writing": "အေးဂျင့် ရေးနေသည်…",
   "prompt.jolli.start.failed": "ချတ်ကို စတင်၍ မရပါ။ ထပ်စမ်းကြည့်ပါ။",
+  "prompt.jolli.start.heldBack": "အေးဂျင့်က စကားဝိုင်းကို အရင်စတင်ခဲ့သဖြင့် သင့်မက်ဆေ့ချ်ကို မပို့ရသေးပါ။ ထည့်သွင်းရန်အကွက်တွင် စောင့်နေပါသည်။",
   "prompt.jolli.closed.notice": "ဤအေးဂျင့်ကို ပိတ်လိုက်ပါပြီ။ ဤချတ်ကို ဆက်ဖတ်နိုင်ပါသေးသည်။",
   "prompt.jolli.refusal.notOpen": "ဤအေးဂျင့်ကို မဖွင့်ရသေးပါ။",
   "prompt.jolli.refusal.closed": "ဤအေးဂျင့်ကို ပိတ်လိုက်ပါပြီ။",

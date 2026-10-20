@@ -1217,6 +1217,7 @@ export const dict = {
   "prompt.jolli.start.button": "Începe",
   "prompt.jolli.start.writing": "Agentul scrie…",
   "prompt.jolli.start.failed": "Conversația nu a putut fi începută. Încearcă din nou.",
+  "prompt.jolli.start.heldBack": "Agentul a început primul conversația, așa că mesajul tău nu a fost trimis. Te așteaptă în câmpul de introducere.",
   "prompt.jolli.closed.notice": "Acest agent s-a închis. Poți citi în continuare această conversație.",
   "prompt.jolli.refusal.notOpen": "Acest agent nu este încă deschis.",
   "prompt.jolli.refusal.closed": "Acest agent s-a închis.",

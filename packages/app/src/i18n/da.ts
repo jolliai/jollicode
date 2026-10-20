@@ -1298,6 +1298,7 @@ export const dict = {
   "prompt.jolli.start.button": "Start",
   "prompt.jolli.start.writing": "Agenten skriver…",
   "prompt.jolli.start.failed": "Chatten kunne ikke startes. Prøv igen.",
+  "prompt.jolli.start.heldBack": "Agenten åbnede samtalen først, så din besked blev ikke sendt. Den venter i inputfeltet.",
   "prompt.jolli.closed.notice": "Denne agent er lukket. Du kan stadig læse denne chat.",
   "prompt.jolli.refusal.notOpen": "Denne agent er ikke åben endnu.",
   "prompt.jolli.refusal.closed": "Denne agent er lukket.",

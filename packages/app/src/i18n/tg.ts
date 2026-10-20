@@ -1218,6 +1218,7 @@ export const dict = {
   "prompt.jolli.start.button": "Оғоз",
   "prompt.jolli.start.writing": "Агент менависад…",
   "prompt.jolli.start.failed": "Гуфтугӯро оғоз кардан муяссар нашуд. Бори дигар кӯшиш кунед.",
+  "prompt.jolli.start.heldBack": "Агент гуфтугӯро аввал оғоз кард, бинобар ин паёми шумо фиристода нашуд. Он дар майдони воридкунӣ интизор аст.",
   "prompt.jolli.closed.notice": "Ин агент баста шудааст. Шумо ҳоло ҳам метавонед ин гуфтугӯро хонед.",
   "prompt.jolli.refusal.notOpen": "Ин агент ҳанӯз кушода нашудааст.",
   "prompt.jolli.refusal.closed": "Ин агент баста шудааст.",
