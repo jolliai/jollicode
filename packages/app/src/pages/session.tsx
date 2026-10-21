@@ -30,7 +30,7 @@ import type { SessionReviewLineComment } from "@opencode-ai/session-ui/session-r
 import { ResizeHandle } from "@opencode-ai/ui/resize-handle"
 import { Select } from "@opencode-ai/ui/select"
 import { SelectV2 } from "@opencode-ai/ui/v2/select-v2"
-import { isScrollKeyTarget, scrollKey, scrollKeyOwner } from "@opencode-ai/ui/scroll-view"
+import { applyScrollKey, canScrollKey, isScrollKeyTarget, scrollKey, scrollKeyOwner } from "@opencode-ai/ui/scroll-view"
 import { Tabs } from "@opencode-ai/ui/tabs"
 import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
 import { createAutoScroll } from "@opencode-ai/ui/hooks"
@@ -65,6 +65,7 @@ import { PromptGitStatus } from "@/components/prompt-workspace-selector"
 import { useSettingsCommand } from "@/components/settings-dialog"
 import { setCursorPosition } from "@/components/prompt-input/editor-dom"
 import { promptLength } from "@/components/prompt-input/history"
+import { composerScrollRouting } from "@/components/prompt-input/composer-scroll"
 import { type FollowupDraft, sendFollowupDraft } from "@/components/prompt-input/submit"
 import {
   createPromptInputController,
@@ -1142,6 +1143,16 @@ export default function Page() {
     return current instanceof HTMLElement ? current : undefined
   }
 
+  /**
+   * ⚠ THE ONE RULE FOR WHETHER THE BOX MAY HOLD FOCUS AT ALL, because it was three: the printable-key
+   * handler below, the `focusInput` command, and the claim after a click each had their own list, and
+   * the lists had already drifted. A permission or question request replaces the box (`blocked`), and
+   * a child session has none — focusing either is focusing nothing.
+   *
+   * Whether the page may take focus *unasked* is a further question, and only `focusComposer` asks it.
+   */
+  const composerAvailable = () => !!inputRef && !composer.blocked() && !isChildSession()
+
   const handleKeyDown = (event: KeyboardEvent) => {
     const path = event.composedPath()
     const target = path.find((item): item is HTMLElement => item instanceof HTMLElement)
@@ -1173,12 +1184,128 @@ export default function Page() {
     }
 
     if (event.key.length === 1 && event.key !== "Unidentified" && !(event.ctrlKey || event.metaKey)) {
-      if (composer.blocked() || isChildSession()) return
-      const input = inputRef
-      if (!input) return
-      input.focus()
-      setCursorPosition(input, prompt.cursor() ?? promptLength(prompt.current()))
+      if (!composerAvailable()) return
+      inputRef.focus()
+      setCursorPosition(inputRef, prompt.cursor() ?? promptLength(prompt.current()))
     }
+  }
+
+  /**
+   * ⚠ THE BOX HOLDS FOCUS SO THE INPUT METHOD STAYS ENABLED. Chromium switches the IME off while
+   * focus sits on a non-editable node, so the first key of a pinyin word never reaches it: it
+   * arrives as a plain `keydown`, the handler above focuses the box, and the key's own default
+   * action then inserts the raw letter — 这个 is typed and z这个 appears (JOLLI-2737). Focusing on
+   * the keystroke is too late by construction; the only fix is for focus to already be there, so
+   * the box takes it back whenever nobody else wants it.
+   *
+   * ⚠ ONLY WHEN FOCUS IS GENUINELY UNOWNED. A dialog, another input, a button the student tabbed
+   * to, or text they are in the middle of selecting all keep it — `focus()` would collapse that
+   * selection out from under them.
+   *
+   * ⚠ AND ONLY WHERE THERE IS A POINTER TO CLICK WITH. A width alone is not a mouse: an iPad in
+   * landscape and most Android tablets clear 768px, where taking focus pops the software keyboard
+   * over the conversation the student is still reading — which is the very thing the width was
+   * checked for. `(pointer: fine)` asks the question that was meant: can this be clicked without
+   * the screen giving half of itself away.
+   */
+  const hasFinePointer = createMediaQuery("(pointer: fine)")
+
+  /** Keys that only ever begin a chord — pressing one is not yet doing anything with the box. */
+  const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta", "CapsLock", "AltGraph"])
+
+  const focusComposer = () => {
+    if (!isDesktop() || !hasFinePointer()) return false
+    if (dialog.active) return false
+    if (!composerAvailable()) return false
+    inputRef.focus({ preventScroll: true })
+    /**
+     * ⚠ AND THE CARET COMES WITH IT, ALWAYS. The browser keeps one selection for the whole document,
+     * so reading the conversation moves it there — a click on a message leaves it in the timeline's
+     * text, not in the box the student left. `focus()` on a contenteditable with the selection
+     * outside parks the caret at offset 0, and the next letter lands in front of the draft rather
+     * than after it: a draft reading "hello world" becomes "xhello world".
+     *
+     * `prompt.cursor()` is where the caret was when the box last had it, which is what every other
+     * path that moves focus here already restores — the printable-key handler, the request dock.
+     */
+    setCursorPosition(inputRef, prompt.cursor() ?? promptLength(prompt.current()))
+    return true
+  }
+
+  /**
+   * ⚠ FOCUS THE STUDENT DID NOT ASK FOR MUST NOT ARM THE HISTORY KEYS. Upstream leaves focus on the
+   * body when a session opens, so ↑ does nothing there until the box is clicked into. Claiming
+   * focus would otherwise turn that same ↑ into "bring back my last prompt" — the box is empty,
+   * which is precisely when `canNavigateHistory` allows it. This marks focus the page took by
+   * itself; the capture listener in `onMount` withholds the arrows until the student does something
+   * that makes the box theirs.
+   */
+  let composerFocusUnasked = false
+
+  /**
+   * ⚠ FOCUS PARKED ON THE TIMELINE IS NOT FOCUS ANYONE ASKED FOR, and this is the path JOLLI-2737 is
+   * actually reported from. The timeline's viewport carries `tabIndex=0` so it can be scrolled from
+   * the keyboard, which also means a click anywhere on a message leaves focus sitting on it rather
+   * than on `document.body` — and the input method off. Nothing can be typed into a viewport:
+   * `handleKeyDown` already answers a printable key there by moving focus to the box, one keystroke
+   * too late. Claiming it up front is the same decision, made in time.
+   *
+   * ⚠ ONLY THAT ONE SCROLLER, NOT EVERY ELEMENT THAT IS NOT AN INPUT. A button tabbed to, a menu, a
+   * dialog, the file viewer whose own scroller answers Cmd+F and the arrow keys — all keep what they
+   * hold. The timeline is singled out because its focus is a by-product of reading, never a choice.
+   */
+  const composerFocusUnowned = () => {
+    const active = deepActiveElement()
+    return !active || active === document.body || active === scroller
+  }
+
+  const claimComposerFocus = () => {
+    if (!composerFocusUnowned()) return false
+    const selection = window.getSelection()
+    if (selection && !selection.isCollapsed) return false
+    if (!focusComposer()) return false
+    composerFocusUnasked = true
+    return true
+  }
+
+  /**
+   * ⚠ THE BOX IS NOT ALWAYS THE THING THAT SCROLLS. The v2 editor carries its own `overflow-y-auto`,
+   * so it is; v1 puts the same editor inside a `max-h-[240px] overflow-y-auto` wrapper, so it is not
+   * — and reading the editor's own `scrollTop` there answers "nothing left to scroll" however much
+   * text it holds. Every page key went to the conversation on that answer, and a draft long enough
+   * to need paging was the one thing that could not be paged.
+   *
+   * Each composer marks its own (`data-composer-scroll`) rather than this walking up computing
+   * styles to guess: `closest` costs nothing on a key repeat, and a layout change cannot quietly
+   * move the answer to a different element.
+   */
+  const composerScroller = () => inputRef?.closest<HTMLElement>("[data-composer-scroll]") ?? inputRef
+
+  // The rule itself lives in `composerScrollRouting`, next to its tests; this is what the page knows
+  // to answer it with.
+  const composerScrollKey = (event: KeyboardEvent) => {
+    /**
+     * ⚠ A KEY THE INPUT METHOD IS USING IS NOT A SCROLL KEY. PageUp and PageDown page the candidate
+     * window while a composition is open, and this listener runs in the capture phase — ahead of the
+     * composer's own handler, which does check (`isImeComposing` in `prompt-input.tsx`). Routing one
+     * away would answer "翻页" by scrolling the conversation and leaving the candidates where they
+     * were, in the one feature this whole change exists to protect (JOLLI-2737).
+     */
+    if (event.isComposing || event.keyCode === 229) return undefined
+    // Asked of every keystroke, so nothing below it is reached by the letters people actually type.
+    // Modifiers are `scrollKey`'s own business — it keeps Shift+Space as page-up and refuses the
+    // rest, and a second check here only ever disagreed with it.
+    const key = scrollKey(event)
+    if (!key) return undefined
+    return composerScrollRouting({
+      key,
+      pressed: event.key,
+      focusUnasked: composerFocusUnasked,
+      composerCanScroll: (key) => {
+        const own = composerScroller()
+        return !!own && canScrollKey(own, key)
+      },
+    })
   }
 
   createEffect(() => {
@@ -1231,8 +1358,8 @@ export default function Page() {
   }
 
   const focusInput = () => {
-    if (isChildSession()) return
-    inputRef?.focus()
+    if (!composerAvailable()) return
+    inputRef.focus()
   }
 
   useComposerCommands()
@@ -2094,13 +2221,138 @@ export default function Page() {
     on(
       () => params.id,
       (id) => {
-        if (!id) requestAnimationFrame(() => inputRef?.focus())
+        // The draft screen takes focus outright — a new session exists to be typed into. A live one
+        // only claims it when nothing else holds it; see `claimComposerFocus`.
+        if (!id) {
+          /**
+           * ⚠ AND IT IS FOCUS THE STUDENT ASKED FOR, so the flag the live session set must not come
+           * along: the route is the same one (`/:dir/session/:id?`), nothing remounts, and the
+           * `pointerup` claim that carried them here may have set it a frame ago. Left standing, it
+           * withholds ↑ on a screen whose entire purpose is the prompt about to be typed into it.
+           *
+           * ⚠ CLEARED TWICE, BECAUSE ONCE LOSES A RACE IT CANNOT SEE. The press that brought them
+           * here queued its claim at `pointerup`, which is BEFORE the `click` that navigated — so
+           * that claim runs a frame later, after this effect, and sets the flag straight back. The
+           * second clear rides a frame of its own, queued after the claim's and therefore run after
+           * it; the first still covers the other order, where the claim has already been and gone.
+           */
+          composerFocusUnasked = false
+          requestAnimationFrame(() => {
+            composerFocusUnasked = false
+            inputRef?.focus()
+          })
+          return
+        }
+        requestAnimationFrame(claimComposerFocus)
       },
+    ),
+  )
+
+  // Focus a closing dialog hands back belongs to the box: an Escape leaves it on no one at all.
+  createEffect(
+    on(
+      () => !!dialog.active,
+      (active, before) => {
+        if (active || !before) return
+        requestAnimationFrame(claimComposerFocus)
+      },
+      { defer: true },
+    ),
+  )
+
+  /**
+   * ⚠ A REQUEST DOCK STANDS IN FOR THE BOX, SO ANSWERING ONE LEAVES FOCUS ON NOBODY. The dock is not
+   * beside the composer but instead of it (`SessionComposerRegion`), so the button the student just
+   * pressed is unmounted along with the dock and focus falls to the body — input method off, which is
+   * JOLLI-2737 arriving by the one door the claims above do not cover. The `pointerup` claim cannot:
+   * it runs a frame after the press, while the reply is still in flight and `composerAvailable` still
+   * refuses.
+   *
+   * The caret comes with it, as it does for every claim — see `focusComposer`. This path was once
+   * the only one that restored it, on the belief that the others landed on a box whose selection the
+   * browser still held. They do not: the document has one selection and reading the conversation
+   * moves it there, so every claim needed what this one was doing.
+   */
+  createEffect(
+    on(
+      () => composer.blocked(),
+      (blocked, before) => {
+        if (blocked || !before) return
+        requestAnimationFrame(claimComposerFocus)
+      },
+      { defer: true },
     ),
   )
 
   onMount(() => {
     makeEventListener(document, "keydown", handleKeyDown)
+    /**
+     * ⚠ CAPTURE, BECAUSE IT HAS TO BEAT THE COMPOSER'S OWN HANDLER. Solid delegates `keydown` to the
+     * document's bubble phase, which is where the composer answers a key and where `handleKeyDown`
+     * above runs — too late to keep ↑ from `navigateHistory`, and too late to hand a key to the
+     * conversation that the composer has already acted on. Both of the things withheld from a box
+     * the page focused by itself have to be withheld here.
+     */
+    makeEventListener(
+      document,
+      "keydown",
+      (event) => {
+        if (deepActiveElement() !== inputRef) {
+          composerFocusUnasked = false
+          return
+        }
+        const key = composerScrollKey(event)
+        if (key && scroller) {
+          // Routed away, not typed: the box is no more the student's after this than before it.
+          event.preventDefault()
+          event.stopPropagation()
+          markScrollGesture(scroller)
+          applyScrollKey(scroller, key)
+          return
+        }
+        if (!composerFocusUnasked) return
+        // An arrow the conversation had no use for — the box scrolls itself first — is still
+        // withheld from history: focus the page took by itself must not arm it.
+        if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+          event.stopPropagation()
+          return
+        }
+        /**
+         * ⚠ A MODIFIER ON ITS OWN IS NOT THE STUDENT TYPING. Alt-tabbing away and back sends a bare
+         * `Meta` (or `Alt`) keydown and nothing else; reading that as "the box is theirs now" handed
+         * the history keys back to a box they never touched, so the next ↑ pulled up a past prompt
+         * instead of scrolling what they were reading. Shift alone, held before a capital, did the
+         * same. The chord these begin will clear the flag on its own if it turns out to be typing.
+         */
+        if (MODIFIER_KEYS.has(event.key)) return
+        composerFocusUnasked = false
+      },
+      { capture: true },
+    )
+    // Pressing the pointer is the student saying where they are; whatever focus settles after it is
+    // theirs, not the page's.
+    makeEventListener(document, "pointerdown", () => (composerFocusUnasked = false))
+    /**
+     * A click landing on nothing focusable drops focus on the body, where the IME is off. Take it
+     * back before the student starts typing — see `claimComposerFocus`.
+     *
+     * ⚠ EXCEPT WHERE THE PAGE WAS TOLD TO KEEP ITS HANDS OFF. A region marked `data-prevent-autofocus`
+     * — a line comment, the terminal, a popover that reads focus leaving as a dismissal — holds focus
+     * even where the click lands on a part of it that cannot take any, and that is the one case
+     * `composerFocusUnowned` cannot tell apart: focus is on the body there, exactly as after a click
+     * on nothing at all. `handleKeyDown` reads the press's path for this reason; so must this.
+     *
+     * ⚠ AND NOT FROM A FINGER. A tap that moves focus to the box raises the software keyboard over
+     * whatever was tapped; `focusComposer` refuses that, and asking it on every touch is pointless.
+     */
+    makeEventListener(document, "pointerup", (event) => {
+      if (event.pointerType === "touch" || event.pointerType === "pen") return
+      const protectedTarget = event
+        .composedPath()
+        .some((item) => item instanceof HTMLElement && item.closest("[data-prevent-autofocus]") !== null)
+      if (protectedTarget) return
+      requestAnimationFrame(claimComposerFocus)
+    })
   })
 
   onCleanup(() => {

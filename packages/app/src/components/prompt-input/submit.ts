@@ -760,7 +760,20 @@ export function createPromptSubmit(input: PromptSubmitInput) {
 
   const handleSubmit = async (event: Event) => {
     event.preventDefault()
-    if (starting) return starting
+    /**
+     * ⚠ THE GUARD LASTS ONLY AS LONG AS THERE IS NO SESSION, NOT AS LONG AS THE SEND RUNS. It was
+     * held for the whole of `submit()` — which includes the prompt request — so a request that never
+     * settled left `starting` standing for the rest of the window, and from then on every press
+     * returned that same pending promise: no request, no error, no toast. A composer that looks
+     * perfectly normal and has silently stopped sending.
+     *
+     * What it exists to stop is two presses both deciding to CREATE a session, and that decision is
+     * made by the `params.id` test below. Once the route carries a session, the next press takes the
+     * followup path — ordinary use, as the comment above says — so holding past that point protects
+     * nothing and only risks outliving its own promise. Before then it still holds: the window
+     * between `created` and the route catching up is exactly when a second press would fork the chat.
+     */
+    if (starting && !params.id) return starting
     if (params.id && titling.has(params.id)) return
     if (params.id) return submit()
 
