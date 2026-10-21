@@ -870,12 +870,48 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     renderEditorWithCursor(input)
   }
 
+  /** Whether these parts would draw anything at all. Images never reach the editor. */
+  const drawsNothing = (parts: Prompt) => parts.every((part) => part.type === "text" && !part.content)
+
   createEffect(
     on(
       () => prompt.current(),
-      (parts) => {
-        if (composing()) return
-        reconcile(parts.filter((part) => part.type !== "image"))
+      (parts, previous) => {
+        const drawn = parts.filter((part) => part.type !== "image")
+        if (composing()) {
+          /**
+           * ⚠ AN EMPTIED PROMPT IS NEVER HELD BACK, the same rule `PromptInputV2` keeps and for the
+           * same reason. Holding every update back while the input method is open is right for all
+           * of them but one: empty means the message went out, and a box still drawing it hands it
+           * straight back — the commit's own `input` event parses what it finds there into the
+           * prompt, and `handleCompositionEnd` then reconciles the editor to that. The student
+           * picks a candidate and the message they just sent is a draft again, ready to be sent
+           * twice (JOLLI-2737). Sending ends the composition by definition.
+           *
+           * ⚠ EMPTIED, NOT MERELY EMPTY, which is why the previous prompt is read too. A box that
+           * held nothing a moment ago and holds nothing now was not sent — it is a student starting
+           * their first 中文 word, whose preedit is on screen before any `input` event has carried
+           * it into the prompt. Clearing on "empty" alone would wipe the word they are typing.
+           *
+           * ⚠ AND ONLY WHERE THE BOX STILL DRAWS IT. An empty prompt the editor already agrees with
+           * has nothing to hand back, and a render it did not need is what kills a preedit.
+           */
+          const before = previous?.filter((part) => part.type !== "image")
+          const emptied = drawsNothing(drawn) && !!before && !drawsNothing(before)
+          if (!emptied || drawsNothing(parseFromDOM())) return
+          setComposing(false)
+          /**
+           * ⚠ AND THE MIRROR FLAG HAS TO GO WITH IT, or the render below never happens. Every
+           * keystroke of a preedit runs `handleInput`, which sets `mirror.input` to say "the DOM
+           * already shows this" — and the old `if (composing()) return` above meant `reconcile`
+           * never consumed it. By the time a send empties the prompt the flag is still standing
+           * from the last preedit keystroke, and `reconcile` would answer it by checking only that
+           * the editor is well-formed and returning, leaving the sent message on screen. The DOM is
+           * precisely what is NOT in sync here.
+           */
+          mirror.input = false
+        }
+        reconcile(drawn)
       },
     ),
   )
@@ -1520,6 +1556,11 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
         >
           <div
             class="relative max-h-[240px] overflow-y-auto no-scrollbar"
+            // ⚠ THE EDITOR IS NOT THE THING THAT SCROLLS HERE — this wrapper is, and the session page
+            // has to know which, or a page key reads the editor's own `scrollTop`, is told there is
+            // nothing left to scroll, and hands the key to the conversation. Declared rather than
+            // discovered: `session.tsx` used to walk up computing styles to find it.
+            data-composer-scroll
             ref={(el) => (scrollRef = el)}
             style={{ "scroll-padding-bottom": space }}
           >
@@ -1591,6 +1632,9 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                   data-action="prompt-submit"
                   type="submit"
                   disabled={!working() && blank()}
+                  // Sending keeps the caret in the box: focus parked on the button switches the
+                  // input method off, and the next 中文 word loses its first letter (JOLLI-2737).
+                  onMouseDown={(event: MouseEvent) => event.preventDefault()}
                   tabIndex={store.mode === "normal" ? undefined : -1}
                   icon={stopping() ? "stop" : store.mode === "shell" ? "arrow-undo-down" : "arrow-up"}
                   variant="primary"

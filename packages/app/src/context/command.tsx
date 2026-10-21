@@ -1,5 +1,6 @@
 import { createSimpleContext } from "@opencode-ai/ui/context"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { IS_MAC } from "@opencode-ai/ui/platform"
 import { type Accessor, createEffect, createMemo, onCleanup, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 import { makeEventListener } from "@solid-primitives/event-listener"
@@ -8,7 +9,6 @@ import { useSettings } from "@/context/settings"
 import { dict as en } from "@/i18n/en"
 import { Persist, persisted } from "@/utils/persist"
 
-const IS_MAC = typeof navigator === "object" && /(Mac|iPod|iPhone|iPad)/.test(navigator.platform)
 
 const PALETTE_ID = "command.palette"
 export const DEFAULT_PALETTE_KEYBIND = "mod+k,mod+shift+p"

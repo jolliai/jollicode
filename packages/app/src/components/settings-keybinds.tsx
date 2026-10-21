@@ -11,6 +11,7 @@ import { TextInputV2 } from "@opencode-ai/ui/v2/text-input-v2"
 import { showToast } from "@/utils/toast"
 import fuzzysort from "fuzzysort"
 import { DEFAULT_PALETTE_KEYBIND, formatKeybind, parseKeybind, useCommand } from "@/context/command"
+import { IS_MAC } from "@opencode-ai/ui/platform"
 import { useLanguage } from "@/context/language"
 import { useSettings } from "@/context/settings"
 import { SettingsList } from "./settings-list"
@@ -18,7 +19,6 @@ import { SettingsListV2 } from "./settings-v2/parts/list"
 
 const IconV2 = lazy(() => import("@opencode-ai/ui/v2/icon").then((module) => ({ default: module.Icon })))
 
-const IS_MAC = typeof navigator === "object" && /(Mac|iPod|iPhone|iPad)/.test(navigator.platform)
 const PALETTE_ID = "command.palette"
 
 type KeybindGroup = "General" | "Session" | "Navigation" | "Model and agent" | "Terminal" | "Prompt"

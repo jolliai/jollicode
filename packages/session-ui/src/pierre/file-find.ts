@@ -1,4 +1,5 @@
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js"
+import { IS_MAC } from "@opencode-ai/ui/platform"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { createStore } from "solid-js/store"
@@ -16,9 +17,21 @@ let target: FindHost | undefined
 let current: FindHost | undefined
 let installed = false
 
+/**
+ * Somewhere a find shortcut would be taken for something else — a dialog with its own search, a text
+ * field being typed into.
+ *
+ * ⚠ THE SESSION COMPOSER IS NOT ONE OF THEM, even though it is a text field. It holds focus whenever
+ * nothing else wants it, so that an input method is already on when a student starts typing 中文
+ * (JOLLI-2737) — which makes "focus is in the composer" the resting state of the page rather than a
+ * statement about what the student is doing. Read as editable, it withheld Cmd+F from the file being
+ * read beside it, and on the desktop app, where there is no browser find to fall through to, the key
+ * did nothing at all.
+ */
 function isEditable(node: unknown): boolean {
   if (!(node instanceof HTMLElement)) return false
   if (node.closest("[data-prevent-autofocus]")) return true
+  if (node.closest('[data-component="prompt-input"]')) return false
   if (node.isContentEditable) return true
   return /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(node.tagName)
 }
@@ -29,6 +42,19 @@ function hostForNode(node: unknown) {
     const el = host.element()
     if (el && el.isConnected && el.contains(node)) return host
   }
+}
+
+/**
+ * ⚠ A FIND BAR NOBODY CAN SEE IS NOT A PLACE TO SEND THE FIND KEY. Hosts register on mount and a
+ * collapsed panel stays mounted, so the last-resort fallbacks below would answer ⌘F with a bar
+ * opening in a panel that is not on screen — and, because answering means `preventDefault`, take the
+ * key away from the browser's own find at the same time. Registered is not the same as visible.
+ */
+function onScreen(host: FindHost | undefined) {
+  const el = host?.element()
+  if (!el || !el.isConnected) return undefined
+  const rect = el.getBoundingClientRect()
+  return rect.width > 0 && rect.height > 0 ? host : undefined
 }
 
 function installShortcuts() {
@@ -42,7 +68,10 @@ function installShortcuts() {
       if (event.defaultPrevented) return
       if (isEditable(event.target)) return
 
-      const mod = event.metaKey || event.ctrlKey
+      // Find is ⌘F on a Mac and Ctrl+F everywhere else, never both: macOS gives Ctrl+F to the caret,
+      // and answering it here withheld "move forward one character" from every text field on the
+      // page — the composer included, now that it holds focus at rest. See `IS_MAC`.
+      const mod = IS_MAC ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey
       if (!mod) return
 
       const key = event.key.toLowerCase()
@@ -65,7 +94,11 @@ function installShortcuts() {
         return
       }
 
-      const host = hostForNode(document.activeElement) ?? hostForNode(event.target) ?? target ?? Array.from(hosts)[0]
+      const host =
+        hostForNode(document.activeElement) ??
+        hostForNode(event.target) ??
+        onScreen(target) ??
+        Array.from(hosts).find((entry) => onScreen(entry))
       if (!host) return
 
       event.preventDefault()
