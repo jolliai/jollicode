@@ -170,7 +170,7 @@ describe("fetchMyCourses", () => {
       ),
     )
     expect(answer.courses.map((c) => c.org.orgSlug)).toEqual(["bio"])
-    expect(answer.unavailable.map((o) => o.orgSlug)).toEqual(["bio"])
+    expect(answer.unavailable?.map((o) => o.orgSlug)).toEqual(["bio"])
   })
 
   // A gateway restarting under a student is the ordinary case these routes are retried for.

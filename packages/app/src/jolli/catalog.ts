@@ -12,8 +12,8 @@
  * that is settled before `/jolli/course` answers. What is left here is lookup and ordering.
  */
 
-import { createRoot, createSignal } from "solid-js"
-import { createStore, produce } from "solid-js/store"
+import { batch, createRoot, createSignal } from "solid-js"
+import { createStore, produce, reconcile } from "solid-js/store"
 import { Lookup } from "@opencode-ai/core/jolli/lookup"
 import type { CourseBinding } from "@opencode-ai/core/jolli/binding"
 import { ModelTiers } from "./model-tier"
@@ -42,6 +42,12 @@ const [loaded, setLoaded] = createSignal(false)
  * effect gives the reset something to push against.
  */
 const [generation, setGeneration] = createSignal(0)
+/**
+ * ⚠ BUMPED BY EVERY ANSWER, BECAUSE THE ARRAYS NO LONGER SAY ONE LANDED. {@link setCatalog}
+ * reconciles into the arrays it already has, so a reader that tracked `store.assistants` by
+ * reference — the window clock resets on a new catalogue — never heard of another.
+ */
+const [revision, setRevision] = createSignal(0)
 
 /** Bumped by {@link resetCatalog}; read by whoever owns the fetch so a reset actually re-asks. */
 export const catalogGeneration = generation
@@ -120,16 +126,26 @@ export function viewer(): Viewer | undefined {
  * ⚠ AND IT IS ONLY EVER REACHED WITH AN `ok` ANSWER — see {@link ensureCatalog}, which takes an
  * `unreachable` one apart rather than passing it here: it keeps the identity that answer carries
  * and drops its empty collections, so nothing overwrites a catalogue with a failure.
+ *
+ * ⚠ RECONCILED BY ID, NOT ASSIGNED. Every answer is new objects, and opening either picker asks for
+ * one while the menu is open; assigned, each course and assistant became a different object, every
+ * `For` keyed on it rebuilt its rows, and the keyboard highlight went with them. Reconciled, a course
+ * or assistant that is still there keeps its object and only what changed about it updates.
  */
 export function setCatalog(catalog: Catalog) {
   const payload = catalog as Partial<Catalog> | undefined
-  setStore(
-    produce((draft) => {
-      draft.courses = Array.isArray(payload?.courses) ? payload.courses : []
-      draft.assistants = Array.isArray(payload?.assistants) ? payload.assistants : []
-      draft.viewer = payload?.viewer
-    }),
-  )
+  // ⚠ Key by key, not over the whole store: reconciled at the root, a field added to the store later
+  // and not listed here would be deleted by every answer, with nothing to say so.
+  batch(() => {
+    setStore("courses", reconcile(Array.isArray(payload?.courses) ? payload.courses : [], { key: "id" }))
+    setStore("assistants", reconcile(Array.isArray(payload?.assistants) ? payload.assistants : [], { key: "id" }))
+    setStore(
+      produce((draft) => {
+        draft.viewer = payload?.viewer
+      }),
+    )
+    setRevision((value) => value + 1)
+  })
   ModelTiers.set(payload?.modelTiers ?? {})
   setLoaded(true)
 }
@@ -196,7 +212,13 @@ export function allAssistants(): readonly Assistant[] {
  * ⚠ A ROOT NOBODY DISPOSES, ON PURPOSE. It lives as long as the catalogue it watches, which is the
  * life of the page.
  */
-export const windowNow = createRoot(() => createWindowClock(allAssistants))
+export const windowNow = createRoot(() =>
+  createWindowClock(() => {
+    // A new catalogue is a new revision, not a new array — see `revision`.
+    revision()
+    return allAssistants()
+  }),
+)
 
 /**
  * THE ASSISTANTS A NEW SESSION IN THIS COURSE MAY OFFER AT `now`: the open ones for a student, every

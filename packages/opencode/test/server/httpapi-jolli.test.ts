@@ -856,10 +856,15 @@ describe("jolli HttpApi — an assignment", () => {
         `${assignmentPath(encodeURIComponent("acme:main:7"), "40")}?fresh=true`,
       ).pipe(HttpClient.execute)
       expect(((yield* response.json) as { status: string }).status).toBe("ok")
-      // The catalogue naming the course is the account's own, read without a scope.
-      expect(scoped.calls).toEqual([
-        { method: "GET", path: "/api/me/courses" },
+      // The catalogue naming the course is the account's own, read without a scope — here through the
+      // home-only list, which a stub without the cross-org one is asked for. Its three reads go out
+      // together on a cold start, so only the assignment read after them has a place in the order.
+      expect(scoped.calls.slice(0, 3).toSorted((a, b) => a.path.localeCompare(b.path))).toEqual([
         { method: "GET", path: "/api/agent/models" },
+        { method: "GET", path: "/api/courses" },
+        { method: "GET", path: "/api/me/courses" },
+      ])
+      expect(scoped.calls.slice(3)).toEqual([
         { method: "GET", path: "/api/courses/7/assignments/40/student-view", scope: "acme/main" },
       ])
     }),

@@ -78,8 +78,12 @@ export function PromptCourseSelector(props: { onDone?: () => void }) {
       <MenuV2.Portal>
         <MenuV2.Content class="w-[260px]">
           {/* One group per org when the courses span several, each headed by its org; otherwise one.
-              ⚠ `Index`, NOT `For`: `orgGroups` answers new group objects on every catalogue change, so
-              keyed by reference each change would rebuild every row and drop the keyboard highlight. */}
+              ⚠ `Index` FOR THE GROUPS, `For` FOR THE ROWS. `orgGroups` builds new group objects on every
+              catalogue change, so keyed by reference each change would rebuild every group; by position
+              a group stays and only its label and rows update. The rows are the store's own courses,
+              which `setCatalog` reconciles by id, so `For` keeps each course's row — and the keyboard
+              highlight on it — across the refresh opening this menu starts. Keyed by position instead,
+              a course sorted in above would slide the highlight onto a course nobody chose. */}
           <Index each={Lookup.orgGroups(courses())}>
             {(group) => (
               <MenuV2.Group>

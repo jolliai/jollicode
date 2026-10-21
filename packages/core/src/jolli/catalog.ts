@@ -24,8 +24,9 @@ export type ListedCourse = CourseListItem & { readonly org?: OrgRef }
  * ⚠ A HOME COURSE KEEPS ITS BARE ID, so a student in one org sends no scope header at all and every
  * session already bound to a home course still finds it. Only a course in another org names its org.
  *
- * ⚠ NO KNOWN HOME MEANS EVERY ORG IS NAMED. A server that predates `home` gives no way to tell, and a
- * scoped request to the caller's own org is answered there all the same.
+ * ⚠ A COURSE THAT NAMES NO ORG IS HOME. That is the home-only list a server without `home` answers
+ * (`listCourses` in `cache.ts`), so a home course's id is bare whichever server answered — never
+ * bare from one and scoped from the other.
  */
 export function addressOf(course: ListedCourse, home: OrgRef | undefined): OrgScope | undefined {
   if (!course.org) return undefined
