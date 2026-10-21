@@ -92,7 +92,11 @@ test("animates todo lifecycle without replaying it across session tabs", async (
   const openSamples = (await returningOpen).filter((sample) => sample.present)
   expect(openSamples.length).toBeGreaterThan(0)
   expect(openSamples[0]!.opacity).toBeGreaterThan(0.98)
-  expect(openSamples[0]!.height).toBeGreaterThan(70)
+  // Full opacity on the first frame is the no-replay check; the height check is "it came back open
+  // rather than shut". Read across the window rather than off frame 0, which lands on the dock's
+  // pre-measurement seed height — that seed is its collapsed height, so frame 0 cannot tell the two
+  // apart. (It used to be 78, which could, only because 36px of it were hidden under the composer.)
+  expect(Math.max(...openSamples.map((sample) => sample.height))).toBeGreaterThan(70)
   await expect(dock.locator('[data-state="in_progress"]')).toHaveCount(1)
 
   const completedTodos = activeTodos.map((todo) => ({ ...todo, status: "completed" }))

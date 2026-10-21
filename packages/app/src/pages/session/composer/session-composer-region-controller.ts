@@ -5,6 +5,7 @@ import { createStore } from "solid-js/store"
 import type { PromptInputState } from "@/components/prompt-input"
 import { useSync } from "@/context/sync"
 import { getSessionHandoff, setSessionHandoff } from "@/pages/session/handoff"
+import { todoDockCollapsedHeight } from "./session-todo-dock"
 import type { SessionComposerController } from "./session-composer-state"
 
 export type SessionComposerFollowupDock = {
@@ -136,8 +137,24 @@ export function createSessionComposerRegionController(input: {
     promptReady: () => input.prompt.ready() || promptReady(),
     dock: () => (store.ready && input.state.dock()) || value() > 0.001,
     dockProgress: value,
-    dockHeight: () => Math.max(78, store.height),
-    lift: () => (input.revert()?.items.length ? 18 : 36 * value()),
+    dockHeight: () => Math.max(todoDockCollapsedHeight, store.height),
+    /**
+     * ⚠ A GAP, NOT A TUCK — THIS USED TO BE A NEGATIVE `lift`. The composer was pulled up 36px over
+     * the dock's bottom so the dock read as a tray sliding behind the box. `SessionCourseBar` now
+     * sits at the top of the pulled-up element and is transparent, so the lift stopped hiding
+     * anything and started dragging the breadcrumb over the todo rows (JOLLI-2572).
+     *
+     * ⚠ AND IT CANNOT BE FIXED BY LIFTING FURTHER, which is the obvious reading and the wrong one.
+     * The breadcrumb plus its `gap-3` is 40px, so the box already clears the dock by 4px; putting
+     * the box back over the dock means lifting 76px, which lands the breadcrumb INSIDE the dock, on
+     * real rows rather than on the strip that was reserved for this. The tray is not recoverable
+     * with something opaque-less in the middle, so the dock is its own card now.
+     *
+     * ⚠ SCALED BY THE SPRING so the space opens with the dock instead of appearing under a dock
+     * that is still at zero height. 8px is this file's existing dock-to-next spacing — see `pb-2`
+     * on the revert dock in the loading branch of `session-composer-region.tsx`.
+     */
+    dockGap: () => 8 * value(),
     setDockBodyRef: (el: HTMLDivElement) => setStore("body", el),
   }
 }

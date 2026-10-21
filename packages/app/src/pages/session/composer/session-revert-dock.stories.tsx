@@ -18,8 +18,12 @@ Real \`SessionRevertDock\` from app code, rendered above a mock composer card.
 - \`packages/app/src/pages/session/composer/session-revert-dock.tsx\`
 
 ### Why the mock composer
-The live composer overlaps the dock's bottom by 18px (\`session-composer-region-controller.ts\` \`lift()\`).
-The card below reproduces that overlap so the collapsed/expanded cutoff behavior can be verified in isolation.
+The live composer sits 8px below the dock — \`pb-2\` on the dock's wrapper in
+\`session-composer-region.tsx\`, not \`dockGap()\`, which is the todo dock's own trailing space.
+It used to overlap the dock's bottom by 18px instead; that lift was removed in JOLLI-2572, because the
+course breadcrumb moved into the composer and the lift had started dragging it over the dock's contents.
+The card below reproduces the current spacing so the collapsed/expanded cutoff behavior can be verified
+in isolation.
 
 ### Layout split
 Use the **Layout** button to toggle \`newLayoutDesigns\` and preview both the v2 dock and the legacy (v1) \`DockTray\` fallback.
@@ -76,12 +80,12 @@ function Stage(props: { count: number }) {
         </button>
       </div>
 
-      {/* Reproduce the real composer stack: dock + card overlapping the dock's bottom by lift() = 18px */}
+      {/* Reproduce the real composer stack: dock + card sitting 8px below it, as `pb-2` does live */}
       <div style={{ display: "flex", "flex-direction": "column" }}>
         <SessionRevertDock items={store.items} onRestore={restore} />
         <DockShell
           data-dock-border-underlay={v2() ? "v2" : "legacy"}
-          style={{ position: "relative", "z-index": 70, "margin-top": "-18px" }}
+          style={{ position: "relative", "z-index": 70, "margin-top": "8px" }}
           classList={{
             "min-h-24 w-full rounded-[12px] px-4 py-3 text-[13px]": true,
             "bg-v2-background-bg-base text-v2-text-text-faint": v2(),
