@@ -39,14 +39,14 @@ if (!Script.preview) {
       .map((line) => JSON.parse(line) as Release)
   const existing = (await list()).find((item) => item.tag_name === Script.tag)
   if (existing && !existing.draft) throw new Error(`${Script.tag} is already published`)
-  if (existing) {
-    const notes = await Bun.file(notesFile).text()
-    await $`gh api -X PATCH repos/${process.env.GH_REPO}/releases/${existing.id} -f target_commitish=${sha} -f body=${notes}`
-  } else {
-    await $`gh release create ${Script.tag} -d --target ${sha} --title ${`Jolli Code CLI ${Script.version}`} --notes-file ${notesFile}`
-  }
-  const release = existing ?? (await list()).find((item) => item.tag_name === Script.tag)
-  if (!release) throw new Error(`${Script.tag} draft was not found after creating it`)
+  // Both calls return the release itself: the release list can lag a draft that was just created. The
+  // PATCH resends tag_name because GitHub renames a draft to untagged-<hash> when an edit omits it, and
+  // the later `gh release upload` and `gh release edit` calls look the draft up by tag.
+  const release: Release = existing
+    ? await $`gh api -X PATCH repos/${process.env.GH_REPO}/releases/${existing.id} -f tag_name=${Script.tag} -f target_commitish=${sha} -F body=@${notesFile}`.json()
+    : await $`gh api -X POST repos/${process.env.GH_REPO}/releases -f tag_name=${Script.tag} -f target_commitish=${sha} -f name=${`Jolli Code CLI ${Script.version}`} -F draft=true -F body=@${notesFile}`.json()
+  if (release.tag_name !== Script.tag)
+    throw new Error(`${Script.tag} draft came back tagged ${release.tag_name}; check its tag on GitHub`)
   output.push(`release=${release.id}`)
   output.push(`tag=${release.tag_name}`)
 }
