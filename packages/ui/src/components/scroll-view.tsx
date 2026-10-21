@@ -71,6 +71,31 @@ export function scrollKeyOwner(
   return canScrollKey(owner, key) ? owner : root
 }
 
+/**
+ * Move `viewport` the way a scroll key asks, which is the whole of what a focused ScrollView does
+ * with one. Exported because a key does not always arrive at the scroller it belongs to: the session
+ * composer holds focus so the input method stays enabled, and routes paging on to the conversation
+ * from there — see `handleKeyDown` in `app/src/pages/session.tsx`.
+ */
+export function applyScrollKey(viewport: HTMLElement, key: NonNullable<ReturnType<typeof scrollKey>>) {
+  const page = viewport.clientHeight * 0.8
+  const line = 40
+  switch (key) {
+    case "page-down":
+      return viewport.scrollBy({ top: page, behavior: "smooth" })
+    case "page-up":
+      return viewport.scrollBy({ top: -page, behavior: "smooth" })
+    case "home":
+      return viewport.scrollTo({ top: 0, behavior: "smooth" })
+    case "end":
+      return viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" })
+    case "up":
+      return viewport.scrollBy({ top: -line, behavior: "smooth" })
+    case "down":
+      return viewport.scrollBy({ top: line, behavior: "smooth" })
+  }
+}
+
 export function isScrollKeyTarget(target: EventTarget | null, key: NonNullable<ReturnType<typeof scrollKey>>) {
   const element = target instanceof HTMLElement ? target : undefined
   if (!element) return true
@@ -300,35 +325,8 @@ export function ScrollView(props: ScrollViewProps) {
     if (!isScrollKeyTarget(e.target, next)) return
     if (scrollKeyOwner(viewportRef, e.target, next) !== viewportRef) return
 
-    const scrollAmount = viewportRef.clientHeight * 0.8
-    const lineAmount = 40
-
-    switch (next) {
-      case "page-down":
-        e.preventDefault()
-        viewportRef.scrollBy({ top: scrollAmount, behavior: "smooth" })
-        break
-      case "page-up":
-        e.preventDefault()
-        viewportRef.scrollBy({ top: -scrollAmount, behavior: "smooth" })
-        break
-      case "home":
-        e.preventDefault()
-        viewportRef.scrollTo({ top: 0, behavior: "smooth" })
-        break
-      case "end":
-        e.preventDefault()
-        viewportRef.scrollTo({ top: viewportRef.scrollHeight, behavior: "smooth" })
-        break
-      case "up":
-        e.preventDefault()
-        viewportRef.scrollBy({ top: -lineAmount, behavior: "smooth" })
-        break
-      case "down":
-        e.preventDefault()
-        viewportRef.scrollBy({ top: lineAmount, behavior: "smooth" })
-        break
-    }
+    e.preventDefault()
+    applyScrollKey(viewportRef, next)
   }
 
   return (

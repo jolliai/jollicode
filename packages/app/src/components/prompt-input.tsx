@@ -1591,6 +1591,9 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                   data-action="prompt-submit"
                   type="submit"
                   disabled={!working() && blank()}
+                  // Sending keeps the caret in the box: focus parked on the button switches the
+                  // input method off, and the next 中文 word loses its first letter (JOLLI-2737).
+                  onMouseDown={(event: MouseEvent) => event.preventDefault()}
                   tabIndex={store.mode === "normal" ? undefined : -1}
                   icon={stopping() ? "stop" : store.mode === "shell" ? "arrow-undo-down" : "arrow-up"}
                   variant="primary"

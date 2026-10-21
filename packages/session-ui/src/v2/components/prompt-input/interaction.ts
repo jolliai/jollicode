@@ -246,7 +246,7 @@ export function createPromptInputV2Controller(input: {
   const restoreFocus = (cursor = draft.state.cursor ?? promptLength(draft.state.prompt)) => {
     requestAnimationFrame(() => {
       editor?.focus()
-      setEditorCursor(editor, cursor)
+      setPromptInputV2Cursor(editor, cursor)
     })
   }
 
@@ -261,7 +261,7 @@ export function createPromptInputV2Controller(input: {
     const selection = window.getSelection()
     if (!selection?.isCollapsed || !editor.contains(selection.anchorNode)) return false
     const text = draft.state.prompt.map((part) => ("content" in part ? part.content : "")).join("")
-    if (!canNavigateHistory(direction, text, editorCursor(editor), state.historyIndex >= 0)) return false
+    if (!canNavigateHistory(direction, text, promptInputV2Cursor(editor), state.historyIndex >= 0)) return false
     const entries = input.history.entries(state.mode)
     if (direction === "up") {
       if (entries.length === 0 || state.historyIndex >= entries.length - 1) return false
@@ -451,7 +451,13 @@ function promptLength(prompt: PromptInputV2PersistedState["prompt"]) {
   return prompt.reduce((length, part) => length + ("content" in part ? part.content.length : 0), 0)
 }
 
-function editorCursor(editor: HTMLElement) {
+/**
+ * Where the caret sits in the editor, counted in characters of its text. Exported because reading
+ * the caret and writing it belong together — `PromptInputV2` had its own copy of this one while
+ * sharing the setter below, which is one edit away from the two disagreeing about what an offset
+ * means.
+ */
+export function promptInputV2Cursor(editor: HTMLElement) {
   const selection = window.getSelection()
   if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return editor.textContent?.length ?? 0
   const range = selection.getRangeAt(0).cloneRange()
@@ -460,7 +466,7 @@ function editorCursor(editor: HTMLElement) {
   return range.toString().length
 }
 
-function setEditorCursor(editor: HTMLElement | undefined, cursor: number) {
+export function setPromptInputV2Cursor(editor: HTMLElement | undefined, cursor: number) {
   if (!editor) return
   const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT)
   let remaining = cursor
