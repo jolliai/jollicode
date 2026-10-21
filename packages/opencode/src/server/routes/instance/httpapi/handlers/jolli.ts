@@ -127,7 +127,7 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
        * next poll, a finished one is deleted here and the app asks them to sign in.
        *
        * ⚠ BEFORE THE `ok` CHECK, NOT INSIDE THE FAILURE BRANCH, AND THAT IS THE WHOLE FIX. A
-       * refusal that has a snapshot behind it is answered `ok` with `stale` set (`cache.ts` serves
+       * refusal that has a snapshot behind it is answered `ok` with `error` set (`cache.ts` serves
        * what it has rather than failing), so a check that only ran on `unreachable` renewed for the
        * student with an empty cache and never for the one who had been using the product — whose
        * screen looked entirely normal while the credential behind it was dead.

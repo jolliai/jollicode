@@ -12,9 +12,10 @@
  *
  * Contract verified against jolliedu's `origin/main`:
  *   GET /api/me/courses                       MeRouter.ts            requireAuth(), fanned out across the person's orgs
+ *   GET /api/courses                          CourseRouter.ts:1289   requireAuth(), home org only — for a server that predates the one above
  *   GET /api/courses/:id/assistant-choices    CourseRouter.ts:1993   spaces.view, 404-on-no-permission
  *   GET /api/agent/models                     AgentModelRouter.ts:21 any signed-in user
- * The course list answers `{ courses, unavailable, home }`; the other two a bare array.
+ * The cross-org list answers `{ courses, unavailable, home }`; the rest a bare array.
  *
  * And the session-share surface, verified against the same tree:
  *   POST   /api/agent/convos                        AgentConvoRouter.ts   `coding_agent` origin, see openConversation
@@ -193,12 +194,15 @@ export interface MyCourseListItem extends Schema.Schema.Type<typeof MyCourseList
  * jolliedu `common/src/types/MyCourses.ts` `MyCoursesResponse`, less what this client does not read.
  *
  * ⚠ `home` IS OPTIONAL ON THE WIRE TYPE for a server that predates it. Without it the client cannot
- * tell which org is home, and every course is then addressed by its org.
+ * tell which org is home, so the catalogue does not read such an answer — see `listCourses` in `cache.ts`.
  */
 export const MyCourses = Schema.Struct({
   courses: Schema.Array(MyCourseListItem),
-  /** Orgs that did not answer in time; their courses are missing from `courses`. */
-  unavailable: Schema.Array(OrgRef),
+  /**
+   * Orgs that did not answer in time; their courses are missing from `courses`. Optional only so a
+   * server that leaves it out reads as "every org answered" rather than failing the whole list.
+   */
+  unavailable: Schema.optional(Schema.Array(OrgRef)),
   home: Schema.optional(OrgRef),
 }).annotate({ identifier: "JolliApi.MyCourses" })
 export interface MyCourses extends Schema.Schema.Type<typeof MyCourses> {}
@@ -695,6 +699,9 @@ function refusalOf(json: unknown) {
  * answers as if the scope were home; the catalogue reads `home` to keep home ids bare.
  */
 export const fetchMyCourses = (request: GatewayRequest) => get(request, "/api/me/courses", MyCourses)
+
+/** The home org's courses alone, untagged: the list a server without {@link fetchMyCourses}'s `home` still answers. */
+export const fetchCourses = (request: GatewayRequest) => get(request, "/api/courses", Schema.Array(CourseListItem))
 
 /** The server stores private instructions and returns only an immutable message reference. */
 export type SkillInvocationSource = { readonly messageId: string; readonly toolIndex: number }

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdir, rm, utimes, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { Effect, Layer } from "effect"
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
+import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 import { Global } from "../src/global"
 import { Flock } from "../src/util/flock"
 import { CATALOG_SCHEMA, catalogCachePath, clearCatalogCache, loadCatalog, refreshCatalog } from "../src/jolli/cache"
@@ -203,10 +203,12 @@ describe("refreshCatalog", () => {
       "/api/courses/7/assistant-choices -",
       "/api/courses/7/assistant-choices bio",
     ])
-    // The list and the models are deployment-wide reads, asked once and unscoped.
-    expect(http.scoped.filter((line) => !line.includes("assistant-choices"))).toEqual([
-      "/api/me/courses -",
+    // The lists and the models are deployment-wide reads, asked once and unscoped. With nothing on
+    // disk to say which server this is, the home-only list is asked beside the cross-org one.
+    expect(http.scoped.filter((line) => !line.includes("assistant-choices")).toSorted()).toEqual([
       "/api/agent/models -",
+      "/api/courses -",
+      "/api/me/courses -",
     ])
   })
 
@@ -297,31 +299,284 @@ describe("refreshCatalog", () => {
   })
 
   /**
-   * ⚠ ONE ANSWER WITHOUT `home` MUST NOT RENAME EVERY HOME COURSE. Read without one, course 7 would
-   * become "acme:cs:7" and every session bound to "7" would read as bound to a course that is gone.
+   * ⚠ AN ANSWER WITHOUT `home` MUST NOT RENAME EVERY HOME COURSE. Read without one, course 7 would
+   * become "acme:cs:7" and every session bound to "7" would read as bound to a course that is gone —
+   * so such a server is read through its home-only list, with the bare ids every build before used.
    */
-  test("keeps the last answer's home when an answer names none", async () => {
-    const named = stub((url) =>
+  test("reads the home-only list from a server whose cross-org list names no home", async () => {
+    const http = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json({ ...listed([course({ id: 7 }), course({ id: 8, org: org("bio") })]), home: undefined })
+        : url.endsWith("/api/courses")
+          ? json([course({ id: 7 })])
+          : url.endsWith("/api/agent/models")
+            ? json(providers)
+            : json([choice(12)]),
+    )
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(http.layer)))
+    written.push(cacheFile(origin))
+
+    expect(snapshot.home).toBeUndefined()
+    expect(Object.keys(snapshot.assistants)).toEqual(["7"])
+    // Asked unscoped, as every build before cross-org courses asked.
+    expect(http.scoped.filter((line) => line.includes("assistant-choices"))).toEqual([
+      "/api/courses/7/assistant-choices -",
+    ])
+  })
+
+  /**
+   * ⚠ A SERVER THAT LAST ANSWERED HOME-ONLY IS ASKED FOR BOTH LISTS AT ONCE. In turn, every refresh
+   * would wait out the cross-org fan-out — up to five seconds for a slow org — before asking for the
+   * list it actually reads.
+   */
+  test("asks a server that last answered home-only for both lists at once", async () => {
+    const events: string[] = []
+    using server = Bun.serve({
+      port: 0,
+      async fetch(request) {
+        const pathname = new URL(request.url).pathname
+        if (pathname === "/api/me/courses") {
+          events.push("cross-org asked")
+          await Bun.sleep(300)
+          events.push("cross-org answered")
+          return json({ ...listed([course({ id: 7 })]), home: undefined })
+        }
+        if (pathname === "/api/courses") {
+          events.push("home-only asked")
+          return json([course({ id: 7 })])
+        }
+        if (pathname === "/api/agent/models") return json(providers)
+        return json([choice(12)])
+      },
+    })
+    const origin = server.url.origin
+    await seed(origin, { courses: [course({ id: 7 })], assistants: { "7": [choice(12)] }, models: [] })
+
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(FetchHttpClient.layer)))
+    expect(snapshot.home).toBeUndefined()
+    expect(events.indexOf("home-only asked")).toBeLessThan(events.indexOf("cross-org answered"))
+  })
+
+  // With nothing on disk — a first launch, or the first after a schema bump — the server is unknown,
+  // and that load sits under the startup deadline, so it is not asked in turn either.
+  test("asks for both lists at once with nothing on disk", async () => {
+    const events: string[] = []
+    using server = Bun.serve({
+      port: 0,
+      async fetch(request) {
+        const pathname = new URL(request.url).pathname
+        if (pathname === "/api/me/courses") {
+          events.push("cross-org asked")
+          await Bun.sleep(300)
+          events.push("cross-org answered")
+          return json({ ...listed([course({ id: 7 })]), home: undefined })
+        }
+        if (pathname === "/api/courses") {
+          events.push("home-only asked")
+          return json([course({ id: 7 })])
+        }
+        if (pathname === "/api/agent/models") return json(providers)
+        return json([choice(12)])
+      },
+    })
+    const origin = server.url.origin
+    written.push(cacheFile(origin))
+
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(FetchHttpClient.layer)))
+    expect(snapshot.courses.map((c) => c.id)).toEqual([7])
+    expect(events.indexOf("home-only asked")).toBeLessThan(events.indexOf("cross-org answered"))
+  })
+
+  // A server without `home` has no use for the cross-org list: its failing must not cost the home-only one.
+  test("reads the home-only list when the cross-org one asked beside it fails", async () => {
+    const http = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json({ message: "boom" }, 500)
+        : url.endsWith("/api/courses")
+          ? json([course({ id: 7 })])
+          : url.endsWith("/api/agent/models")
+            ? json(providers)
+            : json([choice(12)]),
+    )
+    written.push(cacheFile(origin))
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(http.layer)))
+    expect(snapshot.home).toBeUndefined()
+    expect(snapshot.courses.map((c) => c.id)).toEqual([7])
+  })
+
+  test("fails with the cross-org list's error when neither list can be read", async () => {
+    const http = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json({ message: "boom" }, 500)
+        : url.endsWith("/api/courses")
+          ? json({ message: "down" }, 503)
+          : json(providers),
+    )
+    written.push(cacheFile(origin))
+    const failed = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(http.layer), Effect.flip))
+    expect(failed.status).toBe(500)
+  })
+
+  /**
+   * ⚠ A HOME-ONLY SNAPSHOT'S IDS ARE ALL BARE HOME IDS, which mean the same courses once the server
+   * names home. Thrown away on that first refresh, a course whose assistants failed to list would be
+   * left with none to start.
+   */
+  test("keeps a home-only snapshot's assistants on the refresh that first names home", async () => {
+    await seed(origin, { courses: [course({ id: 7 })], assistants: { "7": [choice(12)] }, models: [] })
+    const http = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json(listed([course({ id: 7 })]))
+        : url.endsWith("/api/agent/models")
+          ? json(providers)
+          : url.endsWith("/api/courses")
+            ? json([course({ id: 7 })])
+            : json({ message: "unavailable" }, 503),
+    )
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(http.layer)))
+    expect(snapshot.home?.orgSlug).toBe("cs")
+    expect(snapshot.assistants["7"]?.map((a) => a.id)).toEqual([12])
+    expect(snapshot.assistantsKept).toEqual(["7"])
+  })
+
+  // Once a snapshot names home, the server is known to answer the cross-org list: only that is asked.
+  test("asks only for the cross-org list when the last snapshot named home", async () => {
+    const http = stub((url) =>
       url.endsWith("/api/me/courses")
         ? json(listed([course({ id: 7 })]))
         : url.endsWith("/api/agent/models")
           ? json(providers)
           : json([choice(12)]),
     )
-    await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(named.layer)))
+    await seed(origin, { courses: [course({ id: 7 })], home, assistants: { "7": [choice(12)] }, models: [] })
+
+    await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(http.layer)))
+    expect(http.seen).not.toContain("/api/courses")
+  })
+
+  // Asked alongside in case the server still predates `home`; once it names home, that list is not needed.
+  test("does not fail a server that names home over the home-only list asked beside it", async () => {
+    const http = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json(listed([course({ id: 7 }), course({ id: 8, org: org("bio") })]))
+        : url.endsWith("/api/courses")
+          ? json({ message: "unavailable" }, 503)
+          : url.endsWith("/api/agent/models")
+            ? json(providers)
+            : json([choice(12)]),
+    )
+    await seed(origin, { courses: [course({ id: 7 })], assistants: { "7": [choice(12)] }, models: [] })
+
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(http.layer)))
+    expect(http.seen).toContain("/api/courses")
+    expect(snapshot.home?.orgSlug).toBe("cs")
+    expect(Object.keys(snapshot.assistants).sort()).toEqual(["7", "acme:bio:8"])
+  })
+
+  test("reads the home-only list from a server without the cross-org one", async () => {
+    const http = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json({ message: "not found" }, 404)
+        : url.endsWith("/api/courses")
+          ? json([course({ id: 7 })])
+          : url.endsWith("/api/agent/models")
+            ? json(providers)
+            : json([choice(12)]),
+    )
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(http.layer)))
     written.push(cacheFile(origin))
 
-    const unnamed = stub((url) =>
+    expect(snapshot.courses.map((c) => c.id)).toEqual([7])
+    expect(Object.keys(snapshot.assistants)).toEqual(["7"])
+  })
+
+  /**
+   * ⚠ ONLY A 404 SAYS A COURSE HAS NO ASSISTANTS. A timeout or an org that is down keeps the last
+   * list — emptied, a course in an org too slow to answer would offer no assistant to start.
+   */
+  test("keeps a course's last assistants when listing them fails for any reason but a 404", async () => {
+    const first = stub((url) =>
       url.endsWith("/api/me/courses")
-        ? json({ ...listed([course({ id: 7 })]), home: undefined })
+        ? json(listed([course({ id: 7 }), course({ id: 8, code: "CS 101" })]))
         : url.endsWith("/api/agent/models")
           ? json(providers)
-          : json([choice(13)]),
+          : json([choice(12)]),
     )
-    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(unnamed.layer)))
-    expect(snapshot.home?.orgSlug).toBe("cs")
-    expect(Object.keys(snapshot.assistants)).toEqual(["7"])
-    expect(unnamed.scoped).toContain("/api/courses/7/assistant-choices -")
+    await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(first.layer)))
+    written.push(cacheFile(origin))
+
+    const failing = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json(listed([course({ id: 7 }), course({ id: 8, code: "CS 101" })]))
+        : url.endsWith("/api/agent/models")
+          ? json(providers)
+          : url.includes("/courses/8/")
+            ? json({ message: "not found" }, 404)
+            : json({ message: "unavailable" }, 503),
+    )
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(failing.layer)))
+    expect(snapshot.assistants["7"]?.map((a) => a.id)).toEqual([12])
+    expect(snapshot.assistants["8"]).toEqual([])
+    // The kept list is as old as the last answer, so the snapshot says so and is asked again sooner.
+    expect(snapshot.assistantsKept).toEqual(["7"])
+  })
+
+  // Each incomplete answer in a row spaces the next retry further, so a course that keeps failing
+  // does not cost a whole-catalogue load every minute.
+  test("counts the incomplete answers in a row, and forgets them once one is complete", async () => {
+    const answer = (assistants: () => Response) =>
+      stub((url) =>
+        url.endsWith("/api/me/courses")
+          ? json(listed([course({ id: 7 })]))
+          : url.endsWith("/api/agent/models")
+            ? json(providers)
+            : url.endsWith("/api/courses")
+              ? json([course({ id: 7 })])
+              : assistants(),
+      )
+    const failing = answer(() => json({ message: "unavailable" }, 503))
+    const run = (http: ReturnType<typeof stub>) =>
+      Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(http.layer)))
+    written.push(cacheFile(origin))
+
+    expect((await run(failing)).incompleteRuns).toBe(1)
+    expect((await run(failing)).incompleteRuns).toBe(2)
+    expect((await run(failing)).incompleteRuns).toBe(3)
+    const complete = await run(answer(() => json([choice(12)])))
+    expect(complete.incompleteRuns).toBeUndefined()
+    expect((await run(failing)).incompleteRuns).toBe(1)
+  })
+
+  /**
+   * ⚠ A SERVER THAT STOPS NAMING HOME DROPS OTHER ORGS' COURSES, AND THAT IS DELIBERATE. Such a
+   * server refuses every scoped request from a CLI token, so those courses could not be used; and the
+   * snapshot's assistants are keyed under the old home, so none of them is carried into the new one.
+   */
+  test("reads a server that stopped naming home as home-only, carrying nothing from the old home", async () => {
+    await seed(origin, {
+      courses: [
+        { ...course({ id: 7 }), org: home },
+        { ...course({ id: 8 }), org: org("bio") },
+      ],
+      home,
+      assistants: { "7": [choice(12)], "acme:bio:8": [choice(13)] },
+      models: [],
+      unavailable: [org("bio")],
+    })
+    const http = stub((url) =>
+      url.endsWith("/api/me/courses")
+        ? json({ ...listed([course({ id: 7 }), course({ id: 8, org: org("bio") })]), home: undefined })
+        : url.endsWith("/api/courses")
+          ? json([course({ id: 7 })])
+          : url.endsWith("/api/agent/models")
+            ? json(providers)
+            : json([choice(14)]),
+    )
+    const snapshot = await Effect.runPromise(refreshCatalog(req(origin)).pipe(Effect.provide(http.layer)))
+
+    expect(snapshot.home).toBeUndefined()
+    expect(snapshot.courses.map((c) => c.id)).toEqual([7])
+    expect(snapshot.assistants).toEqual({ "7": [expect.objectContaining({ id: 14 })] })
   })
 
   // An org that answered with no course for this person has none: nothing is carried for it.
@@ -366,7 +621,7 @@ describe("refreshCatalog", () => {
     const loaded = await Effect.runPromise(loadCatalog(req(origin)))
     expect(loaded.kind).toBe("ok")
     if (loaded.kind !== "ok") return
-    expect(loaded.stale).toBe(false)
+    expect(loaded.error).toBeUndefined()
     expect(loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 310"])
   })
 })
@@ -384,17 +639,33 @@ describe("loadCatalog when the gateway cannot be reached", () => {
    * means an offline student's cache is ALWAYS expired; refusing to serve it would make the product
    * unusable without a network.
    */
-  test("serves an expired snapshot rather than failing, and says it is stale", async () => {
+  test("serves an expired snapshot rather than failing, and says what the refresh failed with", async () => {
     const origin = "https://cache-stale.invalid"
     await seed(origin, snapshot, 10 * 60_000)
     const loaded = await Effect.runPromise(loadCatalog(req(origin)))
     expect(loaded.kind).toBe("ok")
     if (loaded.kind !== "ok") return
-    expect(loaded.stale).toBe(true)
+    expect(loaded.error).toBeDefined()
     expect(loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 310"])
   }, 30_000)
 
   // A shape this build no longer understands is the same as no cache: refetch rather than guess.
+  /**
+   * ⚠ ONLY A SCHEMA 3 SNAPSHOT WITHOUT `home` CHANGED MEANING. One that names home is keyed exactly as
+   * this build keys it; refused, every student's first launch after the upgrade would find nothing on
+   * disk, and an offline one would get no courses at all.
+   */
+  test("still serves a schema 3 snapshot that names home, and refuses one that does not", async () => {
+    const named = "https://cache-schema3-home.invalid"
+    await seed(named, { schema: 3, courses: [course()], home, assistants: { "7": [choice(12)] }, models: [] })
+    const loaded = await Effect.runPromise(loadCatalog(req(named)))
+    expect(loaded.kind === "ok" && loaded.snapshot.courses.map((c) => c.id)).toEqual([7])
+
+    const unnamed = "https://cache-schema3-nohome.invalid"
+    await seed(unnamed, { schema: 3, courses: [course()], assistants: { "acme:cs:7": [choice(12)] }, models: [] })
+    expect((await Effect.runPromise(loadCatalog(req(unnamed)))).kind).toBe("unreachable")
+  }, 30_000)
+
   test("refuses to serve a snapshot it cannot recognise", async () => {
     const origin = "https://cache-broken.invalid"
     await seed(origin, { courses: [course()] })
@@ -440,6 +711,20 @@ describe("loadCatalog when the gateway cannot be reached", () => {
   }, 30_000)
 })
 
+/** Wait for what a refresh running behind its caller leaves on disk. */
+async function settles(check: () => boolean | Promise<boolean>, within = 5_000) {
+  const until = Date.now() + within
+  while (!(await check())) {
+    if (Date.now() > until) throw new Error("the background refresh never landed")
+    await Bun.sleep(20)
+  }
+}
+
+const codesOnDisk = async (origin: string) =>
+  ((JSON.parse(await Bun.file(cacheFile(origin)).text()) as { courses: { code: string }[] }).courses ?? []).map(
+    (c) => c.code,
+  )
+
 /**
  * ⚠ THE PER-REQUEST TIMEOUTS ARE NOT A BOUND ON `loadCatalog`, which is the whole reason the
  * deadline exists. A refresh makes three calls in sequence and waits on a cross-process lock before
@@ -455,8 +740,32 @@ describe("loadCatalog's refresh deadline", () => {
     const loaded = await Effect.runPromise(loadCatalog(req(origin), { timeout: "250 millis" }))
     expect(Date.now() - started).toBeLessThan(5_000)
     expect(loaded.kind).toBe("ok")
-    if (loaded.kind === "ok") expect(loaded.stale).toBe(true)
+    if (loaded.kind === "ok") expect(loaded.error).toBeDefined()
   }, 30_000)
+
+  /**
+   * ⚠ THE DEADLINE STOPS THE CALLER WAITING, NOT THE REFRESH. Cut off with it, a refresh slower than
+   * the guardrail check's five seconds would never be written, and every check would start it again.
+   */
+  test("leaves a refresh it stopped waiting for to finish and write", async () => {
+    using server = Bun.serve({
+      port: 0,
+      async fetch(request) {
+        const pathname = new URL(request.url).pathname
+        await Bun.sleep(300)
+        if (pathname === "/api/me/courses") return json(listed([course()]))
+        if (pathname === "/api/agent/models") return json(providers)
+        return json([choice(13)])
+      },
+    })
+    const origin = server.url.origin
+    await seed(origin, { ...snapshot, courses: [course({ code: "CS 101" })] }, 10 * 60_000)
+
+    const loaded = await Effect.runPromise(loadCatalog(req(origin), { timeout: "50 millis" }))
+    expect(loaded.kind === "ok" && loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 101"])
+
+    await settles(async () => (await codesOnDisk(origin))[0] === "CS 310")
+  })
 
   // Running out of time with nothing behind it is still "could not ask", never "you have no courses".
   test("reports unreachable when it times out with no snapshot", async () => {
@@ -465,6 +774,32 @@ describe("loadCatalog's refresh deadline", () => {
     )
     expect(loaded.kind).toBe("unreachable")
   }, 30_000)
+})
+
+/**
+ * ⚠ ONE REFRESH AT A TIME PER PROCESS. A refresh no longer ends with its caller, and a failure writes
+ * nothing; with the gateway down, every guardrail check would otherwise queue another whole-catalogue
+ * load on the lock behind the last.
+ */
+describe("loadCatalog's refreshes within one process", () => {
+  test("callers that take any newer answer share the refresh already running", async () => {
+    const seen: string[] = []
+    using server = Bun.serve({
+      port: 0,
+      async fetch(request) {
+        seen.push(new URL(request.url).pathname)
+        await Bun.sleep(100)
+        // Not a status the client retries on its own, so each refresh asks exactly once.
+        return json({ message: "refused" }, 403)
+      },
+    })
+    const origin = server.url.origin
+    await seed(origin, { courses: [course()], home, assistants: {}, models: [] }, 10 * 60_000)
+
+    const loads = await Promise.all([1, 2, 3].map(() => Effect.runPromise(loadCatalog(req(origin)))))
+    expect(loads.map((loaded) => loaded.kind === "ok" && loaded.error !== undefined)).toEqual([true, true, true])
+    expect(seen.filter((pathname) => pathname === "/api/me/courses")).toHaveLength(1)
+  })
 })
 
 /**
@@ -498,7 +833,7 @@ describe("loadCatalog asked for a fresh answer", () => {
     expect(seen).toContain("/api/me/courses")
     expect(loaded.kind).toBe("ok")
     if (loaded.kind !== "ok") return
-    expect(loaded.stale).toBe(false)
+    expect(loaded.error).toBeUndefined()
     expect(loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 310"])
     expect(loaded.snapshot.assistants["7"]?.map((a) => a.id)).toEqual([13])
     // Written down, so the other process reads the same answer.
@@ -572,21 +907,20 @@ describe("loadCatalog asked for a fresh answer", () => {
   })
 
   // Asking past the cache does not give up the fallback: offline, the snapshot still serves.
-  test("still serves the snapshot when the gateway cannot answer, marked stale", async () => {
+  test("still serves the snapshot when the gateway cannot answer, with the failure beside it", async () => {
     const origin = "https://cache-fresh-offline.invalid"
     await seed(origin, snapshot)
     const loaded = await Effect.runPromise(loadCatalog(req(origin), { fresh: true, timeout: "5 seconds" }))
     expect(loaded.kind).toBe("ok")
     if (loaded.kind !== "ok") return
-    expect(loaded.stale).toBe(true)
     expect(loaded.error).toBeDefined()
     expect(loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 101"])
   }, 30_000)
 })
 
 /**
- * ⚠ A SNAPSHOT SOME ORG DID NOT ANSWER IS PARTLY AS OLD AS THAT ORG'S LAST ANSWER. Served as fresh, a
- * re-ask after a refused Start could be handed the very assistant just refused, for another TTL.
+ * ⚠ A SNAPSHOT SOME ORG DID NOT ANSWER IS PARTLY AS OLD AS THAT ORG'S LAST ANSWER, so it is asked
+ * again sooner than the TTL — but behind the caller, which a slow org would otherwise hold up.
  */
 describe("loadCatalog with an org that did not answer", () => {
   const serve = (unavailable: readonly object[]) => {
@@ -604,67 +938,168 @@ describe("loadCatalog with an org that did not answer", () => {
     return { seen, server }
   }
 
-  const partial = {
+  /**
+   * ⚠ A FACTORY, SO `fetchedAt` IS STAMPED WHEN THE TEST RUNS. Taken once when the file is collected,
+   * the slow tests ahead of these could push it past the TTL and flip them onto the waiting path.
+   */
+  const partial = () => ({
     courses: [course({ code: "CS 101" })],
     assistants: {},
     models: [],
     home,
     unavailable: [org("bio")],
-  }
+    fetchedAt: Date.now() - 2 * 60_000,
+  })
 
-  /**
-   * ⚠ BUT IT STILL STANDS A WHILE. Refreshed on every read, each message's guardrail check would wait
-   * out the org's timeout and be cut off before the write, and the next message would do it again.
-   */
-  test("lets such a snapshot stand, as stale, for the retry window", async () => {
+  // Refreshed on every read, each message would start another wait on the org that keeps timing out.
+  test("lets such a snapshot stand for the retry window", async () => {
     const http = serve([])
     using server = http.server
     const origin = server.url.origin
-    await seed(origin, partial)
+    await seed(origin, partial())
 
     const loaded = await Effect.runPromise(loadCatalog(req(origin)))
     expect(http.seen).toEqual([])
-    expect(loaded.kind === "ok" && loaded.stale).toBe(true)
     expect(loaded.kind === "ok" && loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 101"])
   })
 
-  test("does not let such a snapshot stand on its TTL", async () => {
+  /**
+   * ⚠ PAST THE RETRY WINDOW IT STILL ANSWERS, AND THE RETRY RUNS BEHIND IT. A guardrail check gives a
+   * refresh five seconds and a slow org takes about that; waited for, it would cost a student's
+   * message those seconds once a minute.
+   */
+  test("answers past the retry window and retries behind the answer", async () => {
     const http = serve([])
     using server = http.server
     const origin = server.url.origin
-    await seed(origin, partial, 2 * 60_000)
+    await seed(origin, partial(), 2 * 60_000)
 
     const loaded = await Effect.runPromise(loadCatalog(req(origin)))
+    expect(loaded.kind === "ok" && loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 101"])
+
+    await settles(async () => (await codesOnDisk(origin))[0] === "CS 310")
     expect(http.seen).toContain("/api/me/courses")
-    expect(loaded.kind === "ok" && loaded.stale).toBe(false)
-    expect(loaded.kind === "ok" && loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 310"])
   })
 
-  // An attempt a caller's deadline cuts off writes nothing; the retry window has to count from it anyway.
-  test("spaces the next retry from an attempt that was cut off", async () => {
+  // An attempt still waiting on a slow org has written nothing; the retry window counts from it anyway.
+  test("spaces the next retry from an attempt still under way", async () => {
     const seen: string[] = []
+    const gate = Promise.withResolvers<void>()
     using server = Bun.serve({
       port: 0,
       async fetch(request) {
-        seen.push(new URL(request.url).pathname)
-        await Bun.sleep(2_000)
-        return json([])
+        const pathname = new URL(request.url).pathname
+        seen.push(pathname)
+        await gate.promise
+        if (pathname === "/api/me/courses") return json(listed([course()]))
+        if (pathname === "/api/agent/models") return json(providers)
+        return json([choice(13)])
       },
     })
     const origin = server.url.origin
-    await seed(origin, partial, 2 * 60_000)
+    await seed(origin, partial(), 2 * 60_000)
 
-    const first = await Effect.runPromise(loadCatalog(req(origin), { timeout: "100 millis" }))
-    expect(first.kind === "ok" && first.stale).toBe(true)
-    const asked = seen.length
-    expect(asked).toBeGreaterThan(0)
+    const first = await Effect.runPromise(loadCatalog(req(origin)))
+    expect(first.kind === "ok" && first.snapshot.courses.map((c) => c.code)).toEqual(["CS 101"])
+    const lists = () => seen.filter((pathname) => pathname === "/api/me/courses").length
+    await settles(() => lists() > 0)
 
-    const second = await Effect.runPromise(loadCatalog(req(origin), { timeout: "100 millis" }))
+    const second = await Effect.runPromise(loadCatalog(req(origin)))
     expect(second.kind === "ok" && second.snapshot.courses.map((c) => c.code)).toEqual(["CS 101"])
-    expect(seen.length).toBe(asked)
+    expect(lists()).toBe(1)
+
+    // Let the retry land before the server and the snapshot go, so it outlives neither.
+    gate.resolve()
+    await settles(async () => (await codesOnDisk(origin))[0] === "CS 310")
   })
 
-  test("answers a fresh ask it could only partly refresh as stale", async () => {
+  /**
+   * ⚠ THE RETRY IS ANSWERED BY ANY SNAPSHOT NEWER THAN THE ONE THAT STARTED IT. Another process can
+   * write one between this read and the lock; its fetch began before this read, so "since requested"
+   * would not take it, and the retry would load the whole catalogue again for nothing.
+   */
+  test("takes a snapshot another process wrote since, rather than retrying again", async () => {
+    const http = serve([])
+    using server = http.server
+    const origin = server.url.origin
+    await seed(origin, partial(), 2 * 60_000)
+
+    const lock = await Flock.acquire(`jolli-catalog:${cacheFile(origin)}`)
+    const loaded = await Effect.runPromise(loadCatalog(req(origin)))
+    expect(loaded.kind === "ok" && loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 101"])
+    // The other process's answer: begun before the read above, written while it waits on the lock.
+    await seed(origin, { ...partial(), unavailable: undefined, fetchedAt: Date.now() - 1_000 })
+    await lock.release()
+
+    await Bun.sleep(200)
+    expect(http.seen).toEqual([])
+  })
+
+  test("lets a snapshot incomplete several times in a row stand longer before retrying", async () => {
+    const http = serve([])
+    using server = http.server
+    const origin = server.url.origin
+    // The third incomplete answer in a row waits four minutes, not one.
+    await seed(origin, { ...partial(), incompleteRuns: 3 }, 2 * 60_000)
+
+    const loaded = await Effect.runPromise(loadCatalog(req(origin)))
+    expect(loaded.kind === "ok" && loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 101"])
+    await Bun.sleep(100)
+    expect(http.seen).toEqual([])
+  })
+
+  // A list kept from the last answer is as old as that answer: retried on the same terms as a missing org.
+  test("retries a snapshot whose assistants it kept past the retry window", async () => {
+    const http = serve([])
+    using server = http.server
+    const origin = server.url.origin
+    await seed(
+      origin,
+      { ...partial(), unavailable: undefined, assistants: { "7": [choice(12)] }, assistantsKept: ["7"] },
+      2 * 60_000,
+    )
+
+    const loaded = await Effect.runPromise(loadCatalog(req(origin)))
+    expect(loaded.kind === "ok" && loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 101"])
+    await settles(async () => (await codesOnDisk(origin))[0] === "CS 310")
+  })
+
+  /**
+   * ⚠ EACH ATTEMPT TOUCHES THE FILE, SO ITS MTIME CANNOT SAY HOW OLD THE ANSWER IS. Retries that kept
+   * failing would otherwise keep it answering unasked for ever, and nobody would ever wait for one.
+   */
+  test("waits for the retry once the answer itself is past its TTL", async () => {
+    const http = serve([])
+    using server = http.server
+    const origin = server.url.origin
+    await seed(origin, { ...partial(), fetchedAt: Date.now() - 10 * 60_000 }, 2 * 60_000)
+
+    const loaded = await Effect.runPromise(loadCatalog(req(origin)))
+    expect(loaded.kind === "ok" && loaded.snapshot.courses.map((c) => c.code)).toEqual(["CS 310"])
+  })
+
+  /**
+   * ⚠ A RETRY NOBODY WAITED FOR STILL HANDS ITS REFUSAL ON. `/jolli/course` renews the sign-in on a
+   * 401; dropped with the background fiber, a revoked credential would go unnoticed behind a
+   * snapshot that kept answering.
+   */
+  test("hands a refusal met behind an answer to the next read with the same token", async () => {
+    using server = Bun.serve({ port: 0, fetch: () => json({ message: "unauthorized" }, 401) })
+    const origin = server.url.origin
+    await seed(origin, partial(), 2 * 60_000)
+
+    const first = await Effect.runPromise(loadCatalog(req(origin)))
+    expect(first.kind === "ok" && first.error).toBeUndefined()
+    await settles(async () => {
+      const next = await Effect.runPromise(loadCatalog(req(origin)))
+      return next.kind === "ok" && next.error?.status === 401
+    })
+    // A renewed sign-in carries a new token, which that refusal says nothing about.
+    const renewed = await Effect.runPromise(loadCatalog(req(origin, { token: "renewed" })))
+    expect(renewed.kind === "ok" && renewed.error).toBeUndefined()
+  })
+
+  test("answers a fresh ask it could only partly refresh with the org it is missing", async () => {
     const http = serve([org("bio")])
     using server = http.server
     const origin = server.url.origin
@@ -672,7 +1107,7 @@ describe("loadCatalog with an org that did not answer", () => {
     written.push(cacheFile(origin))
     expect(loaded.kind).toBe("ok")
     if (loaded.kind !== "ok") return
-    expect(loaded.stale).toBe(true)
+    expect(loaded.snapshot.unavailable?.map((o) => o.orgSlug)).toEqual(["bio"])
     expect(loaded.error).toBeUndefined()
   })
 })
