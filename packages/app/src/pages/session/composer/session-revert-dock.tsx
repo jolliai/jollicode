@@ -75,12 +75,8 @@ export function SessionRevertDock(props: {
             </div>
           </div>
 
-          <Show when={store.collapsed}>
-            <div class="h-5" aria-hidden="true" />
-          </Show>
-
           <Show when={!store.collapsed}>
-            <div class="px-3 pb-7 flex flex-col gap-1.5 max-h-42 overflow-y-auto no-scrollbar">
+            <div class="px-3 pb-3 flex flex-col gap-1.5 max-h-42 overflow-y-auto no-scrollbar">
               <For each={props.items}>
                 {(item) => (
                   <div class="flex items-center gap-2 min-w-0 py-1">
@@ -149,13 +145,17 @@ export function SessionRevertDock(props: {
           </div>
         </div>
 
-        {/* Sacrificial space the composer overlaps via its negative lift (18px), so the header stays fully visible */}
-        <Show when={store.collapsed}>
-          <div class="h-[18px]" aria-hidden="true" />
-        </Show>
-
+        {/*
+         * ⚠ THE 18px SACRIFICIAL STRIPS THAT USED TO BOOKEND THIS ARE GONE, both here and below the
+         * list. They existed for the composer's negative lift of the same size, which has been
+         * replaced by a positive gap (JOLLI-2572) — nothing overlaps this card now, so a strip the
+         * composer no longer covers is just dead space hanging off the card.
+         *
+         * ⚠ THE LEGACY TRAY ABOVE CARRIED ITS OWN PAIR — a 20px `h-5` strip and 28px of list
+         * padding — and they are gone for the same reason. The lift was never gated on
+         * `newLayoutDesigns`, so neither branch has anything overlapping it any more.
+         */}
         <Show when={!store.collapsed}>
-          {/* Scroll viewport ends above the composer; the 18px sacrificial below is what the composer overlaps */}
           <div class="flex max-h-42 flex-col gap-2 overflow-y-auto px-4 pt-px pb-3 no-scrollbar">
             <For each={props.items}>
               {(item) => (
@@ -176,7 +176,6 @@ export function SessionRevertDock(props: {
               )}
             </For>
           </div>
-          <div class="h-[18px]" aria-hidden="true" />
         </Show>
       </div>
     </Show>

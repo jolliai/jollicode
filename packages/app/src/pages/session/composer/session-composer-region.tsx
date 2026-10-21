@@ -61,6 +61,14 @@ export function SessionComposerRegion(props: {
 
         <Show when={controller.showComposer()}>
           <Show when={controller.dock()}>
+            {/*
+             * ⚠ THE SPACING BELOW THE DOCK LIVES HERE, ON THE DOCK, rather than as a margin on each
+             * thing that may follow it — the revert dock, the loading placeholder, the composer.
+             * Those three used to carry a negative margin each and had to agree with one another;
+             * one `margin-bottom` is correct for every combination of them by construction.
+             *
+             * Margin sits outside the border box, so `overflow-hidden` does not clip it.
+             */}
             <div
               classList={{
                 "overflow-hidden": true,
@@ -68,6 +76,7 @@ export function SessionComposerRegion(props: {
               }}
               style={{
                 "max-height": `${controller.dockHeight() * controller.dockProgress()}px`,
+                "margin-bottom": `${controller.dockGap()}px`,
               }}
             >
               <div ref={controller.setDockBodyRef}>
@@ -82,62 +91,50 @@ export function SessionComposerRegion(props: {
               </div>
             </div>
           </Show>
+          {/*
+           * ⚠ ONE COPY, ABOVE THE `promptReady` SPLIT — it used to be written twice, once over the
+           * loading placeholder and once over the composer, and the two had to be kept in step by
+           * hand. It is the first thing in either branch, so hoisting it is the same layout.
+           *
+           * Its own trailing space, matching the dock's — it is not part of the dock's spring.
+           */}
+          <Show when={rolled()} keyed>
+            {(revert) => (
+              <div class="pb-2">
+                <SessionRevertDock
+                  items={revert.items}
+                  restoring={revert.restoring}
+                  disabled={revert.disabled}
+                  onRestore={revert.onRestore}
+                />
+              </div>
+            )}
+          </Show>
           <Show
             when={controller.promptReady()}
             fallback={
-              <>
-                <Show when={rolled()} keyed>
-                  {(revert) => (
-                    <div class="pb-2">
-                      <SessionRevertDock
-                        items={revert.items}
-                        restoring={revert.restoring}
-                        disabled={revert.disabled}
-                        onRestore={revert.onRestore}
-                      />
-                    </div>
-                  )}
-                </Show>
-                <div
-                  class="w-full min-h-32 md:min-h-40 rounded-md border border-border-weak-base bg-background-base/50 px-4 py-3 text-text-weak whitespace-pre-wrap pointer-events-none"
-                  style={{ "margin-top": `${-36 * controller.dockProgress()}px` }}
-                >
-                  {controller.handoffPrompt() || language.t("prompt.loading")}
-                </div>
-              </>
+              <div class="w-full min-h-32 md:min-h-40 rounded-md border border-border-weak-base bg-background-base/50 px-4 py-3 text-text-weak whitespace-pre-wrap pointer-events-none">
+                {controller.handoffPrompt() || language.t("prompt.loading")}
+              </div>
             }
           >
-            <Show when={rolled()} keyed>
-              {(revert) => (
-                <div
-                  style={{
-                    "margin-top": `${-36 * controller.dockProgress()}px`,
-                  }}
-                >
-                  <SessionRevertDock
-                    items={revert.items}
-                    restoring={revert.restoring}
-                    disabled={revert.disabled}
-                    onRestore={revert.onRestore}
+            {/*
+             * ⚠ `z-[70]` STAYS, THOUGH NOTHING OVERLAPS THE DOCK ANY MORE. The suggestion popup in
+             * `prompt-input-v2` opens UPWARD out of the box — `absolute -top-2 z-40
+             * -translate-y-full` — and has to paint over the dock; this is the stacking context it
+             * resolves against.
+             */}
+            <div class="relative z-[70]">
+              <Show when={controller.followup()?.items.length}>
+                {/* Trailing space of its own, as the todo and revert docks have — see `pb-2` above. */}
+                <div class="pb-2">
+                  <SessionFollowupDock
+                    items={controller.followup()!.items}
+                    sending={controller.followup()!.sending}
+                    onSend={controller.followup()!.onSend}
+                    onEdit={controller.followup()!.onEdit}
                   />
                 </div>
-              )}
-            </Show>
-            <div
-              classList={{
-                "relative z-[70]": true,
-              }}
-              style={{
-                "margin-top": `${-controller.lift()}px`,
-              }}
-            >
-              <Show when={controller.followup()?.items.length}>
-                <SessionFollowupDock
-                  items={controller.followup()!.items}
-                  sending={controller.followup()!.sending}
-                  onSend={controller.followup()!.onSend}
-                  onEdit={controller.followup()!.onEdit}
-                />
               </Show>
               <Show
                 when={controller.child()}

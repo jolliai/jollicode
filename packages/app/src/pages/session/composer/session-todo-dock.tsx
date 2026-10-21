@@ -16,6 +16,21 @@ import { useSettings } from "@/context/settings"
 const doneToken = "\u0000done\u0000"
 const totalToken = "\u0000total\u0000"
 
+/**
+ * THE DOCK SHUT TO ITS HEADER ROW AND NOTHING ELSE — matches `h-[42px]` on the toggle below.
+ *
+ * ⚠ IT WAS 78, WHICH WAS 42 PLUS A 36px STRIP THE INPUT BOX USED TO COVER. The composer was lifted
+ * up over that strip so the dock read as a tray sliding behind the box; `SessionCourseBar` now sits
+ * between the two and is transparent, so the lift hid nothing and dragged the breadcrumb over the
+ * todo rows instead (JOLLI-2572). The lift is gone — see `dockGap` in
+ * `session-composer-region-controller.ts` — and with it the reason to reserve those 36 pixels, which
+ * became a blank strip under the header the moment nothing covered them.
+ *
+ * ⚠ THE REGION'S CLIP FLOORS AT THIS SAME VALUE, which is why it is exported rather than written
+ * twice. A clip floored above the dock is empty box around it; floored below, it cuts the header.
+ */
+export const todoDockCollapsedHeight = 42
+
 function dot(status: Todo["status"]) {
   if (status !== "in_progress") return undefined
   return (
@@ -52,7 +67,7 @@ export function SessionTodoDock(props: {
   const language = useLanguage()
   const settings = useSettings()
   const [store, setStore] = createStore({
-    height: 78,
+    height: todoDockCollapsedHeight,
   })
 
   const total = createMemo(() => props.todos.length)
@@ -80,7 +95,7 @@ export function SessionTodoDock(props: {
   const hide = createMemo(() => Math.max(value(), shut()))
   const off = createMemo(() => hide() > 0.98)
   const turn = createMemo(() => Math.max(0, Math.min(1, value())))
-  const full = createMemo(() => Math.max(78, store.height))
+  const full = createMemo(() => Math.max(todoDockCollapsedHeight, store.height))
   let contentRef: HTMLDivElement | undefined
 
   createEffect(() => {
@@ -104,7 +119,10 @@ export function SessionTodoDock(props: {
       style={{
         "overflow-x": "visible",
         "overflow-y": "hidden",
-        "max-height": `${Math.max(78, full() - value() * (full() - 78))}px`,
+        "max-height": `${Math.max(
+          todoDockCollapsedHeight,
+          full() - value() * (full() - todoDockCollapsedHeight),
+        )}px`,
       }}
     >
       <div ref={contentRef}>
@@ -223,8 +241,14 @@ function TodoList(props: { todos: Todo[] }) {
 
   return (
     <div class="relative">
+      {/*
+       * ⚠ `pb-3`, NOT THE 44px IT WAS. That padding was clearance for the composer's 36px lift, and
+       * it only ever worked scrolled to the bottom — anywhere else the last visible rows sat in the
+       * overlap and showed through the breadcrumb (JOLLI-2572). The lift is gone, so this is now
+       * ordinary padding matching `px-3`, and the viewport fits about one and a half more rows.
+       */}
       <div
-        class="px-3 pb-11 flex flex-col gap-1.5 max-h-42 overflow-y-auto no-scrollbar"
+        class="px-3 pb-3 flex flex-col gap-1.5 max-h-42 overflow-y-auto no-scrollbar"
         style={{ "overflow-anchor": "none" }}
         onScroll={(e) => {
           setStore("stuck", e.currentTarget.scrollTop > 0)
