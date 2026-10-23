@@ -11,14 +11,33 @@ export type FindHost = {
   isOpen: () => boolean
 }
 
+/**
+ * ⚠ FIND IS ⌘F ON A MAC AND CTRL+F EVERYWHERE ELSE, NOT BOTH EVERYWHERE. macOS gives Ctrl+F to the
+ * caret — "move forward one character", which every text field on the page honours — so answering it
+ * here withheld it from all of them, the composer included now that it holds focus at rest.
+ */
+const IS_MAC = typeof navigator === "object" && /(Mac|iPod|iPhone|iPad)/.test(navigator.platform)
+
 const hosts = new Set<FindHost>()
 let target: FindHost | undefined
 let current: FindHost | undefined
 let installed = false
 
+/**
+ * Somewhere a find shortcut would be taken for something else — a dialog with its own search, a text
+ * field being typed into.
+ *
+ * ⚠ THE SESSION COMPOSER IS NOT ONE OF THEM, even though it is a text field. It holds focus whenever
+ * nothing else wants it, so that an input method is already on when a student starts typing 中文
+ * (JOLLI-2737) — which makes "focus is in the composer" the resting state of the page rather than a
+ * statement about what the student is doing. Read as editable, it withheld Cmd+F from the file being
+ * read beside it, and on the desktop app, where there is no browser find to fall through to, the key
+ * did nothing at all.
+ */
 function isEditable(node: unknown): boolean {
   if (!(node instanceof HTMLElement)) return false
   if (node.closest("[data-prevent-autofocus]")) return true
+  if (node.closest('[data-component="prompt-input"]')) return false
   if (node.isContentEditable) return true
   return /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(node.tagName)
 }
@@ -42,7 +61,7 @@ function installShortcuts() {
       if (event.defaultPrevented) return
       if (isEditable(event.target)) return
 
-      const mod = event.metaKey || event.ctrlKey
+      const mod = IS_MAC ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey
       if (!mod) return
 
       const key = event.key.toLowerCase()

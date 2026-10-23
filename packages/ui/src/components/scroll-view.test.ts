@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { canScrollKey, scrollKey, scrollTopFromThumbPointer } from "./scroll-view"
+import { applyScrollKey, canScrollKey, scrollKey, scrollTopFromThumbPointer } from "./scroll-view"
 
 describe("scrollKey", () => {
   test("maps plain navigation keys", () => {
@@ -36,6 +36,36 @@ describe("canScrollKey", () => {
     expect(canScrollKey(element(50), "page-down")).toBe(true)
     expect(canScrollKey(element(200), "page-down")).toBe(false)
     expect(canScrollKey(element(0, 100, 100), "page-down")).toBe(false)
+  })
+})
+
+describe("applyScrollKey", () => {
+  const viewport = () => {
+    const calls: { by: { top: number }[]; to: { top: number }[] } = { by: [], to: [] }
+    const element = {
+      clientHeight: 500,
+      scrollHeight: 2000,
+      scrollBy: (options: { top: number }) => calls.by.push(options),
+      scrollTo: (options: { top: number }) => calls.to.push(options),
+    } as unknown as HTMLElement
+    return { element, calls }
+  }
+
+  test("pages by most of a screen, in the key's direction", () => {
+    const { element, calls } = viewport()
+    applyScrollKey(element, "page-down")
+    applyScrollKey(element, "page-up")
+    expect(calls.by.map((call) => call.top)).toEqual([400, -400])
+  })
+
+  test("steps by a line and jumps to the ends", () => {
+    const { element, calls } = viewport()
+    applyScrollKey(element, "down")
+    applyScrollKey(element, "up")
+    applyScrollKey(element, "home")
+    applyScrollKey(element, "end")
+    expect(calls.by.map((call) => call.top)).toEqual([40, -40])
+    expect(calls.to.map((call) => call.top)).toEqual([0, 2000])
   })
 })
 

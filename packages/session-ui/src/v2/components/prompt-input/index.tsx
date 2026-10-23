@@ -21,7 +21,12 @@ import type {
   PromptInputV2Prompt,
   PromptInputV2Suggestion,
 } from "./types"
-import type { PromptInputV2Interaction, PromptInputV2SelectControl } from "./interaction"
+import {
+  promptInputV2Cursor,
+  setPromptInputV2Cursor,
+  type PromptInputV2Interaction,
+  type PromptInputV2SelectControl,
+} from "./interaction"
 import "./attachments.css"
 import "./editor.css"
 
@@ -59,9 +64,46 @@ export function PromptInputV2(props: PromptInputV2Props) {
   const view = props.controller.view
   let editor: HTMLDivElement | undefined
   let localInput = false
+  /**
+   * ⚠ A RE-RENDER MID-COMPOSITION KILLS THE COMPOSITION. `renderPromptInputV2Editor` replaces the
+   * editor's children outright, and Chromium answers that by abandoning the in-flight preedit and
+   * committing it as plain text — a student typing 这个 is left with a stray latin letter
+   * (JOLLI-2737). `localInput` already covers the write the student's own keystroke caused; this
+   * covers every other one — draft persistence, an external `setPrompt` — by holding it back until
+   * the input method closes.
+   *
+   * ⚠ HELD BACK, NOT QUEUED: WHAT THE STUDENT TYPED WINS. The preedit's own `input` events parse the
+   * editor and write the result back, so an update that rewrote the text has already been overwritten
+   * by the student's own keystrokes by the time the composition commits — there is no version of this
+   * that replays it without deleting letters they are looking at. What `pendingRender` is for is the
+   * remainder: an update the editor still does not show once the commit has landed.
+   */
+  let composing = false
+  let pendingRender = false
   const updateCursor = () => {
+    // A caret inside a preedit is not a caret in the prompt; the commit's own events will report it.
+    if (composing) return
     if (!editor || !window.getSelection()?.isCollapsed) return
     props.controller.onCursor(promptInputV2Cursor(editor))
+  }
+
+  /**
+   * Catch the editor up with an update that landed while the input method was open.
+   *
+   * ⚠ ONLY IF IT IS STILL OUTSTANDING. Rendering is not free: `renderPromptInputV2Editor` replaces
+   * every child and leaves the caret at the end, which is how typing 中文 into the middle of a line
+   * ended up with the caret at the end of it. The commit's own `input` event has normally carried
+   * the editor's content into `parts()` by now, leaving this nothing to do but that damage.
+   */
+  const flushPendingRender = () => {
+    if (!pendingRender || composing || !editor) return
+    pendingRender = false
+    const parts = props.controller.parts()
+    if (promptInputV2Matches(parts, parsePromptInputV2Editor(editor))) return
+    const cursor = promptInputV2Cursor(editor)
+    const focused = document.activeElement === editor
+    renderPromptInputV2Editor(editor, parts)
+    if (focused) setPromptInputV2Cursor(editor, Math.min(cursor, editor.textContent?.length ?? 0))
   }
   const mode = createMemo(() => state.mode)
   const buttons = createMemo(() => ({
@@ -77,6 +119,31 @@ export function PromptInputV2(props: PromptInputV2Props) {
       localInput = false
       return
     }
+    if (composing) {
+      /**
+       * ⚠ AN EMPTIED PROMPT IS NEVER HELD BACK. Everything else can wait for the input method to
+       * close, but empty means the message went out — and a box still drawing it hands it straight
+       * back, because the commit's own `input` event parses what it finds there into `parts()`. The
+       * message the student just sent returns as a draft the moment they pick a candidate, which is
+       * JOLLI-2737 inverted. Sending ends the composition by definition: there is no longer a prompt
+       * for the preedit to be part of.
+       */
+      if (!promptInputV2Matches(parts, [])) {
+        // Already holding one back — the editor is behind either way, and parsing it again to
+        // learn that costs a full walk of its children on every keystroke of the preedit.
+        if (pendingRender) return
+        // Most of what lands mid-composition — an attachment, a context item, a cursor — changes
+        // nothing the editor draws, so there is nothing to hold back and nothing was dropped.
+        if (!promptInputV2Matches(parts, parsePromptInputV2Editor(editor))) pendingRender = true
+        return
+      }
+      // ⚠ AND ONLY WHERE THE BOX STILL DRAWS IT. An empty prompt the editor already agrees with has
+      // nothing to hand back, and a render it did not need is exactly what kills a preedit.
+      if (promptInputV2Matches(parsePromptInputV2Editor(editor), [])) return
+      composing = false
+    }
+    // Whatever was held back is on screen after this, or was never going to be.
+    pendingRender = false
     renderPromptInputV2Editor(editor, parts)
   })
 
@@ -190,10 +257,34 @@ export function PromptInputV2(props: PromptInputV2Props) {
                 props.controller.submit()
               }
             }}
+            onCompositionStart={() => (composing = true)}
+            onCompositionEnd={() => {
+              composing = false
+              if (!pendingRender) return
+              // The commit's own `input` event still has to land — and claim `localInput` — before
+              // the editor can be caught up with whatever it missed while the IME was open.
+              requestAnimationFrame(flushPendingRender)
+            }}
             onKeyUp={updateCursor}
             onPointerUp={updateCursor}
             onPaste={props.controller.onPaste}
             onFocus={() => props.controller.dispatch({ type: "focus.editor" })}
+            onBlur={() => {
+              /**
+               * ⚠ A COMPOSITION NOBODY ENDS WOULD FREEZE THE EDITOR FOR GOOD. Chromium commits a
+               * preedit when focus leaves, but an IME or a platform that skips `compositionend`
+               * leaves `composing` true for the rest of the session — and with it every later
+               * update held back, the caret never reported, the editor stuck on what it last drew.
+               * v1 resets it on blur for exactly this reason.
+               *
+               * ⚠ BUT THE CATCH-UP WAITS, as it does after `compositionend` and for the same reason:
+               * the commit's own `input` event is not guaranteed to be ahead of this, and a render
+               * that lands first overwrites the letters it was carrying. `flushPendingRender` reads
+               * `composing` again when it runs, so a composition resumed in the meantime still holds.
+               */
+              composing = false
+              requestAnimationFrame(flushPendingRender)
+            }}
           />
           <Show when={!props.controller.value()}>
             <div
@@ -311,6 +402,24 @@ function renderPromptInputV2Editor(editor: HTMLDivElement, prompt: PromptInputV2
   selection?.addRange(range)
 }
 
+/**
+ * Whether two prompts draw the same editor. Images never reach the DOM, and an empty text run is the
+ * same nothing whether it is in the list or not — `parsePromptInputV2Editor` answers an empty editor
+ * with one, the store holds none. A match means a render would replace the editor's children with
+ * the same children, which is never worth what it costs: the caret lands at the end afterwards.
+ */
+function promptInputV2Matches(left: PromptInputV2Prompt, right: PromptInputV2Prompt) {
+  const drawn = (prompt: PromptInputV2Prompt) =>
+    prompt.filter(
+      (part): part is Exclude<PromptInputV2Prompt[number], PromptInputV2Attachment> =>
+        part.type !== "image" && !!part.content,
+    )
+  const a = drawn(left)
+  const b = drawn(right)
+  if (a.length !== b.length) return false
+  return a.every((part, index) => part.type === b[index].type && part.content === b[index].content)
+}
+
 function parsePromptInputV2Editor(editor: HTMLDivElement) {
   const parts: Exclude<PromptInputV2Prompt[number], PromptInputV2Attachment>[] = []
   let buffer = ""
@@ -377,15 +486,6 @@ function parsePromptInputV2Editor(editor: HTMLDivElement) {
   }
   if (parts.length > 0) return parts
   return [{ type: "text" as const, content: "", start: 0, end: 0 }]
-}
-
-function promptInputV2Cursor(editor: HTMLDivElement) {
-  const selection = window.getSelection()
-  if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return editor.textContent?.length ?? 0
-  const range = selection.getRangeAt(0).cloneRange()
-  range.selectNodeContents(editor)
-  range.setEnd(selection.anchorNode!, selection.anchorOffset)
-  return range.toString().length
 }
 
 export function PromptInputV2Attachments(props: {
@@ -719,6 +819,15 @@ export function PromptInputV2SubmitButton(props: {
             "linear-gradient(180deg,var(--v2-alpha-light-20) 0%,var(--v2-alpha-light-0) 100%),linear-gradient(90deg,var(--v2-background-bg-contrast) 0%,var(--v2-background-bg-contrast) 100%)",
         }}
         aria-label={props.stopping ? props.stopLabel : props.sendLabel}
+        /**
+         * ⚠ SENDING MUST NOT TAKE FOCUS OFF THE BOX. A press here would otherwise leave focus on the
+         * button, where Chromium switches the input method off — and the next 中文 word loses its
+         * first letter (JOLLI-2737), exactly as it does anywhere else focus lands on a non-editable
+         * node. Declining the press's default keeps the caret where the student left it, for every
+         * send alike: one that goes out, one that queues behind a busy session, one that is refused.
+         * The same move the suggestion popover above makes for the same reason.
+         */
+        onMouseDown={(event) => event.preventDefault()}
         onClick={(event) => {
           event.preventDefault()
           event.stopPropagation()
