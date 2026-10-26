@@ -27,6 +27,7 @@ import { useHomeData } from "@/context/home-data"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useServerSDK } from "@/context/server-sdk"
+import { taskActionsOf } from "@opencode-ai/core/jolli/assignment-actions"
 import { taskDraftOf } from "@opencode-ai/core/jolli/assignment"
 import { AssignmentIntent } from "@/jolli/assignment-intent"
 import { readAssignment, turnIn, useTaskTitle, type AssignmentRead } from "@/jolli/assignments"
@@ -163,6 +164,9 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
                           </span>
                           <span class="truncate text-[12px] text-v2-text-text-muted">
                             <Switch fallback={language.t("dialog.assignment.task.notStarted")}>
+                              <Match when={task.completionKind === "participation" && task.handedInAt}>
+                                {(at) => language.t("dialog.assignment.task.submitted", { date: when(at()) })}
+                              </Match>
                               <Match when={task.handedInAt}>
                                 {(at) => language.t("dialog.assignment.task.handedIn", { date: when(at()) })}
                               </Match>
@@ -173,23 +177,23 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
                             </Switch>
                           </span>
                         </div>
-                        <Show when={task.place === "jolli_code" && !assignment().turnedIn}>
+                        <Show when={task.place === "jolli_code"}>
                           <Switch>
                             <Match when={task.local}>
                               {(local) => (
                                 <ButtonV2
-                                  variant={task.handedInAt ? "neutral" : "contrast"}
+                                  variant={taskActionsOf(assignment(), task).canContinue ? "contrast" : "neutral"}
                                   size="normal"
                                   data-action="dialog-assignment-continue"
                                   onClick={() => resume(local())}
                                 >
-                                  {task.handedInAt
-                                    ? language.t("dialog.assignment.task.open")
-                                    : language.t("dialog.assignment.task.continue")}
+                                  {taskActionsOf(assignment(), task).canContinue
+                                    ? language.t("dialog.assignment.task.continue")
+                                    : language.t("dialog.assignment.task.open")}
                                 </ButtonV2>
                               )}
                             </Match>
-                            <Match when={!task.handedInAt && task.owed}>
+                            <Match when={taskActionsOf(assignment(), task).canStart}>
                               <ButtonV2
                                 variant="contrast"
                                 size="normal"
@@ -206,6 +210,17 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
                               </ButtonV2>
                             </Match>
                           </Switch>
+                          <Show when={taskActionsOf(assignment(), task).canRestart}>
+                            <ButtonV2
+                              variant="neutral"
+                              size="normal"
+                              data-action="dialog-assignment-restart"
+                              disabled={!sessions.session.canCreate()}
+                              onClick={() => start(assignment(), task, index())}
+                            >
+                              {language.t("dialog.assignment.task.restart")}
+                            </ButtonV2>
+                          </Show>
                         </Show>
                       </li>
                     )}

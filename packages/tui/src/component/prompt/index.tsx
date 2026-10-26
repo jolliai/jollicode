@@ -222,7 +222,10 @@ export function Prompt(props: PromptProps) {
    * task's typed first line is sent once the session exists; a change made meanwhile would go out in its
    * place, and nothing after the wait could tell the two apart.
    */
-  const locked = createMemo(() => !!props.disabled || (!props.sessionID && jolli.starting()))
+  const taskHeader = useTaskHeader(() => props.sessionID)
+  const locked = createMemo(
+    () => !!props.disabled || taskHeader()?.workBlocked === true || (!props.sessionID && jolli.starting()),
+  )
   const history = usePromptHistory()
   const stash = usePromptStash()
   const keymap = useOpencodeKeymap()
@@ -1095,11 +1098,10 @@ export function Prompt(props: PromptProps) {
    * (`openOnGateway`), so it is still the task's session, not a plain chat with the agent.
    */
   /** The task this composer starts a session for, or the one its session was started for. */
-  const taskHeader = useTaskHeader(() => props.sessionID)
   const taskLine = createMemo(() => {
     if (!props.sessionID) {
       const task = jolli.draft.task
-      return task ? { label: task.label, handedIn: false } : undefined
+      return task ? { label: task.label, handedIn: false, submitted: false, workBlocked: false } : undefined
     }
     return taskHeader()
   })
@@ -1172,7 +1174,7 @@ export function Prompt(props: PromptProps) {
       setStore("prompt", "input", input.plainText)
       syncExtmarksWithPromptParts()
     }
-    if (props.disabled) return false
+    if (props.disabled || taskHeader()?.workBlocked) return false
     if (workspace.creating() || move.creating()) return false
     if (auto()?.visible) return false
     // ⚠ A START BELONGS TO THE NEW-SESSION COMPOSER. A live session's Enter is not its to swallow.
@@ -1823,8 +1825,8 @@ export function Prompt(props: PromptProps) {
                     <Show when={taskLine()}>
                       {(line) => (
                         <box flexDirection="row" gap={1} flexShrink={1}>
-                          <Show when={line().handedIn}>
-                            <text fg={theme.success}>Handed in ·</text>
+                          <Show when={line().handedIn || line().submitted}>
+                            <text fg={theme.success}>{line().submitted ? "Submitted ·" : "Handed in ·"}</text>
                           </Show>
                           <text fg={theme.text} wrapMode="none">
                             {Locale.truncate(line().label, Math.max(12, dimensions().width - 60))}

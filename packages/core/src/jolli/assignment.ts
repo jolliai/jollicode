@@ -113,7 +113,7 @@ export function taskDraftOf(
   task: Jolli.AssignmentTask,
   title = task.title,
 ): TaskDraft | undefined {
-  if (task.assistantId === null) return undefined
+  if (task.assistantId === null || task.workBlocked === true) return undefined
   return {
     courseId: assignment.courseId,
     assistantId: task.assistantId,
@@ -213,6 +213,10 @@ export function projectAssignment(
 ): Jolli.Assignment {
   // A task's assistant lives in its course's org, so its id names that org as the course's does.
   const org = parseOrgScopedId(course.id)?.org
+  const stopped =
+    assignment.status !== "published" ||
+    pastStop(assignment, now) ||
+    (assignment.opensAt !== null && Date.parse(assignment.opensAt) > now)
   const tasks = assignment.parts.map((part, index): Jolli.AssignmentTask => {
     if (!isAgentPart(part)) {
       return {
@@ -230,16 +234,34 @@ export function projectAssignment(
       }
     }
     const place = part.workedIn === "jolli_code" ? ("jolli_code" as const) : ("web" as const)
-    const handedIn = part.submission
-      ? part.attempts.find((attempt) => attempt.id === part.submission?.attemptId)
-      : undefined
+    const explicit = requiresExplicitSubmit(part)
+    const completionKind = part.submission?.completionKind ?? "hand_in"
+    const handedIn =
+      completionKind === "hand_in" && part.submission
+        ? part.attempts.find((attempt) => attempt.id === part.submission?.attemptId)
+        : undefined
     const sessions = place === "jolli_code" ? part.attempts.map((attempt) => attempt.conversationId) : []
-    const here = sessions
-      .flatMap((sessionID) => {
-        const found = locals.get(sessionID)
-        return found ? [{ sessionID, ...found }] : []
+    const here = (place === "jolli_code" ? part.attempts : [])
+      .flatMap((attempt) => {
+        const found = locals.get(attempt.conversationId)
+        return found
+          ? [
+              {
+                sessionID: attempt.conversationId,
+                countedAt: attempt.countedAt,
+                humanAt: attempt.lastHumanMessageAt ? Date.parse(attempt.lastHumanMessageAt) : 0,
+                ...found,
+              },
+            ]
+          : []
       })
-      .toSorted((a, b) => b.updated - a.updated)[0]
+      .toSorted((a, b) =>
+        explicit
+          ? b.updated - a.updated
+          : Number(a.countedAt !== null) - Number(b.countedAt !== null) ||
+            b.humanAt - a.humanAt ||
+            b.updated - a.updated,
+      )[0]
     return {
       partId: String(part.id),
       title: `Task ${index + 1}`,
@@ -247,6 +269,16 @@ export function projectAssignment(
       assistantId: orgScopedId(org, part.assistantId),
       assistantBlurb: part.assistantBlurb,
       place,
+      ...(!explicit || completionKind === "participation" || stopped || part.assistantStatus !== "live"
+        ? {
+            requiresExplicitSubmit: explicit,
+            completionKind,
+            workBlocked:
+              stopped ||
+              part.assistantStatus !== "live" ||
+              (part.submission !== null && (explicit || assignment.progress.turnedInAt !== null)),
+          }
+        : {}),
       handedInAt: part.submission?.submittedAt ?? null,
       handedInSessionID: place === "jolli_code" ? (handedIn?.conversationId ?? null) : null,
       owed: part.owed,
@@ -285,6 +317,11 @@ export function taskSessionIDs(assignment: StudentAssignment) {
     .flatMap((part) => part.attempts.map((attempt) => attempt.conversationId))
 }
 
+/** The current task mode comes from its delivery settings, independently of a prior receipt. */
+export function requiresExplicitSubmit(part: Pick<StudentAssignmentAgentPart, "turnIn">) {
+  return part.turnIn.transcript || part.turnIn.summary || part.turnIn.reflection
+}
+
 /**
  * WHETHER A PART IS AN AGENT'S, AND SO MAY BE WORKED HERE.
  *
@@ -300,7 +337,7 @@ export function isAgentPart(part: StudentAssignmentPart): part is StudentAssignm
  */
 export function handedInBy(assignment: Jolli.Assignment | undefined, task: TaskBinding, sessionID: string) {
   const found = assignment?.tasks.find((item) => item.partId === task.partId)
-  return found?.handedInSessionID === sessionID
+  return found?.completionKind !== "participation" && found?.handedInSessionID === sessionID
 }
 
 /** One assignment as the sidecar answered it, or why it could not. */

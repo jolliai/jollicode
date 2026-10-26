@@ -280,6 +280,78 @@ describe("todoAssignments", () => {
 })
 
 describe("projectAssignment", () => {
+  test("participation completion keeps work writable and does not turn its attempt into a handed-in chat", () => {
+    const practice = part({
+      turnIn: { transcript: false, summary: false, reflection: false },
+      submission: { attemptId: 2, submittedAt: "2026-10-22T10:00:00Z", completionKind: "participation" },
+      attempts: [
+        {
+          id: 2,
+          conversationId: "ses_completed",
+          countedAt: "2026-10-20T10:00:00Z",
+          lastHumanMessageAt: "2026-10-22T11:00:00Z",
+        },
+        { id: 3, conversationId: "ses_restart", countedAt: null },
+      ],
+    })
+    const locals = new Map([
+      ["ses_completed", { directory: "/lab", updated: 9 }],
+      ["ses_restart", { directory: "/restart", updated: 1 }],
+    ])
+    const read = assignment([practice], { progress: { ...progress, partsSubmitted: 1, partsTotal: 1 } })
+    const projected = projectAssignment(CS310, read, locals, NOW)
+    expect(projected.tasks[0]).toMatchObject({
+      requiresExplicitSubmit: false,
+      completionKind: "participation",
+      workBlocked: false,
+      handedInSessionID: null,
+      local: { sessionID: "ses_restart" },
+    })
+    expect(projected.readyToTurnIn).toBe(true)
+    expect(taskDraftOf(projected, projected.tasks[0])).toBeDefined()
+    expect(handedInBy(projected, { assignmentId: "40", partId: "42" }, "ses_completed")).toBe(false)
+    const turned = projectAssignment(
+      CS310,
+      { ...read, progress: { ...read.progress, turnedInAt: "2026-10-22T11:30:00Z" } },
+      locals,
+      NOW,
+    )
+    expect(turned.tasks[0]?.workBlocked).toBe(true)
+    expect(taskDraftOf(turned, turned.tasks[0])).toBeUndefined()
+    const added = projectAssignment(
+      CS310,
+      {
+        ...read,
+        parts: [{ ...practice, submission: null }],
+        progress: { ...read.progress, turnedInAt: "2026-10-22T11:30:00Z" },
+      },
+      locals,
+      NOW,
+    )
+    expect(added.tasks[0]?.workBlocked).toBe(false)
+    expect(taskDraftOf(added, added.tasks[0])).toBeDefined()
+  })
+
+  test("a participation receipt never becomes a handed-in session after the task switches to manual mode", () => {
+    const projected = projectAssignment(
+      CS310,
+      assignment([
+        part({
+          submission: { attemptId: 2, submittedAt: "2026-10-22T10:00:00Z", completionKind: "participation" },
+          attempts: [{ id: 2, conversationId: "ses_a", countedAt: "2026-10-20T10:00:00Z" }],
+        }),
+      ]),
+      new Map(),
+      NOW,
+    )
+    expect(projected.tasks[0]).toMatchObject({
+      completionKind: "participation",
+      requiresExplicitSubmit: true,
+      workBlocked: true,
+      handedInSessionID: null,
+    })
+  })
+
   test("names tasks by place, and finds the newest of a task's sessions on this machine", () => {
     const read = assignment([
       part({
@@ -511,6 +583,7 @@ describe("the assignment calls", () => {
     expect(started).toEqual({ opener: "Hi Jordan.", binding: { courseId: "7", assistantId: "13" } })
     expect(h.seen[0]?.url).toBe("https://acme.jolli.ai/api/courses/7/assignments/40/parts/42/jolli-code/sessions")
     expect(bodyOf(h.seen[0])).toEqual({ publicSessionId: "ses_a" })
+    expect(h.seen[0]?.headers["x-jolli-assignment-participation"]).toBe("1")
   })
 
   test("preview and hand in send the same session, reflection and project; the hand-in names where to stop", async () => {

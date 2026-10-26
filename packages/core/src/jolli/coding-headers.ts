@@ -1,5 +1,15 @@
+import { createHash } from "node:crypto"
 import { isJolliProviderId } from "./gateway-config"
 import { orgScopeHeaders, parseCourseBinding } from "./org-scoped-id"
+
+/** Optional UX capability; older gateways ignore it and newer gateways still accept older clients. */
+export const JOLLI_CODE_PARTICIPATION_HEADER = "x-jolli-assignment-participation"
+export const JOLLI_CODE_PARTICIPATION_VERSION = "1"
+
+/** Root user text is preserved byte-for-byte by the V2 provider adapters. Synthetic context is omitted. */
+export function jolliInputTextHeader(text: string | undefined): string {
+  return text === undefined || text.trim() === "" ? "none" : createHash("sha256").update(text, "utf8").digest("hex")
+}
 
 export const CODING_CONTINUATION =
   "Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed."
@@ -61,6 +71,7 @@ export function jolliCodingAgentHeaders(input: {
     }
   if (input.turnID === undefined || input.clientAttemptID === undefined || input.stepIndex === undefined) return {}
   return {
+    [JOLLI_CODE_PARTICIPATION_HEADER]: JOLLI_CODE_PARTICIPATION_VERSION,
     "x-jolli-conversation-id": input.sessionID,
     "x-jolli-turn-id": input.turnID,
     "x-jolli-attempt-id": input.clientAttemptID,

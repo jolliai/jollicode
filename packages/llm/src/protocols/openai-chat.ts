@@ -308,7 +308,13 @@ const lowerMessages = Effect.fn("OpenAIChat.lowerMessages")(function* (request: 
       }
       const previous = messages.at(-1)
       if (previous?.role === "user" && typeof previous.content === "string")
-        messages[messages.length - 1] = { role: "user", content: `${previous.content}\n${part.text}` }
+        messages[messages.length - 1] = {
+          role: "user",
+          content: [
+            { type: "text", text: previous.content },
+            { type: "text", text: part.text },
+          ],
+        }
       else if (previous?.role === "user" && Array.isArray(previous.content))
         messages[messages.length - 1] = {
           role: "user",

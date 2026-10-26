@@ -60,6 +60,7 @@ describe("jolli coding-agent request headers", () => {
           courseAssistantID: "8",
         }),
       ).toEqual({
+        "x-jolli-assignment-participation": "1",
         "x-jolli-conversation-id": sessionID,
         "x-jolli-turn-id": turnID,
         "x-jolli-attempt-id": "attempt-1",

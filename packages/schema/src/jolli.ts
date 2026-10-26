@@ -714,7 +714,13 @@ export const AssignmentTask = Schema.Struct({
   assistantId: Schema.NullOr(Schema.String),
   assistantBlurb: Schema.NullOr(Schema.String),
   place: AssignmentTaskPlace,
-  /** When the student handed it in; null while it is not. */
+  /** Absent means the legacy explicit hand-in mode. */
+  requiresExplicitSubmit: optional(Schema.Boolean),
+  /** The immutable receipt origin; absent means hand_in. */
+  completionKind: optional(Schema.Literals(["hand_in", "participation"])),
+  /** Completion is separate from permission to continue or restart the task. */
+  workBlocked: optional(Schema.Boolean),
+  /** When the student completed it; null while it is not. */
   handedInAt: Schema.NullOr(Schema.String),
   /** The session handed in for it, when that was a Jolli Code session. */
   handedInSessionID: Schema.NullOr(Schema.String),

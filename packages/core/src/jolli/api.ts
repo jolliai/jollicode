@@ -43,6 +43,7 @@ import { Brand } from "../brand"
 import { orgScopeHeaders, type OrgScope } from "./org-scoped-id"
 import { isJolliOriginAllowed, parseJolliUrl } from "./origin"
 import { Jolli } from "@opencode-ai/schema/jolli"
+import { JOLLI_CODE_PARTICIPATION_HEADER, JOLLI_CODE_PARTICIPATION_VERSION } from "./coding-headers"
 
 export class JolliApiError extends Schema.TaggedErrorClass<JolliApiError>()("Jolli.ApiError", {
   path: Schema.String,
@@ -445,6 +446,7 @@ export interface StudentAssignmentList extends Schema.Schema.Type<typeof Student
 /** One session a student opened from a part. jolliedu `StudentAssignmentAttempt`, trimmed. */
 const StudentAssignmentAttempt = Schema.Struct({
   id: Schema.Number,
+  lastHumanMessageAt: Schema.optional(Schema.NullOr(Schema.String)),
   /** The session's public id: the id this client gave it. */
   conversationId: Schema.String,
   countedAt: Schema.NullOr(Schema.String),
@@ -452,6 +454,7 @@ const StudentAssignmentAttempt = Schema.Struct({
 
 /** What a student handed in for a part. jolliedu `StudentAssignmentSubmission`, trimmed. */
 const StudentAssignmentSubmission = Schema.Struct({
+  completionKind: Schema.optional(Schema.Literals(["hand_in", "participation"])),
   attemptId: Schema.Number,
   submittedAt: Schema.String,
 })
@@ -647,6 +650,7 @@ const send = Effect.fn("Jolli.send")(function* <A, I>(
   schema: Schema.Codec<A, I>,
   body?: unknown,
   timeout: Duration.Input = "15 seconds",
+  headers: Readonly<Record<string, string>> = {},
 ) {
   const http = yield* HttpClient.HttpClient
   const url = new URL(path, request.origin).toString()
@@ -665,6 +669,7 @@ const send = Effect.fn("Jolli.send")(function* <A, I>(
     request.tenantSlug ? HttpClientRequest.setHeader("x-tenant-slug", request.tenantSlug) : (r) => r,
     // After the home tenant's header, so the scope's tenant wins rather than being appended to it.
     HttpClientRequest.setHeaders(orgScopeHeaders(request.scope)),
+    HttpClientRequest.setHeaders(headers),
     body === undefined ? Effect.succeed : HttpClientRequest.bodyJson(body),
     Effect.flatMap((r) => http.execute(r)),
     Effect.timeout(timeout),
@@ -977,6 +982,7 @@ export const startTaskSession = (
     StartedTaskSession,
     { publicSessionId: input.publicSessionId },
     "45 seconds",
+    { [JOLLI_CODE_PARTICIPATION_HEADER]: JOLLI_CODE_PARTICIPATION_VERSION },
   ).pipe(
     Effect.retry({ times: 1, while: (error) => error.status === undefined && isTransportFailure(error.cause) }),
     Effect.map((detail) => ({

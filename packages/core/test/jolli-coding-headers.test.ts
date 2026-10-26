@@ -1,5 +1,11 @@
 import { expect, test } from "bun:test"
-import { jolliCodingAgentHeaders, overrideHeaders } from "../src/jolli/coding-headers"
+import {
+  jolliCodingAgentHeaders,
+  jolliInputTextHeader,
+  JOLLI_CODE_PARTICIPATION_HEADER,
+  JOLLI_CODE_PARTICIPATION_VERSION,
+  overrideHeaders,
+} from "../src/jolli/coding-headers"
 import { providerIdFor } from "../src/jolli/gateway-config"
 
 const turn = {
@@ -95,4 +101,19 @@ test("request headers replace static ones whatever their case", () => {
     "x-other": "keep",
     "x-tenant-slug": "acme",
   })
+})
+
+test("turn requests declare the additive participation UX capability, compactions do not", () => {
+  expect(jolliCodingAgentHeaders(turn)[JOLLI_CODE_PARTICIPATION_HEADER]).toBe(JOLLI_CODE_PARTICIPATION_VERSION)
+  expect(jolliCodingAgentHeaders({ ...turn, requestKind: "compaction" })).not.toHaveProperty(
+    JOLLI_CODE_PARTICIPATION_HEADER,
+  )
+  expect(jolliCodingAgentHeaders({ ...turn, providerID: "openai" })).not.toHaveProperty(JOLLI_CODE_PARTICIPATION_HEADER)
+})
+
+test("declares only nonblank root student text without putting its contents in a header", () => {
+  expect(jolliInputTextHeader("hello")).toBe("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824")
+  expect(jolliInputTextHeader(undefined)).toBe("none")
+  expect(jolliInputTextHeader("")).toBe("none")
+  expect(jolliInputTextHeader("  ")).toBe("none")
 })

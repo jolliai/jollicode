@@ -22,7 +22,7 @@ export async function wait(fn: () => boolean, timeout = 2000) {
 
 type Ctx = { kv: ReturnType<typeof useKV>; project: ReturnType<typeof useProject>; sync: ReturnType<typeof useSync> }
 
-export async function mount(override?: FetchHandler, state?: string) {
+export async function mount(override?: FetchHandler, state?: string, probe?: () => void) {
   const calls = createFetch(override)
   const events = createEventSource()
   let sync!: ReturnType<typeof useSync>
@@ -35,6 +35,7 @@ export async function mount(override?: FetchHandler, state?: string) {
 
   function Probe() {
     const ctx: Ctx = { kv: useKV(), project: useProject(), sync: useSync() }
+    probe?.()
     onMount(() => {
       sync = ctx.sync
       project = ctx.project
