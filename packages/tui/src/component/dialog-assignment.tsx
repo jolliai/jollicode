@@ -15,7 +15,7 @@
  */
 
 import type { Jolli } from "@opencode-ai/schema/jolli"
-import { taskActionsOf } from "@opencode-ai/core/jolli/assignment-actions"
+import { isParticipation, participationSubmitted, taskActionsOf } from "@opencode-ai/core/jolli/assignment-actions"
 import { taskDraftOf, toRead } from "@opencode-ai/core/jolli/assignment"
 import { createMemo, createResource } from "solid-js"
 import { useJolli } from "../context/jolli"
@@ -114,8 +114,7 @@ export function DialogAssignmentTasks(props: { courseId: string; assignmentId: s
   const here = () => sync.path.directory || sdk.directory
 
   const status = (task: Jolli.AssignmentTask) => {
-    if (task.handedInAt)
-      return `${task.completionKind === "participation" ? "Submitted" : "Handed in"} ${when(task.handedInAt)}`
+    if (task.handedInAt) return `${participationSubmitted(task) ? "Submitted" : "Handed in"} ${when(task.handedInAt)}`
     if (!task.owed) return "No longer needed"
     if (task.place === "web") return "Do this task on the web"
     if (task.local) return "In progress"
@@ -126,31 +125,32 @@ export function DialogAssignmentTasks(props: { courseId: string; assignmentId: s
   const options = createMemo(() => {
     const found = assignment()
     if (!found) return []
-    const tasks = found.tasks.flatMap((task) => [
-      {
-        value: { kind: "task", task } as TaskChoice,
-        title: `${task.title} · ${task.name}`,
-        description: [
-          status(task),
-          task.requiresExplicitSubmit === false && taskActionsOf(found, task).canContinue
-            ? "Continue practicing"
-            : undefined,
-        ]
-          .filter(Boolean)
-          .join(" · "),
-        disabled: task.place === "web" || (!task.owed && !task.handedInAt),
-      },
-      ...(taskActionsOf(found, task).canRestart
-        ? [
-            {
-              value: { kind: "restart", task } as TaskChoice,
-              title: `Restart ${task.title} · ${task.name}`,
-              description: "Start a new practice session",
-              disabled: false,
-            },
+    const tasks = found.tasks.flatMap((task) => {
+      const actions = taskActionsOf(found, task)
+      return [
+        {
+          value: { kind: "task", task } as TaskChoice,
+          title: `${task.title} · ${task.name}`,
+          description: [
+            status(task),
+            task.requiresExplicitSubmit === false && actions.canContinue ? "Continue practicing" : undefined,
           ]
-        : []),
-    ])
+            .filter(Boolean)
+            .join(" · "),
+          disabled: task.place === "web" || (!task.owed && !task.handedInAt),
+        },
+        ...(actions.canRestart
+          ? [
+              {
+                value: { kind: "restart", task } as TaskChoice,
+                title: `Restart ${task.title} · ${task.name}`,
+                description: "Start a new practice session",
+                disabled: false,
+              },
+            ]
+          : []),
+      ]
+    })
     const turnIn = found.readyToTurnIn
       ? [{ value: { kind: "turn-in" } as TaskChoice, title: "Turn in", description: "Every task is handed in" }]
       : []
@@ -176,9 +176,15 @@ export function DialogAssignmentTasks(props: { courseId: string; assignmentId: s
       route.navigate({ type: "session", sessionID: task.local.sessionID })
       return
     }
-    if (!taskActionsOf(found, task).canStart && !taskActionsOf(found, task).canRestart) {
+    const actions = taskActionsOf(found, task)
+    if (!actions.canStart && !actions.canRestart) {
       toast.show({
-        message: "This task is read-only. Ask your teacher to reopen it to work on it again.",
+        // Only a hand-in or a turn-in is the teacher's to reopen; a closed window or paused agent is not, and
+        // a participation receipt never blocks work on its own.
+        message:
+          (task.handedInAt && !isParticipation(task)) || found.turnedIn
+            ? "This task is read-only. Ask your teacher to reopen it to work on it again."
+            : "This task isn't open for work right now.",
         variant: "info",
       })
       return

@@ -1,28 +1,7 @@
 import { createEffect, createRoot, onCleanup, type Accessor } from "solid-js"
 import { createStore } from "solid-js/store"
 import type { AssignmentRead } from "@opencode-ai/core/jolli/assignment"
-
-/** Refresh after turn settlement; streaming/tool parts are not completion evidence. */
-export function assignmentSettledSession(event: { type: string; properties: unknown }) {
-  const data = event.properties
-  if (!data || typeof data !== "object" || !("sessionID" in data) || typeof data.sessionID !== "string")
-    return undefined
-  if (event.type === "session.status") {
-    if (!("status" in data) || !data.status || typeof data.status !== "object") return undefined
-    return "type" in data.status && data.status.type === "idle" ? data.sessionID : undefined
-  }
-  if (event.type === "session.next.step.ended" && "finish" in data && data.finish === "tool-calls") return undefined
-  if (
-    event.type === "session.execution.succeeded" ||
-    event.type === "session.execution.failed" ||
-    event.type === "session.execution.interrupted" ||
-    event.type === "session.next.step.ended" ||
-    event.type === "session.next.step.failed" ||
-    event.type === "session.error"
-  )
-    return data.sessionID
-  return undefined
-}
+import { assignmentSettledSession, createAssignmentRefresh } from "@opencode-ai/core/jolli/assignment-watch"
 
 type WatchInput = {
   client: object
@@ -30,9 +9,8 @@ type WatchInput = {
   assignmentId: string
   sessionID: string
   generation: Accessor<number>
-  load: () => Promise<AssignmentRead>
+  load: (fresh: boolean) => Promise<AssignmentRead>
   listen: (listener: (event: { type: string; properties: unknown }) => void) => () => void
-  settled: (event: object) => void
 }
 
 /** One read, event subscription and lifecycle clock per client/assignment, shared by both headers. */
@@ -42,48 +20,34 @@ export function createAssignmentWatches() {
     return createRoot((dispose) => {
       const [state, setState] = createStore<{ answer?: AssignmentRead }>({})
       const sessions = new Map<string, number>()
-      const pending = { request: undefined as Promise<void> | undefined, again: false, disposed: false }
-      const refresh = (): Promise<void> => {
-        if (pending.request) {
-          pending.again = true
-          return pending.request
-        }
-        pending.request = (async () => {
-          do {
-            pending.again = false
-            const answer = await input.load().catch(() => ({ status: "unreachable" as const }))
-            if (pending.disposed) return
-            if (answer.status !== "unreachable" || state.answer?.status !== "ok") setState("answer", answer)
-          } while (pending.again)
-        })().finally(() => {
-          pending.request = undefined
-          // A settlement can arrive after the loop's last check but before this promise settles.
-          if (pending.again && !pending.disposed) return refresh()
-          return undefined
-        })
-        return pending.request
-      }
+      const refresh = createAssignmentRefresh(
+        (fresh) => input.load(fresh).catch(() => ({ status: "unreachable" as const })),
+        (answer) => {
+          // Replaced whole: a path set would merge one answer's fields into the previous answer's.
+          if (answer.status !== "unreachable" || state.answer?.status !== "ok") setState({ answer })
+        },
+      )
       createEffect(() => {
         input.generation()
-        void refresh()
+        void refresh.refresh(true)
       })
       const stop = input.listen((event) => {
         const sessionID = assignmentSettledSession(event)
-        if (sessionID && sessions.has(sessionID)) input.settled(event)
+        if (sessionID && sessions.has(sessionID)) void refresh.refresh(true)
       })
       // An idle, read-only composer cannot emit a new turn when a teacher reopens its task.
       // Poll only its detail, and pause hidden windows; never poll the all-course TODO list.
       const visible = () => document.visibilityState !== "hidden"
       const focus = () => {
-        if (visible()) void refresh()
+        if (visible()) void refresh.refresh()
       }
       const clock = setInterval(() => {
-        if (visible()) void refresh()
+        if (visible()) void refresh.refresh()
       }, 30_000)
       window.addEventListener("focus", focus)
       document.addEventListener("visibilitychange", focus)
       onCleanup(() => {
-        pending.disposed = true
+        refresh.dispose()
         clearInterval(clock)
         window.removeEventListener("focus", focus)
         document.removeEventListener("visibilitychange", focus)

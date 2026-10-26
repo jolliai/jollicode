@@ -1,5 +1,9 @@
 import type { SessionV1 } from "@opencode-ai/core/v1/session"
-import { createHash } from "node:crypto"
+import {
+  JOLLI_INPUT_TEXT_HEADER,
+  JOLLI_INPUT_TEXT_NONE,
+  jolliInputTextHash,
+} from "@opencode-ai/core/jolli/coding-headers"
 import { MAX_STEPS_PROMPT } from "@opencode-ai/core/session/runner/max-steps"
 import { TypedText } from "./typed-text"
 
@@ -70,10 +74,7 @@ export const OPTIONS_KEY = "jolliPii"
  */
 export const FILLER_OPTIONS = { [OPTIONS_KEY]: { filler: true } }
 
-export const HEADER = "x-jolli-input-text"
-
-/** What the header says for a request carrying nothing the student wrote that no request has carried yet. */
-const NONE = "none"
+export const HEADER = JOLLI_INPUT_TEXT_HEADER
 
 /** The whole of a text is the student's, or only the ranges their words landed in. */
 export type Stamp = { readonly length: number; readonly ranges?: ReadonlyArray<TypedText.Range> }
@@ -258,7 +259,7 @@ export function header(
     .flatMap((message) => (Array.isArray(message.content) ? message.content : []))
     .flatMap((part) => declaredBlocks(part))
     .flatMap(({ text, ranges }) => {
-      const hash = createHash("sha256").update(text, "utf8").digest("hex")
+      const hash = jolliInputTextHash(text)
       if (!Array.isArray(ranges)) return [hash]
       const valid = ranges.filter(isRange)
       // Ranges nothing here could have recorded: the whole block, rather than none of it.
@@ -266,7 +267,7 @@ export function header(
       // A command with no arguments: nothing in its block is the student's.
       return valid.length === 0 ? [] : [[hash, ...valid.map(([start, end]) => `${start}-${end}`)].join(";")]
     })
-  return entries.length === 0 ? NONE : entries.join(",")
+  return entries.length === 0 ? JOLLI_INPUT_TEXT_NONE : entries.join(",")
 }
 
 /**

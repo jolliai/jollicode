@@ -8,42 +8,39 @@
 
 import { participationSubmitted, participationWorkBlocked } from "@opencode-ai/core/jolli/assignment-actions"
 import { HAND_IN_PERMISSIONS, handedInBy, taskBindingOf, taskLabel, toRead } from "@opencode-ai/core/jolli/assignment"
+import { assignmentSettledSession, createAssignmentRefresh } from "@opencode-ai/core/jolli/assignment-watch"
+import { useRenderer } from "@opentui/solid"
 import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
 import { createMemo, createResource, createSignal, onCleanup } from "solid-js"
 import { useEvent } from "./event"
 import { useSDK } from "./sdk"
 import { useSync } from "./sync"
 
-/** Share concurrent reads and run one trailing read when settlement overtakes an older request. */
-type PendingRead = { again: boolean; promise: Promise<ReturnType<typeof toRead>> }
+/** Share concurrent reads across header consumers, while preserving fresh settlement reads. */
+type PendingRead = ReturnType<typeof createAssignmentRefresh<ReturnType<typeof toRead>>>
 const pending = new WeakMap<ReturnType<typeof useSDK>["client"], Map<string, PendingRead>>()
 
-function readAssignment(client: ReturnType<typeof useSDK>["client"], courseId: string, assignmentId: string) {
+function readAssignment(
+  client: ReturnType<typeof useSDK>["client"],
+  courseId: string,
+  assignmentId: string,
+  fresh: boolean,
+) {
   const reads = pending.get(client) ?? new Map<string, PendingRead>()
   pending.set(client, reads)
   const key = JSON.stringify([courseId, assignmentId])
-  const found = reads.get(key)
-  if (found) {
-    found.again = true
-    return found.promise
-  }
-  const entry = {
-    again: false,
-    promise: Promise.resolve<ReturnType<typeof toRead>>({ status: "unreachable" }),
-  }
-  entry.promise = (async () => {
-    try {
-      for (;;) {
-        entry.again = false
-        const response = await client.jolli.assignment({ courseId, assignmentId, fresh: "true" }).catch(() => undefined)
-        if (!entry.again) return toRead(response?.data)
-      }
-    } finally {
-      reads.delete(key)
-    }
-  })()
-  reads.set(key, entry)
-  return entry.promise
+  const reader =
+    reads.get(key) ??
+    createAssignmentRefresh(async (fresh) => {
+      const response = await client.jolli
+        .assignment({ courseId, assignmentId, ...(fresh ? { fresh: "true" as const } : {}) })
+        .catch(() => undefined)
+      return toRead(response?.data)
+    })
+  reads.set(key, reader)
+  return reader.refresh(fresh).finally(() => {
+    if (reads.get(key) === reader && !reader.loading()) reads.delete(key)
+  })
 }
 
 /** A task's completion and work permission, refreshed on settlement and while idle. */
@@ -51,8 +48,9 @@ export function useTaskHeader(sessionID: () => string | undefined) {
   const sdk = useSDK()
   const sync = useSync()
   const event = useEvent()
-  const [generation, setGeneration] = createSignal(0)
-  const refresh = () => setGeneration((count) => count + 1)
+  const renderer = useRenderer()
+  const [generation, setGeneration] = createSignal({ count: 0, fresh: false })
+  const refresh = (fresh = true) => setGeneration((value) => ({ count: value.count + 1, fresh }))
   onCleanup(
     event.subscribe((evt) => {
       if (evt.type === "message.part.updated") {
@@ -60,25 +58,7 @@ export function useTaskHeader(sessionID: () => string | undefined) {
         if (part.type === "tool" && HAND_IN_PERMISSIONS.has(part.tool) && part.state.status === "completed") refresh()
         return
       }
-      if (evt.type === "session.status") {
-        if (evt.properties.sessionID === sessionID() && evt.properties.status.type === "idle") refresh()
-        return
-      }
-      if (evt.type === "session.next.step.ended" && evt.properties.finish === "tool-calls") return
-      // The local SDK uses session.next.*; newer sidecars may forward current execution events.
-      if (
-        ![
-          "session.error",
-          "session.next.step.ended",
-          "session.next.step.failed",
-          "session.execution.succeeded",
-          "session.execution.failed",
-          "session.execution.interrupted",
-        ].includes(evt.type)
-      )
-        return
-      const settled = evt as { properties?: { sessionID?: string }; data?: { sessionID?: string } }
-      if ((settled.properties?.sessionID ?? settled.data?.sessionID) === sessionID()) refresh()
+      if (sessionID() && assignmentSettledSession(evt) === sessionID()) refresh()
     }),
   )
 
@@ -101,27 +81,36 @@ export function useTaskHeader(sessionID: () => string | undefined) {
         a?.task.assignmentId === b?.task.assignmentId &&
         a?.task.partId === b?.task.partId &&
         a?.sessionID === b?.sessionID &&
-        a?.generation === b?.generation,
+        a?.generation.count === b?.generation.count,
     },
   )
   const [read] = createResource(target, async (key) => ({
     key,
-    read: await readAssignment(sdk.client, key.courseId, key.task.assignmentId),
+    read: await readAssignment(sdk.client, key.courseId, key.task.assignmentId, key.generation.fresh),
   }))
-  // A locked, idle composer cannot produce a local event after the teacher reopens its task.
+  // Idle tasks need polling to discover teacher changes, including a switch into participation.
   // Only read this assignment; do not refresh the course-wide TODO list on a timer.
+  const focus = { visible: true }
+  const onFocus = () => {
+    focus.visible = true
+    if (target() && !read.loading) refresh(false)
+  }
+  const onBlur = () => {
+    focus.visible = false
+  }
+  renderer.on("focus", onFocus)
+  renderer.on("blur", onBlur)
   const poll = setInterval(() => {
-    const answer = read.latest
     const id = sessionID()
-    if (!id || !target() || read.loading) return
-    if (answer?.key.sessionID === id && answer.read.status === "ok") {
-      const task = answer.read.assignment.tasks.find((item) => item.partId === answer.key.task.partId)
-      if (task?.requiresExplicitSubmit !== false && task?.completionKind !== "participation") return
-    }
+    if (!focus.visible || !id || !target() || read.loading) return
     if (sync.data.session_status[id]?.type && sync.data.session_status[id].type !== "idle") return
-    refresh()
+    refresh(false)
   }, 30_000)
-  onCleanup(() => clearInterval(poll))
+  onCleanup(() => {
+    clearInterval(poll)
+    renderer.off("focus", onFocus)
+    renderer.off("blur", onBlur)
+  })
   return () => {
     const answer = read.latest
     // A resource keeps its last answer when its source empties; it belongs to the session it was read for.

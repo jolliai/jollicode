@@ -280,7 +280,7 @@ describe("todoAssignments", () => {
 })
 
 describe("projectAssignment", () => {
-  test("participation completion keeps work writable and does not turn its attempt into a handed-in chat", () => {
+  test("participation completion keeps the newest local session writable and does not make it a handed-in chat", () => {
     const practice = part({
       turnIn: { transcript: false, summary: false, reflection: false },
       submission: { attemptId: 2, submittedAt: "2026-10-22T10:00:00Z", completionKind: "participation" },
@@ -289,7 +289,6 @@ describe("projectAssignment", () => {
           id: 2,
           conversationId: "ses_completed",
           countedAt: "2026-10-20T10:00:00Z",
-          lastHumanMessageAt: "2026-10-22T11:00:00Z",
         },
         { id: 3, conversationId: "ses_restart", countedAt: null },
       ],
@@ -305,7 +304,7 @@ describe("projectAssignment", () => {
       completionKind: "participation",
       workBlocked: false,
       handedInSessionID: null,
-      local: { sessionID: "ses_restart" },
+      local: { sessionID: "ses_completed" },
     })
     expect(projected.readyToTurnIn).toBe(true)
     expect(taskDraftOf(projected, projected.tasks[0])).toBeDefined()
@@ -330,6 +329,32 @@ describe("projectAssignment", () => {
     )
     expect(added.tasks[0]?.workBlocked).toBe(false)
     expect(taskDraftOf(added, added.tasks[0])).toBeDefined()
+  })
+
+  test("a newer participation restart can be continued before its first message", () => {
+    const projected = projectAssignment(
+      CS310,
+      assignment([
+        part({
+          turnIn: { transcript: false, summary: false, reflection: false },
+          submission: { attemptId: 2, submittedAt: "2026-10-22T10:00:00Z", completionKind: "participation" },
+          attempts: [
+            {
+              id: 2,
+              conversationId: "ses_completed",
+              countedAt: "2026-10-22T10:00:00Z",
+            },
+            { id: 3, conversationId: "ses_restart", countedAt: null },
+          ],
+        }),
+      ]),
+      new Map([
+        ["ses_completed", { directory: "/lab", updated: Date.parse("2026-10-22T10:00:00Z") }],
+        ["ses_restart", { directory: "/restart", updated: Date.parse("2026-10-22T11:00:00Z") }],
+      ]),
+      NOW,
+    )
+    expect(projected.tasks[0]?.local).toEqual({ sessionID: "ses_restart", directory: "/restart" })
   })
 
   test("a participation receipt never becomes a handed-in session after the task switches to manual mode", () => {

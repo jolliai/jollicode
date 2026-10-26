@@ -43,7 +43,12 @@ const assignment = (submitted = false, blocked = false): AssignmentRead => ({
 function fixture() {
   const watchers = createAssignmentWatches()
   const listeners = new Set<(event: { type: string; properties: unknown }) => void>()
-  const state = { loads: 0, settles: 0, answer: assignment(), defer: undefined as undefined | Promise<AssignmentRead> }
+  const state = {
+    loads: 0,
+    fresh: [] as boolean[],
+    answer: assignment(),
+    defer: undefined as undefined | Promise<AssignmentRead>,
+  }
   const [generation, setGeneration] = createStore({ value: 0 })
   const client = {}
   const acquire = (sessionID = "ses", target = client) =>
@@ -55,8 +60,9 @@ function fixture() {
         assignmentId: "2",
         sessionID,
         generation: () => generation.value,
-        load: async () => {
+        load: async (fresh) => {
           state.loads++
+          state.fresh.push(fresh)
           return state.defer ?? state.answer
         },
         listen: (listener) => {
@@ -65,16 +71,12 @@ function fixture() {
             listeners.delete(listener)
           }
         },
-        settled: () => {
-          state.settles++
-          setGeneration("value", (value) => value + 1)
-        },
       }),
     }))
   const emit = (type: string, properties: unknown = { sessionID: "ses" }) => {
     for (const listener of listeners) listener({ type, properties })
   }
-  return { state, acquire, emit, listeners }
+  return { state, acquire, emit, listeners, invalidate: () => setGeneration("value", (value) => value + 1) }
 }
 
 /** Wait for a reactive outcome, without sleeps or a guessed number of promise turns. */
@@ -128,8 +130,8 @@ describe("assignment watches", () => {
         const read = view.read()
         return read?.status === "ok" && read.assignment.tasksHandedIn === 1
       })
-      expect(f.state.settles).toBe(1)
       expect(f.state.loads).toBe(2)
+      expect(f.state.fresh).toEqual([true, true])
       view.dispose()
     })
   }
@@ -146,7 +148,6 @@ describe("assignment watches", () => {
     f.emit("session.next.step.ended", { sessionID: "ses", finish: "tool-calls" })
     f.emit("session.status", { sessionID: "ses", status: { type: "busy" } })
     expect(f.state.loads).toBe(1)
-    expect(f.state.settles).toBe(0)
     f.state.answer = assignment(true)
     f.emit("session.status", { sessionID: "ses", status: { type: "idle" } })
     await observed(() => {
@@ -174,7 +175,7 @@ describe("assignment watches", () => {
       })
       expect(second.read()).toEqual(f.state.answer)
       expect(f.state.loads).toBe(2)
-      expect(f.state.settles).toBe(0)
+      expect(f.state.fresh).toEqual([true, false])
       first.dispose()
       second.dispose()
     })
@@ -200,6 +201,31 @@ describe("assignment watches", () => {
     expect(second.read()).toEqual(f.state.answer)
     first.dispose()
     second.dispose()
+  })
+
+  test("an explicit hand-in invalidation refreshes the shared assignment", async () => {
+    const f = fixture()
+    const view = f.acquire()
+    await observed(() => view.read()?.status === "ok")
+    f.state.answer = assignment(true)
+    f.invalidate()
+    await observed(() => {
+      const read = view.read()
+      return read?.status === "ok" && read.assignment.tasksHandedIn === 1
+    })
+    expect(f.state.fresh).toEqual([true, true])
+    view.dispose()
+  })
+
+  test("a refusal replaces an earlier answer instead of merging into it", async () => {
+    const f = fixture()
+    const view = f.acquire()
+    await observed(() => view.read()?.status === "ok")
+    f.state.answer = { status: "refused", message: "closed" }
+    f.invalidate()
+    await observed(() => view.read()?.status === "refused")
+    expect(view.read()).toEqual({ status: "refused", message: "closed" })
+    view.dispose()
   })
 
   test("client identities do not share answers", async () => {

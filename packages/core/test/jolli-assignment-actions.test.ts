@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test"
 import type { Jolli } from "@opencode-ai/schema/jolli"
-import { participationSubmitted, participationWorkBlocked, taskActionsOf } from "../src/jolli/assignment-actions"
+import {
+  isParticipation,
+  participationSubmitted,
+  participationWorkBlocked,
+  taskActionsOf,
+} from "../src/jolli/assignment-actions"
 
 const task: Jolli.AssignmentTask = {
   partId: "30",
@@ -44,7 +49,6 @@ describe("taskActionsOf", () => {
       canStart: false,
       canContinue: true,
       canRestart: true,
-      canOpen: false,
       readOnly: false,
     })
     expect(participationSubmitted(done)).toBe(true)
@@ -57,7 +61,6 @@ describe("taskActionsOf", () => {
     expect(taskActionsOf(turnedIn, done)).toMatchObject({
       canContinue: false,
       canRestart: false,
-      canOpen: true,
       readOnly: true,
     })
     expect(taskActionsOf(turnedIn, { ...task, requiresExplicitSubmit: false, workBlocked: false })).toMatchObject({
@@ -76,7 +79,6 @@ describe("taskActionsOf", () => {
     expect(taskActionsOf(assignment, task)).toMatchObject({ canContinue: true, canRestart: false })
     expect(taskActionsOf(assignment, { ...task, handedInAt: "2026-10-26T01:00:00Z" })).toMatchObject({
       canContinue: false,
-      canOpen: true,
     })
     expect(taskActionsOf(assignment, { ...task, place: "web" }).canContinue).toBe(false)
     expect(taskActionsOf(assignment, { ...task, owed: false }).canContinue).toBe(false)
@@ -93,5 +95,24 @@ describe("taskActionsOf", () => {
         handedInAt: "2026-10-26T01:00:00Z",
       }),
     ).toBe(true)
+  })
+
+  test("keeps a hand-in labelled handed in after the teacher switches the task to participation", () => {
+    const handedIn = {
+      ...task,
+      requiresExplicitSubmit: false,
+      completionKind: "hand_in" as const,
+      handedInAt: "2026-10-26T01:00:00Z",
+    }
+    expect(isParticipation(handedIn)).toBe(true)
+    expect(participationSubmitted(handedIn)).toBe(false)
+  })
+
+  test("recognizes participation consistently when only its receipt declares the mode", () => {
+    const done = { ...task, completionKind: "participation" as const, handedInAt: "2026-10-26T01:00:00Z" }
+    expect(isParticipation(undefined)).toBe(false)
+    expect(isParticipation(done)).toBe(true)
+    expect(participationSubmitted(done)).toBe(true)
+    expect(participationWorkBlocked(assignment, done)).toBe(true)
   })
 })

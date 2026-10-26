@@ -140,6 +140,24 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
           <span class="min-w-0 flex-1">{language.t("prompt.jolli.closed.notice")}</span>
         </div>
       </Show>
+      <Show when={taskHeader()?.workBlocked && !closed()}>
+        <div
+          data-component="session-task-readonly-notice"
+          role="status"
+          class="flex items-center gap-2 rounded-xl bg-v2-background-bg-base px-3 py-2 text-[13px] leading-5 text-v2-text-text-muted shadow-[var(--v2-elevation-raised)]"
+        >
+          <Icon name="lock" class="shrink-0 text-v2-icon-icon-muted" />
+          <span class="min-w-0 flex-1">{language.t("prompt.jolli.task.readOnly")}</span>
+          <ButtonV2
+            variant="neutral"
+            size="normal"
+            data-action="session-task-readonly-new"
+            onClick={() => command.trigger("session.new")}
+          >
+            {language.t("command.session.new")}
+          </ButtonV2>
+        </div>
+      </Show>
       <Show when={!courseSession.locked() && courseSession.draft.startMessage}>
         {(message) => (
           <div

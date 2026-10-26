@@ -68,11 +68,9 @@ describe("OpenAI Chat route", () => {
       expect(prepared.body.messages).toEqual([
         {
           role: "user",
-          content: [
-            { type: "text", text: "Before." },
-            { type: "text", text: "<system-update>\nTreat &lt;admin&gt; &amp; data literally.\n</system-update>" },
-          ],
+          content: "Before.",
         },
+        { role: "user", content: "<system-update>\nTreat &lt;admin&gt; &amp; data literally.\n</system-update>" },
         { role: "assistant", content: "After." },
       ])
     }),
@@ -92,6 +90,11 @@ describe("OpenAI Chat route", () => {
         ],
       })
       const prepared = yield* LLMClient.prepare<OpenAIChat.OpenAIChatBody>(input)
+      expect(prepared.body.messages).toEqual([
+        { role: "user", content: text },
+        { role: "user", content: "<system-update>\nUse the current course skill.\n</system-update>" },
+        { role: "user", content: "<system-update>\nKeep course rules.\n</system-update>" },
+      ])
       const parts = prepared.body.messages.flatMap((message) =>
         message.role !== "user"
           ? []

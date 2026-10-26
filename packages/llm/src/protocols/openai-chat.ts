@@ -307,20 +307,16 @@ const lowerMessages = Effect.fn("OpenAIChat.lowerMessages")(function* (request: 
         continue
       }
       const previous = messages.at(-1)
-      if (previous?.role === "user" && typeof previous.content === "string")
-        messages[messages.length - 1] = {
-          role: "user",
-          content: [
-            { type: "text", text: previous.content },
-            { type: "text", text: part.text },
-          ],
-        }
-      else if (previous?.role === "user" && Array.isArray(previous.content))
+      if (previous?.role === "user" && Array.isArray(previous.content)) {
         messages[messages.length - 1] = {
           role: "user",
           content: [...previous.content, { type: "text", text: part.text }],
         }
-      else messages.push({ role: "user", content: part.text })
+        continue
+      }
+      // Keep text-only requests compatible with endpoints that accept string content only.
+      // A separate update also preserves the user's exact text for input declarations.
+      messages.push({ role: "user", content: part.text })
       continue
     }
     if (message.role === "tool") {

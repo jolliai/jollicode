@@ -17,7 +17,7 @@
  * know a task was handed in on the web a moment ago.
  */
 
-import { createResource, createSignal, For, Match, Show, Switch } from "solid-js"
+import { createMemo, createResource, createSignal, For, Match, Show, Switch } from "solid-js"
 import type { Jolli } from "@opencode-ai/schema/jolli"
 import type { Session } from "@opencode-ai/sdk/v2/client"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
@@ -27,7 +27,7 @@ import { useHomeData } from "@/context/home-data"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useServerSDK } from "@/context/server-sdk"
-import { taskActionsOf } from "@opencode-ai/core/jolli/assignment-actions"
+import { participationSubmitted, taskActionsOf } from "@opencode-ai/core/jolli/assignment-actions"
 import { taskDraftOf } from "@opencode-ai/core/jolli/assignment"
 import { AssignmentIntent } from "@/jolli/assignment-intent"
 import { readAssignment, turnIn, useTaskTitle, type AssignmentRead } from "@/jolli/assignments"
@@ -152,52 +152,71 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
                 </div>
                 <ul data-component="dialog-assignment-tasks" class="flex flex-col gap-2">
                   <For each={assignment().tasks}>
-                    {(task, index) => (
-                      <li
-                        data-component="dialog-assignment-task"
-                        data-part={task.partId}
-                        class="flex items-center gap-3 rounded-lg bg-v2-background-bg-base px-3 py-2.5 shadow-[var(--v2-elevation-raised)]"
-                      >
-                        <div class="flex min-w-0 flex-1 flex-col">
-                          <span class="truncate text-[13px] text-v2-text-text-base">
-                            {taskTitle(index())} · {task.name}
-                          </span>
-                          <span class="truncate text-[12px] text-v2-text-text-muted">
-                            <Switch fallback={language.t("dialog.assignment.task.notStarted")}>
-                              <Match when={task.completionKind === "participation" && task.handedInAt}>
-                                {(at) => language.t("dialog.assignment.task.submitted", { date: when(at()) })}
+                    {(task, index) => {
+                      const actions = createMemo(() => taskActionsOf(assignment(), task))
+                      return (
+                        <li
+                          data-component="dialog-assignment-task"
+                          data-part={task.partId}
+                          class="flex items-center gap-3 rounded-lg bg-v2-background-bg-base px-3 py-2.5 shadow-[var(--v2-elevation-raised)]"
+                        >
+                          <div class="flex min-w-0 flex-1 flex-col">
+                            <span class="truncate text-[13px] text-v2-text-text-base">
+                              {taskTitle(index())} · {task.name}
+                            </span>
+                            <span class="truncate text-[12px] text-v2-text-text-muted">
+                              <Switch fallback={language.t("dialog.assignment.task.notStarted")}>
+                                <Match when={participationSubmitted(task) && task.handedInAt}>
+                                  {(at) => language.t("dialog.assignment.task.submitted", { date: when(at()) })}
+                                </Match>
+                                <Match when={task.handedInAt}>
+                                  {(at) => language.t("dialog.assignment.task.handedIn", { date: when(at()) })}
+                                </Match>
+                                <Match when={!task.owed}>{language.t("dialog.assignment.task.notOwed")}</Match>
+                                <Match when={task.place === "web"}>{language.t("dialog.assignment.task.web")}</Match>
+                                <Match when={task.local}>{language.t("dialog.assignment.task.inProgress")}</Match>
+                                <Match when={task.elsewhere}>{language.t("dialog.assignment.task.elsewhere")}</Match>
+                              </Switch>
+                            </span>
+                          </div>
+                          <Show when={task.place === "jolli_code"}>
+                            <Switch>
+                              <Match when={task.local}>
+                                {(local) => (
+                                  <ButtonV2
+                                    variant={actions().canContinue ? "contrast" : "neutral"}
+                                    size="normal"
+                                    data-action="dialog-assignment-continue"
+                                    onClick={() => resume(local())}
+                                  >
+                                    {actions().canContinue
+                                      ? language.t("dialog.assignment.task.continue")
+                                      : language.t("dialog.assignment.task.open")}
+                                  </ButtonV2>
+                                )}
                               </Match>
-                              <Match when={task.handedInAt}>
-                                {(at) => language.t("dialog.assignment.task.handedIn", { date: when(at()) })}
-                              </Match>
-                              <Match when={!task.owed}>{language.t("dialog.assignment.task.notOwed")}</Match>
-                              <Match when={task.place === "web"}>{language.t("dialog.assignment.task.web")}</Match>
-                              <Match when={task.local}>{language.t("dialog.assignment.task.inProgress")}</Match>
-                              <Match when={task.elsewhere}>{language.t("dialog.assignment.task.elsewhere")}</Match>
-                            </Switch>
-                          </span>
-                        </div>
-                        <Show when={task.place === "jolli_code"}>
-                          <Switch>
-                            <Match when={task.local}>
-                              {(local) => (
+                              <Match when={actions().canStart}>
                                 <ButtonV2
-                                  variant={taskActionsOf(assignment(), task).canContinue ? "contrast" : "neutral"}
+                                  variant="contrast"
                                   size="normal"
-                                  data-action="dialog-assignment-continue"
-                                  onClick={() => resume(local())}
+                                  data-action="dialog-assignment-start"
+                                  disabled={!sessions.session.canCreate()}
+                                  title={
+                                    sessions.session.canCreate()
+                                      ? undefined
+                                      : language.t("dialog.assignment.task.noProject")
+                                  }
+                                  onClick={() => start(assignment(), task, index())}
                                 >
-                                  {taskActionsOf(assignment(), task).canContinue
-                                    ? language.t("dialog.assignment.task.continue")
-                                    : language.t("dialog.assignment.task.open")}
+                                  {language.t("dialog.assignment.task.start")}
                                 </ButtonV2>
-                              )}
-                            </Match>
-                            <Match when={taskActionsOf(assignment(), task).canStart}>
+                              </Match>
+                            </Switch>
+                            <Show when={actions().canRestart}>
                               <ButtonV2
-                                variant="contrast"
+                                variant="neutral"
                                 size="normal"
-                                data-action="dialog-assignment-start"
+                                data-action="dialog-assignment-restart"
                                 disabled={!sessions.session.canCreate()}
                                 title={
                                   sessions.session.canCreate()
@@ -206,24 +225,13 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
                                 }
                                 onClick={() => start(assignment(), task, index())}
                               >
-                                {language.t("dialog.assignment.task.start")}
+                                {language.t("dialog.assignment.task.restart")}
                               </ButtonV2>
-                            </Match>
-                          </Switch>
-                          <Show when={taskActionsOf(assignment(), task).canRestart}>
-                            <ButtonV2
-                              variant="neutral"
-                              size="normal"
-                              data-action="dialog-assignment-restart"
-                              disabled={!sessions.session.canCreate()}
-                              onClick={() => start(assignment(), task, index())}
-                            >
-                              {language.t("dialog.assignment.task.restart")}
-                            </ButtonV2>
+                            </Show>
                           </Show>
-                        </Show>
-                      </li>
-                    )}
+                        </li>
+                      )
+                    }}
                   </For>
                 </ul>
                 <Show when={confirming()}>

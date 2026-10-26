@@ -157,25 +157,33 @@ export function useTaskHeader(input: {
   const serverSDK = useServerSDK()
   const taskTitle = useTaskTitle()
   useHandInRefresh()
+  // The task binding is rebuilt whenever the session list changes; a new object for the same task must
+  // not release the watch, which would drop its answer and read the assignment again.
+  const target = createMemo(
+    () => {
+      const courseId = input.courseId()
+      const task = input.task()
+      const sessionID = input.sessionID()
+      if (!courseId || !task || !sessionID) return undefined
+      return { client: serverSDK().client, courseId, assignmentId: task.assignmentId, sessionID }
+    },
+    undefined,
+    {
+      equals: (a, b) =>
+        a?.client === b?.client &&
+        a?.courseId === b?.courseId &&
+        a?.assignmentId === b?.assignmentId &&
+        a?.sessionID === b?.sessionID,
+    },
+  )
   const watched = createMemo(() => {
-    const client = serverSDK().client
-    const courseId = input.courseId()
-    const task = input.task()
-    const sessionID = input.sessionID()
-    if (!courseId || !task || !sessionID) return undefined
+    const key = target()
+    if (!key) return undefined
     return assignmentWatches.acquire({
-      client,
-      courseId,
-      assignmentId: task.assignmentId,
-      sessionID,
+      ...key,
       generation: assignmentsGeneration,
-      load: () => readAssignment(client, courseId, task.assignmentId, true),
+      load: (fresh) => readAssignment(key.client, key.courseId, key.assignmentId, fresh),
       listen: (listener) => serverSDK().event.listen((e) => listener(e.details)),
-      settled: (event) => {
-        if (answered.has(event)) return
-        answered.add(event)
-        refreshAssignments()
-      },
     })
   })
   return () => {

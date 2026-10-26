@@ -70,6 +70,7 @@ test("refreshes task permission on settlement and idle polling without refreshin
   const clear = spyOn(globalThis, "clearInterval")
   let header!: ReturnType<typeof useTaskHeader>
   let blocked = true
+  const freshness: Array<string | null> = []
   let calls = 0
   let active = 0
   let maxActive = 0
@@ -85,6 +86,7 @@ test("refreshes task permission on settlement and idle polling without refreshin
       if (url.pathname !== "/jolli/assignment/1/3") return undefined
       return (async () => {
         calls++
+        freshness.push(url.searchParams.get("fresh"))
         active++
         maxActive = Math.max(maxActive, active)
         const snapshot = answer(blocked)
@@ -210,11 +212,74 @@ test("refreshes task permission on settlement and idle polling without refreshin
     poll()
     await wait(() => header()?.workBlocked === false)
     expect(calls).toBe(5)
+    expect(freshness).toEqual([null, "true", "true", null, null])
   } finally {
     app.renderer.destroy()
     expect(pollTimer).toBeDefined()
     expect(clear.mock.calls.some(([timer]) => timer === pollTimer)).toBe(true)
     intervals.mockRestore()
     clear.mockRestore()
+  }
+})
+
+test("idle polling discovers an ordinary task becoming participation without a session event", async () => {
+  await using tmp = await tmpdir()
+  await Bun.write(`${tmp.path}/kv.json`, "{}")
+  const intervals = spyOn(globalThis, "setInterval")
+  let header!: ReturnType<typeof useTaskHeader>
+  let participation = false
+  let calls = 0
+  const { app, emit, sync } = await mount(
+    (url) => {
+      if (url.pathname === "/session") return json([session])
+      if (url.pathname !== "/jolli/assignment/1/3") return undefined
+      calls++
+      const read = answer(false)
+      if (participation) return json(read)
+      return json({
+        ...read,
+        assignment: {
+          ...read.assignment,
+          tasksHandedIn: 0,
+          readyToTurnIn: false,
+          tasks: read.assignment.tasks.map((task) => ({
+            ...task,
+            requiresExplicitSubmit: true,
+            completionKind: "hand_in",
+            handedInAt: null,
+          })),
+        },
+      })
+    },
+    tmp.path,
+    () => {
+      header = useTaskHeader(() => sessionID)
+    },
+  )
+  const poll = intervals.mock.calls.find(([, delay]) => delay === 30_000)?.[0]
+  try {
+    if (typeof poll !== "function") throw new Error("assignment polling interval was not registered")
+    await wait(() => header() !== undefined)
+    expect(header()?.submitted).toBe(false)
+    expect(calls).toBe(1)
+    participation = true
+    poll(undefined)
+    await wait(() => header()?.submitted === true)
+    expect(calls).toBe(2)
+    expect(header()?.workBlocked).toBe(false)
+
+    app.renderer.emit("blur")
+    poll(undefined)
+    expect(calls).toBe(2)
+    app.renderer.emit("focus")
+    await wait(() => calls === 3)
+
+    emit(global({ id: "evt_mode_busy", type: "session.status", properties: { sessionID, status: { type: "busy" } } }))
+    await wait(() => sync.data.session_status[sessionID]?.type === "busy")
+    poll(undefined)
+    expect(calls).toBe(3)
+  } finally {
+    app.renderer.destroy()
+    intervals.mockRestore()
   }
 })
