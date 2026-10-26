@@ -340,6 +340,17 @@ describe("plugin.jolli-assignment: handing a task in", () => {
       expect(h.sent.at(-1)?.url).toEndWith("/assignments/40/student-view")
     })
 
+    test("is reported handed in when the teacher switched the task to participation meanwhile", async () => {
+      const switched = {
+        ...assignment,
+        parts: [{ ...part, turnIn: { transcript: false, summary: false, reflection: false } }],
+      }
+      const reads = { count: 0 }
+      const h = unsure(() => json(reads.count++ === 0 ? assignment : switched))
+      expect(await submit(h)).toStartWith("Handed in Lab 4: Linked lists · Task 2.")
+      expect(reads.count).toBe(2)
+    })
+
     test("is reported not handed in when the assignment read again says so", async () => {
       const h = unsure(() =>
         json({ ...assignment, parts: [notHandedIn], progress: { ...assignment.progress, partsSubmitted: 0 } }),

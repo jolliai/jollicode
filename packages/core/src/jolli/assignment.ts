@@ -241,27 +241,12 @@ export function projectAssignment(
         ? part.attempts.find((attempt) => attempt.id === part.submission?.attemptId)
         : undefined
     const sessions = place === "jolli_code" ? part.attempts.map((attempt) => attempt.conversationId) : []
-    const here = (place === "jolli_code" ? part.attempts : [])
-      .flatMap((attempt) => {
-        const found = locals.get(attempt.conversationId)
-        return found
-          ? [
-              {
-                sessionID: attempt.conversationId,
-                countedAt: attempt.countedAt,
-                humanAt: attempt.lastHumanMessageAt ? Date.parse(attempt.lastHumanMessageAt) : 0,
-                ...found,
-              },
-            ]
-          : []
+    const here = sessions
+      .flatMap((sessionID) => {
+        const found = locals.get(sessionID)
+        return found ? [{ sessionID, ...found }] : []
       })
-      .toSorted((a, b) =>
-        explicit
-          ? b.updated - a.updated
-          : Number(a.countedAt !== null) - Number(b.countedAt !== null) ||
-            b.humanAt - a.humanAt ||
-            b.updated - a.updated,
-      )[0]
+      .toSorted((a, b) => b.updated - a.updated)[0]
     return {
       partId: String(part.id),
       title: `Task ${index + 1}`,

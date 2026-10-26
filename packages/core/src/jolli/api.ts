@@ -446,7 +446,6 @@ export interface StudentAssignmentList extends Schema.Schema.Type<typeof Student
 /** One session a student opened from a part. jolliedu `StudentAssignmentAttempt`, trimmed. */
 const StudentAssignmentAttempt = Schema.Struct({
   id: Schema.Number,
-  lastHumanMessageAt: Schema.optional(Schema.NullOr(Schema.String)),
   /** The session's public id: the id this client gave it. */
   conversationId: Schema.String,
   countedAt: Schema.NullOr(Schema.String),

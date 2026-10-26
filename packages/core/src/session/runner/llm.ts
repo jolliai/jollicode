@@ -14,7 +14,7 @@ import { JolliSession } from "../../jolli/session"
 import { JolliSources } from "../../jolli/sources"
 import { courseBindingOf } from "../../jolli/binding"
 import { inTaskSession } from "../../jolli/assignment"
-import { jolliCodingAgentHeaders, jolliInputTextHeader } from "../../jolli/coding-headers"
+import { JOLLI_INPUT_TEXT_HEADER, jolliCodingAgentHeaders, jolliInputTextHeader } from "../../jolli/coding-headers"
 import { CourseSkillHistory } from "../../jolli/skill-history"
 import { isJolliProviderId } from "../../jolli/gateway-config"
 import { Cause, DateTime, Effect, FiberSet, Layer, Option, Semaphore, Stream } from "effect"
@@ -283,12 +283,17 @@ const layer = Layer.effect(
             }),
             ...(isJolliProviderId(model.provider)
               ? {
-                  "x-jolli-input-text": jolliInputTextHeader(
+                  [JOLLI_INPUT_TEXT_HEADER]: jolliInputTextHeader(
                     session.parentID
-                      ? undefined
-                      : context.flatMap((message) =>
-                          message.type === "user" && message.id === turnID ? [message.text] : [],
-                        )[0],
+                      ? []
+                      : context
+                          // A provider turn can consume a batch of prompts; its turn ID names only the last one.
+                          .slice(
+                            context.findLastIndex(
+                              (message) => message.type === "assistant" || message.type === "compaction",
+                            ) + 1,
+                          )
+                          .flatMap((message) => (message.type === "user" ? [message.text] : [])),
                   ),
                 }
               : {}),

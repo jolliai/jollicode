@@ -736,6 +736,8 @@ describe("SessionRunnerLLM", () => {
       const first = requests[0].http?.headers
       const second = requests[1].http?.headers
       expect(first?.["x-jolli-turn-id"]).toBe(user.id)
+      expect(first?.["x-jolli-input-text"]).toBe(createHash("sha256").update("Use a tool").digest("hex"))
+      expect(second?.["x-jolli-input-text"]).toBe("none")
       expect(second?.["x-jolli-attempt-id"]).toBe(first?.["x-jolli-attempt-id"])
       expect([first?.["x-jolli-step-index"], second?.["x-jolli-step-index"]]).toEqual(["0", "1"])
       expect(second?.["x-jolli-request-id"]).not.toBe(first?.["x-jolli-request-id"])
@@ -744,6 +746,7 @@ describe("SessionRunnerLLM", () => {
       yield* session.resume(sessionID)
       const resumed = requests.at(-1)?.http?.headers
       expect(resumed?.["x-jolli-turn-id"]).toBe(user.id)
+      expect(resumed?.["x-jolli-input-text"]).toBe("none")
       expect(resumed?.["x-jolli-attempt-id"]).not.toBe(first?.["x-jolli-attempt-id"])
       expect(resumed?.["x-jolli-request-id"]).not.toBe(first?.["x-jolli-request-id"])
     }),
@@ -826,6 +829,45 @@ describe("SessionRunnerLLM", () => {
       expect(yield* session.messages({ sessionID })).toHaveLength(2)
     }),
   )
+
+  for (const text of ["Second", "", "   "]) {
+    it.effect(`declares coalesced root input before ${JSON.stringify(text)} and an attachment`, () =>
+      Effect.gen(function* () {
+        yield* setup
+        currentModel = Model.make({ id: "course-model", provider: providerIdFor("openai"), route: OpenAIChat.route })
+        const session = yield* SessionV2.Service
+        yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "First" }), resume: false })
+        const latest = yield* session.prompt({
+          sessionID,
+          prompt: Prompt.make({ text, files: [{ uri: "data:image/png;base64,aGVsbG8=", mime: "image/png" }] }),
+          resume: false,
+        })
+        const events = yield* EventV2.Service
+        yield* events.publish(SessionEvent.Synthetic, {
+          sessionID,
+          messageID: SessionMessage.ID.create(),
+          timestamp: DateTime.makeUnsafe(1),
+          text: "Generated context",
+        })
+        requests.length = 0
+        yield* session.resume(sessionID)
+
+        expect(requests).toHaveLength(1)
+        expect(userTexts(requests[0])).toEqual(["Generated context", "First", text])
+        expect(requests[0]?.messages.find((message) => message.id === latest.id)?.content).toContainEqual({
+          type: "media",
+          mediaType: "image/png",
+          data: "data:image/png;base64,aGVsbG8=",
+        })
+        expect(requests[0]?.http?.headers?.["x-jolli-turn-id"]).toBe(latest.id)
+        expect(requests[0]?.http?.headers?.["x-jolli-input-text"]).toBe(
+          ["First", ...(text.trim() ? [text] : [])]
+            .map((value) => createHash("sha256").update(value).digest("hex"))
+            .join(","),
+        )
+      }),
+    )
+  }
 
   it.effect("retries the first provider turn after system context becomes available", () =>
     Effect.gen(function* () {
@@ -2387,6 +2429,7 @@ describe("SessionRunnerLLM", () => {
   it.effect("coalesces multiple active steering prompts into one continuation turn", () =>
     Effect.gen(function* () {
       yield* setup
+      currentModel = Model.make({ id: "course-model", provider: providerIdFor("openai"), route: OpenAIChat.route })
       const session = yield* SessionV2.Service
       yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Start working" }), resume: false })
 
@@ -2418,6 +2461,9 @@ describe("SessionRunnerLLM", () => {
 
       expect(requests).toHaveLength(2)
       expect(userTexts(requests[1]!)).toEqual(["Start working", "First steer", "Second steer"])
+      expect(requests[1]?.http?.headers?.["x-jolli-input-text"]).toBe(
+        ["First steer", "Second steer"].map((text) => createHash("sha256").update(text).digest("hex")).join(","),
+      )
       yield* (yield* SessionExecution.Service).wake(sessionID)
       yield* Effect.yieldNow
       expect(requests).toHaveLength(2)
@@ -2731,6 +2777,7 @@ describe("SessionRunnerLLM", () => {
   it.effect("adds the parent session header to child model requests", () =>
     Effect.gen(function* () {
       yield* setup
+      currentModel = Model.make({ id: "course-model", provider: providerIdFor("openai"), route: OpenAIChat.route })
       const session = yield* SessionV2.Service
       const parentID = SessionV2.ID.make("ses_runner_parent")
       const { db } = yield* Database.Service
@@ -2746,6 +2793,7 @@ describe("SessionRunnerLLM", () => {
       yield* session.resume(sessionID)
 
       expect(requests[0]?.http?.headers?.["x-parent-session-id"]).toBe(parentID)
+      expect(requests[0]?.http?.headers?.["x-jolli-input-text"]).toBe("none")
     }),
   )
 

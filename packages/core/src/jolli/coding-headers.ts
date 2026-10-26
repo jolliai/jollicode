@@ -6,9 +6,19 @@ import { orgScopeHeaders, parseCourseBinding } from "./org-scoped-id"
 export const JOLLI_CODE_PARTICIPATION_HEADER = "x-jolli-assignment-participation"
 export const JOLLI_CODE_PARTICIPATION_VERSION = "1"
 
+/** Names the student's own words in a request by their SHA-256, never the text; one encoding for v1 and v2. */
+export const JOLLI_INPUT_TEXT_HEADER = "x-jolli-input-text"
+/** The header's value for a request carrying nothing the student wrote that no request has carried yet. */
+export const JOLLI_INPUT_TEXT_NONE = "none"
+
+export function jolliInputTextHash(text: string) {
+  return createHash("sha256").update(text, "utf8").digest("hex")
+}
+
 /** Root user text is preserved byte-for-byte by the V2 provider adapters. Synthetic context is omitted. */
-export function jolliInputTextHeader(text: string | undefined): string {
-  return text === undefined || text.trim() === "" ? "none" : createHash("sha256").update(text, "utf8").digest("hex")
+export function jolliInputTextHeader(texts: readonly string[]): string {
+  const hashes = [...new Set(texts.filter((text) => text.trim() !== "").map(jolliInputTextHash))]
+  return hashes.length === 0 ? JOLLI_INPUT_TEXT_NONE : hashes.join(",")
 }
 
 export const CODING_CONTINUATION =

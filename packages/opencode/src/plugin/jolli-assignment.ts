@@ -191,13 +191,9 @@ export async function JolliAssignmentPlugin(
       return "unknown" as const
     }
     const part = now.parts.find((item) => String(item.id) === task.partId)
-    if (
-      !part ||
-      !isAgentPart(part) ||
-      part.submission?.completionKind === "participation" ||
-      !requiresExplicitSubmit(part)
-    )
-      return undefined
+    // A participation receipt is no hand-in. A hand-in that landed stays one if the teacher has since
+    // switched the task to participation, so the task's current mode is not consulted.
+    if (!part || !isAgentPart(part) || part.submission?.completionKind === "participation") return undefined
     const handedIn = part.attempts.find((attempt) => attempt.id === part.submission?.attemptId)
     if (handedIn?.conversationId !== sessionID) return undefined
     return { part, owedCount: now.progress.partsTotal - now.progress.partsSubmitted }

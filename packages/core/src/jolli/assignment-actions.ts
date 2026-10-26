@@ -9,20 +9,24 @@ export function taskActionsOf(assignment: Jolli.Assignment, task: Jolli.Assignme
     canStart: workable && !task.local && (participation || !task.handedInAt),
     canContinue: workable && !!task.local,
     canRestart: workable && participation && !!task.local,
-    canOpen: !!task.local && !workable,
     readOnly: !workable,
   }
 }
 
-/** Participation is a task completion, never a claim that the current session was handed in. */
+/**
+ * Participation is a task completion, never a claim that the current session was handed in. The receipt
+ * decides: a hand-in made before the teacher switched the task to participation is still a hand-in.
+ */
 export function participationSubmitted(task: Jolli.AssignmentTask | undefined) {
-  return (task?.requiresExplicitSubmit === false || task?.completionKind === "participation") && !!task.handedInAt
+  return task?.completionKind === "participation" && !!task.handedInAt
 }
 
 /** Preserve ordinary Code hand-in continuation; new read-only rules apply to participation practice. */
 export function participationWorkBlocked(assignment: Jolli.Assignment, task: Jolli.AssignmentTask) {
-  return (
-    (task.requiresExplicitSubmit === false || task.completionKind === "participation") &&
-    taskActionsOf(assignment, task).readOnly
-  )
+  return isParticipation(task) && taskActionsOf(assignment, task).readOnly
+}
+
+/** Recognize participation from current delivery settings or a prior participation receipt. */
+export function isParticipation(task: Jolli.AssignmentTask | undefined) {
+  return task?.requiresExplicitSubmit === false || task?.completionKind === "participation"
 }

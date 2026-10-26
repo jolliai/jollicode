@@ -223,9 +223,8 @@ export function Prompt(props: PromptProps) {
    * place, and nothing after the wait could tell the two apart.
    */
   const taskHeader = useTaskHeader(() => props.sessionID)
-  const locked = createMemo(
-    () => !!props.disabled || taskHeader()?.workBlocked === true || (!props.sessionID && jolli.starting()),
-  )
+  const locked = createMemo(() => !!props.disabled || (!props.sessionID && jolli.starting()))
+  const readOnlyNotice = "This task is read-only. You can still use /assignment or /new."
   const history = usePromptHistory()
   const stash = usePromptStash()
   const keymap = useOpencodeKeymap()
@@ -1174,7 +1173,7 @@ export function Prompt(props: PromptProps) {
       setStore("prompt", "input", input.plainText)
       syncExtmarksWithPromptParts()
     }
-    if (props.disabled || taskHeader()?.workBlocked) return false
+    if (props.disabled) return false
     if (workspace.creating() || move.creating()) return false
     if (auto()?.visible) return false
     // ⚠ A START BELONGS TO THE NEW-SESSION COMPOSER. A live session's Enter is not its to swallow.
@@ -1186,6 +1185,10 @@ export function Prompt(props: PromptProps) {
     if (trimmed === "exit" || trimmed === "quit" || trimmed === ":q") {
       void exit()
       return true
+    }
+    if (taskHeader()?.workBlocked) {
+      toast.show({ message: readOnlyNotice, variant: "warning", duration: 5000 })
+      return false
     }
     /**
      * ⚠ THE COURSE IS DEMANDED BEFORE THE MODEL IS READ, because under a course it is the course
@@ -1837,6 +1840,9 @@ export function Prompt(props: PromptProps) {
                   </box>
                 )
               }}
+            </Show>
+            <Show when={taskHeader()?.workBlocked}>
+              <text fg={theme.textMuted}>{readOnlyNotice}</text>
             </Show>
             <textarea
               width="100%"

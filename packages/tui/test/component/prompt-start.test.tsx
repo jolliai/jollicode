@@ -34,9 +34,9 @@ import { FrecencyProvider } from "../../src/component/prompt/frecency"
 import { PromptHistoryProvider } from "../../src/component/prompt/history"
 import { PromptStashProvider } from "../../src/component/prompt/stash"
 import { TuiConfigProvider } from "../../src/config"
-import { OpencodeKeymapProvider, registerOpencodeKeymap } from "../../src/keymap"
+import { OpencodeKeymapProvider, registerOpencodeKeymap, useBindings } from "../../src/keymap"
 import { DialogProvider } from "../../src/ui/dialog"
-import { ToastProvider } from "../../src/ui/toast"
+import { ToastProvider, useToast } from "../../src/ui/toast"
 import { tmpdir } from "../fixture/fixture"
 import { TestTuiContexts } from "../fixture/tui-environment"
 import { createEventSource, createFetch, directory, json } from "../fixture/tui-sdk"
@@ -151,7 +151,13 @@ const secondCourse = {
 }
 
 async function mount(
-  options: { opensConversation?: boolean; secondCourse?: boolean; createFails?: boolean; promptFails?: boolean } = {},
+  options: {
+    opensConversation?: boolean
+    secondCourse?: boolean
+    createFails?: boolean
+    promptFails?: boolean
+    readOnly?: boolean
+  } = {},
 ) {
   const opensConversation = options.opensConversation ?? true
   const courses = options.secondCourse ? [...catalog.courses, secondCourse.course] : catalog.courses
@@ -174,6 +180,56 @@ async function mount(
   let held: PromiseWithResolvers<void> | undefined
   const events = createEventSource()
   const calls = createFetch((url) => {
+    if (options.readOnly && url.pathname === "/session")
+      return json([
+        {
+          id: "ses_readonly",
+          projectID: "proj_test",
+          directory,
+          title: "Practice",
+          time: { created: 1, updated: 1 },
+          metadata: {
+            jolli: { courseId: "101", assistantId: "1" },
+            jolliTask: { sessionID: "ses_readonly", assignmentId: "40", partId: "41" },
+          },
+        },
+      ])
+    if (url.pathname === "/jolli/assignment/101/40")
+      return json({
+        status: "ok",
+        assignment: {
+          id: "40",
+          courseId: "101",
+          courseCode: "C 101",
+          title: "Practice",
+          description: "",
+          dueAt: null,
+          stopAtDue: false,
+          authorName: null,
+          tasksHandedIn: 1,
+          tasksTotal: 1,
+          turnedIn: true,
+          readyToTurnIn: false,
+          tasks: [
+            {
+              partId: "41",
+              title: "Task 1",
+              name: "Practice",
+              assistantId: "1",
+              assistantBlurb: null,
+              place: "jolli_code",
+              requiresExplicitSubmit: false,
+              completionKind: "participation",
+              handedInAt: "2026-10-26T00:00:00Z",
+              handedInSessionID: null,
+              workBlocked: true,
+              owed: true,
+              local: { sessionID: "ses_readonly", directory },
+              elsewhere: false,
+            },
+          ],
+        },
+      })
     if (url.pathname === "/jolli/course") {
       catalogs.read++
       return json({ ...catalog, courses, assistants: assistants.map((item) => ({ ...item, opensConversation })) })
@@ -227,6 +283,7 @@ async function mount(
   let jolli!: ReturnType<typeof useJolli>
   let local!: ReturnType<typeof useLocal>
   let route!: ReturnType<typeof useRoute>
+  let toast!: ReturnType<typeof useToast>
   const [shown, setShown] = createSignal(true)
   const [sessionID, setSessionID] = createSignal<string>()
   let prompt: PromptRef | undefined
@@ -241,10 +298,26 @@ async function mount(
     const capturedJolli = useJolli()
     const capturedLocal = useLocal()
     const capturedRoute = useRoute()
+    const capturedToast = useToast()
+    useBindings(() => ({
+      commands: options.readOnly
+        ? [
+            {
+              namespace: "palette",
+              name: "session.new",
+              title: "New session",
+              category: "Session",
+              slashName: "new",
+              run: () => capturedRoute.navigate({ type: "home" }),
+            },
+          ]
+        : [],
+    }))
     onMount(() => {
       jolli = capturedJolli
       local = capturedLocal
       route = capturedRoute
+      toast = capturedToast
       mounted()
     })
     return (
@@ -351,6 +424,9 @@ async function mount(
     },
     get prompt() {
       return prompt!
+    },
+    get toast() {
+      return toast
     },
     /** Answer the next Start with `kind`, without submitting. */
     queue(kind: Answer) {
@@ -1102,6 +1178,32 @@ test("a held line left waiting is not restored when the draft is replaced for th
     view.jolli.draft.setTask({ ...task })
     await Bun.sleep(80)
     expect(view.prompt.current.input).toBe("")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+test("a read-only task keeps typing and local slash commands available and explains refused submissions", async () => {
+  const view = await mount({ readOnly: true })
+  try {
+    view.remount("ses_readonly")
+    view.route.navigate({ type: "session", sessionID: "ses_readonly" })
+    await view.app.waitFor(() => view.app.captureCharFrame().includes("This task is read-only."))
+    view.prompt.focus()
+    await view.app.mockInput.typeText("keep this draft")
+    await view.app.waitFor(() => view.prompt.current.input === "keep this draft")
+    view.prompt.submit()
+    await view.app.waitFor(() => view.toast.currentToast?.message.includes("read-only") === true)
+    expect(view.prompted).toEqual([])
+    expect(view.created).toEqual([])
+    expect(view.prompt.current.input).toBe("keep this draft")
+    view.prompt.reset()
+    await view.app.mockInput.typeText("/new")
+    await view.app.waitFor(() => view.prompt.current.input === "/new")
+    view.app.mockInput.pressEnter()
+    await view.app.waitFor(() => view.route.data.type === "home")
+    expect(view.prompted).toEqual([])
   } finally {
     view.prompt.reset()
     view.close()

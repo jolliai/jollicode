@@ -2,6 +2,7 @@ import { describe, expect } from "bun:test"
 import { Effect, Schema } from "effect"
 import { HttpClientRequest } from "effect/unstable/http"
 import { LLM, Message, ToolCallPart } from "../../src"
+import type { OpenAIChatBody } from "../../src/protocols/openai-chat"
 import { Auth, LLMClient } from "../../src/route"
 import * as OpenAICompatible from "../../src/providers/openai-compatible"
 import * as OpenAICompatibleChat from "../../src/protocols/openai-compatible-chat"
@@ -50,6 +51,22 @@ const providerFamilies = [
 ] as const
 
 describe("OpenAI-compatible Chat route", () => {
+  it.effect("keeps consecutive text-only system updates compatible with string-only endpoints", () =>
+    Effect.gen(function* () {
+      const prepared = yield* LLMClient.prepare<OpenAIChatBody>(
+        LLM.request({
+          model,
+          messages: [Message.user("Student input."), Message.system("First update."), Message.system("Second update.")],
+        }),
+      )
+      expect(prepared.body.messages).toEqual([
+        { role: "user", content: "Student input." },
+        { role: "user", content: "<system-update>\nFirst update.\n</system-update>" },
+        { role: "user", content: "<system-update>\nSecond update.\n</system-update>" },
+      ])
+    }),
+  )
+
   it.effect("prepares generic Chat target", () =>
     Effect.gen(function* () {
       const prepared = yield* LLMClient.prepare(

@@ -24,6 +24,7 @@ import { Effect, Layer, Schema } from "effect"
 import { FetchHttpClient } from "effect/unstable/http"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { JolliAssignmentCache } from "@opencode-ai/core/jolli/assignment-cache"
+import { JolliTaskMode } from "@opencode-ai/core/jolli/task-mode"
 import type { JolliStore } from "@opencode-ai/core/jolli/store"
 import type { StudentAssignment } from "@opencode-ai/core/jolli/api"
 import { asSchema, streamText } from "ai"
@@ -697,7 +698,10 @@ describe("the hand-in tools", () => {
 
   const TASK = { jolliTask: { sessionID, assignmentId: "40", partId: "42" } }
 
-  afterEach(() => JolliAssignmentCache.reset())
+  afterEach(() => {
+    JolliAssignmentCache.reset()
+    JolliTaskMode.reset()
+  })
 
   /** ⚠ A PLAIN CHAT, A FORK AND A CHILD HAVE NO TASK THE GATEWAY BOUND TO THEM. */
   it.effect("are not offered in a session no task started, a fork's copy included", () =>
@@ -775,7 +779,7 @@ describe("the hand-in tools", () => {
       )
       const resolve = (value = metadata) => resolveFor(value, []).pipe(Effect.provide(offline))
 
-      // A cold or expired mode is unknown, preserving compatibility with old servers and clients.
+      // With no reachable gateway or cached mode, preserve compatibility with older servers.
       expect((yield* resolve()).tools.jolli_submit_task).toBeDefined()
       JolliAssignmentCache.keep("a", "7", response, Date.now())
       const warm = yield* Effect.all([resolve(), resolve()], { concurrency: 2 })
@@ -784,6 +788,7 @@ describe("the hand-in tools", () => {
 
       // Neither another student's entry nor a same-number course in another org applies here.
       JolliAssignmentCache.reset()
+      JolliTaskMode.reset()
       JolliAssignmentCache.keep("other-student", "7", response, Date.now())
       expect((yield* resolve()).tools.jolli_submit_task).toBeDefined()
       JolliAssignmentCache.keep("a", "7", response, Date.now())
@@ -792,8 +797,9 @@ describe("the hand-in tools", () => {
         jolli: { courseId: "acme:bio:7", assistantId: "acme:bio:13" },
       })
       expect(otherOrg.tools.jolli_submit_task).toBeDefined()
+      expect((yield* resolve()).tools.jolli_submit_task).toBeUndefined()
       JolliAssignmentCache.keep("a", "7", response, Date.now() - 60_001)
-      expect((yield* resolve()).tools.jolli_submit_task).toBeDefined()
+      expect((yield* resolve()).tools.jolli_submit_task).toBeUndefined()
       expect(networkAccesses).toBe(0)
     }),
   )
