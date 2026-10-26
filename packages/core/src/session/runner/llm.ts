@@ -13,6 +13,7 @@ import { JolliCourseGuardrails } from "../../jolli/course-guardrails"
 import { JolliSession } from "../../jolli/session"
 import { JolliSources } from "../../jolli/sources"
 import { courseBindingOf } from "../../jolli/binding"
+import { inTaskSession } from "../../jolli/assignment"
 import { jolliCodingAgentHeaders } from "../../jolli/coding-headers"
 import { CourseSkillHistory } from "../../jolli/skill-history"
 import { isJolliProviderId } from "../../jolli/gateway-config"
@@ -250,6 +251,8 @@ const layer = Layer.effect(
       const courseRules: PermissionV2.Ruleset = JolliSources.withheldCourseTools({
         bound: binding !== undefined,
         includeAssignments: assignmentAccess,
+        taskSession:
+          !isLastStep && binding ? yield* inTaskSession(session, (id) => store.get(SessionSchema.ID.make(id))) : false,
       }).map((action) => ({ action, resource: "*", effect: "deny" }))
       const toolMaterialization = isLastStep
         ? undefined

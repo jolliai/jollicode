@@ -237,7 +237,8 @@ it.instance("tools() reuses cached definitions until a protocol notification", (
 )
 
 // For a server whose tools change without its saying so; at most once a minute for a connection, so a
-// caller asking on every step for a tool that never comes does not fetch the manifest on every step.
+// caller asking on every step for a tool that never comes does not fetch the manifest on every step. The
+// listing runs in the background, so a later `tools()` reads it.
 it.instance("relist() lists a server's tools again, at most once a minute for a connection", () =>
   Effect.gen(function* () {
     const server = yield* lifecycleServer({ capabilities: { tools: {} } })
@@ -246,6 +247,13 @@ it.instance("relist() lists a server's tools again, at most once a minute for a 
     server.state.tools = [{ name: "next_tool", inputSchema: { type: "object", properties: {} } }]
 
     yield* mcp.relist("relist-server")
+    yield* pollWithTimeout(
+      Effect.gen(function* () {
+        const keys = Object.keys(yield* mcp.tools())
+        return keys.includes("relist-server_next_tool") ? keys : undefined
+      }),
+      "relisted tools never arrived",
+    )
     expect(Object.keys(yield* mcp.tools())).toEqual(["relist-server_next_tool"])
 
     server.state.tools = [{ name: "third_tool", inputSchema: { type: "object", properties: {} } }]

@@ -18,6 +18,7 @@ import { Truncate } from "@/tool/truncate"
 import { Plugin } from "@/plugin"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { JolliMcpCall } from "@/mcp/jolli-call"
+import { NotFoundError } from "@/storage/storage"
 import type { OrgScope } from "@opencode-ai/core/jolli/org-scoped-id"
 import { Effect, Layer, Schema } from "effect"
 import { asSchema, streamText } from "ai"
@@ -44,6 +45,7 @@ const model = {
 function fakeMcp() {
   return MCP.Service.of({
     tools: () => Effect.succeed({}),
+    relist: () => Effect.void,
     clients: () => Effect.succeed({}),
   } as Partial<MCP.Interface> as MCP.Interface)
 }
@@ -67,13 +69,19 @@ const fakeTruncate = Truncate.Service.of({
   limits: () => Effect.succeed({ maxLines: 2000, maxBytes: 50 * 1024 }),
 } satisfies Truncate.Interface)
 
-function createLayer(plugin: Plugin.Interface = fakePlugin, mcp: MCP.Interface = fakeMcp()) {
+function createLayer(
+  plugin: Plugin.Interface = fakePlugin,
+  mcp: MCP.Interface = fakeMcp(),
+  sessions: Partial<Session.Interface> = {},
+  flags: Partial<RuntimeFlags.Info> = {},
+) {
   return Layer.mergeAll(
     Layer.succeed(Plugin.Service, plugin),
     Layer.succeed(Permission.Service, fakePermission),
     Layer.succeed(MCP.Service, mcp),
     Layer.succeed(Truncate.Service, fakeTruncate),
-    RuntimeFlags.layer(),
+    Layer.mock(Session.Service, sessions),
+    RuntimeFlags.layer(flags),
     Layer.succeed(
       ToolRegistry.Service,
       ToolRegistry.Service.of({
@@ -279,6 +287,7 @@ it.effect("applies tool definition hooks to MCP tools before exposing their sche
                 properties: {
                   courseId: { type: "number" },
                   assistantId: { type: "number" },
+                  sessionId: { type: "string" },
                 },
                 required: ["courseId", "assistantId"],
               },
@@ -287,6 +296,7 @@ it.effect("applies tool definition hooks to MCP tools before exposing their sche
             server: "jolliedu",
           },
         }),
+      relist: () => Effect.void,
       clients: () => Effect.succeed({}),
     } as unknown as Partial<MCP.Interface> as MCP.Interface)
     const plugin = Plugin.Service.of({
@@ -298,9 +308,13 @@ it.effect("applies tool definition hooks to MCP tools before exposing their sche
             const definition = output as {
               parameters: { properties: Record<string, unknown>; required: string[] }
             }
-            definition.parameters = { properties: {}, required: [] }
+            delete definition.parameters.properties.courseId
+            delete definition.parameters.properties.assistantId
+            delete definition.parameters.properties.sessionId
+            definition.parameters.required = []
           }
           if (name === "tool.execute.before") {
+            expect(_input).toHaveProperty("parameters.properties.sessionId", { type: "string" })
             const execution = output as { args: Record<string, unknown> }
             Object.assign(execution.args, { courseId: 7, assistantId: 12 })
           }
@@ -376,6 +390,7 @@ it.effect("does not offer the course tools to a session with no course binding, 
           jolliedu_list_all_materials_in_remote_course: definition("list_all_materials_in_remote_course"),
           jolliedu_list_user_attachments: definition("list_user_attachments"),
         }),
+      relist: () => Effect.void,
       clients: () => Effect.succeed({}),
     } as unknown as Partial<MCP.Interface> as MCP.Interface)
     const plugin = Plugin.Service.of({
@@ -415,6 +430,99 @@ it.effect("does not offer the course tools to a session with no course binding, 
     expect(result.tools.jolliedu_get_conversation_context).toBeUndefined()
     expect(result.tools.jolliedu_list_all_materials_in_remote_course).toBeUndefined()
     expect(result.tools.jolliedu_list_user_attachments).toBeDefined()
+  }),
+)
+
+/**
+ * A bound child whose parent is gone, as when only the child was imported, reads as no task's session
+ * rather than failing every step: the store reports the parent missing, and the walk to the root fails closed.
+ */
+it.effect("offers a bound child whose parent is gone the course tools, but not a task's", () =>
+  Effect.gen(function* () {
+    const client = { callTool: async () => ({ content: [{ type: "text" as const, text: "ok" }] }) }
+    const definition = (name: string) => ({
+      def: { name, description: name, inputSchema: { type: "object" as const, properties: {} } },
+      client,
+      server: "jolliedu",
+    })
+    const mcp = MCP.Service.of({
+      tools: () =>
+        Effect.succeed({
+          jolliedu_get_conversation_context: definition("get_conversation_context"),
+          jolliedu_search_student_work: definition("search_student_work"),
+        }),
+      relist: () => Effect.void,
+      clients: () => Effect.succeed({}),
+    } as unknown as Partial<MCP.Interface> as MCP.Interface)
+
+    const result = yield* SessionTools.resolve({
+      agent,
+      model,
+      session: {
+        id: sessionID,
+        parentID: SessionID.make("ses_gone"),
+        permission: [],
+        metadata: {
+          jolli: { courseId: "7", assistantId: "12" },
+          jolliTask: { sessionID: "ses_gone", assignmentId: "40", partId: "42" },
+        },
+      } as unknown as Session.Info,
+      processor: {
+        message: { id: messageID } as SessionV1.Assistant,
+        updateToolCall: () => Effect.die("unused"),
+        completeToolCall: () => Effect.void,
+      } as Pick<SessionProcessor.Handle, "message" | "updateToolCall" | "completeToolCall">,
+      bypassAgentCheck: false,
+      messages: [],
+      promptOps: {} as never,
+    }).pipe(
+      Effect.provide(
+        createLayer(fakePlugin, mcp, {
+          get: (id) => Effect.fail(new NotFoundError({ message: `Session not found: ${id}` })),
+        }),
+      ),
+    )
+
+    expect(result.tools.jolliedu_get_conversation_context).toBeDefined()
+    expect(result.tools.jolliedu_search_student_work).toBeUndefined()
+  }),
+)
+
+/**
+ * Code mode describes its catalog from the manifest as it stands, and never reaches the MCP tools below; the
+ * read that lists the course server again still runs, so a later step describes what that listing brought.
+ */
+it.effect("asks for the course server's tools again in code mode when the manifest lacks one offered", () =>
+  Effect.gen(function* () {
+    const relisted: string[] = []
+    const mcp = MCP.Service.of({
+      tools: () => Effect.succeed({}),
+      relist: (server: string) =>
+        Effect.sync(() => {
+          relisted.push(server)
+        }),
+      clients: () => Effect.succeed({}),
+    } as unknown as Partial<MCP.Interface> as MCP.Interface)
+
+    yield* SessionTools.resolve({
+      agent,
+      model,
+      session: {
+        id: sessionID,
+        permission: [],
+        metadata: { jolli: { courseId: "7", assistantId: "12" } },
+      } as unknown as Session.Info,
+      processor: {
+        message: { id: messageID } as SessionV1.Assistant,
+        updateToolCall: () => Effect.die("unused"),
+        completeToolCall: () => Effect.void,
+      } as Pick<SessionProcessor.Handle, "message" | "updateToolCall" | "completeToolCall">,
+      bypassAgentCheck: false,
+      messages: [],
+      promptOps: {} as never,
+    }).pipe(Effect.provide(createLayer(fakePlugin, mcp, {}, { experimentalCodeMode: true })))
+
+    expect(relisted).toEqual(["jolliedu"])
   }),
 )
 
@@ -466,6 +574,7 @@ describe("the org a session's MCP calls are made in", () => {
               server: "jolliedu",
             },
           }),
+        relist: () => Effect.void,
         clients: () => Effect.succeed({}),
       } as unknown as Partial<MCP.Interface> as MCP.Interface)
 
@@ -487,6 +596,7 @@ describe("the org a session's MCP calls are made in", () => {
       const client = { getServerCapabilities: () => ({ resources: {} }) }
       const mcp = MCP.Service.of({
         tools: () => Effect.succeed({}),
+        relist: () => Effect.void,
         clients: () => Effect.succeed({ jolliedu: client }),
         resources: (_server?: string, org?: OrgScope) => {
           asked.push(["resources", org])

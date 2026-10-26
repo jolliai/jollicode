@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { CODE_MODE_TOOL, CodeModeTool, Parameters, defineTools, describeCatalog } from "@/tool/code-mode"
 import type { Tool as MCPToolDef } from "@modelcontextprotocol/sdk/types.js"
 import type { PermissionV1 } from "@opencode-ai/core/v1/permission"
+import { Project } from "@opencode-ai/core/project"
 import { Agent } from "@/agent/agent"
 import { MCP } from "@/mcp"
 import { Permission } from "@/permission"
@@ -12,6 +13,7 @@ import * as Truncate from "@/tool/truncate"
 import { MessageID, SessionID } from "@/session/schema"
 import { Cause, Effect, Exit, Layer, Schema } from "effect"
 import { JolliMcpCall } from "@/mcp/jolli-call"
+import { NotFoundError } from "@/storage/storage"
 
 const ctx: Tool.Context = {
   sessionID: SessionID.make("ses_code-mode"),
@@ -46,6 +48,7 @@ function harness(input: {
   permission?: PermissionV1.Rule[]
   trigger?: Plugin.Interface["trigger"]
   session?: Record<string, unknown>
+  getSession?: Session.Interface["get"]
 }) {
   return Layer.mergeAll(
     Layer.mock(Plugin.Service, {
@@ -58,10 +61,24 @@ function harness(input: {
       get: () => Effect.succeed({ name: "build", permission: input.permission ?? [] } as any),
     }),
     Layer.mock(Session.Service, {
-      get: () => Effect.succeed({ permission: [], ...input.session } as any),
+      get:
+        input.getSession ??
+        (() =>
+          Effect.succeed({
+            id: ctx.sessionID,
+            slug: "code-mode",
+            projectID: Project.ID.global,
+            directory: "/project",
+            title: "Code mode",
+            version: "test",
+            time: { created: 0, updated: 0 },
+            permission: [],
+            ...input.session,
+          })),
     }),
     Layer.mock(MCP.Service, {
       tools: () => Effect.succeed(input.mcpTools),
+      relist: () => Effect.void,
       clients: () => Effect.succeed(Object.fromEntries(input.servers.map((name) => [name, {} as any]))),
     }),
   )
@@ -342,6 +359,71 @@ describe("code mode execute", () => {
     ])
   })
 
+  /** An orphan's root is gone, as when only the child was imported: it reads as no task, not as a failure. */
+  test.each(["task", "fork", "plain", "orphan"] as const)(
+    "gates student work by the %s root despite a child's own task record",
+    async (kind) => {
+      const binding = { courseId: "7", assistantId: "12" }
+      const root = {
+        id: SessionID.make("ses_root"),
+        slug: "root",
+        projectID: Project.ID.global,
+        directory: "/project",
+        title: "Root",
+        version: "test",
+        time: { created: 0, updated: 0 },
+        metadata: {
+          jolli: binding,
+          ...(kind === "plain"
+            ? {}
+            : {
+                jolliTask: {
+                  sessionID: kind === "fork" ? "ses_original" : "ses_root",
+                  assignmentId: "40",
+                  partId: "42",
+                },
+              }),
+        },
+      }
+      const child = {
+        ...root,
+        id: ctx.sessionID,
+        parentID: root.id,
+        metadata: { jolli: binding, jolliTask: { sessionID: ctx.sessionID, assignmentId: "40", partId: "42" } },
+      }
+      const tools = Object.fromEntries(
+        ["list_student_work", "search_student_work", "read_student_work"].map((name) => [
+          `jolliedu_${name}`,
+          mcpTool(name, () => ({ content: [{ type: "text", text: "work" }] })),
+        ]),
+      )
+      const tool = await Effect.runPromise(
+        CodeModeTool.pipe(
+          Effect.flatMap(Tool.init),
+          Effect.provide(
+            harness({
+              mcpTools: tools,
+              servers: ["jolliedu"],
+              session: child,
+              getSession: (id) =>
+                id !== root.id
+                  ? Effect.succeed(child)
+                  : kind === "orphan"
+                    ? Effect.fail(new NotFoundError({ message: `Session not found: ${id}` }))
+                    : Effect.succeed(root),
+            }),
+          ),
+        ),
+      )
+      const execution = tool.execute({ code: "return await tools.jolliedu.search_student_work({})" }, ctx)
+      if (kind !== "task") {
+        expect((await failure(execution)).message).toContain("Unknown tool 'jolliedu.search_student_work'")
+        return
+      }
+      expect((await Effect.runPromise(execution)).output).toBe("work")
+    },
+  )
+
   test("starts each MCP call in the org the running session's course names", async () => {
     const madeIn: Array<unknown> = []
     const tools = {
@@ -496,6 +578,7 @@ describe("code mode execute", () => {
     ])
     const [before, after] = executions
     expect(before!.input.sessionID).toBe(ctx.sessionID)
+    expect(before.input.parameters).toEqual({ type: "object", properties: {} })
     expect(before!.output).toEqual({ args: { x: 1 } })
     expect(after!.input.args).toEqual({ x: 1 })
     expect(after!.output).toEqual({ content: [{ type: "text", text: "one" }] })

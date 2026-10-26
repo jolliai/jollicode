@@ -149,6 +149,113 @@ describe("JolliSources.materialEvidenceOf", () => {
     expect(evidence?.text).toHaveLength(JolliSources.MAX_EVIDENCE_CHARS)
   })
 
+  test("keeps each keyword passage independently through source selection, with the worksheet link", () => {
+    const url = "https://school.jolli.ai/learn/11/assignments/5"
+    const read = {
+      id: 5,
+      title: "Pointers lab",
+      assignment: { courseId: 11, url },
+      totalLines: 100,
+      keywords: ["ownership"],
+      matchedLines: 2,
+      passages: [
+        {
+          from: 1,
+          to: 1,
+          matched: ["ownership"],
+          matchLines: [1],
+          lines: [{ number: 1, text: "x".repeat(JolliSources.MAX_EVIDENCE_CHARS + 100) }],
+        },
+        {
+          from: 42,
+          to: 43,
+          matched: ["ownership"],
+          matchLines: [42],
+          lines: [
+            { number: 42, text: "Explain ownership." },
+            { number: 43, text: "Free the allocation once." },
+          ],
+        },
+      ],
+    }
+    const evidence = JolliSources.materialEvidenceOf(READ, result(JSON.stringify(read)))
+    expect(evidence).toEqual([
+      {
+        kind: "material",
+        materialId: "5",
+        title: "Pointers lab",
+        text: "x".repeat(JolliSources.MAX_EVIDENCE_CHARS),
+        url,
+      },
+      {
+        kind: "material",
+        materialId: "5",
+        title: "Pointers lab",
+        text: "Explain ownership.\nFree the allocation once.",
+        url,
+      },
+    ])
+    const candidates = JolliSources.turnCandidates([
+      { type: "tool", tool: READ, state: { status: "completed", metadata: { evidence } } },
+    ])
+    expect(candidates).toHaveLength(2)
+    expect(JolliSources.selectedSources(["s2"], candidates)).toEqual([
+      { kind: "material", materialId: "5", title: "Pointers lab", url },
+    ])
+  })
+
+  test("bounds the count and total text of evidence stored for a keyword read", () => {
+    const read = {
+      id: 3,
+      title: "Lecture 4",
+      passages: Array.from({ length: 40 }, (_, index) => ({
+        lines: [{ text: `${index}:` + "x".repeat(JolliSources.MAX_EVIDENCE_CHARS) }],
+      })),
+    }
+    const evidence = JolliSources.materialEvidenceOf(READ, result(JSON.stringify(read)))
+    expect(evidence).toHaveLength(JolliSources.MAX_CANDIDATES)
+    expect(evidence.reduce((total, item) => total + item.text.length, 0)).toBe(
+      JolliSources.MAX_CANDIDATES * JolliSources.MAX_EVIDENCE_CHARS,
+    )
+    expect(evidence[0]?.text.startsWith("0:")).toBe(true)
+    expect(evidence.at(-1)?.text.startsWith(`${JolliSources.MAX_CANDIDATES - 1}:`)).toBe(true)
+  })
+
+  test("keeps a material's keyword passage without an assignment binding", () => {
+    const read = {
+      id: 3,
+      title: "Lecture 4: Pointers",
+      keywords: ["heap"],
+      passages: [{ lines: [{ number: 42, text: "A heap allocation remains live until freed." }] }],
+    }
+    expect(JolliSources.materialEvidenceOf(READ, result(JSON.stringify(read)))).toEqual([
+      {
+        kind: "material",
+        materialId: "3",
+        title: "Lecture 4: Pointers",
+        text: "A heap allocation remains live until freed.",
+      },
+    ])
+    expect(JolliSources.materialEvidenceOf(READ, result(JSON.stringify(read), true))).toEqual([])
+  })
+
+  test.each([
+    { passages: [] },
+    { passages: [{ lines: [] }] },
+    { passages: [{ lines: [{ text: "  " }] }] },
+    { passages: [{ lines: [{ text: 7 }] }] },
+    { passages: [{ text: "missing lines" }] },
+  ])("offers no evidence from empty or malformed keyword passages: %j", ({ passages }) => {
+    const read = {
+      id: 3,
+      title: "Lecture 4",
+      keywords: ["heap"],
+      passages,
+      note: "No line of this material holds these keywords.",
+    }
+    expect(JolliSources.materialEvidenceOf(READ, result(JSON.stringify(read)))).toEqual([])
+  })
+
   test("offers nothing for a read with no text, a refusal, a failed call, or another tool", () => {
     const empty = { id: 3, title: "Scan", lines: [], message: "No text was extracted." }
     expect(JolliSources.materialEvidenceOf(READ, result(JSON.stringify(empty)))).toEqual([])
@@ -185,8 +292,24 @@ describe("JolliSources tool names", () => {
     )
     expect(JolliSources.withheldCourseTools({ bound: true, includeAssignments: false })).toEqual([
       JolliSources.ASSIGNMENT_LIST_TOOL,
+      JolliSources.WORK_LIST_TOOL,
+      ...JolliSources.WORK_TOOLS,
     ])
     expect(JolliSources.withheldCourseTools({ bound: true, includeAssignments: true })).toEqual([])
+  })
+
+  // As the web chat serves them: a task reads what it uses, whatever the switch; any other chat its own work in the course.
+  test("offers a task session the work it uses and never the course's list of the student's work", () => {
+    expect(JolliSources.withheldCourseTools({ bound: true, includeAssignments: true, taskSession: true })).toEqual([
+      JolliSources.WORK_LIST_TOOL,
+    ])
+    expect(JolliSources.withheldCourseTools({ bound: true, includeAssignments: false, taskSession: true })).toEqual([
+      JolliSources.ASSIGNMENT_LIST_TOOL,
+      JolliSources.WORK_LIST_TOOL,
+    ])
+    expect(JolliSources.COURSE_TOOLS).toEqual(
+      expect.arrayContaining([JolliSources.WORK_LIST_TOOL, ...JolliSources.WORK_TOOLS]),
+    )
   })
 })
 

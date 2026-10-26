@@ -23,7 +23,7 @@ import { EffectBridge } from "@/effect/bridge"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { isRecord } from "@/util/record"
 import { RuntimeFlags } from "@/effect/runtime-flags"
-import { courseToolRules, listMcpTools } from "@/plugin/jolli-mcp-tools"
+import { courseToolRules, inStoredTaskSession, listMcpTools } from "@/plugin/jolli-mcp-tools"
 import { HAND_IN_PERMISSIONS, taskBindingOf } from "@opencode-ai/core/jolli/assignment"
 import { bindingOrg } from "@opencode-ai/core/jolli/org-scoped-id"
 import { JolliMcpCall } from "@/mcp/jolli-call"
@@ -75,6 +75,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   const mcp = yield* MCP.Service
   const truncate = yield* Truncate.Service
   const flags = yield* RuntimeFlags.Service
+  const sessions = yield* Session.Service
   // The org this session's course lives in: every MCP call it makes — tools and resources alike —
   // is made there, so a course server answers about this course and not the home org's namesake.
   const org = bindingOrg(input.session)
@@ -140,9 +141,14 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   // A session with no course binding is not offered the course tools at all: every call would be
   // refused for the missing binding. The rules reach the code-mode catalog through the ruleset it
   // already filters by; the ordinary MCP tools below skip the same names.
+  //
+  // ⚠ COMPUTED BEFORE THE CODE-MODE RETURN BELOW, AND NEEDED THERE TOO. `registry.tools` filters the
+  // catalog the code-mode tool describes to the model by these rules (`describeCodeMode`); the code-mode
+  // tool derives them again when a script runs, for the tools that script may call.
   const binding = courseBindingOf(input.session)
   const includeAssignments = binding ? yield* JolliCourseGuardrails.assignmentsIncluded(binding) : false
-  const withheldCourseTools = courseToolRules(input.session, includeAssignments)
+  const taskSession = binding ? yield* inStoredTaskSession(sessions, input.session) : false
+  const withheldCourseTools = courseToolRules(input.session, includeAssignments, taskSession)
   const withheld = new Set(withheldCourseTools.map((rule) => rule.permission))
   /**
    * ⚠ THE HAND-IN TOOLS EXIST ONLY IN A TASK'S OWN SESSION. A plain chat, a fork and a child session —
@@ -448,11 +454,18 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     })
   }
 
+  /**
+   * Through the Jolli read, which lists the course server's tools again when the cached manifest lacks a
+   * course tool this session is offered — the code-mode catalog reads them the same way.
+   *
+   * ⚠ READ BEFORE THE CODE-MODE RETURN. The catalog `registry.tools` described above comes from the manifest
+   * as it stands, and only this read asks for it to be listed again; skipped in code mode, a session whose
+   * model never runs a script would describe a stale catalog for as long as the connection lives.
+   */
+  const mcpTools = yield* listMcpTools(mcp, withheld)
   if (flags.experimentalCodeMode) return preparedTools()
 
-  // Through the Jolli read, which lists the course server's tools again when this session's assistant
-  // reads assignments and the cached manifest predates them — the code-mode catalog reads them the same way.
-  for (const [key, entry] of Object.entries(yield* listMcpTools(mcp, includeAssignments))) {
+  for (const [key, entry] of Object.entries(mcpTools)) {
     if (withheld.has(key)) continue
     const item = McpCatalog.convertTool(entry.def, entry.client, entry.timeout)
     const execute = item.execute
@@ -461,7 +474,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     const schema = yield* Effect.promise(() => Promise.resolve(asSchema(item.inputSchema).jsonSchema))
     const definition = {
       description: item.description ?? "",
-      parameters: { ...schema, properties: schema.properties ?? {} },
+      parameters: structuredClone({ ...schema, properties: schema.properties ?? {} }),
     }
     yield* plugin.trigger("tool.definition", { toolID: key }, definition)
     item.description = definition.description
@@ -473,7 +486,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
           const ctx = context(args, opts)
           yield* plugin.trigger(
             "tool.execute.before",
-            { tool: key, sessionID: ctx.sessionID, callID: opts.toolCallId },
+            { tool: key, sessionID: ctx.sessionID, callID: opts.toolCallId, parameters: entry.def.inputSchema },
             { args },
           )
           const result: Awaited<ReturnType<NonNullable<typeof execute>>> = yield* Effect.gen(function* () {

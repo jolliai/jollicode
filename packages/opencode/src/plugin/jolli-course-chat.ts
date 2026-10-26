@@ -23,25 +23,19 @@
  * ⚠ A COURSE TOOL REQUIRES A VALID SESSION BINDING. A missing or malformed binding
  * stops the call before it reaches MCP, including when the model supplied ids.
  *
- * ⚠ LIST CURSORS LIVE IN THIS PLUGIN, NOT IN `session.metadata`. A renderer's metadata write
- * replaces the whole bag, so a cursor stored there vanished on the next unrelated PATCH, and the
- * read-modify-write needed to store it could put back a bag a renderer had just changed. A cursor
- * only means something to the process that served its page, so a restart forgetting it costs the
- * student a fresh first page rather than a wrong one. The same holds for the bound on how many
- * sessions keep one: the least recently paged session is dropped first.
+ * ⚠ A LIST'S NEXT PAGE IS ASKED FOR WITH THE SERVER'S OWN CURSOR, WHICH THE MODEL PASSES BACK. Every
+ * course list returns where its next page starts — a page number, or an opaque cursor that carries the
+ * whole listing it continues — and its cursor parameter goes to the model as the server declared it.
+ * The client accepts only cursors returned for the same session, tool and listing. This guards older
+ * servers that accept arbitrary page numbers. Opaque material cursors carry their own catalog and level,
+ * which the server validates, so those filters may be omitted on a continuation as its schema directs.
+ * After a restart or eviction, a continuation must start again from the first page.
  *
- * ⚠ A CONTINUATION WAITS FOR AN EARLIER ONE OF THE SAME LIST, BUT ONLY SO LONG. The cursor is read
- * before a page is fetched and written after, so two continuations in flight at once — a parallel
- * tool step, or `Promise.all` in code mode — read the same cursor and fetch the same page twice.
- * The later one therefore waits for the earlier one to report back before reading. The wait is
- * bounded because the after hook runs only when a call succeeds: a continuation that failed
- * would otherwise hold every later one of its list forever.
- *
- * ⚠ PAGING GUIDANCE LIVES IN THE TOOL DESCRIPTION AND THE RESULT, NEVER IN THE SYSTEM PROMPT. The
+ * ⚠ PAGING GUIDANCE LIVES IN THE TOOL DEFINITION AND THE RESULT, NEVER IN THE SYSTEM PROMPT. The
  * system block leads the cached prompt prefix, so a sentence there that follows the paging state
  * invalidated the cache for the whole history whenever a list was shown or ran out, and it rode
- * along on every request of the session, title generation included. The list tools' descriptions
- * already say when to pass `continue`, and each page's own `hasMore` says whether there is more.
+ * along on every request of the session, title generation included. The cursor parameter's own
+ * description says how to pass it, and each page's own `hasMore` says whether there is more.
  */
 import type { Hooks, PluginInput } from "@opencode-ai/plugin"
 import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
@@ -54,25 +48,13 @@ import type { EffectBridge } from "@/effect/bridge"
 import { SessionID } from "@/session/schema"
 import { Session } from "@/session/session"
 import { isRecord } from "@/util/record"
-import {
-  COURSE_TOOL_IDS,
-  courseToolBindingOf,
-  kindOf,
-  projectJolliToolDefinition,
-  type ListKind,
-} from "./jolli-mcp-tools"
-
-type PagingState = {
-  assignments?: { nextCursor: number | null; courseId: number; assistantId: number }
-  materials?: { nextCursor: number | null; courseId: number; assistantId: number }
-  attachments?: { nextCursor: string | null }
-}
+import { COURSE_TOOL_IDS, LIST_TOOL_IDS, courseToolBindingOf, projectJolliToolDefinition } from "./jolli-mcp-tools"
 
 /**
- * Sessions whose cursors, or whose citations switch, are kept. A long-lived desktop sidecar would
- * otherwise keep them for every session forever.
+ * Sessions whose citations switch is kept. A long-lived desktop sidecar would otherwise keep it for every
+ * session forever.
  */
-const MAX_PAGED_SESSIONS = 256
+const MAX_CITED_SESSIONS = 256
 
 /**
  * How long a session's citations switch is kept once read.
@@ -84,22 +66,15 @@ const MAX_PAGED_SESSIONS = 256
  */
 const CITATIONS_TTL_MS = 60_000
 
-/**
- * How long a continuation waits for an earlier one of the same list before reading the cursor
- * anyway. The MCP layer's default per-call timeout, so a healthy earlier call has always reported
- * back by then, and a failed one costs a later call this much latency rather than its answer.
- */
-const PAGE_WAIT_MS = 30_000
-
-/** A continuation that has read its cursor and not yet reported back, keyed by session and list. */
-type InflightPage = { callID: string; settled: Promise<void>; release: () => void }
-
+const MAX_PAGED_LISTS = 256
+const MAX_PAGE_CURSORS = 64
+const CURSOR_PARAMETERS = new Set(["page", "afterId", "cursor"])
 const decodePage = Schema.decodeUnknownOption(
   Schema.fromJsonString(
     Schema.Struct({
-      results: Schema.Array(Schema.Unknown),
-      nextCursor: Schema.NullOr(Schema.Union([Schema.Number, Schema.String])),
       hasMore: Schema.Boolean,
+      nextPage: Schema.optional(Schema.NullOr(Schema.Int)),
+      nextCursor: Schema.optional(Schema.NullOr(Schema.Union([Schema.String, Schema.Int]))),
     }),
   ),
 )
@@ -108,25 +83,13 @@ export async function JolliCourseChatPlugin(
   _input: PluginInput,
   options: {
     bridge: EffectBridge.Shape
-    pageWaitMs?: number
     /** Whether the session's course shows citations; see {@link citationsShownFor}. Replaced in tests. */
     citationsShown?: (sessionID: string) => Promise<boolean | undefined>
   },
 ): Promise<Hooks> {
-  const paging = new Map<string, PagingState>()
-  const inflight = new Map<string, InflightPage>()
   const citations = new Map<string, { readAt: number; shown: Promise<boolean | undefined> }>()
-  const pageWaitMs = options.pageWaitMs ?? PAGE_WAIT_MS
+  const pages = new Map<string, Set<string | number>>()
   const readCitations = options.citationsShown ?? ((sessionID: string) => citationsShownFor(options.bridge, sessionID))
-
-  /** Save a session's cursors as the most recently used, dropping the least recently used past the bound. */
-  function remember(sessionID: string, state: PagingState) {
-    paging.delete(sessionID)
-    paging.set(sessionID, state)
-    if (paging.size <= MAX_PAGED_SESSIONS) return
-    const oldest = paging.keys().next().value
-    if (oldest !== undefined) paging.delete(oldest)
-  }
 
   /**
    * The session's course binding, or undefined when it has none. A session that cannot be read at
@@ -163,50 +126,11 @@ export async function JolliCourseChatPlugin(
     const shown = readCitations(sessionID).catch(() => undefined)
     citations.delete(sessionID)
     citations.set(sessionID, { readAt: Date.now(), shown })
-    if (citations.size > MAX_PAGED_SESSIONS) {
+    if (citations.size > MAX_CITED_SESSIONS) {
       const oldest = citations.keys().next().value
       if (oldest !== undefined) citations.delete(oldest)
     }
     return shown
-  }
-
-  /** Wait for an earlier continuation of this list to report back, for at most `pageWaitMs`. */
-  async function afterEarlierPage(key: string) {
-    const running = inflight.get(key)
-    if (!running) return
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const bound = new Promise<void>((resolve) => {
-      timer = setTimeout(resolve, pageWaitMs)
-    })
-    await Promise.race([running.settled, bound]).finally(() => clearTimeout(timer))
-  }
-
-  /** Mark this call as the continuation of its list now reading, so the next one waits for it. */
-  function claimPage(key: string, callID: string) {
-    const { promise, resolve } = Promise.withResolvers<void>()
-    inflight.get(key)?.release()
-    inflight.delete(key)
-    inflight.set(key, { callID, settled: promise, release: resolve })
-    if (inflight.size <= MAX_PAGED_SESSIONS) return
-    const oldest = inflight.keys().next().value
-    if (oldest === undefined) return
-    inflight.get(oldest)?.release()
-    inflight.delete(oldest)
-  }
-
-  /** Let the next continuation of this list go, once this call has written its cursor. */
-  function settlePage(key: string, callID: string) {
-    const running = inflight.get(key)
-    if (running?.callID !== callID) return
-    running.release()
-    inflight.delete(key)
-  }
-
-  /** Drop one list's cursor, so a continuation can only follow a page this process actually served. */
-  function forget(sessionID: string, kind: ListKind) {
-    const state = paging.get(sessionID)
-    if (!state) return
-    remember(sessionID, { ...state, [kind]: undefined })
   }
 
   return {
@@ -234,55 +158,76 @@ export async function JolliCourseChatPlugin(
     },
     "tool.execute.before": async (input, output) => {
       const course = COURSE_TOOL_IDS.has(input.tool)
-      const kind = kindOf(input.tool)
-      if (!course && !kind) return
+      if (!course && !LIST_TOOL_IDS.has(input.tool)) return
       if (!isRecord(output.args)) {
         if (course) throw new Error("Course tool arguments must be an object.")
         return
       }
       const args = output.args
+      // This invocation's original schema; a concurrent relist cannot change what this call accepts.
+      const properties =
+        isRecord(input.parameters) && isRecord(input.parameters.properties) ? input.parameters.properties : {}
       if (course) {
         const binding = await bindingOf(input.sessionID)
         if (!binding) throw new Error("Course tool requires a valid session course and assistant binding.")
         // The MCP executor retains this object, so the session binding replaces model-supplied ids.
         Object.assign(args, binding)
-        // Read while the call runs, so its result is not held back for it after; see the after hook.
-        if (JolliSources.isMaterialTool(input.tool)) void citationsShown(input.sessionID)
+        delete args.sessionId
+        /**
+         * ⚠ THE CALLING SESSION'S OWN ID, A SUBAGENT'S INCLUDED, NOT ITS TASK ROOT'S. The gateway records a
+         * subagent's session with its parent, from `x-parent-session-id` on the subagent's model requests,
+         * which come before any tool call it makes. The server walks from this id up to the task's root
+         * itself (`taskSessionFor` in jolliedu), so the root's id is not substituted here.
+         */
+        if ("sessionId" in properties) args.sessionId = input.sessionID
       }
-      if (!kind) return
-      const wantsMore = args.continue === true
-      delete args.continue
-      delete args[kind === "materials" ? "afterId" : kind === "assignments" ? "page" : "cursor"]
-      // A fresh list starts over, and a failure of it must not leave the previous list's cursor behind.
-      if (!wantsMore) return forget(input.sessionID, kind)
-      const key = pageKey(input.sessionID, kind)
-      await afterEarlierPage(key)
-      const state = paging.get(input.sessionID)
-      if (kind === "materials" || kind === "assignments") {
-        const page = state?.[kind]
-        if (!page || page.courseId !== args.courseId || page.assistantId !== args.assistantId) {
-          throw new Error(
-            kind === "materials"
-              ? "No course material page is saved for this session. Start a fresh list."
-              : "No assignment page is saved for this session. Start a fresh list.",
-          )
+      if (LIST_TOOL_IDS.has(input.tool)) {
+        const cursor =
+          input.tool === JolliSources.ASSIGNMENT_LIST_TOOL
+            ? "page"
+            : (["cursor", "afterId"].find((name) => name in properties) ?? "cursor")
+        for (const name of CURSOR_PARAMETERS) {
+          if (name !== cursor || args[name] === null) delete args[name]
         }
-        if (page.nextCursor === null)
-          throw new Error(
-            kind === "materials"
-              ? "No more course materials are available in this session."
-              : "No more assignments are available in this session.",
-          )
-        args[kind === "materials" ? "afterId" : "page"] = page.nextCursor
-        return claimPage(key, input.callID)
+        const value = args[cursor]
+        /**
+         * ⚠ ASSIGNMENT PAGES START AT 0, SO ONLY PAGE 0 NEEDS NO RETURNED CURSOR. The server declares `page`
+         * as `.min(0)` and answers with `nextPage = page + 1`: the first page returns `nextPage: 1`, and
+         * `page: 1` is the second page, accepted only once a page returned it, like any other.
+         */
+        if (value !== undefined && !(cursor === "page" && value === 0)) {
+          const key = pageKey(input.sessionID, input.tool, args, value)
+          const returned = pages.get(key)
+          if ((typeof value !== "string" && typeof value !== "number") || !returned?.has(value)) {
+            throw new Error(
+              "Pagination cursor was not returned for this list. Omit the cursor to restart from the first page.",
+            )
+          }
+          // A list being paged through is the most recently used, so it is not the one the bound drops.
+          pages.delete(key)
+          pages.set(key, returned)
+        }
       }
-      const cursor = state?.attachments?.nextCursor
-      if (cursor === undefined) throw new Error("No attachment page is saved for this session. Start a fresh list.")
-      if (cursor === null) throw new Error("No more attachments are available in this session.")
-      args.cursor = cursor
-      claimPage(key, input.callID)
+      // Read while the call runs, so its result is not held back for it after; see the after hook.
+      if (JolliSources.isMaterialTool(input.tool)) void citationsShown(input.sessionID)
     },
     "tool.execute.after": async (input, output) => {
+      if (LIST_TOOL_IDS.has(input.tool)) {
+        const text = JolliSources.firstText(output)
+        const page = text === undefined ? Option.none() : decodePage(text)
+        if (Option.isSome(page) && page.value.hasMore) {
+          const next = input.tool === JolliSources.ASSIGNMENT_LIST_TOOL ? page.value.nextPage : page.value.nextCursor
+          if (typeof next === "string" || typeof next === "number") {
+            const key = pageKey(input.sessionID, input.tool, input.args, next)
+            const returned = pages.get(key) ?? new Set<string | number>()
+            returned.add(next)
+            if (returned.size > MAX_PAGE_CURSORS) returned.delete(returned.values().next().value!)
+            pages.delete(key)
+            pages.set(key, returned)
+            if (pages.size > MAX_PAGED_LISTS) pages.delete(pages.keys().next().value!)
+          }
+        }
+      }
       /**
        * ⚠ READ HERE, FROM THE WHOLE RESULT, BECAUSE THE STORED OUTPUT MAY BE CUT. The output limit
        * applies after this hook, and a cut JSON cannot be read back when the turn's sources are
@@ -317,52 +262,32 @@ export async function JolliCourseChatPlugin(
           }),
         )
       }
-      const kind = kindOf(input.tool)
-      if (!kind) return
-      // Released after the cursor below is written, so a waiting continuation reads the new one.
-      const release = () => settlePage(pageKey(input.sessionID, kind), input.callID)
-      const page = pageOf(output, kind)
-      const next = page?.hasMore ? page.nextCursor : null
-      if (kind === "materials" || kind === "assignments") {
-        const courseId = input.args.courseId
-        const assistantId = input.args.assistantId
-        if (
-          !page ||
-          typeof courseId !== "number" ||
-          typeof assistantId !== "number" ||
-          (next !== null && (typeof next !== "number" || next <= 0))
-        ) {
-          forget(input.sessionID, kind)
-          return release()
-        }
-        remember(input.sessionID, {
-          ...paging.get(input.sessionID),
-          [kind]: { nextCursor: next, courseId, assistantId },
-        })
-        return release()
-      }
-      if (!page || (next !== null && (typeof next !== "string" || next.length === 0))) {
-        forget(input.sessionID, kind)
-        return release()
-      }
-      remember(input.sessionID, {
-        ...paging.get(input.sessionID),
-        attachments: { nextCursor: next },
-      })
-      release()
     },
   }
 }
 
-/** The page a successful list call returned, or undefined for an error or an unexpected shape. */
-function pageOf(output: unknown, kind: ListKind) {
-  const text = JolliSources.firstText(output)
-  if (text === undefined) return undefined
-  if (kind !== "assignments") return Option.getOrUndefined(decodePage(text))
-  const page = Schema.decodeUnknownOption(
-    Schema.fromJsonString(Schema.Struct({ hasMore: Schema.Boolean, nextPage: Schema.NullOr(Schema.Int) })),
-  )(text)
-  return Option.isSome(page) ? { hasMore: page.value.hasMore, nextCursor: page.value.nextPage } : undefined
+/**
+ * The listing a cursor belongs to: the session, the tool and the filters it was called with. A filter set to
+ * null names the same listing as one left out, so a page and its continuation key alike whichever way the
+ * model wrote it. Only opaque material cursors carry catalog and level; older numeric cursors still need
+ * both filters.
+ */
+function pageKey(sessionID: string, tool: string, args: Record<string, unknown>, cursor: unknown) {
+  const positioned = tool === JolliSources.MATERIAL_LIST_TOOL && typeof cursor === "string"
+  return JSON.stringify([
+    sessionID,
+    tool,
+    Object.entries(args)
+      .filter(
+        ([name, value]) =>
+          value !== null &&
+          value !== undefined &&
+          !CURSOR_PARAMETERS.has(name) &&
+          name !== "sessionId" &&
+          (!positioned || (name !== "catalog" && name !== "underMaterialId")),
+      )
+      .sort(([a], [b]) => a.localeCompare(b)),
+  ])
 }
 
 /**
@@ -379,8 +304,4 @@ function citationsShownFor(bridge: EffectBridge.Shape, sessionID: string): Promi
       return (yield* JolliCourseGuardrails.ofBinding(binding))?.showCitations
     }).pipe(Effect.catchCause(() => Effect.succeed(undefined))),
   )
-}
-
-function pageKey(sessionID: string, kind: ListKind) {
-  return `${sessionID}:${kind}`
 }

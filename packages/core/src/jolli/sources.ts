@@ -36,17 +36,36 @@ export const MATERIAL_TOOLS = [
 
 export const ASSIGNMENT_LIST_TOOL = `${COURSE_TOOL_PREFIX}list_remote_course_assignments`
 
+/** Lists the course's material catalog, without body text. */
+export const MATERIAL_LIST_TOOL = `${COURSE_TOOL_PREFIX}list_all_materials_in_remote_course`
+
+/** Lists the student's own handed-in work at the course's assignments, outside any task. */
+export const WORK_LIST_TOOL = `${COURSE_TOOL_PREFIX}list_student_work`
+
+/** Find passages in, and read, the student's own submitted work: what a task uses, or their work in the course. */
+export const WORK_TOOLS = [
+  `${COURSE_TOOL_PREFIX}search_student_work`,
+  `${COURSE_TOOL_PREFIX}read_student_work`,
+] as const
+
 export const COURSE_TOOLS = [
   `${COURSE_TOOL_PREFIX}get_conversation_context`,
-  `${COURSE_TOOL_PREFIX}list_all_materials_in_remote_course`,
+  MATERIAL_LIST_TOOL,
   ASSIGNMENT_LIST_TOOL,
   ...MATERIAL_TOOLS,
+  WORK_LIST_TOOL,
+  ...WORK_TOOLS,
 ] as const
 
 /**
  * The course tools a session is not offered: every one of them without a course binding, where each
- * call would be refused for the missing binding, and the assignment list where the bound assistant
- * does not read assignments.
+ * call would be refused for the missing binding; the assignment list where the bound assistant
+ * does not read assignments; and the student's work as the web chat serves it.
+ *
+ * ⚠ THE WORK TOOLS FOLLOW THE WEB CHAT'S TOOL SET. A session an assignment task started — or a subagent
+ * working for one — reads the work that task uses, which its context numbers, so it is not offered the
+ * course's list of the student's work. Any other session reads the student's own work at the course's
+ * assignments, and only while the assistant reads assignments, as a course's own chat on the web does.
  *
  * ⚠ THE ONE COPY OF THIS RULE. The v2 runner and the v1 tool list and code-mode catalog each turn it
  * into the deny rules of their own permission model; written out at each, a change to the gating
@@ -55,9 +74,14 @@ export const COURSE_TOOLS = [
 export function withheldCourseTools(input: {
   readonly bound: boolean
   readonly includeAssignments: boolean
+  /** The session belongs to an assignment task: the task's own session, or a subagent working for it. */
+  readonly taskSession?: boolean
 }): readonly string[] {
   if (!input.bound) return COURSE_TOOLS
-  return input.includeAssignments ? [] : [ASSIGNMENT_LIST_TOOL]
+  const assignments = input.includeAssignments ? [] : [ASSIGNMENT_LIST_TOOL]
+  if (input.taskSession) return [...assignments, WORK_LIST_TOOL]
+  if (input.includeAssignments) return assignments
+  return [...assignments, WORK_LIST_TOOL, ...WORK_TOOLS]
 }
 
 /** The built-in tools that reach the web. */
@@ -155,10 +179,11 @@ const RetrievedChunk = Schema.Struct({
   evidenceKind: Schema.Literal("retrieved_chunk"),
   snippet: Schema.String,
 })
-const MaterialRead = Schema.Struct({
-  ...MaterialRef.fields,
-  lines: Schema.Array(Schema.Struct({ text: Schema.String })),
-})
+const MaterialLines = Schema.Array(Schema.Struct({ text: Schema.String }))
+const MaterialRead = Schema.Union([
+  Schema.Struct({ ...MaterialRef.fields, lines: MaterialLines }),
+  Schema.Struct({ ...MaterialRef.fields, passages: Schema.Array(Schema.Struct({ lines: MaterialLines })) }),
+])
 /** A course search page, and a web search provider that answers with JSON: a list of results. */
 const decodeResultList = Schema.decodeUnknownOption(
   Schema.fromJsonString(Schema.Struct({ results: Schema.Array(Schema.Unknown) })),
@@ -185,7 +210,12 @@ export function materialEvidenceOf(tool: string, output: unknown): Evidence[] {
   if (tool === MATERIAL_TOOLS[1]) {
     return Option.match(decodeRead(text), {
       onNone: () => [],
-      onSome: (read) => materialEvidence(read, read.lines.map((line) => line.text).join("\n")),
+      // Bound stored evidence per result as well as per passage; selection cannot use more candidates.
+      onSome: (read) =>
+        ("lines" in read
+          ? [read.lines]
+          : read.passages.slice(0, MAX_CANDIDATES).map((passage) => passage.lines)
+        ).flatMap((lines) => materialEvidence(read, lines.map((line) => line.text).join("\n"))),
     })
   }
   return Option.match(decodeResultList(text), {

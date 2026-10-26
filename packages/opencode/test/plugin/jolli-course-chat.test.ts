@@ -19,8 +19,8 @@ import { NpmTest } from "../fake/npm"
 import { testEffect } from "../lib/effect"
 
 /**
- * A bridge over a session that only answers reads. Paging state belongs to the plugin, so a write
- * to the session's metadata would be a regression, and it fails the test that makes it.
+ * A bridge over a session that only answers reads. The plugin keeps nothing in the session, so a write
+ * to its metadata would be a regression, and it fails the test that makes it.
  *
  * Hand-made on purpose: these tests pin the hooks' own logic. Whether the production bridge can
  * reach `Session` at all is a property of `Plugin.node`, which this bridge bypasses, so the plugin
@@ -42,7 +42,7 @@ function sessionBridge(metadata?: Record<string, unknown>) {
                   reads += 1
                   return { metadata } as Session.Info
                 }),
-              setMetadata: () => Effect.die(new Error("paging state must not be written into session metadata")),
+              setMetadata: () => Effect.die(new Error("the course chat plugin must not write session metadata")),
             }),
           ),
         ) as Effect.Effect<A, E>,
@@ -57,12 +57,21 @@ function sessionBridge(metadata?: Record<string, unknown>) {
 const BOUND = { jolli: { courseId: "7", assistantId: "12" } }
 
 function page(body: Record<string, unknown>) {
-  return { content: [{ type: "text", text: JSON.stringify(body) }] } as never
+  return { content: [{ type: "text", text: JSON.stringify(body) }], title: "List", output: "", metadata: undefined }
+}
+
+async function expectCursorRejected(call: Promise<void>) {
+  const error = await call.then(
+    () => undefined,
+    (reason: unknown) => reason,
+  )
+  expect(error).toBeInstanceOf(Error)
+  expect(String(error)).toContain("not returned")
 }
 
 async function plugin(
   metadata?: Record<string, unknown>,
-  options: { pageWaitMs?: number; citationsShown?: (sessionID: string) => Promise<boolean | undefined> } = {},
+  options: { citationsShown?: (sessionID: string) => Promise<boolean | undefined> } = {},
 ) {
   const session = sessionBridge(metadata)
   const hooks = await JolliCourseChatPlugin({} as PluginInput, {
@@ -70,7 +79,14 @@ async function plugin(
     citationsShown: async () => true,
     ...options,
   })
-  return { hooks, reads: session.reads }
+  const before = hooks["tool.execute.before"]
+  const after = hooks["tool.execute.after"]
+  const definition = hooks["tool.definition"]
+  if (!before || !after || !definition) throw new Error("Course chat hooks must be present")
+  return {
+    hooks: { ...hooks, "tool.execute.before": before, "tool.execute.after": after, "tool.definition": definition },
+    reads: session.reads,
+  }
 }
 
 /** A bridge whose session read fails, as a storage fault would make it. */
@@ -144,22 +160,38 @@ describe("plugin.jolli-course-chat", () => {
     })
   })
 
-  test("shows a continuation flag while hiding list cursors from the model", async () => {
+  test("preserves list schemas and server descriptions while adding complete-list guidance", async () => {
     const { hooks } = await plugin()
-    const output = {
-      description: "list attachments",
-      parameters: {
-        type: "object",
-        properties: { limit: { type: "number" }, cursor: { type: "string" } },
-        required: [] as string[],
-      },
+    const pageNumber = {
+      type: "integer",
+      description: "To read the next page, pass the nextPage the previous one returned.",
     }
+    const opaqueCursor = {
+      type: "string",
+      description: "To read the next page, pass the nextCursor the previous one returned.",
+    }
+    const binding = { courseId: { type: "number" }, assistantId: { type: "number" }, sessionId: { type: "string" } }
+    const lists = [
+      ["jolliedu_list_remote_course_assignments", { ...binding, page: pageNumber }, { page: pageNumber }],
+      ["jolliedu_list_all_materials_in_remote_course", { ...binding, cursor: opaqueCursor }, { cursor: opaqueCursor }],
+      ["jolliedu_list_user_attachments", { cursor: opaqueCursor }, { cursor: opaqueCursor }],
+    ] as const
+    for (const [toolID, declared, shown] of lists) {
+      const description = "List them. When `hasMore` is true, tell the student in their language."
+      const output: { description: string; parameters: { type: string; properties: Record<string, unknown> } } = {
+        description,
+        parameters: { type: "object", properties: declared },
+      }
 
-    await hooks["tool.definition"]?.({ toolID: "jolliedu_list_user_attachments" }, output)
+      await hooks["tool.definition"]?.({ toolID }, output)
 
-    expect(output.parameters.properties).toHaveProperty("continue")
-    expect(output.parameters.properties).not.toHaveProperty("cursor")
-    expect(output.description).toContain("continue=true")
+      expect(output.description).toStartWith(description)
+      expect(output.description).toContain("follow every page until hasMore is false")
+      expect(output.parameters.properties).toEqual(shown)
+    }
+    // A system sentence that follows the paging state would invalidate the cached prompt prefix.
+    expect(hooks["experimental.chat.system.transform"]).toBeUndefined()
+    expect(hooks["experimental.text.complete"]).toBeUndefined()
   })
 
   test("injects and overwrites the binding in the original MCP argument object", async () => {
@@ -172,6 +204,63 @@ describe("plugin.jolli-course-chat", () => {
     )
 
     expect(args).toEqual({ question: "What is this lesson about?", courseId: 7, assistantId: 12 })
+  })
+
+  test("sends the session's own id to a course tool whose server-side schema takes it, and to no other", async () => {
+    const { hooks } = await plugin(BOUND)
+    const takesSession = {
+      description: "Read",
+      parameters: { type: "object", properties: { courseId: {}, assistantId: {}, sessionId: {}, number: {} } },
+    }
+    const older = { description: "Read", parameters: { type: "object", properties: { courseId: {}, id: {} } } }
+    const workSchema = structuredClone(takesSession.parameters)
+    await hooks["tool.definition"]?.({ toolID: "jolliedu_read_student_work" }, takesSession)
+    await hooks["tool.definition"]?.({ toolID: "jolliedu_get_remote_material_content" }, older)
+    const work: Record<string, unknown> = { number: 1, sessionId: "ses_forged" }
+    const material: Record<string, unknown> = { id: 3, sessionId: "ses_forged" }
+
+    await hooks["tool.execute.before"]?.(
+      { tool: "jolliedu_read_student_work", sessionID: "ses_test", callID: "call_1", parameters: workSchema },
+      { args: work },
+    )
+    await hooks["tool.execute.before"]?.(
+      {
+        tool: "jolliedu_get_remote_material_content",
+        sessionID: "ses_test",
+        callID: "call_2",
+        parameters: older.parameters,
+      },
+      { args: material },
+    )
+
+    expect(work).toEqual({ number: 1, sessionId: "ses_test", courseId: 7, assistantId: 12 })
+    // A server from before the tool took the session refuses an argument its schema does not declare, and the
+    // model never names one: the id it forged is dropped too.
+    expect(material).toEqual({ id: 3, courseId: 7, assistantId: 12 })
+  })
+
+  test("concurrent calls use their captured schemas despite another session or relist", async () => {
+    const { hooks } = await plugin(BOUND)
+    const tool = "jolliedu_read_student_work"
+    const current = { type: "object", properties: { sessionId: {} }, additionalProperties: false }
+    const older = { type: "object", properties: {}, additionalProperties: false }
+    for (const lastSeen of [current, older]) {
+      await hooks["tool.definition"]?.({ toolID: tool }, { description: "Read", parameters: structuredClone(lastSeen) })
+      const calls = [
+        { sessionID: "ses_new", parameters: current, args: { sessionId: "ses_forged" } as Record<string, unknown> },
+        { sessionID: "ses_old", parameters: older, args: { sessionId: "ses_forged" } as Record<string, unknown> },
+      ]
+      await Promise.all(
+        calls.map((call, index) =>
+          hooks["tool.execute.before"]?.(
+            { tool, sessionID: call.sessionID, callID: `call_${index}`, parameters: call.parameters },
+            { args: call.args },
+          ),
+        ),
+      )
+      expect(calls[0].args.sessionId).toBe("ses_new")
+      expect(calls[1].args).not.toHaveProperty("sessionId")
+    }
   })
 
   test("refuses a course tool when the session has no valid binding", async () => {
@@ -214,6 +303,21 @@ describe("plugin.jolli-course-chat", () => {
     expect(args).toEqual({})
   })
 
+  /** Only a course tool's arguments are the client's to refuse; any other tool's go to MCP to validate. */
+  test("refuses non-object arguments to course tools only", async () => {
+    const { hooks } = await plugin(BOUND)
+    await hooks["tool.execute.before"](
+      { tool: "jolliedu_list_user_attachments", sessionID: "ses_test", callID: "call_1" },
+      { args: "next" },
+    )
+    await expect(
+      hooks["tool.execute.before"](
+        { tool: "jolliedu_list_all_materials_in_remote_course", sessionID: "ses_test", callID: "call_2" },
+        { args: "next" },
+      ),
+    ).rejects.toThrow("Course tool arguments must be an object.")
+  })
+
   test("records the evidence a course read returned on its tool part, from the whole result", async () => {
     const { hooks } = await plugin(BOUND)
     const output = page({
@@ -230,6 +334,34 @@ describe("plugin.jolli-course-chat", () => {
     expect(output.metadata).toEqual({
       evidence: [
         { kind: "material", materialId: "3", title: "Lecture 4: Pointers", text: "A pointer holds an address." },
+      ],
+    })
+  })
+
+  test("records keyword passages on the tool part for citation selection", async () => {
+    const { hooks } = await plugin(BOUND)
+    const output = page({
+      id: 3,
+      title: "Lecture 4: Pointers",
+      keywords: ["heap"],
+      passages: [
+        { lines: [{ number: 42, text: "Allocate on the heap." }] },
+        { lines: [{ number: 80, text: "Free the allocation once." }] },
+      ],
+    }) as { metadata?: Record<string, unknown> }
+    await hooks["tool.execute.after"]?.(
+      {
+        tool: "jolliedu_get_remote_material_content",
+        sessionID: "ses_test",
+        callID: "call_1",
+        args: { id: 3, keywords: ["heap"] },
+      },
+      output as never,
+    )
+    expect(output.metadata).toEqual({
+      evidence: [
+        { kind: "material", materialId: "3", title: "Lecture 4: Pointers", text: "Allocate on the heap." },
+        { kind: "material", materialId: "3", title: "Lecture 4: Pointers", text: "Free the allocation once." },
       ],
     })
   })
@@ -312,192 +444,146 @@ describe("plugin.jolli-course-chat", () => {
     expect(output.metadata).toHaveProperty("evidence")
   })
 
-  test("pages assignments with a session-owned page and stops at the last result", async () => {
+  test("accepts only returned cursors for both legacy and current list schemas", async () => {
+    const { hooks } = await plugin(BOUND)
+    const calls = [
+      ["jolliedu_list_remote_course_assignments", "page", 1],
+      ["jolliedu_list_all_materials_in_remote_course", "afterId", 42],
+      ["jolliedu_list_all_materials_in_remote_course", "cursor", "opaque-material-token"],
+      ["jolliedu_list_user_attachments", "cursor", "opaque-upload-token"],
+    ] as const
+    for (const [tool, cursor, next] of calls) {
+      const input = { tool, sessionID: "ses_test", callID: "call_1", parameters: { properties: { [cursor]: {} } } }
+      const args: Record<string, unknown> = {}
+      await hooks["tool.execute.before"]?.(input, { args })
+      await hooks["tool.execute.after"]?.(
+        { tool, sessionID: "ses_test", callID: "call_1", args },
+        page({ hasMore: true, [cursor === "page" ? "nextPage" : "nextCursor"]: next }),
+      )
+      const continuation: Record<string, unknown> = { [cursor]: next }
+      await hooks["tool.execute.before"]?.(input, { args: continuation })
+      expect(continuation).toEqual({ ...args, [cursor]: next })
+      await expectCursorRejected(hooks["tool.execute.before"](input, { args: { [cursor]: "invented" } }))
+      const fresh: Record<string, unknown> = {}
+      await hooks["tool.execute.before"]?.(input, { args: fresh })
+      expect(fresh).toEqual(tool === "jolliedu_list_user_attachments" ? {} : { courseId: 7, assistantId: 12 })
+    }
+  })
+
+  /** Every way the servers' schemas let a first page be asked for: no page before it returned a cursor. */
+  test.each([
+    ["jolliedu_list_remote_course_assignments", "page", {}],
+    ["jolliedu_list_remote_course_assignments", "page", { page: 0 }],
+    ["jolliedu_list_remote_course_assignments", "page", { page: null }],
+    ["jolliedu_list_all_materials_in_remote_course", "cursor", { cursor: null }],
+    ["jolliedu_list_all_materials_in_remote_course", "afterId", { afterId: null }],
+    ["jolliedu_list_user_attachments", "cursor", { cursor: null }],
+  ] as const)("asks %s for its first page with %s as %j", async (tool, cursor, given) => {
+    const { hooks } = await plugin(BOUND)
+    const args: Record<string, unknown> = { ...given }
+    await hooks["tool.execute.before"](
+      { tool, sessionID: "ses_test", callID: "call_page", parameters: { properties: { [cursor]: {} } } },
+      { args },
+    )
+    // A null cursor is left out rather than sent, as an unset one.
+    expect(args[cursor]).toBe(given[cursor as keyof typeof given] ?? undefined)
+  })
+
+  test("rejects invented page numbers and does not reuse cursors across sessions or filters", async () => {
     const { hooks } = await plugin(BOUND)
     const tool = "jolliedu_list_remote_course_assignments"
-    const fresh: Record<string, unknown> = { page: 999, courseId: 999, assistantId: 999 }
-    await hooks["tool.execute.before"]?.({ tool, sessionID: "ses_test", callID: "assignment_1" }, { args: fresh })
-    expect(fresh).toEqual({ courseId: 7, assistantId: 12 })
-    await hooks["tool.execute.after"]?.(
-      { tool, sessionID: "ses_test", callID: "assignment_1", args: fresh },
-      page({ toDo: [{ id: 1 }], hasMore: true, nextPage: 1 }),
+    const input = { tool, sessionID: "ses_test", callID: "call_page" }
+    // Pages start at 0, as the server numbers them: page 1 is the second page, and needs a page that returned it.
+    await expectCursorRejected(hooks["tool.execute.before"](input, { args: { page: 1 } }))
+    const args = { page: 0, assignmentId: 5 }
+    await hooks["tool.execute.before"]?.(input, { args })
+    await hooks["tool.execute.after"]?.({ ...input, args }, page({ hasMore: true, nextPage: 1 }))
+    await expectCursorRejected(hooks["tool.execute.before"](input, { args: { page: 1, assignmentId: 6 } }))
+    await expectCursorRejected(
+      hooks["tool.execute.before"]({ ...input, sessionID: "ses_other" }, { args: { page: 1, assignmentId: 5 } }),
     )
-    const more: Record<string, unknown> = { continue: true, page: 999 }
-    await hooks["tool.execute.before"]?.({ tool, sessionID: "ses_test", callID: "assignment_2" }, { args: more })
-    expect(more).toEqual({ courseId: 7, assistantId: 12, page: 1 })
-    await hooks["tool.execute.after"]?.(
-      { tool, sessionID: "ses_test", callID: "assignment_2", args: more },
-      page({ toDo: [{ id: 2 }], hasMore: false, nextPage: null }),
-    )
-    await expect(
-      hooks["tool.execute.before"]?.(
-        { tool, sessionID: "ses_test", callID: "assignment_3" },
-        { args: { continue: true } },
-      ),
-    ).rejects.toThrow("No more assignments")
+    await hooks["tool.execute.before"]?.(input, { args: { assignmentId: 5, page: 1 } })
   })
 
-  test("stores an attachment cursor and injects it only for a continuation", async () => {
+  test("lets opaque material cursors carry their catalog and level, while legacy cursors keep their filters", async () => {
     const { hooks } = await plugin(BOUND)
-    const cursor = "opaque-page-token"
-    await hooks["tool.execute.after"]?.(
-      { tool: "jolliedu_list_user_attachments", sessionID: "ses_test", callID: "call_1", args: {} },
-      page({ results: [{ id: 1 }], nextCursor: cursor, hasMore: true }),
-    )
-
-    const more: Record<string, unknown> = { continue: true, cursor: "invented" }
-    await hooks["tool.execute.before"]?.(
-      { tool: "jolliedu_list_user_attachments", sessionID: "ses_test", callID: "call_2" },
-      { args: more },
-    )
-    expect(more).toEqual({ cursor })
-
-    const fresh: Record<string, unknown> = { cursor: "invented" }
-    await hooks["tool.execute.before"]?.(
-      { tool: "jolliedu_list_user_attachments", sessionID: "ses_test", callID: "call_3" },
-      { args: fresh },
-    )
-    expect(fresh).toEqual({})
-  })
-
-  test("keeps course and attachment cursors separate and binds course continuation", async () => {
-    const { hooks } = await plugin(BOUND)
-    await hooks["tool.execute.after"]?.(
-      {
-        tool: "jolliedu_list_all_materials_in_remote_course",
-        sessionID: "ses_test",
-        callID: "call_1",
-        args: { courseId: 7, assistantId: 12 },
-      },
-      page({ results: [{ id: 9 }], nextCursor: 9, hasMore: true }),
-    )
-    await hooks["tool.execute.after"]?.(
-      { tool: "jolliedu_list_user_attachments", sessionID: "ses_test", callID: "call_2", args: {} },
-      page({ results: [{ id: 3 }], nextCursor: "attachment-page", hasMore: true }),
-    )
-
-    const materials: Record<string, unknown> = { continue: true, afterId: 999, courseId: 999 }
-    await hooks["tool.execute.before"]?.(
-      { tool: "jolliedu_list_all_materials_in_remote_course", sessionID: "ses_test", callID: "call_3" },
-      { args: materials },
-    )
-    expect(materials).toEqual({ courseId: 7, assistantId: 12, afterId: 9 })
-
-    const attachments: Record<string, unknown> = { continue: true }
-    await hooks["tool.execute.before"]?.(
-      { tool: "jolliedu_list_user_attachments", sessionID: "ses_test", callID: "call_4" },
-      { args: attachments },
-    )
-    expect(attachments).toEqual({ cursor: "attachment-page" })
-  })
-
-  test("does not restart an exhausted list when the model asks for a continuation", async () => {
-    const { hooks } = await plugin(BOUND)
-    await hooks["tool.execute.after"]?.(
-      { tool: "jolliedu_list_user_attachments", sessionID: "ses_test", callID: "call_1", args: {} },
-      page({ results: [{ id: 1 }], nextCursor: null, hasMore: false }),
-    )
-
-    await expect(
-      hooks["tool.execute.before"]?.(
-        { tool: "jolliedu_list_user_attachments", sessionID: "ses_test", callID: "call_2" },
-        { args: { continue: true } },
-      ),
-    ).rejects.toThrow("No more attachments")
-  })
-
-  test("treats a page that says hasMore=false as the last one, whatever cursor it carries", async () => {
-    const { hooks } = await plugin(BOUND)
-    await hooks["tool.execute.after"]?.(
-      { tool: "jolliedu_list_user_attachments", sessionID: "ses_test", callID: "call_1", args: {} },
-      page({ results: [{ id: 1 }], nextCursor: "leftover", hasMore: false }),
-    )
-
-    await expect(
-      hooks["tool.execute.before"]?.(
-        { tool: "jolliedu_list_user_attachments", sessionID: "ses_test", callID: "call_2" },
-        { args: { continue: true } },
-      ),
-    ).rejects.toThrow("No more attachments")
-  })
-
-  test("a fresh list that fails leaves no earlier cursor behind to continue from", async () => {
-    const { hooks } = await plugin(BOUND)
-    await hooks["tool.execute.after"]?.(
-      { tool: "jolliedu_list_user_attachments", sessionID: "ses_test", callID: "call_1", args: {} },
-      page({ results: [{ id: 1 }], nextCursor: "page-2", hasMore: true }),
-    )
-
-    // A fresh request that never reports back (a thrown transport error skips the after hook).
-    await hooks["tool.execute.before"]?.(
-      { tool: "jolliedu_list_user_attachments", sessionID: "ses_test", callID: "call_2" },
-      { args: {} },
-    )
-
-    await expect(
-      hooks["tool.execute.before"]?.(
-        { tool: "jolliedu_list_user_attachments", sessionID: "ses_test", callID: "call_3" },
-        { args: { continue: true } },
-      ),
-    ).rejects.toThrow("No attachment page is saved")
-  })
-
-  test("drops the saved cursor when a continuation comes back as an error", async () => {
-    const { hooks } = await plugin(BOUND)
-    await hooks["tool.execute.after"]?.(
-      {
-        tool: "jolliedu_list_all_materials_in_remote_course",
-        sessionID: "ses_test",
-        callID: "call_1",
-        args: { courseId: 7, assistantId: 12 },
-      },
-      page({ results: [{ id: 9 }], nextCursor: 9, hasMore: true }),
-    )
-    await hooks["tool.execute.after"]?.(
-      {
-        tool: "jolliedu_list_all_materials_in_remote_course",
-        sessionID: "ses_test",
-        callID: "call_2",
-        args: { courseId: 7, assistantId: 12, afterId: 9 },
-      },
-      { isError: true, content: [{ type: "text", text: "Course or assistant not found" }] } as never,
-    )
-
-    await expect(
-      hooks["tool.execute.before"]?.(
-        { tool: "jolliedu_list_all_materials_in_remote_course", sessionID: "ses_test", callID: "call_3" },
-        { args: { continue: true } },
-      ),
-    ).rejects.toThrow("No course material page is saved")
-  })
-
-  test("explains partial lists from the tool description, leaving the system prompt and final answer alone", async () => {
-    const { hooks } = await plugin(BOUND)
-    const output = { description: "list attachments", parameters: { type: "object", properties: {} } }
-
-    await hooks["tool.definition"]?.({ toolID: "jolliedu_list_user_attachments" }, output)
-
-    expect(output.description).toContain("in their language")
-    expect(output.description).toContain("continue=true")
-    // A system sentence that follows the paging state would invalidate the cached prompt prefix.
-    expect(hooks["experimental.chat.system.transform"]).toBeUndefined()
-    expect(hooks["experimental.text.complete"]).toBeUndefined()
-  })
-
-  test("declares the continuation flag even when a list schema has no properties", async () => {
-    const { hooks } = await plugin(BOUND)
-    const output: { description: string; parameters: Record<string, unknown> } = {
-      description: "list attachments",
-      parameters: { type: "object", additionalProperties: false },
+    const input = {
+      tool: "jolliedu_list_all_materials_in_remote_course",
+      sessionID: "ses_test",
+      callID: "call_page",
+      parameters: { properties: { cursor: {} } },
     }
+    const first = { catalog: "agent_only", underMaterialId: 42 }
+    await hooks["tool.execute.before"]?.(input, { args: first })
+    await hooks["tool.execute.after"]?.({ ...input, args: first }, page({ hasMore: true, nextCursor: "opaque-one" }))
+    const second = { cursor: "opaque-one" }
+    await hooks["tool.execute.before"]?.(input, { args: second })
+    await hooks["tool.execute.after"]?.({ ...input, args: second }, page({ hasMore: true, nextCursor: "opaque-two" }))
+    await hooks["tool.execute.before"]?.(input, { args: { ...first, cursor: "opaque-two" } })
 
-    await hooks["tool.definition"]?.({ toolID: "jolliedu_list_user_attachments" }, output)
+    const legacy = { ...input, parameters: { properties: { afterId: {} } } }
+    await hooks["tool.execute.after"]?.({ ...legacy, args: first }, page({ hasMore: true, nextCursor: 12 }))
+    await expectCursorRejected(hooks["tool.execute.before"](legacy, { args: { afterId: 12 } }))
+    await hooks["tool.execute.before"]?.(legacy, { args: { ...first, afterId: 12 } })
+  })
 
-    expect(output.parameters).toEqual({
-      type: "object",
-      additionalProperties: false,
-      properties: { continue: expect.objectContaining({ type: "boolean" }) },
-    })
+  /** The model may write an unset filter as null on one page and leave it out on the next. */
+  test("keys a list alike whether an unset filter is null or left out", async () => {
+    const { hooks } = await plugin(BOUND)
+    const input = {
+      tool: "jolliedu_list_all_materials_in_remote_course",
+      sessionID: "ses_test",
+      callID: "call_page",
+      parameters: { properties: { afterId: {} } },
+    }
+    const first = { catalog: "agent", underMaterialId: null }
+    await hooks["tool.execute.before"](input, { args: first })
+    await hooks["tool.execute.after"]({ ...input, args: first }, page({ hasMore: true, nextCursor: 12 }))
+    const second = { catalog: "agent", afterId: 12 }
+    await hooks["tool.execute.before"](input, { args: second })
+    await hooks["tool.execute.after"]({ ...input, args: second }, page({ hasMore: true, nextCursor: 24 }))
+    await hooks["tool.execute.before"](input, { args: { catalog: "agent", underMaterialId: null, afterId: 24 } })
+    await expectCursorRejected(hooks["tool.execute.before"](input, { args: { catalog: "course", afterId: 24 } }))
+  })
+
+  /** The bound drops the list least recently paged through, not the one started first. */
+  test("keeps a list being paged through when other lists fill the bound", async () => {
+    const { hooks } = await plugin(BOUND)
+    const tool = "jolliedu_list_remote_course_assignments"
+    const listed = async (sessionID: string) => {
+      const args = {}
+      await hooks["tool.execute.before"]({ tool, sessionID, callID: "call_page" }, { args })
+      await hooks["tool.execute.after"](
+        { tool, sessionID, callID: "call_page", args },
+        page({ hasMore: true, nextPage: 1 }),
+      )
+    }
+    const next = (sessionID: string) =>
+      hooks["tool.execute.before"]({ tool, sessionID, callID: "call_page" }, { args: { page: 1 } })
+
+    await listed("ses_paging")
+    // With the 255 below, the plugin's 256 lists are full; the next list drops the least recently used.
+    for (const index of Array.from({ length: 255 }, (_, index) => index)) await listed(`ses_${index}`)
+    await next("ses_paging")
+    await listed("ses_last")
+
+    await next("ses_paging")
+    await expectCursorRejected(next("ses_0"))
+  })
+
+  test("does not accept cursors from failed or malformed list results", async () => {
+    const { hooks } = await plugin(BOUND)
+    const input = { tool: "jolliedu_list_remote_course_assignments", sessionID: "ses_test", callID: "call_page" }
+    const args = {}
+    await hooks["tool.execute.before"]?.(input, { args })
+    for (const output of [
+      { ...page({ hasMore: true, nextPage: 2 }), isError: true },
+      page({ hasMore: true, nextPage: "2" }),
+      page({ hasMore: false, nextPage: 2 }),
+    ]) {
+      await hooks["tool.execute.after"]?.({ ...input, args }, output)
+      await expectCursorRejected(hooks["tool.execute.before"](input, { args: { page: 2 } }))
+    }
   })
 
   test("leaves schema keys a course tool never had absent", async () => {
@@ -512,30 +598,6 @@ describe("plugin.jolli-course-chat", () => {
     expect(Object.keys(output.parameters)).toEqual(["type"])
   })
 
-  test("keeps cursors for a bounded number of sessions, dropping the least recently paged", async () => {
-    const { hooks } = await plugin(BOUND)
-    const list = (sessionID: string) =>
-      hooks["tool.execute.after"]?.(
-        { tool: "jolliedu_list_user_attachments", sessionID, callID: "call_1", args: {} },
-        page({ results: [{ id: 1 }], nextCursor: `${sessionID}-2`, hasMore: true }),
-      )
-    const continuation = (sessionID: string) => {
-      const args: Record<string, unknown> = { continue: true }
-      return hooks["tool.execute.before"]?.(
-        { tool: "jolliedu_list_user_attachments", sessionID, callID: "call_2" },
-        { args },
-      ).then(() => args)
-    }
-    await list("ses_oldest")
-    await list("ses_kept")
-    // Paging again makes a session the most recent, so it outlives the ones listed after it.
-    await list("ses_oldest")
-    for (const index of Array.from({ length: 255 }, (_, index) => index)) await list(`ses_${index}`)
-
-    await expect(continuation("ses_kept")).rejects.toThrow("No attachment page is saved")
-    await expect(continuation("ses_oldest")).resolves.toEqual({ cursor: "ses_oldest-2" })
-  })
-
   test("reports a session it could not read as a read failure, not as a missing binding", async () => {
     const hooks = await JolliCourseChatPlugin({} as PluginInput, { bridge: failingSessionBridge() })
 
@@ -545,61 +607,6 @@ describe("plugin.jolli-course-chat", () => {
         { args: {} },
       ),
     ).rejects.toThrow("Could not read this session's course binding")
-  })
-
-  test("holds a second continuation of the same list until the first reports its cursor", async () => {
-    const { hooks } = await plugin(BOUND)
-    const list = { tool: "jolliedu_list_user_attachments", sessionID: "ses_test" }
-    await hooks["tool.execute.after"]?.(
-      { ...list, callID: "call_1", args: {} },
-      page({ results: [{ id: 1 }], nextCursor: "page-2", hasMore: true }),
-    )
-
-    const first: Record<string, unknown> = { continue: true }
-    await hooks["tool.execute.before"]?.({ ...list, callID: "call_2" }, { args: first })
-    const second: Record<string, unknown> = { continue: true }
-    const waiting = hooks["tool.execute.before"]?.({ ...list, callID: "call_3" }, { args: second })
-    await hooks["tool.execute.after"]?.(
-      { ...list, callID: "call_2", args: first },
-      page({ results: [{ id: 2 }], nextCursor: "page-3", hasMore: true }),
-    )
-    await waiting
-
-    // Read after the first wrote, so the two fetch consecutive pages rather than the same one twice.
-    expect(first).toEqual({ cursor: "page-2" })
-    expect(second).toEqual({ cursor: "page-3" })
-  })
-
-  test("stops waiting for an earlier continuation that never reports back", async () => {
-    // The after hook runs only on success, so a continuation that failed would otherwise hold
-    // every later one of its list forever.
-    const { hooks } = await plugin(BOUND, { pageWaitMs: 20 })
-    const list = { tool: "jolliedu_list_user_attachments", sessionID: "ses_test" }
-    await hooks["tool.execute.after"]?.(
-      { ...list, callID: "call_1", args: {} },
-      page({ results: [{ id: 1 }], nextCursor: "page-2", hasMore: true }),
-    )
-    await hooks["tool.execute.before"]?.({ ...list, callID: "call_2" }, { args: { continue: true } })
-
-    const later: Record<string, unknown> = { continue: true }
-    await hooks["tool.execute.before"]?.({ ...list, callID: "call_3" }, { args: later })
-
-    expect(later).toEqual({ cursor: "page-2" })
-  })
-
-  test("keeps each session's cursors to itself", async () => {
-    const { hooks } = await plugin(BOUND)
-    await hooks["tool.execute.after"]?.(
-      { tool: "jolliedu_list_user_attachments", sessionID: "ses_a", callID: "call_1", args: {} },
-      page({ results: [{ id: 1 }], nextCursor: "page-2", hasMore: true }),
-    )
-
-    await expect(
-      hooks["tool.execute.before"]?.(
-        { tool: "jolliedu_list_user_attachments", sessionID: "ses_b", callID: "call_2" },
-        { args: { continue: true } },
-      ),
-    ).rejects.toThrow("No attachment page is saved")
   })
 })
 

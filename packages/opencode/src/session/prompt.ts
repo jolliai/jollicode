@@ -1392,6 +1392,7 @@ const layer = Layer.effect(
                     promptOps,
                   }).pipe(
                     Effect.provideService(JolliSession.Service, jolli),
+                    Effect.provideService(Session.Service, sessions),
                     Effect.provideService(Plugin.Service, plugin),
                     Effect.provideService(Permission.Service, permission),
                     Effect.provideService(ToolRegistry.Service, registry),

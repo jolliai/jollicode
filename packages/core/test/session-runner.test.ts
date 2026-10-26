@@ -632,6 +632,59 @@ describe("SessionRunnerLLM", () => {
     }),
   )
 
+  it.effect("gates V2 student-work tools by the root binding instead of copied child metadata", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const database = yield* Database.Service
+      const registry = yield* ToolRegistry.Service
+      const session = yield* SessionV2.Service
+      const names = ["jolliedu_list_student_work", "jolliedu_search_student_work", "jolliedu_read_student_work"]
+      yield* registry.register(
+        Object.fromEntries(
+          names.map((name) => [
+            name,
+            Tool.make({
+              description: "Read student work",
+              input: Schema.Struct({}),
+              output: Schema.Struct({}),
+              execute: () => Effect.succeed({}),
+            }),
+          ]),
+        ),
+      )
+      yield* insertSession(otherSessionID)
+      const jolli = { courseId: "7", assistantId: "11" }
+      const record = { sessionID, assignmentId: "40", partId: "42" }
+      yield* database.db
+        .update(SessionTable)
+        .set({
+          parent_id: otherSessionID,
+          metadata: { jolli, jolliTask: record },
+        })
+        .where(eq(SessionTable.id, sessionID))
+        .run()
+        .pipe(Effect.orDie)
+      for (const owner of ["ses_original", otherSessionID]) {
+        yield* database.db
+          .update(SessionTable)
+          .set({
+            metadata: { jolli, jolliTask: { ...record, sessionID: owner } },
+          })
+          .where(eq(SessionTable.id, otherSessionID))
+          .run()
+          .pipe(Effect.orDie)
+        requests.length = 0
+        yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Read the work" }), resume: false })
+        yield* session.resume(sessionID)
+        const offered = requests
+          .at(-1)!
+          .tools.map((tool) => tool.name)
+          .filter((name) => names.includes(name))
+        expect(offered).toEqual(owner === otherSessionID ? names.slice(1) : [])
+      }
+    }),
+  )
+
   it.effect("reports the bound V2 session and stable user turn to the native gateway", () =>
     Effect.gen(function* () {
       yield* setup
