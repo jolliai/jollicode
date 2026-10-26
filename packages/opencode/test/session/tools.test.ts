@@ -1,4 +1,4 @@
-import { describe, expect } from "bun:test"
+import { afterEach, describe, expect } from "bun:test"
 import { ProjectV2 } from "@opencode-ai/core/project"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { ProviderV2 } from "@opencode-ai/core/provider"
@@ -21,6 +21,11 @@ import { JolliMcpCall } from "@/mcp/jolli-call"
 import { NotFoundError } from "@/storage/storage"
 import type { OrgScope } from "@opencode-ai/core/jolli/org-scoped-id"
 import { Effect, Layer, Schema } from "effect"
+import { FetchHttpClient } from "effect/unstable/http"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
+import { JolliAssignmentCache } from "@opencode-ai/core/jolli/assignment-cache"
+import type { JolliStore } from "@opencode-ai/core/jolli/store"
+import type { StudentAssignment } from "@opencode-ai/core/jolli/api"
 import { asSchema, streamText } from "ai"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { testEffect } from "../lib/effect"
@@ -692,12 +697,104 @@ describe("the hand-in tools", () => {
 
   const TASK = { jolliTask: { sessionID, assignmentId: "40", partId: "42" } }
 
+  afterEach(() => JolliAssignmentCache.reset())
+
   /** ⚠ A PLAIN CHAT, A FORK AND A CHILD HAVE NO TASK THE GATEWAY BOUND TO THEM. */
   it.effect("are not offered in a session no task started, a fork's copy included", () =>
     Effect.gen(function* () {
       expect((yield* resolveFor(undefined, [])).tools.jolli_submit_task).toBeUndefined()
       const copy = { jolliTask: { ...TASK.jolliTask, sessionID: "ses_original" } }
       expect((yield* resolveFor(copy, [])).tools.jolli_submit_task).toBeUndefined()
+    }),
+  )
+
+  it.effect("uses the cached task mode across provider turns without refreshing credentials or fetching", () =>
+    Effect.gen(function* () {
+      const metadata = { ...TASK, jolli: { courseId: "7", assistantId: "13" } }
+      const response: StudentAssignment = {
+        id: 40,
+        courseId: 7,
+        title: "Practice",
+        description: "",
+        opensAt: null,
+        dueAt: null,
+        stopAtDue: false,
+        status: "published",
+        authorName: null,
+        progress: { state: "in_progress", partsSubmitted: 0, partsTotal: 1, turnedInAt: null },
+        parts: [
+          {
+            id: 42,
+            kind: "agent",
+            assistantId: 13,
+            assistantName: "Coach",
+            assistantBlurb: "",
+            assistantStatus: "live",
+            turnIn: { transcript: false, summary: false, reflection: false },
+            reflectionPrompt: null,
+            workedIn: "jolli_code",
+            attempts: [],
+            submission: null,
+            owed: true,
+          },
+        ],
+      }
+      const credential = {
+        id: "student-a",
+        cache_key: "a",
+        subject: null,
+        email: null,
+        // Leave the unrelated assistant-assignment-switch lookup unavailable.
+        base_url: null,
+        access_token: "jwt",
+        refresh_token: "refresh",
+        token_expiry: 0,
+        time_created: 1,
+        time_updated: 1,
+      } satisfies JolliStore.Row
+      let networkAccesses = 0
+      const offline = Layer.mergeAll(
+        Layer.mock(JolliSession.Service)({
+          current: () => Effect.succeed(credential),
+          request: () =>
+            Effect.sync(() => {
+              networkAccesses += 1
+              return undefined
+            }),
+        }),
+        Layer.succeed(
+          FetchHttpClient.Fetch,
+          Object.assign(
+            async () => {
+              networkAccesses += 1
+              throw new Error("tool registration must not fetch")
+            },
+            { preconnect: fetch.preconnect },
+          ),
+        ),
+      )
+      const resolve = (value = metadata) => resolveFor(value, []).pipe(Effect.provide(offline))
+
+      // A cold or expired mode is unknown, preserving compatibility with old servers and clients.
+      expect((yield* resolve()).tools.jolli_submit_task).toBeDefined()
+      JolliAssignmentCache.keep("a", "7", response, Date.now())
+      const warm = yield* Effect.all([resolve(), resolve()], { concurrency: 2 })
+      expect(warm.every((result) => result.tools.jolli_submit_task === undefined)).toBe(true)
+      expect((yield* resolve()).tools.jolli_submit_task).toBeUndefined()
+
+      // Neither another student's entry nor a same-number course in another org applies here.
+      JolliAssignmentCache.reset()
+      JolliAssignmentCache.keep("other-student", "7", response, Date.now())
+      expect((yield* resolve()).tools.jolli_submit_task).toBeDefined()
+      JolliAssignmentCache.keep("a", "7", response, Date.now())
+      const otherOrg = yield* resolve({
+        ...TASK,
+        jolli: { courseId: "acme:bio:7", assistantId: "acme:bio:13" },
+      })
+      expect(otherOrg.tools.jolli_submit_task).toBeDefined()
+      JolliAssignmentCache.keep("a", "7", response, Date.now() - 60_001)
+      expect((yield* resolve()).tools.jolli_submit_task).toBeDefined()
+      expect(networkAccesses).toBe(0)
     }),
   )
 

@@ -14,7 +14,7 @@ import { JolliSession } from "../../jolli/session"
 import { JolliSources } from "../../jolli/sources"
 import { courseBindingOf } from "../../jolli/binding"
 import { inTaskSession } from "../../jolli/assignment"
-import { jolliCodingAgentHeaders } from "../../jolli/coding-headers"
+import { jolliCodingAgentHeaders, jolliInputTextHeader } from "../../jolli/coding-headers"
 import { CourseSkillHistory } from "../../jolli/skill-history"
 import { isJolliProviderId } from "../../jolli/gateway-config"
 import { Cause, DateTime, Effect, FiberSet, Layer, Option, Semaphore, Stream } from "effect"
@@ -281,6 +281,17 @@ const layer = Layer.effect(
                   .map((message) => CourseSkillHistory.read(message.metadata)),
               ).map((reference) => reference.messageId),
             }),
+            ...(isJolliProviderId(model.provider)
+              ? {
+                  "x-jolli-input-text": jolliInputTextHeader(
+                    session.parentID
+                      ? undefined
+                      : context.flatMap((message) =>
+                          message.type === "user" && message.id === turnID ? [message.text] : [],
+                        )[0],
+                  ),
+                }
+              : {}),
             ...(session.parentID ? { "x-parent-session-id": session.parentID } : {}),
           },
         },

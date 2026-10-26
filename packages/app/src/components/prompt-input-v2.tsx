@@ -12,6 +12,7 @@ import { createEffect, createMemo, on, Show, type JSX } from "solid-js"
 import { ModelSelectorPopoverV2 } from "@/components/dialog-select-model"
 import { SessionCourseBar } from "@/components/session/session-course-bar"
 import { groupSlashCommands } from "@/jolli/slash-groups"
+import { useTaskHeader } from "@/jolli/assignments"
 import { useCourseSession } from "@/jolli/session-binding"
 import { ModelGrant } from "@/jolli/model-grant"
 import { closedForViewer } from "@/jolli/catalog"
@@ -65,6 +66,11 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
   const command = useCommand()
   const language = useLanguage()
   const courseSession = useCourseSession()
+  const taskHeader = useTaskHeader({
+    courseId: () => courseSession.current()?.courseId,
+    task: courseSession.task,
+    sessionID: courseSession.sessionID,
+  })
 
   /**
    * A LIVE SESSION (has an id) THAT CARRIES NO COURSE: one from the CLI/server, a pre-rebrand
@@ -237,7 +243,7 @@ export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {
            * to fix the binding in place, so the `unboundLive` notice above hands the reader a new
            * session — the one screen where a course can be chosen — rather than leaving them stuck.
            */
-          submitDisabled={!courseSession.course() || closed()}
+          submitDisabled={!courseSession.course() || closed() || taskHeader()?.workBlocked === true}
           variantControlVisible={!props.controller.model.loading}
           attachKeybind={command.keybindParts("file.attach")}
           attachShortcut={command.keybind("file.attach")}

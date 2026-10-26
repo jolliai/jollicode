@@ -128,12 +128,12 @@ export function SessionCourseBar(props: { onDone?: () => void; trailing?: JSX.El
           {(label) => (
             <>
               <span class="mx-0.5 shrink-0 select-none opacity-50">/</span>
-              <Show when={binding.locked() && header()?.handedIn}>
+              <Show when={binding.locked() && (header()?.handedIn || header()?.submitted)}>
                 <span
                   data-component="session-task-handed-in"
                   class="shrink-0 rounded-[4px] bg-v2-overlay-simple-overlay-hover px-1.5 text-[12px] leading-5 text-v2-text-text-base"
                 >
-                  {language.t("prompt.jolli.task.handedIn")}
+                  {language.t(header()?.submitted ? "prompt.jolli.task.submitted" : "prompt.jolli.task.handedIn")}
                 </span>
               </Show>
               <span data-component="session-task" class="min-w-0 truncate">

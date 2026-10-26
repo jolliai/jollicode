@@ -4059,6 +4059,9 @@ export type JolliAssignmentTask = {
   assistantId: string
   assistantBlurb: string
   place: JolliAssignmentTaskPlace
+  requiresExplicitSubmit?: boolean
+  completionKind?: "hand_in" | "participation"
+  workBlocked?: boolean
   handedInAt: string
   handedInSessionID: string
   owed: boolean

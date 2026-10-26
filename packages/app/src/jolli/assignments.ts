@@ -16,12 +16,20 @@
  */
 
 import type { Jolli } from "@opencode-ai/schema/jolli"
-import { HAND_IN_PERMISSIONS, handedInBy, taskLabel, toRead, type TaskBinding } from "@opencode-ai/core/jolli/assignment"
-import { createEffect, createResource, onCleanup } from "solid-js"
+import { participationSubmitted, participationWorkBlocked } from "@opencode-ai/core/jolli/assignment-actions"
+import {
+  HAND_IN_PERMISSIONS,
+  handedInBy,
+  taskLabel,
+  toRead,
+  type TaskBinding,
+} from "@opencode-ai/core/jolli/assignment"
+import { createEffect, createMemo, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLanguage } from "@/context/language"
 import { useServerSDK, type ServerSDK } from "@/context/server-sdk"
 import { assignmentsGeneration, refreshAssignments, takeFresh } from "./assignment-refresh"
+import { createAssignmentWatches } from "./assignment-watch"
 
 export { refreshAssignments }
 
@@ -102,6 +110,7 @@ export function useHandInRefresh() {
 
 /** Events {@link useHandInRefresh} has already acted on. */
 const answered = new WeakSet<object>()
+const assignmentWatches = createAssignmentWatches()
 
 /** One assignment as the sidecar answered it, or why it could not; `loading` until it has. */
 export type AssignmentRead = { status: "loading" } | ReturnType<typeof toRead>
@@ -112,7 +121,7 @@ export async function readAssignment(
   courseId: string,
   assignmentId: string,
   fresh: boolean,
-): Promise<AssignmentRead> {
+): Promise<ReturnType<typeof toRead>> {
   const response = await client.jolli
     .assignment({ courseId, assignmentId, ...(fresh ? { fresh: "true" as const } : {}) })
     .catch(() => undefined)
@@ -148,17 +157,29 @@ export function useTaskHeader(input: {
   const serverSDK = useServerSDK()
   const taskTitle = useTaskTitle()
   useHandInRefresh()
-  const [read] = createResource(
-    () => {
-      const courseId = input.courseId()
-      const task = input.task()
-      if (!courseId || !task) return undefined
-      return { courseId, assignmentId: task.assignmentId, generation: assignmentsGeneration() }
-    },
-    (key) => readAssignment(serverSDK().client, key.courseId, key.assignmentId, false),
-  )
+  const watched = createMemo(() => {
+    const client = serverSDK().client
+    const courseId = input.courseId()
+    const task = input.task()
+    const sessionID = input.sessionID()
+    if (!courseId || !task || !sessionID) return undefined
+    return assignmentWatches.acquire({
+      client,
+      courseId,
+      assignmentId: task.assignmentId,
+      sessionID,
+      generation: assignmentsGeneration,
+      load: () => readAssignment(client, courseId, task.assignmentId, true),
+      listen: (listener) => serverSDK().event.listen((e) => listener(e.details)),
+      settled: (event) => {
+        if (answered.has(event)) return
+        answered.add(event)
+        refreshAssignments()
+      },
+    })
+  })
   return () => {
-    const answer = read.latest
+    const answer = watched()?.()
     const task = input.task()
     if (!task || answer?.status !== "ok") return undefined
     const index = answer.assignment.tasks.findIndex((item) => item.partId === task.partId)
@@ -167,6 +188,8 @@ export function useTaskHeader(input: {
     return {
       label: taskLabel(answer.assignment.title, taskTitle(index)),
       handedIn: !!sessionID && handedInBy(answer.assignment, task, sessionID),
+      submitted: participationSubmitted(answer.assignment.tasks[index]),
+      workBlocked: participationWorkBlocked(answer.assignment, answer.assignment.tasks[index]),
     }
   }
 }

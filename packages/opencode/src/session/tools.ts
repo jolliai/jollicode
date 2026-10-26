@@ -15,7 +15,7 @@ import { Truncate } from "@/tool/truncate"
 import { Plugin } from "@/plugin"
 import type { TaskPromptOps } from "@/tool/task"
 import { type Tool as AITool, tool, jsonSchema, type ToolExecutionOptions, asSchema } from "ai"
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import { Session } from "./session"
 import { SessionProcessor } from "./processor"
 import { PartID } from "./schema"
@@ -24,7 +24,15 @@ import { ModelV2 } from "@opencode-ai/core/model"
 import { isRecord } from "@/util/record"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { courseToolRules, inStoredTaskSession, listMcpTools } from "@/plugin/jolli-mcp-tools"
-import { HAND_IN_PERMISSIONS, taskBindingOf } from "@opencode-ai/core/jolli/assignment"
+import {
+  HAND_IN_PERMISSIONS,
+  SUBMIT_TASK_PERMISSION,
+  isAgentPart,
+  requiresExplicitSubmit,
+  taskBindingOf,
+} from "@opencode-ai/core/jolli/assignment"
+import { JolliAssignmentCache } from "@opencode-ai/core/jolli/assignment-cache"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { bindingOrg } from "@opencode-ai/core/jolli/org-scoped-id"
 import { JolliMcpCall } from "@/mcp/jolli-call"
 
@@ -155,7 +163,19 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
    * a subagent the task's session started — have no task the gateway bound to them, so every call
    * would be refused; offered there, the model would try.
    */
-  const handsIn = taskBindingOf(input.session) !== undefined
+  const task = taskBindingOf(input.session)
+  const handsIn = task !== undefined
+  const jolli = Option.getOrUndefined(yield* Effect.serviceOption(JolliSession.Service))
+  // Tool registration must not put an assignment GET or token refresh on every provider turn.
+  // The assignment UI populates this identity/org-scoped cache; an unknown mode keeps the legacy
+  // tool list. The gateway withholds Submit for participation and execution rechecks it fresh.
+  const credential = task && binding && jolli ? yield* jolli.current() : undefined
+  const current =
+    task && binding && credential
+      ? JolliAssignmentCache.assignment(credential.cache_key, binding.courseId, task.assignmentId, Date.now())
+      : undefined
+  const part = current?.parts.find((part) => String(part.id) === task?.partId)
+  const explicit = !part || !isAgentPart(part) || requiresExplicitSubmit(part)
 
   for (const item of yield* registry.tools({
     modelID: ModelV2.ID.make(input.model.api.id),
@@ -164,6 +184,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     permission: [...(input.session.permission ?? []), ...withheldCourseTools],
   })) {
     if (HAND_IN_PERMISSIONS.has(item.id) && !handsIn) continue
+    if (item.id === SUBMIT_TASK_PERMISSION && !explicit) continue
     const schema = ProviderTransform.schema(input.model, ToolJsonSchema.fromTool(item))
     tools[item.id] = tool({
       description: item.description,

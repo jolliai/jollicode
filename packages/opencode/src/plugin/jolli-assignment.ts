@@ -33,6 +33,7 @@ import {
   handInLines,
   isAgentPart,
   projectAssignment,
+  requiresExplicitSubmit,
   SUBMIT_TASK_PERMISSION,
   taskApprovalKey,
   taskBindingOf,
@@ -190,7 +191,13 @@ export async function JolliAssignmentPlugin(
       return "unknown" as const
     }
     const part = now.parts.find((item) => String(item.id) === task.partId)
-    if (!part || !isAgentPart(part)) return undefined
+    if (
+      !part ||
+      !isAgentPart(part) ||
+      part.submission?.completionKind === "participation" ||
+      !requiresExplicitSubmit(part)
+    )
+      return undefined
     const handedIn = part.attempts.find((attempt) => attempt.id === part.submission?.attemptId)
     if (handedIn?.conversationId !== sessionID) return undefined
     return { part, owedCount: now.progress.partsTotal - now.progress.partsSubmitted }
@@ -220,6 +227,15 @@ export async function JolliAssignmentPlugin(
           if (!task) return NOT_A_TASK
           const request = await gateway(task)
           if (!request) return unreachable(HAND_IN)
+          // A cached tool list may predate a teacher's change. Check the server before collecting
+          // a project report or asking the student to approve disclosing any content.
+          const current = await reread(request, task)
+          const part = current?.parts.find((part) => String(part.id) === task.partId)
+          if (current) JolliAssignmentCache.keep(request.identity, task.courseId, current, Date.now())
+          if (part && isAgentPart(part) && !requiresExplicitSubmit(part)) {
+            return "Nothing to turn in. This task counts as submitted when you send your first message. You can keep working until the assignment is turned in or its work window closes."
+          }
+          if (context.abort.aborted) return stopped(HAND_IN)
           const report = await project(task, context.directory)
           const ids = {
             courseId: task.course.id,

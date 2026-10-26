@@ -79,6 +79,7 @@ function harness(
   metadata: Record<string, unknown> = TASK_SESSION.metadata,
 ) {
   const sent: { url: string; body: unknown }[] = []
+  const projectReads: string[] = []
   /** The org each call was scoped to, in the order sent; null for a call with no scope. */
   const orgs: (string | null)[] = []
   const fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -110,7 +111,13 @@ function harness(
           stdout: Buffer.alloc(0),
           stderr: Buffer.alloc(0),
           truncated: false,
-        }),
+        }).pipe(
+          Effect.tap(() =>
+            Effect.sync(() => {
+              projectReads.push("project")
+            }),
+          ),
+        ),
     }),
     Layer.succeed(FetchHttpClient.Fetch, fetch),
   )
@@ -118,7 +125,7 @@ function harness(
     promise: <A, E, R>(effect: Effect.Effect<A, E, R>) =>
       Effect.runPromise(effect.pipe(Effect.provide(services)) as Effect.Effect<A, E>),
   } as unknown as EffectBridge.Shape
-  return { bridge, sent, orgs }
+  return { bridge, sent, orgs, projectReads }
 }
 
 function context(ask: ToolContext["ask"], abort = new AbortController().signal): ToolContext {
@@ -142,6 +149,28 @@ async function tools(h: ReturnType<typeof harness>) {
 const output = (result: unknown) => (typeof result === "string" ? result : (result as { output: string }).output)
 
 describe("plugin.jolli-assignment: handing a task in", () => {
+  test("a cached Submit tool rechecks participation before project collection or permission", async () => {
+    const h = harness(() =>
+      json({
+        ...assignment,
+        parts: [{ ...part, turnIn: { transcript: false, summary: false, reflection: false }, submission: null }],
+      }),
+    )
+    const asked: string[] = []
+    const result = await (
+      await tools(h)
+    )[SUBMIT_TASK_PERMISSION].execute(
+      {},
+      context(async () => {
+        asked.push("asked")
+      }),
+    )
+    expect(output(result)).toStartWith("Nothing to turn in.")
+    expect(asked).toEqual([])
+    expect(h.projectReads).toEqual([])
+    expect(h.sent.map((item) => item.url)).toEqual(["https://acme.jolli.ai/api/courses/7/assignments/40/student-view"])
+  })
+
   test("asks the student with the gateway's preview, then hands in up to where the preview ended", async () => {
     const h = harness((url) => (url.endsWith("/preview") ? json(preview) : json({ part, owedCount: 0 })))
     const asked: Parameters<ToolContext["ask"]>[0][] = []
@@ -165,10 +194,11 @@ describe("plugin.jolli-assignment: handing a task in", () => {
     expect(asked[0]?.metadata.preview).toEqual(preview)
 
     expect(h.sent.map((item) => item.url)).toEqual([
+      "https://acme.jolli.ai/api/courses/7/assignments/40/student-view",
       "https://acme.jolli.ai/api/courses/7/assignments/40/parts/42/jolli-code/preview",
       "https://acme.jolli.ai/api/courses/7/assignments/40/parts/42/jolli-code/hand-in",
     ])
-    expect(h.sent[1]?.body).toEqual({
+    expect(h.sent[2]?.body).toEqual({
       publicSessionId: "ses_a",
       reflection: "the empty list. i kept fixing the loop",
       throughSeq: 77,
@@ -189,11 +219,12 @@ describe("plugin.jolli-assignment: handing a task in", () => {
       context(async () => undefined),
     )
     expect(h.sent.map((item) => item.url)).toEqual([
+      "https://acme.jolli.ai/api/courses/7/assignments/40/student-view",
       "https://acme.jolli.ai/api/courses/7/assignments/40/parts/42/jolli-code/preview",
       "https://acme.jolli.ai/api/courses/7/assignments/40/parts/42/jolli-code/hand-in",
     ])
-    expect(h.sent[1]?.body).toMatchObject({ publicSessionId: "ses_a" })
-    expect(h.orgs).toEqual(["main", "main"])
+    expect(h.sent[2]?.body).toMatchObject({ publicSessionId: "ses_a" })
+    expect(h.orgs).toEqual(["main", "main", "main"])
   })
 
   test("a bare task sends no scope", async () => {
@@ -204,7 +235,7 @@ describe("plugin.jolli-assignment: handing a task in", () => {
       {},
       context(async () => undefined),
     )
-    expect(h.orgs).toEqual([null, null])
+    expect(h.orgs).toEqual([null, null, null])
   })
 
   /** ⚠ A NO FROM THE STUDENT IS AN ANSWER: nothing goes in, and the agent keeps talking. */
@@ -225,7 +256,7 @@ describe("plugin.jolli-assignment: handing a task in", () => {
       )
       expect(output(result)).toStartWith("The student declined. Nothing was handed in.")
       if (said) expect(output(result)).toContain(said)
-      expect(h.sent).toHaveLength(1)
+      expect(h.sent).toHaveLength(2)
     }
   })
 
@@ -328,7 +359,7 @@ describe("plugin.jolli-assignment: handing a task in", () => {
     test("a refusal is taken at its word, without reading again", async () => {
       const h = harness((url) => (url.endsWith("/preview") ? json(preview) : json({}, 409)))
       expect(await submit(h)).toBe("Jolli refused the hand-in. Nothing was handed in.")
-      expect(h.sent).toHaveLength(2)
+      expect(h.sent).toHaveLength(3)
     })
   })
 

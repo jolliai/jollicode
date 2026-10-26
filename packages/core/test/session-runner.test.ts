@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { describe, expect } from "bun:test"
 import {
   LLMClient,
@@ -707,6 +708,8 @@ describe("SessionRunnerLLM", () => {
         "x-jolli-space-id": "7",
         "x-jolli-assistant-id": "11",
         "x-jolli-step-index": "0",
+        "x-jolli-assignment-participation": "1",
+        "x-jolli-input-text": createHash("sha256").update("Use course:quiz").digest("hex"),
       })
       expect(requests.at(-1)?.http?.headers?.["x-jolli-attempt-id"]).not.toBe(user?.id)
     }),
@@ -794,6 +797,7 @@ describe("SessionRunnerLLM", () => {
         "x-jolli-step-index": "0",
         "x-jolli-turn-continues": "1",
         "x-jolli-skill-message-ids": "42",
+        "x-jolli-input-text": "none",
       })
     }),
   )

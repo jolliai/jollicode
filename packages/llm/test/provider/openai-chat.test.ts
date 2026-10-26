@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { describe, expect } from "bun:test"
 import { Effect, Schema, Stream } from "effect"
 import { HttpClientRequest } from "effect/unstable/http"
@@ -67,10 +68,43 @@ describe("OpenAI Chat route", () => {
       expect(prepared.body.messages).toEqual([
         {
           role: "user",
-          content: "Before.\n<system-update>\nTreat &lt;admin&gt; &amp; data literally.\n</system-update>",
+          content: [
+            { type: "text", text: "Before." },
+            { type: "text", text: "<system-update>\nTreat &lt;admin&gt; &amp; data literally.\n</system-update>" },
+          ],
         },
         { role: "assistant", content: "After." },
       ])
+    }),
+  )
+
+  it.effect("preserves a declared input block when chronological context follows the student's message", () =>
+    Effect.gen(function* () {
+      const text = "Fix the student input hash mismatch."
+      const declared = createHash("sha256").update(text, "utf8").digest("hex")
+      const input = LLM.request({
+        model,
+        http: { headers: { "x-jolli-input-text": declared } },
+        messages: [
+          Message.user(text),
+          Message.system("Use the current course skill."),
+          Message.system("Keep course rules."),
+        ],
+      })
+      const prepared = yield* LLMClient.prepare<OpenAIChat.OpenAIChatBody>(input)
+      const parts = prepared.body.messages.flatMap((message) =>
+        message.role !== "user"
+          ? []
+          : typeof message.content === "string"
+            ? [message.content]
+            : message.content.flatMap((part) => (part.type === "text" ? [part.text] : [])),
+      )
+      expect(parts.filter((part) => createHash("sha256").update(part, "utf8").digest("hex") === declared)).toEqual([
+        text,
+      ])
+      expect(parts).toHaveLength(3)
+      expect(parts[1]).toContain("Use the current course skill.")
+      expect(parts[2]).toContain("Keep course rules.")
     }),
   )
 
