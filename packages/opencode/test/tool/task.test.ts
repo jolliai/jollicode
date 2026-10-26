@@ -17,6 +17,7 @@ import { SessionRunState } from "@/session/run-state"
 import { SessionStatus } from "@/session/status"
 
 import { TaskTool, type TaskPromptOps } from "../../src/tool/task"
+import { inStoredTaskSession } from "@/plugin/jolli-mcp-tools"
 import { Truncate } from "@/tool/truncate"
 import { ToolRegistry } from "@/tool/registry"
 import { RuntimeFlags } from "@/effect/runtime-flags"
@@ -317,6 +318,50 @@ describe("tool.task", () => {
       )
 
       expect((yield* sessions.get(result.metadata.sessionId)).metadata).toEqual(metadata)
+    }),
+  )
+
+  /**
+   * Child metadata may contain a copied task record. Access follows the root, including below forks.
+   */
+  it.instance("execute preserves child metadata while task access follows the root", () =>
+    Effect.gen(function* () {
+      const sessions = yield* Session.Service
+      const tool = yield* TaskTool
+      const def = yield* tool.init()
+      const childMetadata = Effect.fn("TaskToolTest.childMetadata")(function* (owner: "task" | "fork") {
+        const { chat, assistant } = yield* seed()
+        const jolli = { courseId: "7", assistantId: "12" }
+        const record = { sessionID: owner === "task" ? chat.id : "ses_original", assignmentId: "40", partId: "42" }
+        yield* sessions.setMetadata({ sessionID: chat.id, metadata: { jolli, jolliTask: record } })
+        const result = yield* def.execute(
+          { description: "inspect bug", prompt: "look into the cache key path", subagent_type: "general" },
+          {
+            sessionID: chat.id,
+            messageID: assistant.id,
+            agent: "build",
+            abort: new AbortController().signal,
+            extra: { promptOps: stubOps() },
+            messages: [],
+            metadata: () => Effect.void,
+            ask: () => Effect.void,
+          },
+        )
+        const child = yield* sessions.get(result.metadata.sessionId)
+        return {
+          jolli,
+          record,
+          metadata: child.metadata,
+          taskSession: yield* inStoredTaskSession(sessions, child),
+        }
+      })
+
+      const task = yield* childMetadata("task")
+      expect(task.metadata).toEqual({ jolli: task.jolli, jolliTask: task.record })
+      expect(task.taskSession).toBe(true)
+      const fork = yield* childMetadata("fork")
+      expect(fork.metadata).toEqual({ jolli: fork.jolli, jolliTask: fork.record })
+      expect(fork.taskSession).toBe(false)
     }),
   )
 

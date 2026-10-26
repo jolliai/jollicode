@@ -26,7 +26,7 @@ import { McpOAuthCallback } from "./oauth-callback"
 import { McpAuth } from "./auth"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { TuiEvent } from "@/server/tui-event"
-import { Cause, Effect, Exit, Layer, Context, Schema, Stream } from "effect"
+import { Cause, Effect, Exit, Layer, Context, Schema, Scope, Stream } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { InstanceState } from "@/effect/instance-state"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
@@ -189,6 +189,9 @@ export interface Interface {
    *
    * ⚠ AT MOST ONCE A MINUTE FOR A CONNECTION, whatever the callers ask. One that asks on every step for
    * a tool the server never comes to offer would otherwise fetch the manifest on every step.
+   *
+   * ⚠ IN THE BACKGROUND, SO THE CALLER IS NOT HELD UP. The listing can take up to its timeout, and a
+   * caller asks from inside a model step; a later `tools()` reads the new manifest once it arrives.
    */
   readonly relist: (server: string) => Effect.Effect<void>
   readonly prompts: () => Effect.Effect<Record<string, PromptInfo & { client: string }>>
@@ -243,6 +246,7 @@ const layer = Layer.effect(
     const events = yield* EventV2Bridge.Service
     const browser = yield* McpBrowser.Service
     const jolli = yield* JolliSession.Service
+    const scope = yield* Scope.Scope
 
     type Transport = StdioClientTransport | StreamableHTTPClientTransport | SSEClientTransport
 
@@ -777,13 +781,15 @@ const layer = Layer.effect(
       if (!client || s.status[server]?.status !== "connected") return
       if (Date.now() - (relistedAt.get(client) ?? 0) < RELIST_INTERVAL_MS) return
       relistedAt.set(client, Date.now())
-      const listed = yield* McpCatalog.defs(client, 5_000)
-      // The connection may have closed or been replaced while the list was read.
-      if (!listed || s.clients[server] !== client || s.status[server]?.status !== "connected") return
-      const before = (s.defs[server] ?? []).map((tool) => tool.name).join("\n")
-      s.defs[server] = listed
-      if (listed.map((tool) => tool.name).join("\n") === before) return
-      yield* events.publish(ToolsChanged, { server }).pipe(Effect.ignore)
+      yield* Effect.gen(function* () {
+        const listed = yield* McpCatalog.defs(client, 5_000)
+        // The connection may have closed or been replaced while the list was read.
+        if (!listed || s.clients[server] !== client || s.status[server]?.status !== "connected") return
+        const before = (s.defs[server] ?? []).map((tool) => tool.name).join("\n")
+        s.defs[server] = listed
+        if (listed.map((tool) => tool.name).join("\n") === before) return
+        yield* events.publish(ToolsChanged, { server }).pipe(Effect.ignore)
+      }).pipe(Effect.forkIn(scope))
     })
 
     function collectFromConnected<T extends { name: string }>(

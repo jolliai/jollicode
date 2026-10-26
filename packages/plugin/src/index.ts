@@ -295,7 +295,13 @@ export interface Hooks {
     output: { parts: Part[] },
   ) => Promise<void>
   "tool.execute.before"?: (
-    input: { tool: string; sessionID: string; callID: string },
+    input: {
+      tool: string
+      sessionID: string
+      callID: string
+      /** The original server-side input schema for this MCP invocation, before model-facing projection. */
+      parameters?: unknown
+    },
     output: { args: any },
   ) => Promise<void>
   "shell.env"?: (

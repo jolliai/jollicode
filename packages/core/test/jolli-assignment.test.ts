@@ -24,6 +24,7 @@ import {
   isNeverAutoApproved,
   projectAssignment,
   SUBMIT_TASK_PERMISSION,
+  inTaskSession,
   taskApprovalKey,
   taskDraftOf,
   taskBindingOf,
@@ -171,6 +172,76 @@ describe("taskBindingOf", () => {
     ).toBeUndefined()
     expect(taskBindingOf({ id: "ses_a", metadata: {} })).toBeUndefined()
     expect(taskBindingOf(undefined)).toBeUndefined()
+  })
+})
+
+describe("inTaskSession", () => {
+  const record = { sessionID: "ses_a", assignmentId: "40", partId: "42" }
+
+  const root = { id: "ses_a", metadata: { jolliTask: record } }
+
+  test("recognizes a task root and nested children without inherited metadata", async () => {
+    const child = { id: "ses_child", parentID: root.id }
+    const nested = { id: "ses_nested", parentID: child.id, metadata: { jolliTask: { partId: 42 } } }
+    const sessions = new Map([root, child, nested].map((session) => [session.id, session]))
+    const read = (id: string) => Effect.succeed(sessions.get(id))
+    expect(await Effect.runPromise(inTaskSession(root, read))).toBe(true)
+    expect(await Effect.runPromise(inTaskSession(child, read))).toBe(true)
+    expect(await Effect.runPromise(inTaskSession(nested, read))).toBe(true)
+  })
+
+  test("rejects historical descendants of a fork despite copied task records", async () => {
+    const fork = { ...root, id: "ses_fork" }
+    const child = { ...root, id: "ses_child", parentID: fork.id }
+    const nested = { ...root, id: "ses_nested", parentID: child.id }
+    const sessions = new Map([fork, child, nested].map((session) => [session.id, session]))
+    const read = (id: string) => Effect.succeed(sessions.get(id))
+    for (const session of sessions.values()) {
+      expect(await Effect.runPromise(inTaskSession(session, read))).toBe(false)
+    }
+  })
+
+  test("ignores task records supplied on children of an ordinary root", async () => {
+    const read = () => Effect.succeed({ id: "ses_plain" })
+    for (const sessionID of [root.id, "ses_child", "ses_plain"]) {
+      expect(
+        await Effect.runPromise(
+          inTaskSession(
+            {
+              id: "ses_child",
+              parentID: "ses_plain",
+              metadata: { jolliTask: { ...record, sessionID } },
+            },
+            read,
+          ),
+        ),
+      ).toBe(false)
+    }
+  })
+
+  test("fails closed for missing sessions, broken ancestry and cycles", async () => {
+    const read = () => Effect.succeed(undefined)
+    expect(await Effect.runPromise(inTaskSession(undefined, read))).toBe(false)
+    expect(await Effect.runPromise(inTaskSession({ ...root, parentID: "ses_missing" }, read))).toBe(false)
+    const child = { ...root, id: "ses_child", parentID: root.id }
+    const cyclic = { ...root, parentID: child.id }
+    expect(await Effect.runPromise(inTaskSession(child, (id) => Effect.succeed(id === root.id ? cyclic : child)))).toBe(
+      false,
+    )
+  })
+
+  test("does not accept an invalid binding on the root", async () => {
+    expect(
+      await Effect.runPromise(
+        inTaskSession(
+          {
+            ...root,
+            metadata: { jolliTask: { ...record, partId: 42 } },
+          },
+          () => Effect.succeed(undefined),
+        ),
+      ),
+    ).toBe(false)
   })
 })
 

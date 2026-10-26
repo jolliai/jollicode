@@ -1,3 +1,4 @@
+import { inTaskSession } from "@opencode-ai/core/jolli/assignment"
 import { courseBindingOf, type SessionLike } from "@opencode-ai/core/jolli/binding"
 import { JOLLI_MCP_SERVER } from "@opencode-ai/core/jolli/mcp"
 import { parseCourseBinding } from "@opencode-ai/core/jolli/org-scoped-id"
@@ -5,6 +6,8 @@ import { JolliSources } from "@opencode-ai/core/jolli/sources"
 import type { PermissionV1 } from "@opencode-ai/core/v1/permission"
 import { Effect } from "effect"
 import type { MCP } from "@/mcp"
+import { SessionID } from "@/session/schema"
+import type { Session } from "@/session/session"
 import { isRecord } from "@/util/record"
 
 /**
@@ -20,11 +23,17 @@ import { isRecord } from "@/util/record"
  */
 export const COURSE_TOOL_IDS = new Set<string>(JolliSources.COURSE_TOOLS)
 
-const MATERIAL_LIST_TOOL = `${JolliSources.COURSE_TOOL_PREFIX}list_all_materials_in_remote_course`
-const ATTACHMENT_LIST_TOOL = `${JolliSources.COURSE_TOOL_PREFIX}list_user_attachments`
-const BINDING_PARAMETER_NAMES = new Set(["courseId", "assistantId"])
+export const LIST_TOOL_IDS = new Set([
+  JolliSources.ASSIGNMENT_LIST_TOOL,
+  JolliSources.MATERIAL_LIST_TOOL,
+  `${JolliSources.COURSE_TOOL_PREFIX}list_user_attachments`,
+])
 
-export type ListKind = "materials" | "assignments" | "attachments"
+/**
+ * The parameters the client fills from the session: the course binding, and the session's own id where a tool
+ * takes one, which tells the server which assignment task, if any, the call is made in.
+ */
+const BINDING_PARAMETER_NAMES = new Set(["courseId", "assistantId", "sessionId"])
 
 /**
  * The session's course binding as the course tools take it, or undefined when it has none usable.
@@ -51,39 +60,52 @@ export function unboundCourseToolRules(session: SessionLike | undefined): Permis
   return [...COURSE_TOOL_IDS].map((permission) => ({ permission, pattern: "*", action: "deny" as const }))
 }
 
-/** The same assignment switch controls ordinary MCP tools and the code-mode catalog (`JolliSources.withheldCourseTools`). */
-export function courseToolRules(session: SessionLike | undefined, includeAssignments: boolean): PermissionV1.Rule[] {
+/**
+ * The same assignment switch, and whether the session works on an assignment task, control ordinary MCP tools
+ * and the code-mode catalog (`JolliSources.withheldCourseTools`).
+ */
+export function courseToolRules(
+  session: SessionLike | undefined,
+  includeAssignments: boolean,
+  taskSession: boolean,
+): PermissionV1.Rule[] {
   return JolliSources.withheldCourseTools({
     bound: courseToolBindingOf(session) !== undefined,
     includeAssignments,
+    taskSession,
   }).map((permission) => ({ permission, pattern: "*", action: "deny" as const }))
 }
 
 /**
- * The connected MCP servers' tools, for a session whose bound assistant does or does not read
- * assignments. The one read of them both the ordinary tool list and the code-mode catalog take.
+ * The connected MCP servers' tools, for a session withheld the given course tools. The one read of them
+ * both the ordinary tool list and the code-mode catalog take.
  *
- * ⚠ LISTED AGAIN WHEN AN ASSIGNMENT READER MEETS A MANIFEST WITHOUT ITS LIST. An institution can turn
- * assignments on after the Jolli connection cached its manifest, and the server does not announce
- * the change, so that manifest would hide the tool for as long as the connection lives. The MCP layer
- * lists it again at most once a minute, so a server that never comes to offer the tool is not asked
- * on every step.
+ * ⚠ LISTED AGAIN WHEN THE MANIFEST LACKS A COURSE TOOL THE SESSION IS OFFERED. An institution can turn
+ * assignments on, or a deployment add a tool, after the Jolli connection cached its manifest, and the
+ * server does not announce the change, so that manifest would hide the tool for as long as the
+ * connection lives. The MCP layer lists it again at most once a minute and in the background, so a
+ * server that never comes to offer the tool neither is asked on every step nor holds a step up; the
+ * step that asks goes on with the manifest it has, and a later one reads the new manifest.
  */
 export const listMcpTools = Effect.fn("JolliMcpTools.listMcpTools")(function* (
   mcp: MCP.Interface,
-  includeAssignments: boolean,
+  withheld: ReadonlySet<string>,
 ) {
   const listed = yield* mcp.tools()
-  if (!includeAssignments || JolliSources.ASSIGNMENT_LIST_TOOL in listed) return listed
+  if (JolliSources.COURSE_TOOLS.every((tool) => withheld.has(tool) || tool in listed)) return listed
   yield* mcp.relist(JOLLI_MCP_SERVER)
-  return yield* mcp.tools()
+  return listed
 })
 
-export function kindOf(tool: string): ListKind | undefined {
-  if (tool === JolliSources.ASSIGNMENT_LIST_TOOL) return "assignments"
-  if (tool === MATERIAL_LIST_TOOL) return "materials"
-  if (tool === ATTACHMENT_LIST_TOOL) return "attachments"
-  return undefined
+/**
+ * Whether a session works on an assignment task, read through the v1 session store: the ordinary tool
+ * list and the code-mode catalog both ask. A parent the store no longer has reads as no task, as
+ * {@link inTaskSession} requires of its reader.
+ */
+export function inStoredTaskSession(sessions: Session.Interface, session: Session.Info) {
+  return inTaskSession(session, (id) =>
+    sessions.get(SessionID.make(id)).pipe(Effect.catchTag("NotFoundError", () => Effect.succeed(undefined))),
+  )
 }
 
 /**
@@ -106,42 +128,16 @@ function withoutBindingParameters(parameters: unknown): unknown {
 }
 
 /**
- * ⚠ `continue` IS DECLARED EVEN WHEN THE SCHEMA HAS NO `properties`. The description tells the
- * model to pass it, and a schema that closes `additionalProperties` would refuse an undeclared
- * field, leaving the model no way to reach the next page.
+ * The model-facing definition of a Jolliedu tool, which the `tool.definition` hook applies in both catalogs.
+ *
+ * Preserve the server's description and cursor schema, including older deployments. Add the paging
+ * invariant locally so complete-list requests do not depend on a server rollout for that guidance.
  */
-function listParameters(parameters: unknown, cursor: "afterId" | "page" | "cursor"): unknown {
-  if (!isRecord(parameters)) return parameters
-  const properties = isRecord(parameters.properties) ? parameters.properties : {}
-  return {
-    ...parameters,
-    properties: {
-      ...Object.fromEntries(Object.entries(properties).filter(([name]) => name !== cursor)),
-      continue: {
-        type: "boolean",
-        description:
-          "Set true only when the student asks for the next page or the complete list. The client supplies the saved cursor.",
-      },
-    },
-    ...(Array.isArray(parameters.required) && { required: parameters.required.filter((name) => name !== cursor) }),
-  }
-}
-
-/** The model-facing definition of a Jolliedu tool, which the `tool.definition` hook applies in both catalogs. */
 export function projectJolliToolDefinition(tool: string, description: string, parameters: unknown) {
-  const withoutBinding = COURSE_TOOL_IDS.has(tool) ? withoutBindingParameters(parameters) : parameters
-  const kind = kindOf(tool)
-  if (!kind) return { description, parameters: withoutBinding }
   return {
-    description:
-      kind === "assignments"
-        ? "List the bound course's assignments with ids, dates and the student's own progress, grouped by status. Staff also see labelled drafts. Unopened assignments expose titles and dates only. Use the unified course search and reader for worksheet content. For a fresh list omit `continue`; to read another page set `continue=true`. When hasMore is true this is only a partial list; continue through every page when the student asks for all assignments. The client supplies the course binding and saved page; never invent them."
-        : kind === "materials"
-          ? "List the material catalog visible to the assistant in the bound course, without material body text. Use when the student asks which course materials are available; use search_remote_course_materials for a topic-specific question. For a fresh list omit `continue`; if the student asks for the next page, set `continue=true`. When `hasMore=true`, tell the student in their language that more materials are available and that they can ask for the next page; when it is false, the list is complete. The client supplies the course binding and saved pagination cursor; do not invent or pass either."
-          : "List the student's available uploads across sessions, newest first, without reading their contents. Use when the student asks which files they uploaded; use search_user_attachments for questions about file contents. `textState=ready` means text can be read; supported images may be viewable through read_user_attachment. For a fresh list omit `continue`; if the student asks for the next page, set `continue=true`. When `hasMore=true`, tell the student in their language that more files are available and that they can ask for the next page; when it is false, the list is complete. The client supplies the saved pagination cursor; do not invent or pass it.",
-    parameters: listParameters(
-      withoutBinding,
-      kind === "materials" ? "afterId" : kind === "assignments" ? "page" : "cursor",
-    ),
+    description: LIST_TOOL_IDS.has(tool)
+      ? `${description}\nWhen hasMore is true, this is only a partial list. For a complete list, follow every page until hasMore is false. Pass only the nextPage or nextCursor returned by this same list with the same filters; never invent a page number or cursor. If you stop early, tell the student that more results remain.`
+      : description,
+    parameters: COURSE_TOOL_IDS.has(tool) ? withoutBindingParameters(parameters) : parameters,
   }
 }

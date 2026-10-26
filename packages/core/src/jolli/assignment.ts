@@ -14,6 +14,7 @@
  * then refuses, in words it chooses.
  */
 import type { Jolli } from "@opencode-ai/schema/jolli"
+import { Effect } from "effect"
 import type {
   HandInPreview,
   StudentAssignment,
@@ -45,7 +46,7 @@ export type TaskBinding = {
   readonly startHead?: string
 }
 
-type SessionLike = { id: string; metadata?: Record<string, unknown> | undefined }
+type SessionLike = { id: string; parentID?: string | undefined; metadata?: Record<string, unknown> | undefined }
 
 /** The task this session was started for, or undefined for any other session — a fork included. */
 export function taskBindingOf(session: SessionLike | undefined): TaskBinding | undefined {
@@ -59,6 +60,34 @@ export function taskBindingOf(session: SessionLike | undefined): TaskBinding | u
     partId: value.partId,
     ...(typeof value.startHead === "string" ? { startHead: value.startHead } : {}),
   }
+}
+
+/**
+ * Whether this session works on an assignment task: the session the task started, or a subagent somewhere
+ * below one. Only the root's own task binding counts; copied or caller-supplied metadata on a child cannot
+ * grant access. Missing parents and cycles fail closed. The gateway still decides which task a call is for.
+ *
+ * ⚠ ONLY A ROOT'S OWN BINDING, EVEN ON A SESSION THAT CARRIES ONE NAMING ITSELF. The start route creates
+ * a task's own session without a parent, so a session with one is never a task's own, and the server
+ * reads a call the same way: jolliedu's `taskSessionFor` walks to the root before it asks for an attempt.
+ * Taking a child's binding here would offer tools the server then scopes to the root's task, or to none.
+ *
+ * ⚠ `read` CANNOT FAIL, SO A MISSING PARENT IS UNDEFINED RATHER THAN AN ERROR. A store that fails on a
+ * missing row must catch that itself; passed through, it would take down the step that asked instead of
+ * reading as "not a task session".
+ */
+export function inTaskSession<R>(
+  session: SessionLike | undefined,
+  read: (id: string) => Effect.Effect<SessionLike | undefined, never, R>,
+): Effect.Effect<boolean, never, R> {
+  const seen = new Set<string>()
+  const rootIsTask = (current: SessionLike | undefined): Effect.Effect<boolean, never, R> => {
+    if (current?.parentID === undefined) return Effect.succeed(taskBindingOf(current) !== undefined)
+    if (seen.has(current.id)) return Effect.succeed(false)
+    seen.add(current.id)
+    return read(current.parentID).pipe(Effect.flatMap(rootIsTask))
+  }
+  return rootIsTask(session)
 }
 
 /**

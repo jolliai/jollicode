@@ -3,7 +3,7 @@ import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
 import { bindingOrg, type OrgScope } from "@opencode-ai/core/jolli/org-scoped-id"
 import { JolliMcpCall } from "@/mcp/jolli-call"
-import { courseToolRules, listMcpTools } from "@/plugin/jolli-mcp-tools"
+import { courseToolRules, inStoredTaskSession, listMcpTools } from "@/plugin/jolli-mcp-tools"
 import * as Tool from "./tool"
 import { CallToolResultSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { Cause, Effect, Option, Schema } from "effect"
@@ -184,7 +184,12 @@ const invokeChildTool = Effect.fn("CodeMode.invokeChildTool")(function* (input: 
 }) {
   yield* input.plugin.trigger(
     "tool.execute.before",
-    { tool: input.entry.key, sessionID: input.ctx.sessionID, callID: input.callID },
+    {
+      tool: input.entry.key,
+      sessionID: input.ctx.sessionID,
+      callID: input.callID,
+      parameters: input.entry.tool.def.inputSchema,
+    },
     { args: input.args },
   )
   const result: CallToolResult = yield* Effect.gen(function* () {
@@ -260,9 +265,13 @@ export const CodeModeTool = Tool.define(
                 Effect.provideService(JolliSession.Service, jolli.value),
               )
             : false
-        const courseRules = courseToolRules(session, includeAssignments)
+        const taskSession = binding ? yield* inStoredTaskSession(sessions, session) : false
+        const courseRules = courseToolRules(session, includeAssignments, taskSession)
         const ruleset = Permission.merge(agent.permission, session.permission ?? [], courseRules)
-        const mcpTools = Permission.visibleTools(yield* listMcpTools(mcp, includeAssignments), ruleset)
+        const mcpTools = Permission.visibleTools(
+          yield* listMcpTools(mcp, new Set(courseRules.map((rule) => rule.permission))),
+          ruleset,
+        )
         const servers = Object.keys(yield* mcp.clients()).map(McpCatalog.sanitize)
         const catalog = [...groupByServer(mcpTools, servers).values()].flat()
 
