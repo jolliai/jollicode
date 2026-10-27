@@ -93,13 +93,15 @@ jobs:
             target: aarch64-apple-darwin
             platform_flag: --mac --arm64
             bun_install_flags: --os=darwin --cpu=arm64
-          # ARM64 MSVC cross-compilation needs the windows-2025 image explicitly
-          - host: "windows-2025"
-            target: aarch64-pc-windows-msvc
-            platform_flag: --win --arm64
-          - host: "windows-latest"
-            target: x86_64-pc-windows-msvc
-            platform_flag: --win
+          # Windows is out of the release until the Key Vault certificate is issued. Restore these two
+          # legs together with the Windows halves of finalize-latest-yml.ts and its test.
+          # # ARM64 MSVC cross-compilation needs the windows-2025 image explicitly
+          # - host: "windows-2025"
+          #   target: aarch64-pc-windows-msvc
+          #   platform_flag: --win --arm64
+          # - host: "windows-latest"
+          #   target: x86_64-pc-windows-msvc
+          #   platform_flag: --win
           - host: "ubuntu-latest"
             target: x86_64-unknown-linux-gnu
             platform_flag: --linux
