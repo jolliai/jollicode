@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { $ } from "bun"
 import { rm } from "node:fs/promises"
 import path from "node:path"
 import { Brand } from "@opencode-ai/core/brand"
@@ -50,8 +51,13 @@ await Bun.write(
 )
 
 // electron-builder drops these from macOS builds and leaves them outside resources/ elsewhere, so
-// copy them in for every platform.
-const electron = path.join(path.dirname(Bun.resolveSync("electron/package.json", import.meta.dir)), "dist")
+// copy them in for every platform. They come with the Electron binary, which Electron 42 stopped
+// downloading on install (no postinstall; `require("electron")` fetches it on first use), so a fresh
+// checkout or CI has no dist/ until install.js runs. It is idempotent and fills the same download
+// cache electron-builder reads.
+const electronDir = path.dirname(Bun.resolveSync("electron/package.json", import.meta.dir))
+const electron = path.join(electronDir, "dist")
+if (!(await Bun.file(path.join(electron, "LICENSE")).exists())) await $`node ${path.join(electronDir, "install.js")}`
 await Bun.write(path.join(OUT, "LICENSE.electron.txt"), Bun.file(path.join(electron, "LICENSE")))
 await Bun.write(path.join(OUT, "LICENSES.chromium.html"), Bun.file(path.join(electron, "LICENSES.chromium.html")))
 
