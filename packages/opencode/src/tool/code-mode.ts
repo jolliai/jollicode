@@ -88,12 +88,18 @@ type ToolDefinition = { description: string; parameters: unknown }
 export const defineTools = Effect.fn("CodeMode.defineTools")(function* (
   plugin: Plugin.Interface,
   mcpTools: Record<string, MCP.McpTool>,
+  /**
+   * The session the definitions are for: a hook may describe a tool for the session's asker. Not optional, so a
+   * catalog that leaves it out says so: without it, such a tool is described to the model as no session sees it.
+   */
+  sessionID: string | undefined,
+  turnID?: string,
 ) {
   const defined = yield* Effect.forEach(Object.entries(mcpTools), ([key, tool]) =>
     plugin
       .trigger(
         "tool.definition",
-        { toolID: key },
+        { toolID: key, ...(sessionID === undefined ? {} : { sessionID }), ...(turnID === undefined ? {} : { turnID }) },
         { description: tool.def.description ?? "", parameters: structuredClone(tool.def.inputSchema) as unknown },
       )
       .pipe(Effect.map((definition): [string, ToolDefinition] => [key, definition])),
@@ -302,7 +308,16 @@ export const CodeModeTool = Tool.define(
           )
 
         const runtime = CodeMode.make({
-          tools: toolTree(catalog, callTool, yield* defineTools(plugin, mcpTools)),
+          tools: toolTree(
+            catalog,
+            callTool,
+            yield* defineTools(
+              plugin,
+              mcpTools,
+              ctx.sessionID,
+              ctx.messages.findLast((m) => m.info.role === "user")?.info.id,
+            ),
+          ),
           onToolCallStart: ({ index, name, input }) =>
             Effect.suspend(() => {
               const shown = (() => {

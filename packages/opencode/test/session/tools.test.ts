@@ -274,6 +274,7 @@ it.effect("assigns per-response source ordinals through real Gemini parallel too
 
 it.effect("applies tool definition hooks to MCP tools before exposing their schemas", () =>
   Effect.gen(function* () {
+    const turnID = MessageID.make("msg_user_turn")
     let calledArguments: Record<string, unknown> | undefined
     const client = {
       callTool: async (request: { arguments?: Record<string, unknown> }) => {
@@ -311,6 +312,7 @@ it.effect("applies tool definition hooks to MCP tools before exposing their sche
       trigger: (name, _input, output) =>
         Effect.sync(() => {
           if (name === "tool.definition") {
+            expect(_input).toHaveProperty("turnID", turnID)
             const definition = output as {
               parameters: { properties: Record<string, unknown>; required: string[] }
             }
@@ -357,7 +359,19 @@ it.effect("applies tool definition hooks to MCP tools before exposing their sche
         completeToolCall: () => Effect.void,
       } as Pick<SessionProcessor.Handle, "message" | "updateToolCall" | "completeToolCall">,
       bypassAgentCheck: false,
-      messages: [],
+      messages: [
+        {
+          info: {
+            id: turnID,
+            sessionID,
+            role: "user",
+            agent: "build",
+            model: { providerID: model.providerID, modelID: ModelV2.ID.make("test-model") },
+            time: { created: 1 },
+          },
+          parts: [],
+        },
+      ],
       promptOps: {} as never,
     }).pipe(Effect.provide(serviceLayer))
 
@@ -378,6 +392,52 @@ it.effect("applies tool definition hooks to MCP tools before exposing their sche
       ),
     )
     expect(calledArguments).toEqual({ courseId: 7, assistantId: 12 })
+  }),
+)
+
+it.effect("filters denied MCP tools before definition hooks can perform remote reads", () =>
+  Effect.gen(function* () {
+    const seen: string[] = []
+    const mcp = {
+      ...fakeMcp(),
+      tools: () =>
+        Effect.succeed({
+          jolliedu_get_course_members: {
+            def: { name: "get_course_members", inputSchema: { type: "object" as const, properties: {} } },
+            client: {} as MCP.McpTool["client"],
+            server: "jolliedu",
+          },
+        }),
+    }
+    const plugin: Plugin.Interface = {
+      ...fakePlugin,
+      trigger: (name, input, output) =>
+        Effect.sync(() => {
+          if (name === "tool.definition") seen.push((input as { toolID: string }).toolID)
+          return output
+        }),
+    }
+    for (const permission of ["jolliedu_get_course_members", "jolliedu_*"]) {
+      const result = yield* SessionTools.resolve({
+        agent,
+        model,
+        session: {
+          id: sessionID,
+          permission: [{ permission, pattern: "*", action: "deny" }],
+          metadata: { jolli: { courseId: "7", assistantId: "12" } },
+        } as unknown as Session.Info,
+        processor: {
+          message: { id: messageID } as SessionV1.Assistant,
+          updateToolCall: () => Effect.die("unused"),
+          completeToolCall: () => Effect.void,
+        },
+        bypassAgentCheck: false,
+        messages: [],
+        promptOps: {} as never,
+      }).pipe(Effect.provide(createLayer(plugin, mcp)))
+      expect(result.tools.jolliedu_get_course_members).toBeUndefined()
+    }
+    expect(seen).not.toContain("jolliedu_get_course_members")
   }),
 )
 

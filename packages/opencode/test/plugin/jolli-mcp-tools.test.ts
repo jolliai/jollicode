@@ -20,6 +20,16 @@ const TASK = {
 }
 
 describe("plugin.jolli-mcp-tools", () => {
+  test("hides the member tool's binding and registration-only fields from the model", () => {
+    const projected = projectJolliToolDefinition(JolliSources.MEMBERS_TOOL, "Members", {
+      type: "object",
+      properties: { courseId: {}, assistantId: {}, sessionId: {}, describeOnly: {}, query: {} },
+      required: ["courseId", "assistantId"],
+    })
+    expect(projected.parameters).toMatchObject({ properties: { query: {} }, required: [] })
+    expect(COURSE_TOOL_IDS.has("jolliedu_get_course_members")).toBe(true)
+  })
+
   test("binds assignment tools to the session and hides binding ids from the model", () => {
     const tool = "jolliedu_list_remote_course_assignments"
     expect(COURSE_TOOL_IDS.has(tool)).toBe(true)

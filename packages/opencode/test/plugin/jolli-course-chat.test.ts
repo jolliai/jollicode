@@ -1,17 +1,24 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect, setSystemTime, spyOn, test } from "bun:test"
+import { Client } from "@modelcontextprotocol/sdk/client/index.js"
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
+import { Server } from "@modelcontextprotocol/sdk/server/index.js"
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
 import type { PluginInput } from "@opencode-ai/plugin"
 import { AppNodeBuilder } from "@opencode-ai/core/effect/app-node-builder"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { Npm } from "@opencode-ai/core/npm"
 import { SessionProjector } from "@opencode-ai/core/session/projector"
-import { Context, Effect, Layer } from "effect"
+import { Context, Effect, Layer, Logger } from "effect"
 import { Account } from "@/account/account"
 import { Auth } from "@/auth"
-import type { EffectBridge } from "@/effect/bridge"
+import { EffectBridge } from "@/effect/bridge"
+import { MCP } from "@/mcp"
+import { JolliMcpCall } from "@/mcp/jolli-call"
 import { Plugin } from "@/plugin"
-import { JolliCourseChatPlugin } from "@/plugin/jolli-course-chat"
+import { JolliCourseChatPlugin, courseMemberDefinitionFor } from "@/plugin/jolli-course-chat"
 import { JolliClosedAssistants } from "@opencode-ai/core/jolli/closed-assistants"
+import { JolliSources } from "@opencode-ai/core/jolli/sources"
 import { Session } from "@/session/session"
 import { AccountTest } from "../fake/account"
 import { AuthTest } from "../fake/auth"
@@ -56,6 +63,27 @@ function sessionBridge(metadata?: Record<string, unknown>) {
 
 const BOUND = { jolli: { courseId: "7", assistantId: "12" } }
 
+type MemberDefinition = { description: string; parameters: Record<string, unknown> }
+
+/**
+ * Resolves once `asked` holds. The plugin asks for a member definition only after it has read the signed-in
+ * account, so a read is requested a few ticks after the hook is called, not as it is called.
+ */
+async function until(asked: () => boolean) {
+  while (!asked()) await new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+/** The member tool's definition the hooks give the model for a session, as one model step resolves it. */
+async function memberTool(
+  hooks: Awaited<ReturnType<typeof plugin>>["hooks"],
+  sessionID = "ses_members",
+  turnID?: string,
+) {
+  const output = { description: "Listed", parameters: {} as Record<string, unknown> }
+  await hooks["tool.definition"]({ toolID: JolliSources.MEMBERS_TOOL, sessionID, turnID }, output)
+  return output
+}
+
 function page(body: Record<string, unknown>) {
   return { content: [{ type: "text", text: JSON.stringify(body) }], title: "List", output: "", metadata: undefined }
 }
@@ -71,12 +99,18 @@ async function expectCursorRejected(call: Promise<void>) {
 
 async function plugin(
   metadata?: Record<string, unknown>,
-  options: { citationsShown?: (sessionID: string) => Promise<boolean | undefined> } = {},
+  options: {
+    citationsShown?: (sessionID: string) => Promise<boolean | undefined>
+    memberDefinition?: (sessionID: string) => Promise<MemberDefinition | undefined>
+    account?: () => Promise<{ ok: true; id?: string } | { ok: false }>
+  } = {},
 ) {
   const session = sessionBridge(metadata)
   const hooks = await JolliCourseChatPlugin({} as PluginInput, {
     bridge: session.bridge,
     citationsShown: async () => true,
+    // Signed out: one account for every session these tests make.
+    account: async () => ({ ok: true }),
     ...options,
   })
   const before = hooks["tool.execute.before"]
@@ -102,6 +136,285 @@ function failingSessionBridge() {
 }
 
 describe("plugin.jolli-course-chat", () => {
+  test.each([false, true])("logs an unsupported member definition (describeOnly: %s)", async (supportsDescribe) => {
+    const warnings: unknown[] = []
+    let calls = 0
+    const bridge = await Effect.runPromise(
+      EffectBridge.make().pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            Layer.mock(Session.Service, { get: () => Effect.succeed({ metadata: BOUND } as unknown as Session.Info) }),
+            Layer.mock(MCP.Service, {
+              tools: () =>
+                Effect.succeed({
+                  [JolliSources.MEMBERS_TOOL]: {
+                    def: {
+                      name: "get_course_members",
+                      inputSchema: {
+                        type: "object",
+                        properties: Object.fromEntries(supportsDescribe ? [["describeOnly", { type: "boolean" }]] : []),
+                      },
+                    },
+                    client: {
+                      callTool: async () => {
+                        calls += 1
+                        return { content: [{ type: "text", text: "{}" }] }
+                      },
+                    } as unknown as MCP.McpTool["client"],
+                    server: "jolliedu",
+                  },
+                }),
+            }),
+            Logger.layer([
+              Logger.make((options) => {
+                warnings.push(options.message)
+              }),
+            ]),
+          ),
+        ),
+      ),
+    )
+    expect(await courseMemberDefinitionFor(bridge, "ses_members")).toBeUndefined()
+    expect(calls).toBe(supportsDescribe ? 1 : 0)
+    expect(JSON.stringify(warnings)).toContain(
+      supportsDescribe ? "unsupported member tool definition" : "does not support describeOnly",
+    )
+  })
+
+  test("registers the server-authorized member view for the current session", async () => {
+    for (const staff of [false, true]) {
+      const { hooks } = await plugin(BOUND, {
+        memberDefinition: async (sessionID) => {
+          expect(sessionID).toBe("ses_members")
+          return {
+            description: staff ? "Search enrolled students" : "Read instructors and enrollment count",
+            parameters: {
+              type: "object",
+              properties: staff ? { query: { type: "string" } } : {},
+              additionalProperties: false,
+            },
+          }
+        },
+      })
+      const output = { description: "Transport schema", parameters: { type: "object", properties: { query: {} } } }
+      await hooks["tool.definition"]({ toolID: "jolliedu_get_course_members", sessionID: "ses_members" }, output)
+      expect(output.description).toBe(staff ? "Search enrolled students" : "Read instructors and enrollment count")
+      expect("query" in output.parameters.properties).toBe(staff)
+    }
+  })
+
+  test("falls back to a summary-only member tool after a failed read, and asks again only after a rest", async () => {
+    const answer = Promise.withResolvers<MemberDefinition>()
+    let reads = 0
+    const { hooks } = await plugin(BOUND, {
+      memberDefinition: () => {
+        reads += 1
+        return reads === 1 ? Promise.reject(new Error("offline")) : answer.promise
+      },
+    })
+    try {
+      setSystemTime(new Date("2026-10-27T09:00:00Z"))
+      const fallback = await memberTool(hooks)
+      expect(fallback.parameters).toEqual({ type: "object", properties: {}, additionalProperties: false })
+      expect(fallback.description).not.toContain("roster")
+
+      // A server that keeps failing is not asked again on every step.
+      await memberTool(hooks)
+      expect(reads).toBe(1)
+
+      // Ten seconds on it is asked again, not a minute: the failure was never kept as the answer. With nothing
+      // kept, the step waits for that read, so it is the definition, not the summary, the step is offered.
+      setSystemTime(new Date("2026-10-27T09:00:11Z"))
+      const next = memberTool(hooks)
+      await until(() => reads === 2)
+      answer.resolve({
+        description: "Search enrolled students",
+        parameters: { type: "object", properties: { query: {} } },
+      })
+      expect((await next).description).toBe("Search enrolled students")
+      expect(reads).toBe(2)
+    } finally {
+      setSystemTime()
+    }
+  })
+
+  test("withholds a previous staff definition when its current authorization read fails", async () => {
+    let reads = 0
+    const { hooks } = await plugin(BOUND, {
+      memberDefinition: async () => {
+        reads += 1
+        if (reads > 1) throw new Error("offline")
+        return { description: "Search enrolled students", parameters: { type: "object", properties: { query: {} } } }
+      },
+    })
+    expect((await memberTool(hooks, "ses_members", "turn_1")).description).toBe("Search enrolled students")
+    expect((await memberTool(hooks, "ses_members", "turn_2")).parameters).toEqual({
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    })
+    await memberTool(hooks, "ses_members", "turn_2")
+    expect(reads).toBe(2)
+  })
+
+  test("reads the member definition anew on account switches even within the same turn", async () => {
+    let account = "teacher"
+    const asked: string[] = []
+    const { hooks } = await plugin(BOUND, {
+      account: async () => ({ ok: true, id: account }),
+      memberDefinition: async () => {
+        asked.push(account)
+        return account === "teacher"
+          ? { description: "Search enrolled students", parameters: { type: "object", properties: { query: {} } } }
+          : { description: "Read instructors", parameters: { type: "object", properties: {} } }
+      },
+    })
+    expect((await memberTool(hooks, "ses_members", "turn_1")).description).toBe("Search enrolled students")
+
+    // Signed in as a student within the minute: the teacher's definition is not theirs to see.
+    account = "student"
+    expect((await memberTool(hooks, "ses_members", "turn_1")).description).toBe("Read instructors")
+    account = "teacher"
+    expect((await memberTool(hooks, "ses_members", "turn_1")).description).toBe("Search enrolled students")
+    expect(asked).toEqual(["teacher", "student", "teacher"])
+  })
+
+  // Kept under "signed out" instead, every session would share one key while the read failed.
+  test("discards a definition if the account changes while it is being read", async () => {
+    let account = "teacher"
+    const { hooks } = await plugin(BOUND, {
+      account: async () => ({ ok: true, id: account }),
+      memberDefinition: async () => {
+        account = "student"
+        return { description: "Search enrolled students", parameters: { type: "object", properties: { query: {} } } }
+      },
+    })
+    expect((await memberTool(hooks, "ses_members", "turn_1")).parameters).not.toHaveProperty("properties.query")
+  })
+
+  test("offers the summary and reads nothing while the signed-in account cannot be read", async () => {
+    let asked = 0
+    const { hooks } = await plugin(BOUND, {
+      account: async () => ({ ok: false }),
+      memberDefinition: async () => {
+        asked += 1
+        return { description: "Search enrolled students", parameters: { type: "object", properties: {} } }
+      },
+    })
+    expect((await memberTool(hooks)).parameters).toEqual({
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    })
+    expect(asked).toBe(0)
+  })
+
+  test("shares an in-flight authorization read without keeping it for a later model step", async () => {
+    const answer = Promise.withResolvers<MemberDefinition>()
+    let reads = 0
+    const { hooks } = await plugin(BOUND, {
+      memberDefinition: () => {
+        reads += 1
+        return answer.promise
+      },
+    })
+    const first = memberTool(hooks)
+    const overlapping = memberTool(hooks)
+    await until(() => reads === 1)
+    answer.resolve({ description: "Read instructors", parameters: { type: "object", properties: {} } })
+    expect((await first).description).toBe("Read instructors")
+    expect((await overlapping).description).toBe("Read instructors")
+    expect(reads).toBe(1)
+    await memberTool(hooks)
+    expect(reads).toBe(2)
+  })
+
+  test("hides the binding fields of the server's member definition from the model", async () => {
+    const { hooks } = await plugin(BOUND, {
+      memberDefinition: async () => ({
+        description: "Search enrolled students",
+        parameters: {
+          type: "object",
+          properties: { courseId: {}, assistantId: {}, sessionId: {}, describeOnly: {}, query: {} },
+          required: ["courseId", "query"],
+        },
+      }),
+    })
+    expect((await memberTool(hooks)).parameters).toEqual({
+      type: "object",
+      properties: { query: {} },
+      required: ["query"],
+    })
+  })
+
+  test("shares one definition across model steps and refreshes the role at the next user turn", async () => {
+    let staff = true
+    let reads = 0
+    const { hooks } = await plugin(BOUND, {
+      account: async () => ({ ok: true, id: "same-account" }),
+      memberDefinition: async () => {
+        reads += 1
+        return {
+          description: staff ? "Search enrolled students" : "Read instructors",
+          parameters: { type: "object", properties: staff ? { query: {} } : {} },
+        }
+      },
+    })
+    const first = await memberTool(hooks, "ses_members", "turn_1")
+    expect(first.parameters).toHaveProperty("properties.query")
+    staff = false
+    for (let step = 1; step < 10; step++) {
+      expect(await memberTool(hooks, "ses_members", "turn_1")).toEqual(first)
+    }
+    expect(reads).toBe(1)
+    expect((await memberTool(hooks, "ses_members", "turn_2")).parameters).not.toHaveProperty("properties.query")
+    expect(reads).toBe(2)
+  })
+
+  test("pins a failed turn's fallback even after cooldown and retries only for a later turn", async () => {
+    let reads = 0
+    const { hooks } = await plugin(BOUND, {
+      memberDefinition: async () => {
+        reads += 1
+        if (reads === 1) throw new Error("offline")
+        return { description: "Search enrolled students", parameters: { type: "object", properties: { query: {} } } }
+      },
+    })
+    try {
+      setSystemTime(new Date("2026-10-27T09:00:00Z"))
+      const first = await memberTool(hooks, "ses_members", "turn_1")
+      expect(first.parameters).not.toHaveProperty("properties.query")
+      setSystemTime(new Date("2026-10-27T09:00:11Z"))
+      expect(await memberTool(hooks, "ses_members", "turn_1")).toEqual(first)
+      expect(reads).toBe(1)
+      expect((await memberTool(hooks, "ses_members", "turn_2")).parameters).toHaveProperty("properties.query")
+      expect(reads).toBe(2)
+    } finally {
+      setSystemTime()
+    }
+  })
+
+  test("injects the member query's binding and session instead of model-supplied ids", async () => {
+    const { hooks } = await plugin(BOUND)
+    // A model that asks for the definition instead of the members would only waste the call.
+    const output = {
+      args: { courseId: 999, assistantId: 999, sessionId: "foreign", describeOnly: true, query: "Smith" } as Record<
+        string,
+        unknown
+      >,
+    }
+    await hooks["tool.execute.before"](
+      {
+        tool: "jolliedu_get_course_members",
+        sessionID: "ses_members",
+        callID: "call_members",
+        parameters: { type: "object", properties: { courseId: {}, assistantId: {}, sessionId: {}, query: {} } },
+      },
+      output,
+    )
+    expect(output.args).toEqual({ courseId: 7, assistantId: 12, sessionId: "ses_members", query: "Smith" })
+  })
+
   /**
    * ⚠ A TURN REFUSED AS CLOSED IS REMEMBERED LIKE A REFUSED START. An assistant that waits to be
    * spoken to is offered by the same clock, so the catalogue this process serves next has to close it.
@@ -416,6 +729,52 @@ describe("plugin.jolli-course-chat", () => {
     expect(asked).toBe(1)
   })
 
+  test("awaits the refreshed citations switch before recording evidence past its minute", async () => {
+    const answers = [Promise.withResolvers<boolean>(), Promise.withResolvers<boolean>()]
+    let asked = 0
+    const { hooks } = await plugin(BOUND, {
+      citationsShown: () => {
+        asked += 1
+        return (answers[asked - 1] ?? answers[0]!).promise
+      },
+    })
+    const before = (callID: string) =>
+      hooks["tool.execute.before"]?.(
+        { tool: "jolliedu_get_remote_material_content", sessionID: "ses_test", callID },
+        { args: {} },
+      )
+    const after = async (callID: string) => {
+      const output = page({
+        id: 3,
+        title: "Lecture 4",
+        lines: [{ number: 1, text: "A pointer holds an address." }],
+      }) as {
+        metadata?: Record<string, unknown>
+      }
+      await hooks["tool.execute.after"]?.(
+        { tool: "jolliedu_get_remote_material_content", sessionID: "ses_test", callID, args: {} },
+        output as never,
+      )
+      return output
+    }
+    try {
+      setSystemTime(new Date("2026-10-27T09:00:00Z"))
+      await before("call_1")
+      answers[0]?.resolve(true)
+      expect((await after("call_1")).metadata).toHaveProperty("evidence")
+
+      setSystemTime(new Date("2026-10-27T09:01:01Z"))
+      await before("call_2")
+      expect(asked).toBe(2)
+      const refreshed = after("call_2")
+      answers[1]?.resolve(false)
+      expect((await refreshed).metadata).toBeUndefined()
+      expect((await after("call_3")).metadata).toBeUndefined()
+    } finally {
+      setSystemTime()
+    }
+  })
+
   test("asks whether the course shows citations as a course read goes out, not once its result is back", async () => {
     const answer = Promise.withResolvers<boolean>()
     const asked: string[] = []
@@ -615,11 +974,68 @@ describe("plugin.jolli-course-chat", () => {
  * bridge production builds: `Plugin.node` captures it from its own layer, so a service missing from
  * that node's dependencies only shows up here.
  */
+/** What the course server's member tool was asked, and in which org, in the plugin layer tests. */
+const memberReads: { arguments: unknown; org: unknown }[] = []
+/** Set to have the course server answer as jolliedu answers a handler that threw: an `isError` result. */
+let memberServerFails = false
+let memberClient: Client | undefined
+
+/**
+ * A course server offering the member tool, reached through a real MCP client connected to it in memory. Only
+ * the MCP service is replaced, so that it lists this server's tools as the Jolli connection's.
+ */
+const courseServer = Layer.unwrap(
+  Effect.promise(async () => {
+    const server = new Server({ name: "jolliedu", version: "1.0.0" }, { capabilities: { tools: {} } })
+    server.setRequestHandler(ListToolsRequestSchema, async () => ({
+      tools: [
+        {
+          name: "get_course_members",
+          inputSchema: {
+            type: "object",
+            properties: {
+              courseId: { type: "integer" },
+              assistantId: { type: "integer" },
+              sessionId: { type: "string" },
+              describeOnly: { type: "boolean" },
+              query: { type: "string" },
+            },
+            required: ["courseId", "assistantId"],
+          },
+        },
+      ],
+    }))
+    server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      memberReads.push({ arguments: request.params.arguments, org: JolliMcpCall.current()?.org })
+      if (memberServerFails) return { isError: true, content: [{ type: "text", text: "An internal error occurred." }] }
+      const parameters = { type: "object", properties: { courseId: { type: "integer" }, query: { type: "string" } } }
+      return {
+        content: [{ type: "text", text: JSON.stringify({ description: "Search enrolled students", parameters }) }],
+      }
+    })
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+    await server.connect(serverTransport)
+    const client = new Client({ name: "jollicode", version: "1.0.0" })
+    memberClient = client
+    await client.connect(clientTransport)
+    const listed = await client.listTools()
+    return Layer.mock(MCP.Service, {
+      tools: () =>
+        Effect.succeed(
+          Object.fromEntries(
+            listed.tools.map((def) => [`jolliedu_${def.name}`, { def, client, server: "jolliedu", timeout: 12_000 }]),
+          ),
+        ),
+    })
+  }),
+)
+
 const withPluginLayer = testEffect(
   AppNodeBuilder.build(LayerNode.group([Plugin.node, Session.node, SessionProjector.node, CrossSpawnSpawner.node]), [
     [Auth.node, AuthTest.empty],
     [Account.node, AccountTest.empty],
     [Npm.node, NpmTest.noop],
+    [MCP.node, courseServer],
   ]),
 )
 
@@ -646,5 +1062,82 @@ describe("plugin.jolli-course-chat through the plugin layer", () => {
 
       expect(output.args).toEqual({ question: "What is this lesson about?", courseId: 7, assistantId: 12 })
     }),
+  )
+
+  withPluginLayer.instance("reads the member tool's definition with only the plugin layer's own services", () =>
+    Effect.gen(function* () {
+      memberReads.length = 0
+      const sessions = yield* Session.Service
+      const plugin = yield* Plugin.Service
+      const session = yield* sessions.create({
+        metadata: { jolli: { courseId: "acme:main:32", assistantId: "acme:main:3" } },
+      })
+      // Initialized from a caller with neither Session nor MCP, so the bridge reaches them only through
+      // `Plugin.node`'s own dependencies; a missing one would leave staff the summary-only tool, silently.
+      yield* plugin
+        .init()
+        .pipe(
+          Effect.updateContext((context: Context.Context<Session.Service>) =>
+            Context.omit(Session.Service, MCP.Service)(context),
+          ),
+        )
+      const call = spyOn(memberClient!, "callTool")
+      const output = { description: "Listed", parameters: {} as Record<string, unknown> }
+
+      yield* plugin.trigger("tool.definition", { toolID: JolliSources.MEMBERS_TOOL, sessionID: session.id }, output)
+
+      expect(output).toEqual({
+        description: "Search enrolled students",
+        parameters: { type: "object", properties: { query: { type: "string" } } },
+      })
+      expect(call).toHaveBeenCalledWith(expect.anything(), undefined, { timeout: 12_000 })
+      call.mockRestore()
+      // Asked for the definition alone, in the session's org: one connection serves every session.
+      expect(memberReads).toEqual([
+        {
+          arguments: { courseId: 32, assistantId: 3, sessionId: session.id, describeOnly: true },
+          org: { tenantSlug: "acme", orgSlug: "main" },
+        },
+      ])
+    }),
+  )
+
+  // Read as "no definition", the error would stand in for a teacher's definition for a whole minute.
+  withPluginLayer.instance(
+    "offers the summary on an error the course server reports, and asks again after a rest",
+    () =>
+      Effect.gen(function* () {
+        memberReads.length = 0
+        const sessions = yield* Session.Service
+        const plugin = yield* Plugin.Service
+        const session = yield* sessions.create({
+          metadata: { jolli: { courseId: "acme:main:32", assistantId: "acme:main:3" } },
+        })
+        const step = Effect.fn(function* () {
+          const output = { description: "Listed", parameters: {} as Record<string, unknown> }
+          yield* plugin.trigger("tool.definition", { toolID: JolliSources.MEMBERS_TOOL, sessionID: session.id }, output)
+          return output.description
+        })
+
+        yield* Effect.sync(() => {
+          setSystemTime(new Date("2026-10-27T09:00:00Z"))
+          memberServerFails = true
+        })
+        expect(yield* step()).toBe("Read this course's instructor list and enrolled student count.")
+
+        yield* Effect.sync(() => {
+          memberServerFails = false
+          setSystemTime(new Date("2026-10-27T09:00:11Z"))
+        })
+        expect(yield* step()).toBe("Search enrolled students")
+        expect(memberReads).toHaveLength(2)
+      }).pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            memberServerFails = false
+            setSystemTime()
+          }),
+        ),
+      ),
   )
 })
