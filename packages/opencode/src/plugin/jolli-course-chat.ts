@@ -274,7 +274,7 @@ export async function JolliCourseChatPlugin(
         }
       }
       // Read while the call runs, so its result is not held back for it after; see the after hook.
-      if (JolliSources.isMaterialTool(input.tool)) void citationsShown(input.sessionID)
+      if (JolliSources.isEvidenceTool(input.tool)) void citationsShown(input.sessionID)
     },
     "tool.execute.after": async (input, output) => {
       if (LIST_TOOL_IDS.has(input.tool)) {
@@ -310,7 +310,7 @@ export async function JolliCourseChatPlugin(
        * took, up to ten seconds with the backend slow; started in the before hook, it runs alongside
        * the call, and this waits only for what is left of it.
        */
-      const evidence = JolliSources.materialEvidenceOf(input.tool, output)
+      const evidence = JolliSources.evidenceOf(input.tool, output)
       if (evidence.length > 0 && (await citationsShown(input.sessionID)) !== false) {
         output.metadata = { ...(isRecord(output.metadata) ? output.metadata : {}), evidence }
       }
@@ -320,10 +320,12 @@ export async function JolliCourseChatPlugin(
             "session.id": input.sessionID,
             tool: input.tool,
             failed: "isError" in output && output.isError === true,
-            evidence:
-              evidence
-                .map((item) => (item.kind === "material" ? `${item.materialId}:${item.title}` : item.url))
-                .join(" | ") || "none",
+            evidence: evidence.map((item) => {
+              if (item.kind === "material") return { kind: item.kind, materialId: item.materialId, title: item.title }
+              if (item.kind === "web") return { kind: item.kind, url: item.url, title: item.title }
+              const { text: _text, ...source } = item
+              return source
+            }),
           }),
         )
       }
