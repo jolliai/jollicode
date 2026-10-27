@@ -80,6 +80,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   // The org this session's course lives in: every MCP call it makes — tools and resources alike —
   // is made there, so a course server answers about this course and not the home org's namesake.
   const org = bindingOrg(input.session)
+  const turnID = input.messages.findLast((m) => m.info.role === "user")?.info.id
 
   const toolIndices = new Map<string, number>()
   // Ordinals count calls within one provider response. A retried stream reuses these tools, but the
@@ -165,6 +166,8 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     providerID: input.model.providerID,
     agent: input.agent,
     permission: [...(input.session.permission ?? []), ...withheldCourseTools],
+    sessionID: input.session.id,
+    turnID,
   })) {
     if (HAND_IN_PERMISSIONS.has(item.id) && !handsIn) continue
     if (item.id === SUBMIT_TASK_PERMISSION && !explicit) continue
@@ -469,8 +472,11 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   const mcpTools = yield* listMcpTools(mcp, withheld)
   if (flags.experimentalCodeMode) return preparedTools()
 
-  for (const [key, entry] of Object.entries(mcpTools)) {
-    if (withheld.has(key)) continue
+  const visible = Permission.visibleTools(
+    mcpTools,
+    Permission.merge(input.agent.permission, input.session.permission ?? [], withheldCourseTools),
+  )
+  for (const [key, entry] of Object.entries(visible)) {
     const item = McpCatalog.convertTool(entry.def, entry.client, entry.timeout)
     const execute = item.execute
     if (!execute) continue
@@ -480,7 +486,11 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
       description: item.description ?? "",
       parameters: structuredClone({ ...schema, properties: schema.properties ?? {} }),
     }
-    yield* plugin.trigger("tool.definition", { toolID: key }, definition)
+    yield* plugin.trigger(
+      "tool.definition",
+      { toolID: key, sessionID: input.session.id, ...(turnID === undefined ? {} : { turnID }) },
+      definition,
+    )
     item.description = definition.description
     const transformed = ProviderTransform.schema(input.model, definition.parameters)
     item.inputSchema = jsonSchema(transformed)

@@ -48,8 +48,22 @@ export const WORK_TOOLS = [
   `${COURSE_TOOL_PREFIX}read_student_work`,
 ] as const
 
+/**
+ * Reads the course's instructors and class size, and for its staff the class roster. Its definition is the server's
+ * for the session's current asker, so a student's model never sees the roster parameters.
+ *
+ * ⚠ A COURSE TOOL LIKE ANY OTHER FOR THE MANIFEST CHECK, SO A SERVER THAT DOES NOT OFFER IT YET IS LISTED AGAIN. A
+ * client released ahead of the course server it talks to finds the tool missing, and `listMcpTools` asks the
+ * connection to list its tools again — at most once a minute per connection (`MCP.relist`), in the background.
+ * A project directory's bound sessions share one connection to the course server (`CourseServer`), so that is
+ * once a minute per open project, however many of its sessions are bound. Left that way rather than exempting
+ * this tool: that relist is what makes it appear, without a reconnect, once the server is deployed with it.
+ */
+export const MEMBERS_TOOL = `${COURSE_TOOL_PREFIX}get_course_members`
+
 export const COURSE_TOOLS = [
   `${COURSE_TOOL_PREFIX}get_conversation_context`,
+  MEMBERS_TOOL,
   MATERIAL_LIST_TOOL,
   ASSIGNMENT_LIST_TOOL,
   ...MATERIAL_TOOLS,

@@ -14,6 +14,11 @@ import { MessageID, SessionID } from "@/session/schema"
 import { Cause, Effect, Exit, Layer, Schema } from "effect"
 import { JolliMcpCall } from "@/mcp/jolli-call"
 import { NotFoundError } from "@/storage/storage"
+import type { PluginInput } from "@opencode-ai/plugin"
+import { JolliCourseChatPlugin } from "@/plugin/jolli-course-chat"
+import { EffectBridge } from "@/effect/bridge"
+import { ModelV2 } from "@opencode-ai/core/model"
+import { ProviderV2 } from "@opencode-ai/core/provider"
 
 const ctx: Tool.Context = {
   sessionID: SessionID.make("ses_code-mode"),
@@ -175,12 +180,82 @@ describe("code mode execute", () => {
         return output
       })) as Plugin.Interface["trigger"]
 
-    const definitions = await Effect.runPromise(defineTools({ trigger } as Plugin.Interface, tools))
+    const definitions = await Effect.runPromise(defineTools({ trigger } as Plugin.Interface, tools, undefined))
     const description = describeCatalog(tools, ["weather"], definitions)
 
     expect(description).toContain("Current weather for a city.")
     expect(description).toContain("tools.weather.current(input: {\n  city: string,\n})")
     expect(description).not.toContain("courseId")
+  })
+
+  test("passes the session and user turn into role-specific definitions in code mode", async () => {
+    let seen: unknown
+    const tools = { course_members: mcpTool("members", () => "", { type: "object" }) }
+    const trigger = ((_name: unknown, input: unknown, output: unknown) =>
+      Effect.sync(() => {
+        seen = input
+        return output
+      })) as Plugin.Interface["trigger"]
+    await Effect.runPromise(defineTools({ trigger } as Plugin.Interface, tools, "ses_members", "turn_1"))
+    expect(seen).toEqual({ toolID: "course_members", sessionID: "ses_members", turnID: "turn_1" })
+  })
+
+  test("shares the member schema between the shown catalog and repeated script executions in a user turn", async () => {
+    let reads = 0
+    const tools = {
+      jolliedu_get_course_members: mcpTool("get_course_members", (args) => ({
+        content: [{ type: "text", text: String(args.query) }],
+      })),
+    }
+    const session = { metadata: { jolli: { courseId: "7", assistantId: "12" } } }
+    const bridge = await Effect.runPromise(
+      EffectBridge.make().pipe(Effect.provide(harness({ mcpTools: tools, servers: ["jolliedu"], session }))),
+    )
+    const hooks = await JolliCourseChatPlugin({} as PluginInput, {
+      bridge,
+      account: async () => ({ ok: true, id: "teacher" }),
+      memberDefinition: async () => {
+        reads += 1
+        if (reads > 1) throw new Error("offline")
+        return {
+          description: "Search enrolled students",
+          parameters: { type: "object", properties: { query: { type: "string" } }, additionalProperties: false },
+        }
+      },
+    })
+    const trigger = ((name, input, output) =>
+      Effect.promise(async () => {
+        if (name === "tool.definition") await hooks[name]?.(input as never, output as never)
+        return output
+      })) as Plugin.Interface["trigger"]
+    const messages: Tool.Context["messages"] = [
+      {
+        info: {
+          id: MessageID.make("msg_user_turn"),
+          sessionID: ctx.sessionID,
+          role: "user",
+          agent: "build",
+          model: { providerID: ProviderV2.ID.make("test"), modelID: ModelV2.ID.make("test") },
+          time: { created: 1 },
+        },
+        parts: [],
+      },
+    ]
+    const definitions = await Effect.runPromise(
+      defineTools({ trigger } as Plugin.Interface, tools, ctx.sessionID, messages[0]!.info.id),
+    )
+    expect(describeCatalog(tools, ["jolliedu"], definitions)).toContain("query?: string")
+    const tool = await build(tools, ["jolliedu"], [], trigger, session)
+    for (const query of ["Smith", "Jones"]) {
+      const result = await Effect.runPromise(
+        tool.execute(
+          { code: `return await tools.jolliedu.get_course_members({ query: "${query}" })` },
+          { ...ctx, messages },
+        ),
+      )
+      expect(result.output).toBe(query)
+    }
+    expect(reads).toBe(1)
   })
 
   test("defineTools hands the hook a copy, so an in-place edit cannot rewrite the shared MCP cache", async () => {
@@ -195,7 +270,7 @@ describe("code mode execute", () => {
         return output
       })) as Plugin.Interface["trigger"]
 
-    const definitions = await Effect.runPromise(defineTools({ trigger } as Plugin.Interface, tools))
+    const definitions = await Effect.runPromise(defineTools({ trigger } as Plugin.Interface, tools, undefined))
 
     expect(definitions.get("weather_current")?.parameters).toEqual({
       type: "object",

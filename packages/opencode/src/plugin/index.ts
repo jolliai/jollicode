@@ -29,6 +29,7 @@ import { Effect, Layer, Context } from "effect"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { EffectBridge } from "@/effect/bridge"
 import { Git } from "@/git"
+import { MCP } from "@/mcp"
 import { InstanceState } from "@/effect/instance-state"
 import { errorMessage } from "@/util/error"
 import { PluginLoader } from "./loader"
@@ -345,9 +346,10 @@ export const node = LayerNode.make({
    * caller without `Session` to hold this line.
    *
    * `Git` is here for the same reason: the assignment plugin reads the project a task's hand-in
-   * reports through it.
+   * reports through it, and so is `MCP`: the course chat plugin asks the course server for the
+   * member tool's definition through it.
    */
-  deps: [EventV2Bridge.node, Config.node, RuntimeFlags.node, JolliSession.node, Session.node, Git.node],
+  deps: [EventV2Bridge.node, Config.node, RuntimeFlags.node, JolliSession.node, Session.node, Git.node, MCP.node],
 })
 
 export * as Plugin from "."

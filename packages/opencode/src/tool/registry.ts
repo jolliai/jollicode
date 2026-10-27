@@ -84,6 +84,9 @@ export interface Interface {
     modelID: ModelV2.ID
     agent: Agent.Info
     permission?: PermissionV1.Ruleset
+    /** The session the tools are described for, which a definition hook may shape them by. */
+    sessionID?: string
+    turnID?: string
   }) => Effect.Effect<Tool.Def[]>
 }
 
@@ -281,6 +284,8 @@ const layer = Layer.effect(
     const describeCodeMode = Effect.fn("ToolRegistry.describeCodeMode")(function* (input: {
       agent: Agent.Info
       permission?: PermissionV1.Ruleset
+      sessionID?: string
+      turnID?: string
     }) {
       if (!codeMode) return
       const ruleset = Permission.merge(input.agent.permission, input.permission ?? [])
@@ -289,11 +294,9 @@ const layer = Layer.effect(
       return codeMode.describeCatalog(
         tools,
         Object.keys(yield* mcp.clients()).map(McpCatalog.sanitize),
-        // ⚠ THE EXECUTE TOOL RUNS THE SAME HOOKS AGAIN when a script calls it, so a code-mode turn
-        // projects each definition twice. Left that way: the in-tree hook is a pure projection of a
-        // schema, cheap to repeat, while sharing the result would mean caching a per-turn value across
-        // the two calls and invalidating it when the MCP catalog changes between them.
-        yield* codeMode.defineTools(plugin, tools),
+        // Execution repeats the hooks with this turn ID. Hooks that read remote authorization can
+        // share a turn's answer, keeping the displayed catalog and the executable schema consistent.
+        yield* codeMode.defineTools(plugin, tools, input.sessionID, input.turnID),
       )
     })
 
@@ -324,7 +327,15 @@ const layer = Layer.effect(
             parameters: tool.parameters,
             jsonSchema: tool.jsonSchema,
           }
-          yield* plugin.trigger("tool.definition", { toolID: tool.id }, output)
+          yield* plugin.trigger(
+            "tool.definition",
+            {
+              toolID: tool.id,
+              ...(input.sessionID === undefined ? {} : { sessionID: input.sessionID }),
+              ...(input.turnID === undefined ? {} : { turnID: input.turnID }),
+            },
+            output,
+          )
           const jsonSchema =
             output.parameters === tool.parameters || output.jsonSchema !== tool.jsonSchema
               ? output.jsonSchema

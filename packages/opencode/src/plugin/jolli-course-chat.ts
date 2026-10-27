@@ -42,29 +42,54 @@ import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
 import { JolliClosedAssistants } from "@opencode-ai/core/jolli/closed-assistants"
 import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
 import { refusalCodeOf } from "@opencode-ai/core/jolli/refusal"
+import { bindingOrg } from "@opencode-ai/core/jolli/org-scoped-id"
+import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { JolliSources } from "@opencode-ai/core/jolli/sources"
 import { Effect, Option, Schema } from "effect"
 import type { EffectBridge } from "@/effect/bridge"
+import { MCP } from "@/mcp"
+import { JolliMcpCall } from "@/mcp/jolli-call"
 import { SessionID } from "@/session/schema"
 import { Session } from "@/session/session"
 import { isRecord } from "@/util/record"
 import { COURSE_TOOL_IDS, LIST_TOOL_IDS, courseToolBindingOf, projectJolliToolDefinition } from "./jolli-mcp-tools"
 
 /**
- * Sessions whose citations switch is kept. A long-lived desktop sidecar would otherwise keep it for every
- * session forever.
+ * Session keys whose cached values, in-flight reads or failure cooldowns are tracked. A long-lived
+ * desktop sidecar would otherwise keep them for every session forever.
  */
-const MAX_CITED_SESSIONS = 256
+const MAX_KEPT_SESSIONS = 256
 
 /**
  * How long a session's citations switch is kept once read.
  *
  * ⚠ READ ONCE A MINUTE, NOT ONCE PER MATERIAL. The reading waits on the credential and then on the
- * catalogue, up to five seconds each, and a turn reads materials one after another; with the backend
- * slow, asking on every read added that wait to each of them. The catalogue it comes from is itself
- * minutes behind the teacher's edits, so a minute more changes nothing a student sees.
+ * catalogue, up to five seconds each. A turn reads materials one after another, so this cache avoids
+ * repeating that work per result. It gates evidence collection only; final attribution reads the
+ * catalogue switch again independently.
  */
 const CITATIONS_TTL_MS = 60_000
+
+/** Failed reads retry after a short cooldown instead of contacting a failing server on every step. */
+const FAILED_READ_RETRY_MS = 10_000
+
+/** A short default for the definition lookup; an explicit server timeout takes precedence. */
+const MEMBER_DEFINITION_TIMEOUT_MS = 5_000
+
+/** The member tool as the server describes it for a session's current asker. */
+type MemberDefinition = { description: string; parameters: Record<string, unknown> }
+
+/** The member tool a session is offered while the server has given it no definition: no roster parameters. */
+const SUMMARY_MEMBER_DEFINITION: MemberDefinition = {
+  description: "Read this course's instructor list and enrolled student count.",
+  parameters: { type: "object", properties: {}, additionalProperties: false },
+}
+
+const decodeMemberDefinition = Schema.decodeUnknownOption(
+  Schema.fromJsonString(
+    Schema.Struct({ description: Schema.String, parameters: Schema.Record(Schema.String, Schema.Unknown) }),
+  ),
+)
 
 const MAX_PAGED_LISTS = 256
 const MAX_PAGE_CURSORS = 64
@@ -83,13 +108,49 @@ export async function JolliCourseChatPlugin(
   _input: PluginInput,
   options: {
     bridge: EffectBridge.Shape
+    /** The member tool's definition for the session's asker; see {@link courseMemberDefinitionFor}. Replaced in tests. */
+    memberDefinition?: (sessionID: string) => Promise<MemberDefinition | undefined>
     /** Whether the session's course shows citations; see {@link citationsShownFor}. Replaced in tests. */
     citationsShown?: (sessionID: string) => Promise<boolean | undefined>
+    /** The signed-in account; see {@link signedInAccountOf}. Replaced in tests. */
+    account?: () => Promise<SignedInAccount>
   },
 ): Promise<Hooks> {
-  const citations = new Map<string, { readAt: number; shown: Promise<boolean | undefined> }>()
   const pages = new Map<string, Set<string | number>>()
-  const readCitations = options.citationsShown ?? ((sessionID: string) => citationsShownFor(options.bridge, sessionID))
+  // Prefetch in the before hook, then await an expired switch before recording evidence.
+  const citations = keptReads<boolean | undefined>(CITATIONS_TTL_MS)
+  /**
+   * One authorization snapshot per user turn, shared by model steps and code-mode execution. A new user
+   * message checks the role again; actual member calls still authorize on the server every time. A failed
+   * read pins the summary for that turn too, so recovery cannot change a script's schema after it was shown.
+   * Callers without a turn ID share only overlapping reads and the failure cooldown.
+   */
+  const members = memberReads()
+  const accountOf = options.account ?? (() => signedInAccountOf(options.bridge))
+
+  /** Whether the session's course shows citations, read at most once per {@link CITATIONS_TTL_MS}. */
+  function citationsShown(sessionID: string) {
+    return citations(sessionID, () =>
+      (options.citationsShown ?? ((id: string) => citationsShownFor(options.bridge, id)))(sessionID),
+    )
+  }
+
+  /** Account isolation also applies to in-flight reads and failure cooldowns. */
+  async function memberDefinition(sessionID: string, turnID?: string) {
+    const account = await accountOf()
+    if (!account.ok) {
+      members.forget(sessionID)
+      return undefined
+    }
+    const definition = await members.read(sessionID, account.id, turnID, () =>
+      (options.memberDefinition ?? ((id: string) => courseMemberDefinitionFor(options.bridge, id)))(sessionID),
+    )
+    // Signing out or changing accounts while the request runs invalidates its answer too.
+    const current = await accountOf()
+    if (current.ok && current.id === account.id) return definition
+    members.forget(sessionID)
+    return undefined
+  }
 
   /**
    * The session's course binding, or undefined when it has none. A session that cannot be read at
@@ -115,24 +176,6 @@ export async function JolliCourseChatPlugin(
     return courseToolBindingOf(session.read)
   }
 
-  /**
-   * Whether the session's course shows citations, read at most once per {@link CITATIONS_TTL_MS}. Reads
-   * that overlap — a parallel tool step — share the one in flight. A read that fails answers that it
-   * does not know, so one started ahead of a call and not yet awaited cannot reject unobserved.
-   */
-  function citationsShown(sessionID: string) {
-    const kept = citations.get(sessionID)
-    if (kept && Date.now() - kept.readAt < CITATIONS_TTL_MS) return kept.shown
-    const shown = readCitations(sessionID).catch(() => undefined)
-    citations.delete(sessionID)
-    citations.set(sessionID, { readAt: Date.now(), shown })
-    if (citations.size > MAX_CITED_SESSIONS) {
-      const oldest = citations.keys().next().value
-      if (oldest !== undefined) citations.delete(oldest)
-    }
-    return shown
-  }
-
   return {
     /**
      * ⚠ A TURN REFUSED AS CLOSED IS REMEMBERED THE WAY A REFUSED START IS — see `closed-assistants.ts`.
@@ -152,6 +195,26 @@ export async function JolliCourseChatPlugin(
       if (binding) JolliClosedAssistants.record(binding.assistantId)
     },
     "tool.definition": async (input, output) => {
+      /**
+       * ⚠ THE MEMBER TOOL'S LISTED SCHEMA IS REPLACED BY THE SERVER'S FOR THE SESSION'S ASKER. The listing
+       * declares every view's parameters, which must not be exposed as the default. The
+       * projection below still applies, so the binding fields stay hidden whatever the server sent.
+       *
+       * The first definition pass of a user turn waits for a role check. Prefetching on chat.message would run before
+       * CourseServer.ensure can reconnect, and a background summary could make a teacher's first question
+       * appear to lack roster support. The configured MCP timeout bounds the read, with a short default.
+       *
+       * ⚠ THE MEMBER TOOL BY NAME, NOT "ANY TOOL WHOSE SCHEMA DECLARES `describeOnly`". What such a tool is
+       * offered while the server gives it no definition is its own (here, the summary), and its read finds it by
+       * name; a second tool described per asker needs both for itself, so a general test now would only move this
+       * name somewhere less visible.
+       */
+      if (input.toolID === JolliSources.MEMBERS_TOOL) {
+        const definition =
+          (input.sessionID && (await memberDefinition(input.sessionID, input.turnID))) || SUMMARY_MEMBER_DEFINITION
+        output.description = definition.description
+        output.parameters = structuredClone(definition.parameters)
+      }
       const projected = projectJolliToolDefinition(input.toolID, output.description, output.parameters)
       output.parameters = projected.parameters
       output.description = projected.description
@@ -173,6 +236,8 @@ export async function JolliCourseChatPlugin(
         // The MCP executor retains this object, so the session binding replaces model-supplied ids.
         Object.assign(args, binding)
         delete args.sessionId
+        // Asks the member tool for its own definition instead of the members: the client's read alone sends it.
+        delete args.describeOnly
         /**
          * ⚠ THE CALLING SESSION'S OWN ID, A SUBAGENT'S INCLUDED, NOT ITS TASK ROOT'S. The gateway records a
          * subagent's session with its parent, from `x-parent-session-id` on the subagent's model requests,
@@ -304,4 +369,188 @@ function citationsShownFor(bridge: EffectBridge.Shape, sessionID: string): Promi
       return (yield* JolliCourseGuardrails.ofBinding(binding))?.showCitations
     }).pipe(Effect.catchCause(() => Effect.succeed(undefined))),
   )
+}
+
+/**
+ * The member tool's definition as the server gives it for a session's current asker, or undefined when the session
+ * has no binding, the server's member tool does not describe itself (a server older than `describeOnly`), or its
+ * answer has an unsupported shape. Transport errors and server isError replies fail instead, allowing the
+ * caller to apply the short failure cooldown rather than treating an outage as a valid definition.
+ */
+export function courseMemberDefinitionFor(
+  bridge: EffectBridge.Shape,
+  sessionID: string,
+): Promise<MemberDefinition | undefined> {
+  return bridge.promise(
+    Effect.gen(function* () {
+      const sessions = yield* Session.Service
+      const mcp = yield* MCP.Service
+      const session = yield* sessions.get(SessionID.make(sessionID))
+      const binding = courseToolBindingOf(session)
+      if (!binding) return undefined
+      const entry = (yield* mcp.tools())[JolliSources.MEMBERS_TOOL]
+      // Asked only once the tool is listed, so a list without it is a connection that dropped since, not an answer.
+      if (!entry) return yield* Effect.fail(new Error("The course server lists no member tool just now"))
+      const properties = entry.def.inputSchema.properties ?? {}
+      // Asked without `describeOnly`, a server would answer with the members themselves.
+      if (!("describeOnly" in properties)) {
+        yield* Effect.logWarning(
+          "jolli-course-chat: the member tool does not support describeOnly; using the summary",
+          {
+            sessionID,
+          },
+        )
+        return undefined
+      }
+      // Made in the session's org, as every course call is: one connection serves every session.
+      // The server publishes no outputSchema for this tool. Keep callTool's protocol validation;
+      // if a server adds an output schema, describeOnly must be part of that server's output contract.
+      const response = yield* Effect.tryPromise(() =>
+        JolliMcpCall.run({ org: bindingOrg(session) }, () =>
+          entry.client.callTool(
+            {
+              name: entry.def.name,
+              arguments: { ...binding, ...("sessionId" in properties && { sessionId: sessionID }), describeOnly: true },
+            },
+            undefined,
+            { timeout: entry.timeout ?? MEMBER_DEFINITION_TIMEOUT_MS },
+          ),
+        ),
+      )
+      /**
+       * ⚠ AN `isError` RESULT IS A FAILED READ, NOT AN ANSWER. The course server reports a handler that threw — a
+       * database error, a timeout of its own — as an `isError` result (`toCallToolResult` in jolliedu), so it says
+       * nothing about the asker's view. The caller pins the summary for this turn and retries in a later turn
+       * after {@link FAILED_READ_RETRY_MS}, without reusing a previous turn's privileged definition. A binding
+       * the server refuses fails the same way; every course call of that session is refused anyway.
+       */
+      if (response.isError) {
+        const reason = response.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(" ")
+        return yield* Effect.fail(new Error(`The course server could not describe the member tool: ${reason}`))
+      }
+      const text = JolliSources.firstText(response)
+      const definition = text === undefined ? undefined : Option.getOrUndefined(decodeMemberDefinition(text))
+      if (!definition) {
+        yield* Effect.logWarning("jolli-course-chat: unsupported member tool definition; using the summary", {
+          sessionID,
+        })
+      }
+      return definition
+    }).pipe(
+      Effect.tapCause((cause) =>
+        Effect.logWarning("jolli-course-chat: could not read the member tool's definition", {
+          sessionID,
+          cause: String(cause),
+        }),
+      ),
+    ),
+  )
+}
+
+/** The signed-in account as {@link signedInAccountOf} reads it: `id` absent when signed out. */
+type SignedInAccount = { readonly ok: true; readonly id?: string } | { readonly ok: false }
+
+/**
+ * The credential identity used by the catalogue cache (`cache_key`), stable across token refresh.
+ * Not ok when the credential store cannot be read.
+ */
+function signedInAccountOf(bridge: EffectBridge.Shape): Promise<SignedInAccount> {
+  return bridge.promise(
+    Effect.gen(function* () {
+      const jolli = yield* JolliSession.Service
+      const row = yield* jolli.current()
+      return row ? { ok: true as const, id: row.cache_key } : { ok: true as const }
+    }).pipe(Effect.catchCause(() => Effect.succeed({ ok: false as const }))),
+  )
+}
+
+/** Bounded TTL reads that await refresh and never return an expired value, including after failures. */
+function keptReads<T>(ttl: number) {
+  const entries = new Map<
+    string,
+    { kept?: { value: T; readAt: number }; reading?: Promise<T | undefined>; failedAt?: number }
+  >()
+  return async function (key: string, read: () => Promise<T>) {
+    const entry = entries.get(key) ?? {}
+    entries.delete(key)
+    entries.set(key, entry)
+    if (entries.size > MAX_KEPT_SESSIONS) entries.delete(entries.keys().next().value!)
+    const now = Date.now()
+    const stale = !entry.kept || now - entry.kept.readAt >= ttl
+    if (!stale) return entry.kept?.value
+    entry.kept = undefined
+    const resting = entry.failedAt !== undefined && now - entry.failedAt < FAILED_READ_RETRY_MS
+    if (!entry.reading && !resting) {
+      entry.reading = read()
+        .then(
+          (value) => {
+            entry.kept = { value, readAt: Date.now() }
+            entry.failedAt = undefined
+            return value
+          },
+          () => {
+            entry.failedAt = Date.now()
+            return undefined
+          },
+        )
+        .finally(() => {
+          entry.reading = undefined
+        })
+    }
+    return entry.reading
+  }
+}
+
+/** Keep only the latest turn for each account/session, including its fallback on a failed read. */
+function memberReads() {
+  type Read = {
+    accountID?: string
+    turnID?: string
+    reading: Promise<MemberDefinition | undefined>
+    settled: boolean
+    failedAt?: number
+  }
+  const entries = new Map<string, Read>()
+  function readFor(
+    key: string,
+    accountID: string | undefined,
+    turnID: string | undefined,
+    read: () => Promise<MemberDefinition | undefined>,
+  ) {
+    const previous = entries.get(key)
+    if (
+      previous &&
+      previous.accountID === accountID &&
+      previous.turnID === turnID &&
+      (turnID !== undefined || !previous.settled)
+    ) {
+      entries.delete(key)
+      entries.set(key, previous)
+      return previous.reading
+    }
+    const resting =
+      previous?.accountID === accountID &&
+      previous?.failedAt !== undefined &&
+      Date.now() - previous.failedAt < FAILED_READ_RETRY_MS
+    const entry: Read = {
+      accountID,
+      turnID,
+      settled: false,
+      failedAt: resting ? previous.failedAt : undefined,
+      reading: Promise.resolve(undefined),
+    }
+    entry.reading = (resting ? Promise.resolve(undefined) : read())
+      .catch(() => {
+        entry.failedAt = Date.now()
+        return undefined
+      })
+      .finally(() => {
+        entry.settled = true
+      })
+    entries.delete(key)
+    entries.set(key, entry)
+    if (entries.size > MAX_KEPT_SESSIONS) entries.delete(entries.keys().next().value!)
+    return entry.reading
+  }
+  return { read: readFor, forget: (key: string) => entries.delete(key) }
 }

@@ -31,9 +31,10 @@ export const LIST_TOOL_IDS = new Set([
 
 /**
  * The parameters the client fills from the session: the course binding, and the session's own id where a tool
- * takes one, which tells the server which assignment task, if any, the call is made in.
+ * takes one, which tells the server which assignment task, if any, the call is made in. `describeOnly` is the
+ * member tool's registration read, which the client alone makes.
  */
-const BINDING_PARAMETER_NAMES = new Set(["courseId", "assistantId", "sessionId"])
+const BINDING_PARAMETER_NAMES = new Set(["courseId", "assistantId", "sessionId", "describeOnly"])
 
 /**
  * The session's course binding as the course tools take it, or undefined when it has none usable.

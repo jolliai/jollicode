@@ -57,29 +57,46 @@ const replacements = [
 ] as const
 
 const it = testEffect(LayerNode.compile(root, replacements))
-const withCodeMode = testEffect(
-  LayerNode.compile(root, [
-    [Config.node, configLayer],
-    [RuntimeFlags.node, RuntimeFlags.layer({ experimentalCodeMode: true })],
-    [
-      MCP.node,
-      Layer.mock(MCP.Service, {
-        tools: () =>
-          Effect.succeed({
-            weather_current: {
-              def: {
-                name: "current",
-                description: "current weather",
-                inputSchema: { type: "object", properties: { city: { type: "string" } }, required: ["city"] },
-              } as MCPToolDef,
-              client: {} as MCP.McpTool["client"],
-              server: "weather",
-            },
-          }),
-        clients: () => Effect.succeed({ weather: {} as any }),
-      }),
-    ],
-  ]),
+const codeModeReplacements = [
+  [Config.node, configLayer],
+  [RuntimeFlags.node, RuntimeFlags.layer({ experimentalCodeMode: true })],
+  [
+    MCP.node,
+    Layer.mock(MCP.Service, {
+      tools: () =>
+        Effect.succeed({
+          weather_current: {
+            def: {
+              name: "current",
+              description: "current weather",
+              inputSchema: { type: "object", properties: { city: { type: "string" } }, required: ["city"] },
+            } as MCPToolDef,
+            client: {} as MCP.McpTool["client"],
+            server: "weather",
+          },
+        }),
+      clients: () => Effect.succeed({ weather: {} as any }),
+    }),
+  ],
+] as const
+const withCodeMode = testEffect(LayerNode.compile(root, codeModeReplacements))
+
+/** The `tool.definition` inputs the plugin was handed, by a plugin that changes nothing. */
+const definitionInputs: unknown[] = []
+const recordingPluginLayer = Layer.succeed(
+  Plugin.Service,
+  Plugin.Service.of({
+    init: () => Effect.void,
+    trigger: ((name: unknown, input: unknown, output: unknown) =>
+      Effect.sync(() => {
+        if (name === "tool.definition") definitionInputs.push(input)
+        return output
+      })) as Plugin.Interface["trigger"],
+    list: () => Effect.succeed([]),
+  }),
+)
+const withRecordedCodeMode = testEffect(
+  LayerNode.compile(root, [...codeModeReplacements, [Plugin.node, recordingPluginLayer]]),
 )
 const withEmptyCodeMode = testEffect(
   LayerNode.compile(root, [
@@ -134,6 +151,23 @@ describe("tool.registry", () => {
       expect(ids).toContain("execute")
       expect(tools.map((tool) => tool.id)).toContain("execute")
       expect(execute?.description).toContain("tools.weather.current(input: {\n  city: string,\n})")
+    }),
+  )
+
+  // A hook may describe a tool for the session's asker, so the catalog the model reads is described for it too.
+  withRecordedCodeMode.instance("describes the code-mode catalog for the session it is listed for", () =>
+    Effect.gen(function* () {
+      const registry = yield* ToolRegistry.Service
+      const agents = yield* Agent.Service
+      yield* registry.tools({
+        providerID: ProviderV2.ID.opencode,
+        modelID: ModelV2.ID.make("test"),
+        agent: yield* agents.defaultInfo(),
+        sessionID: "ses_members",
+        turnID: "turn_1",
+      })
+
+      expect(definitionInputs).toContainEqual({ toolID: "weather_current", sessionID: "ses_members", turnID: "turn_1" })
     }),
   )
 
