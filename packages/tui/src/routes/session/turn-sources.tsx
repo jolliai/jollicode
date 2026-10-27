@@ -84,6 +84,26 @@ export function TurnSources(props: { message: AssistantMessage }) {
                   </Show>
                 )}
               </For>
+              <Show when={(turn().work?.length ?? 0) > 0}>
+                <text fg={theme.textMuted}>Assignments:</text>
+                <For each={turn().work}>
+                  {(source) => (
+                    <box paddingLeft={2} flexDirection="column">
+                      <text fg={theme.text}>
+                        {source.title} ·{" "}
+                        {source.category === "record"
+                          ? "Assignment record"
+                          : source.category === "submission"
+                            ? "Submitted work"
+                            : source.category === "reflection"
+                              ? "Reflection"
+                              : "Teacher feedback"}
+                      </text>
+                      <Show when={source.url}>{(url) => <Link href={url()} fg={theme.primary} />}</Show>
+                    </box>
+                  )}
+                </For>
+              </Show>
               <Show when={turn().web.length > 0}>
                 <text fg={theme.textMuted}>Web pages:</text>
                 <For each={turn().web}>

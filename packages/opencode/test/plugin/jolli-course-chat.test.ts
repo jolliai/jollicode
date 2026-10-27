@@ -651,6 +651,39 @@ describe("plugin.jolli-course-chat", () => {
     })
   })
 
+  test("records and logs work source identities without requiring a URL or logging the work text", async () => {
+    const logs: unknown[] = []
+    const bridge = await Effect.runPromise(
+      EffectBridge.make().pipe(Effect.provide(Logger.layer([Logger.make((options) => logs.push(options.message))]))),
+    )
+    const hooks = await JolliCourseChatPlugin({} as PluginInput, {
+      bridge,
+      citationsShown: async () => true,
+      account: async () => ({ ok: true }),
+    })
+    const source = {
+      kind: "student_work",
+      courseId: 11,
+      assignmentId: 5,
+      taskId: 30,
+      category: "feedback",
+      sourceId: "feedback:30",
+      title: "Teacher feedback",
+    }
+    const output = { ...page({ citationEvidence: [{ source, text: "Private teacher comments" }] }), metadata: {} }
+    await hooks["tool.execute.after"]?.(
+      { tool: JolliSources.WORK_TOOLS[1], sessionID: "ses_test", callID: "call_work", args: {} },
+      output,
+    )
+    expect(output.metadata).toEqual({ evidence: [{ ...source, text: "Private teacher comments" }] })
+    expect(logs).toEqual([
+      [
+        "jolli course tool",
+        { "session.id": "ses_test", tool: JolliSources.WORK_TOOLS[1], failed: false, evidence: [source] },
+      ],
+    ])
+  })
+
   test("records keyword passages on the tool part for citation selection", async () => {
     const { hooks } = await plugin(BOUND)
     const output = page({
