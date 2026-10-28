@@ -2,6 +2,12 @@
 
 <!-- Each release adds a `## MAJOR.MINOR.PATCH` section at the top. The release workflow publishes the top section's version, with that section as the release notes. -->
 
+## 0.0.4
+
+- **Your assignment work in sources.** When an answer draws on your assignment work, such as what you handed in, your reflections or your teacher's feedback, it is listed under the answer alongside the course materials.
+- **Course tools match your access.** The course tools the assistant can use are the ones your account is allowed, checked at the start of each turn and again when you switch accounts.
+- Bug fixes.
+
 ## 0.0.3
 
 - **Assignments.** Run `/assignment` to see your course's TODO assignments and their due dates. Open one to start or continue each task in its own chat, and turn the assignment in once every task is handed in. Tasks you do on the web are listed too.
