@@ -87,16 +87,14 @@ async function read(subdir: string, filename: string): Promise<LatestYml> {
 const output: Record<string, string> = {}
 
 // read() has checked every manifest against the release version, so the merged files state it directly.
-// Windows is out of the release until the Key Vault certificate is issued. Restore this block together
-// with the Windows legs of the publish-desktop matrix and the Windows manifests in the test.
-// // Windows: merge arm64 + x64 into single file
-// const winX64 = await read("latest-yml-x86_64-pc-windows-msvc", "latest.yml")
-// const winArm64 = await read("latest-yml-aarch64-pc-windows-msvc", "latest.yml")
-// output["latest.yml"] = serialize({
-//   version: expected,
-//   files: [...winArm64.files, ...winX64.files],
-//   releaseDate: winArm64.releaseDate,
-// })
+// Windows: merge arm64 + x64 into single file
+const winX64 = await read("latest-yml-x86_64-pc-windows-msvc", "latest.yml")
+const winArm64 = await read("latest-yml-aarch64-pc-windows-msvc", "latest.yml")
+output["latest.yml"] = serialize({
+  version: expected,
+  files: [...winArm64.files, ...winX64.files],
+  releaseDate: winArm64.releaseDate,
+})
 
 // Linux x64: pass through
 output["latest-linux.yml"] = serialize(await read("latest-yml-x86_64-unknown-linux-gnu", "latest-linux.yml"))

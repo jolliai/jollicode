@@ -48,13 +48,7 @@ What the run does:
 
 ### Windows signing
 
-`sign_windows` defaults to on and fails the Windows legs if any Azure Key Vault secret is missing. To ship an unsigned preview before the certificate exists:
-
-```sh
-gh workflow run publish-desktop -R jolliai/jollicode --ref dev -f sign_windows=false
-```
-
-The release notes then say the Windows installers are unsigned; make sure the changelog section does not claim otherwise. Once a signed Windows release has shipped, never release unsigned again: auto-update would move every install onto the unsigned build.
+The Windows legs sign every executable with the Azure Key Vault certificate and fail if any `AZURE_*` secret is missing; the desktop installer never ships unsigned. There is no switch to skip signing: installed apps auto-update to whatever is published as Latest without checking its signature, so an unsigned Windows release would move every install onto an unsigned build.
 
 ## Rules and gotchas
 
