@@ -2,6 +2,10 @@
 
 <!-- Each release adds a `## MAJOR.MINOR.PATCH` section at the top. The release workflow publishes the top section's version, with that section as the release notes. -->
 
+## 0.0.5
+
+- **Windows installers.** The desktop app is available for Windows, on x64 and Arm, and its installers are signed by Jolli, Inc.
+
 ## 0.0.4
 
 - **Your assignment work in sources.** When an answer draws on your assignment work, such as what you handed in, your reflections or your teacher's feedback, it is listed under the answer alongside the course materials, grouped by assignment. Click one to open it in your browser.
