@@ -5,16 +5,6 @@ run-name: release desktop
 # that section becomes the release notes. Add it on dev before dispatching.
 on:
   workflow_dispatch:
-    inputs:
-      # Escape hatch for shipping Windows before the Key Vault certificate exists. Off, the Windows legs
-      # skip signing and the signature check and the release notes say the installers are unsigned.
-      # Temporary: remove this input once the certificate is in the vault. The release still goes out as
-      # Latest and auto-updates skip the signature check, so after a signed Windows release has shipped,
-      # an unsigned run would move every install to an unsigned build.
-      sign_windows:
-        description: "Sign the Windows installers (turn off only to ship an unsigned preview)"
-        type: boolean
-        default: true
 
 # One desktop release at a time: version.ts checks the changelog version against what is already
 # published and deletes other desktop drafts as leftovers, both of which assume no other run is in flight.
@@ -25,11 +15,6 @@ concurrency:
 permissions:
   id-token: write
   contents: write
-
-# Read by version.ts for the release notes, and on Windows by the signing step and script/sign-windows.ps1,
-# so the notes and the actual signing always come from the same value.
-env:
-  SIGN_WINDOWS: ${{ inputs.sign_windows }}
 
 jobs:
   version:
@@ -93,15 +78,13 @@ jobs:
             target: aarch64-apple-darwin
             platform_flag: --mac --arm64
             bun_install_flags: --os=darwin --cpu=arm64
-          # Windows is out of the release until the Key Vault certificate is issued. Restore these two
-          # legs together with the Windows halves of finalize-latest-yml.ts and its test.
-          # # ARM64 MSVC cross-compilation needs the windows-2025 image explicitly
-          # - host: "windows-2025"
-          #   target: aarch64-pc-windows-msvc
-          #   platform_flag: --win --arm64
-          # - host: "windows-latest"
-          #   target: x86_64-pc-windows-msvc
-          #   platform_flag: --win
+          # ARM64 MSVC cross-compilation needs the windows-2025 image explicitly
+          - host: "windows-2025"
+            target: aarch64-pc-windows-msvc
+            platform_flag: --win --arm64
+          - host: "windows-latest"
+            target: x86_64-pc-windows-msvc
+            platform_flag: --win
           - host: "ubuntu-latest"
             target: x86_64-unknown-linux-gnu
             platform_flag: --linux
@@ -127,19 +110,14 @@ jobs:
         with:
           install-flags: ${{ matrix.settings.bun_install_flags }}
 
-      # The desktop installer never ships unsigned unless sign_windows is off: the signature check after
-      # packaging would fail the leg anyway, so missing secrets fail here by name instead of as an opaque
-      # Azure login error. Later Windows signing steps gate on this step's output, as in publish.yml.
+      # The desktop installer never ships unsigned: the signature check after packaging would fail the leg
+      # anyway, so missing secrets fail here by name instead of as an opaque Azure login error. Later Windows
+      # signing steps gate on this step's output, as in publish.yml.
       - name: Check Windows signing secrets
         id: signing
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          if [ "$SIGN_WINDOWS" = "false" ]; then
-            echo "::warning::sign_windows is off; publishing UNSIGNED Windows installers"
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           names=(AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_KEY_VAULT_URL AZURE_KEY_VAULT_CERTIFICATE)
           missing=()
           for name in "${names[@]}"; do
@@ -244,10 +222,8 @@ jobs:
           fi
           tar -czf "$OUT_NAME" -C "$(dirname "$APP_PATH")" "$(basename "$APP_PATH")"
 
-      # Fails closed: only an explicit enabled=false skips the check, so a signing step that stops writing
-      # its output cannot let unsigned installers through.
       - name: Verify signed Windows Electron artifacts
-        if: runner.os == 'Windows' && steps.signing.outputs.enabled != 'false'
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $files = @()

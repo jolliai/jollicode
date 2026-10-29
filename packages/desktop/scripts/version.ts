@@ -45,15 +45,6 @@ export function requireCliVersion(value: string) {
   return version
 }
 
-// The workflow's sign_windows escape hatch ships unsigned Windows installers; the release page says so.
-// Only an explicit "false" turns signing off, matching script/sign-windows.ps1.
-export function windowsSigningNotes(signWindows: string | undefined) {
-  if (signWindows !== "false") return []
-  return [
-    "**The Windows installers in this release are not code-signed.** Windows SmartScreen may block the installer — choose More info, then Run anyway.",
-  ]
-}
-
 function stripPrefix(value: string) {
   return value.replace(/^(desktop-)?v/, "")
 }
@@ -93,7 +84,6 @@ if (import.meta.main) {
   const sha = process.env.GITHUB_SHA ?? (await $`git rev-parse HEAD`.text()).trim()
   const notes = [
     (await Bun.file(notesFile).text()).trim(),
-    ...windowsSigningNotes(process.env.SIGN_WINDOWS),
     "---",
     `Built from jolliai/jollicode@${sha}`,
     `WSL installs CLI cli-v${cliVersion}`,
