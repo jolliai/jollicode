@@ -35,6 +35,7 @@ import {
   turnInLines,
 } from "../src/jolli/assignment"
 import { JolliAssignmentCache } from "../src/jolli/assignment-cache"
+import { firstHandInAction } from "../src/jolli/assignment-actions"
 import { assignmentRefusalOf } from "../src/jolli/refusal"
 
 const REQUEST: GatewayRequest = { origin: "https://acme.jolli.ai", token: "jwt", identity: "student-a" }
@@ -265,6 +266,19 @@ describe("todoAssignments", () => {
     })
   })
 
+  test("counts optional tasks apart, and none from a server that predates them", () => {
+    const optional = listItem({ progress: { ...progress, partsTotal: 0, optionalSubmitted: 1, optionalTotal: 2 } })
+    const list = { todo: [optional], upcoming: [], completed: [] }
+    expect(todoAssignments([{ course: CS310, list }], NOW)[0]).toMatchObject({
+      tasksHandedIn: 0,
+      tasksTotal: 0,
+      optionalHandedIn: 1,
+      optionalTotal: 2,
+    })
+    const older = { todo: [listItem()], upcoming: [], completed: [] }
+    expect(todoAssignments([{ course: CS310, list: older }], NOW)[0]).not.toHaveProperty("optionalTotal")
+  })
+
   test("leaves out web-only, closed, and past-due assignments that stop at their due date", () => {
     const webOnly = listItem({
       id: 1,
@@ -468,6 +482,46 @@ describe("projectAssignment", () => {
     expect(done.readyToTurnIn).toBe(true)
   })
 
+  /** An optional task is not needed to turn in: it counts apart from the tasks the student must hand in. */
+  test("marks an optional task, and turns in without it", () => {
+    const handed = part({
+      attempts: [{ id: 2, conversationId: "ses_a", countedAt: "2026-10-20T10:00:00Z" }],
+      submission: { attemptId: 2, submittedAt: "2026-10-21T10:00:00Z" },
+    })
+    const skipped = part({ id: 42, optional: true })
+    const extra = filePart({ optional: true })
+    const projected = projectAssignment(CS310, assignment([handed, skipped, extra]), new Map(), NOW)
+    expect(projected.tasks.map((task) => task.optional)).toEqual([undefined, true, true])
+    expect(projected).toMatchObject({
+      tasksHandedIn: 1,
+      tasksTotal: 1,
+      optionalHandedIn: 0,
+      optionalTotal: 2,
+      readyToTurnIn: true,
+    })
+    expect(turnInBlocker(projected)).toBeUndefined()
+    expect(turnInLines(projected, "en-US").slice(1)).toEqual([
+      "Task 1 · CS 310 Lab Assistant · submitted Oct 21",
+      "Task 2 · CS 310 Lab Assistant · optional, not submitted",
+      "Task 3 · Lab report · optional, not submitted",
+    ])
+  })
+
+  /** ⚠ THE GATEWAY REFUSES (`no_task_submitted`) TO TURN IN AN ASSIGNMENT OF OPTIONAL TASKS ALONE WITH NONE IN. */
+  test("an assignment of optional tasks alone turns in only once one is handed in", () => {
+    const skipped = part({ optional: true })
+    const extra = filePart({ optional: true })
+    const none = projectAssignment(CS310, assignment([skipped, extra]), new Map(), NOW)
+    expect(none).toMatchObject({ tasksTotal: 0, optionalHandedIn: 0, optionalTotal: 2, readyToTurnIn: false })
+    expect(turnInBlocker(none)).toBe(
+      "Lab 4: Linked lists can't be turned in yet. Every task here is optional: hand at least one in first: Task 1 (CS 310 Lab Assistant); Task 2 (Lab report), which is done on the web.",
+    )
+    const handed = part({ optional: true, submission: { attemptId: 2, submittedAt: "2026-10-21T10:00:00Z" } })
+    const one = projectAssignment(CS310, assignment([handed, extra]), new Map(), NOW)
+    expect(one).toMatchObject({ optionalHandedIn: 1, readyToTurnIn: true })
+    expect(turnInBlocker(one)).toBeUndefined()
+  })
+
   test("is not ready to turn in with a task owed, once turned in, or past a due date it stops at", () => {
     const open = part()
     const handed = part({ submission: { attemptId: 2, submittedAt: "2026-10-21T10:00:00Z" } })
@@ -476,6 +530,59 @@ describe("projectAssignment", () => {
     expect(projectAssignment(CS310, turnedIn, new Map(), NOW)).toMatchObject({ turnedIn: true, readyToTurnIn: false })
     const stopped = assignment([handed], { dueAt: "2026-10-21T23:59:00Z" })
     expect(projectAssignment(CS310, stopped, new Map(), NOW).readyToTurnIn).toBe(false)
+  })
+
+  test("keeps the first-receipt rule when a required task is no longer owed, but permits task-free readings", () => {
+    const projected = projectAssignment(
+      CS310,
+      assignment([part({ owed: false }), filePart({ optional: true })]),
+      new Map(),
+      NOW,
+    )
+    expect(projected.readyToTurnIn).toBe(false)
+    expect(turnInBlocker(projected)).toContain("hand at least one in first")
+    const reading = projectAssignment(CS310, assignment([part({ owed: false })]), new Map(), NOW)
+    expect(reading.readyToTurnIn).toBe(true)
+    expect(turnInBlocker(reading)).toBeUndefined()
+  })
+
+  test.each([
+    { status: "draft" as const },
+    { opensAt: "2026-10-23T00:00:00Z" },
+    { dueAt: "2026-10-21T00:00:00Z", stopAtDue: true },
+  ])("marks web and Code tasks blocked when the assignment is unavailable: %j", (settings) => {
+    const projected = projectAssignment(
+      CS310,
+      assignment([part({ optional: true }), filePart({ optional: true })], settings),
+      new Map(),
+      NOW,
+    )
+    expect(projected.tasks.every((task) => task.workBlocked)).toBe(true)
+    expect(firstHandInAction(projected)).toBeUndefined()
+  })
+
+  test("does not offer turn-in before the assignment opens even with every required receipt", () => {
+    const projected = projectAssignment(
+      CS310,
+      assignment([part({ submission: { attemptId: 2, submittedAt: "2026-10-21T10:00:00Z" } })], {
+        opensAt: "2026-10-23T00:00:00Z",
+      }),
+      new Map(),
+      NOW,
+    )
+    expect(projected.readyToTurnIn).toBe(false)
+  })
+
+  test("asks for a first message when optional tasks accept participation instead of manual hand-in", () => {
+    const projected = projectAssignment(
+      CS310,
+      assignment([part({ optional: true, turnIn: { transcript: false, summary: false, reflection: false } })]),
+      new Map(),
+      NOW,
+    )
+    expect(turnInBlocker(projected)).toContain("send a message")
+    expect(turnInBlocker(projected)).not.toContain("hand at least one in")
+    expect(firstHandInAction(projected)).toBe("participate")
   })
 })
 
@@ -586,6 +693,14 @@ describe("the assignment calls", () => {
     const one = await Effect.runPromise(fetchStudentAssignment(REQUEST, 7, 40).pipe(Effect.provide(h.layer)))
     expect(one.parts.map((item) => (isAgentPart(item) ? "agent" : item.kind))).toEqual(["agent", "files"])
     expect(one.parts[1]).toMatchObject({ id: 44, name: "Lab report", submission: null, owed: true })
+  })
+
+  test("reads a task's optional flag, and none from a server that predates optional tasks", async () => {
+    const files = { id: 44, kind: "files", name: "Lab report", submission: null, owed: true, optional: true }
+    const h = stub(() => json({ ...assignment([]), parts: [part({ kind: "agent" }), files] }))
+    const one = await Effect.runPromise(fetchStudentAssignment(REQUEST, 7, 40).pipe(Effect.provide(h.layer)))
+    expect(one.parts[0]).not.toHaveProperty("optional")
+    expect(one.parts[1]).toMatchObject({ optional: true })
   })
 
   /** ⚠ BUT AN AGENT PART THAT FAILS ITS OWN SCHEMA FAILS THE READ, rather than pass for a web task. */

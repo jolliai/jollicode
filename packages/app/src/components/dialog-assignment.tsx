@@ -27,12 +27,28 @@ import { useHomeData } from "@/context/home-data"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { useServerSDK } from "@/context/server-sdk"
-import { participationSubmitted, taskActionsOf } from "@opencode-ai/core/jolli/assignment-actions"
+import {
+  isOptional,
+  firstHandInAction,
+  taskActionsOf,
+  taskStandingOf,
+  type TaskStandingKind,
+} from "@opencode-ai/core/jolli/assignment-actions"
 import { taskDraftOf } from "@opencode-ai/core/jolli/assignment"
 import { AssignmentIntent } from "@/jolli/assignment-intent"
 import { readAssignment, turnIn, useTaskTitle, type AssignmentRead } from "@/jolli/assignments"
 import { courseIntentRouteKey } from "@/jolli/course-intent"
 import type { HomeLocalSessionRecord } from "@/pages/home/home-sessions-controller"
+
+const STANDING = {
+  submitted: "dialog.assignment.task.submitted",
+  "handed-in": "dialog.assignment.task.handedIn",
+  "not-owed": "dialog.assignment.task.notOwed",
+  web: "dialog.assignment.task.web",
+  "in-progress": "dialog.assignment.task.inProgress",
+  elsewhere: "dialog.assignment.task.elsewhere",
+  "not-started": "dialog.assignment.task.notStarted",
+} as const satisfies Record<TaskStandingKind, string>
 
 export function DialogAssignment(props: { courseId: string; assignmentId: string; title: string }) {
   const language = useLanguage()
@@ -71,6 +87,20 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
     })
 
   const taskTitle = useTaskTitle()
+
+  /** The optional tasks a turn-in now leaves out, each with its place among the tasks, for its title. */
+  const optionalLeft = createMemo(() => {
+    const found = loaded()
+    if (!found) return []
+    return found.tasks.flatMap((task, index) => (isOptional(task) && !task.handedInAt ? [{ task, index }] : []))
+  })
+
+  /** Where a task stands, in the student's language: "Optional · Not started". */
+  const statusOf = (task: Jolli.AssignmentTask) => {
+    const standing = taskStandingOf(task)
+    const status = language.t(STANDING[standing.kind], { date: task.handedInAt ? when(task.handedInAt) : "" })
+    return standing.optional ? language.t("dialog.assignment.task.optionalStatus", { status }) : status
+  }
 
   /** Begin a new session for the task: a draft bound to it, in the project the student works in. */
   const start = (assignment: Jolli.Assignment, task: Jolli.AssignmentTask, index: number) => {
@@ -167,20 +197,7 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
                             <span class="truncate text-[13px] text-v2-text-text-base">
                               {taskTitle(index())} · {task.name}
                             </span>
-                            <span class="truncate text-[12px] text-v2-text-text-muted">
-                              <Switch fallback={language.t("dialog.assignment.task.notStarted")}>
-                                <Match when={participationSubmitted(task) && task.handedInAt}>
-                                  {(at) => language.t("dialog.assignment.task.submitted", { date: when(at()) })}
-                                </Match>
-                                <Match when={task.handedInAt}>
-                                  {(at) => language.t("dialog.assignment.task.handedIn", { date: when(at()) })}
-                                </Match>
-                                <Match when={!task.owed}>{language.t("dialog.assignment.task.notOwed")}</Match>
-                                <Match when={task.place === "web"}>{language.t("dialog.assignment.task.web")}</Match>
-                                <Match when={task.local}>{language.t("dialog.assignment.task.inProgress")}</Match>
-                                <Match when={task.elsewhere}>{language.t("dialog.assignment.task.elsewhere")}</Match>
-                              </Switch>
-                            </span>
+                            <span class="truncate text-[12px] text-v2-text-text-muted">{statusOf(task)}</span>
                           </div>
                           <Show when={task.place === "jolli_code"}>
                             <Switch>
@@ -237,6 +254,15 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
                     }}
                   </For>
                 </ul>
+                <Show when={firstHandInAction(assignment())}>
+                  {(action) => (
+                    <p data-component="dialog-assignment-first-hand-in" class="text-[13px] text-v2-text-text-muted">
+                      {action() === "participate"
+                        ? language.t("dialog.assignment.turnIn.firstParticipation")
+                        : language.t("dialog.assignment.turnIn.firstHandIn")}
+                    </p>
+                  )}
+                </Show>
                 <Show when={confirming()}>
                   <div
                     data-component="dialog-assignment-turn-in-confirm"
@@ -247,6 +273,21 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
                         ? language.t("dialog.assignment.turnIn.confirm.named", { name: assignment().authorName! })
                         : language.t("dialog.assignment.turnIn.confirm")}
                     </span>
+                    <Show when={optionalLeft().length > 0}>
+                      <div
+                        data-component="dialog-assignment-turn-in-optional"
+                        class="flex flex-col text-v2-text-text-muted"
+                      >
+                        <span>{language.t("dialog.assignment.turnIn.optionalLeft")}</span>
+                        <For each={optionalLeft()}>
+                          {(left) => (
+                            <span>
+                              {taskTitle(left.index)} · {left.task.name}
+                            </span>
+                          )}
+                        </For>
+                      </div>
+                    </Show>
                     <Show when={turnInRefusal()}>
                       {(message) => (
                         <span role="alert" class="text-v2-text-text-muted">

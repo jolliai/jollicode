@@ -1282,6 +1282,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Oddane {{date}}",
   "dialog.assignment.task.submitted": "Oddane {{date}}",
   "dialog.assignment.task.notOwed": "Już niepotrzebne",
+  "dialog.assignment.task.optionalStatus": "Opcjonalne · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Wyślij wiadomość w co najmniej jednym zadaniu opcjonalnym, zanim oddasz całą pracę. Zadanie zostanie automatycznie uznane za oddane.",
+  "dialog.assignment.turnIn.firstHandIn": "Oddaj co najmniej jedno zadanie opcjonalne, zanim oddasz całą pracę.",
+  "dialog.assignment.turnIn.optionalLeft": "Nieoddane zadania opcjonalne — jeśli oddasz teraz, zostaną pominięte:",
   "dialog.assignment.task.web": "Wykonaj to zadanie w internecie",
   "dialog.assignment.task.elsewhere": "Rozpoczęte na innym komputerze",
   "dialog.assignment.task.start": "Rozpocznij",

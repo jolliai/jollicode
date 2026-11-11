@@ -1256,6 +1256,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Dorëzuar më {{date}}",
   "dialog.assignment.task.submitted": "Dorëzuar më {{date}}",
   "dialog.assignment.task.notOwed": "Nuk nevojitet më",
+  "dialog.assignment.task.optionalStatus": "Opsionale · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Dërgo një mesazh në të paktën një detyrë opsionale përpara se të dorëzosh këtë punë. Detyra do të llogaritet automatikisht si e dorëzuar.",
+  "dialog.assignment.turnIn.firstHandIn": "Dorëzo të paktën një detyrë opsionale përpara se të dorëzosh këtë punë.",
+  "dialog.assignment.turnIn.optionalLeft": "Detyra opsionale të padorëzuara — nëse dorëzon tani, ato nuk përfshihen:",
   "dialog.assignment.task.web": "Bëje këtë ushtrim në ueb",
   "dialog.assignment.task.elsewhere": "Nisur në një kompjuter tjetër",
   "dialog.assignment.task.start": "Nis",

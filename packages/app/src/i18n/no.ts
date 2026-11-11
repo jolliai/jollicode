@@ -1357,6 +1357,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Levert {{date}}",
   "dialog.assignment.task.submitted": "Levert {{date}}",
   "dialog.assignment.task.notOwed": "Ikke lenger nødvendig",
+  "dialog.assignment.task.optionalStatus": "Valgfri · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Send en melding i minst én valgfri oppgave før du leverer denne innleveringen. Oppgaven regnes automatisk som levert.",
+  "dialog.assignment.turnIn.firstHandIn": "Lever minst én valgfri oppgave før du leverer denne innleveringen.",
+  "dialog.assignment.turnIn.optionalLeft": "Valgfrie oppgaver som ikke er levert – leverer du nå, blir de ikke med:",
   "dialog.assignment.task.web": "Gjør denne deloppgaven på nettet",
   "dialog.assignment.task.elsewhere": "Startet på en annen datamaskin",
   "dialog.assignment.task.start": "Start",

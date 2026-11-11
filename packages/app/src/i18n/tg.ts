@@ -1259,6 +1259,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "{{date}} супорида шуд",
   "dialog.assignment.task.submitted": "{{date}} супорида шуд",
   "dialog.assignment.task.notOwed": "Дигар лозим нест",
+  "dialog.assignment.task.optionalStatus": "Ихтиёрӣ · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Пеш аз супоридани ин кори таълимӣ, дар ҳадди ақал як супориши ихтиёрӣ паём фирист. Он ба таври худкор супоридашуда ҳисоб мешавад.",
+  "dialog.assignment.turnIn.firstHandIn": "Пеш аз супоридани ин кори таълимӣ, ҳадди ақал як супориши ихтиёриро супор.",
+  "dialog.assignment.turnIn.optionalLeft":
+    "Супоришҳои ихтиёрии насупоридашуда — агар ҳозир супорӣ, онҳо дохил намешаванд:",
   "dialog.assignment.task.web": "Ин вазифаро дар веб иҷро кунед",
   "dialog.assignment.task.elsewhere": "Дар компютери дигар оғоз шудааст",
   "dialog.assignment.task.start": "Оғоз",

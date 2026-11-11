@@ -1246,6 +1246,11 @@ export const dict: Record<string, string> = {
   "dialog.assignment.task.handedIn": "{{date}}-এ জমা দেওয়া হয়েছে",
   "dialog.assignment.task.submitted": "{{date}}-এ জমা দেওয়া হয়েছে",
   "dialog.assignment.task.notOwed": "আর প্রয়োজন নেই",
+  "dialog.assignment.task.optionalStatus": "ঐচ্ছিক · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "এই অ্যাসাইনমেন্ট জমা দেওয়ার আগে অন্তত একটি ঐচ্ছিক কাজে একটি বার্তা পাঠান। কাজটি স্বয়ংক্রিয়ভাবে জমা দেওয়া হয়েছে বলে গণ্য হবে।",
+  "dialog.assignment.turnIn.firstHandIn": "এই অ্যাসাইনমেন্ট জমা দেওয়ার আগে অন্তত একটি ঐচ্ছিক কাজ জমা দিন।",
+  "dialog.assignment.turnIn.optionalLeft": "জমা না দেওয়া ঐচ্ছিক কাজ — এখন জমা দিলে এগুলো বাদ পড়বে:",
   "dialog.assignment.task.web": "এই কাজটি ওয়েবে করুন",
   "dialog.assignment.task.elsewhere": "অন্য কম্পিউটারে শুরু করা হয়েছে",
   "dialog.assignment.task.start": "শুরু করুন",

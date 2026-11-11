@@ -1275,6 +1275,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "سُلّمت في {{date}}",
   "dialog.assignment.task.submitted": "سُلّمت في {{date}}",
   "dialog.assignment.task.notOwed": "لم تعد مطلوبة",
+  "dialog.assignment.task.optionalStatus": "اختياري · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "أرسل رسالة في مهمة اختيارية واحدة على الأقل قبل تسليم هذا الواجب. ستُحسب المهمة على أنها مُسلَّمة تلقائيًا.",
+  "dialog.assignment.turnIn.firstHandIn": "سلِّم مهمة اختيارية واحدة على الأقل قبل تسليم هذا الواجب.",
+  "dialog.assignment.turnIn.optionalLeft": "مهام اختيارية لم تُسلَّم — التسليم الآن يستثنيها:",
   "dialog.assignment.task.web": "أنجز هذه المهمة على الويب",
   "dialog.assignment.task.elsewhere": "بدأت على جهاز كمبيوتر آخر",
   "dialog.assignment.task.start": "ابدأ",

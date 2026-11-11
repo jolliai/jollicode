@@ -1265,6 +1265,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Predano {{date}}",
   "dialog.assignment.task.submitted": "Predano {{date}}",
   "dialog.assignment.task.notOwed": "Više nije potrebno",
+  "dialog.assignment.task.optionalStatus": "Neobavezno · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Pošalji poruku u barem jednom neobaveznom zadatku prije nego što predaš ovu zadaću. Zadatak se automatski računa kao predan.",
+  "dialog.assignment.turnIn.firstHandIn": "Predaj barem jedan neobavezni zadatak prije nego što predaš ovu zadaću.",
+  "dialog.assignment.turnIn.optionalLeft":
+    "Neobavezni zadaci koji nisu predani – ako sada predaš, neće biti uključeni:",
   "dialog.assignment.task.web": "Ovaj zadatak riješi na webu",
   "dialog.assignment.task.elsewhere": "Započeto na drugom računalu",
   "dialog.assignment.task.start": "Započni",

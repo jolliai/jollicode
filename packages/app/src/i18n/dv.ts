@@ -1269,6 +1269,13 @@ export const dict = {
   "dialog.assignment.task.handedIn": "{{date}} ގައި ހުށަހެޅިއްޖެ",
   "dialog.assignment.task.submitted": "{{date}} ގައި ހުށަހެޅިއްޖެ",
   "dialog.assignment.task.notOwed": "މިހާރު ބޭނުމެއް ނުވޭ",
+  "dialog.assignment.task.optionalStatus": "އިޚްތިޔާރީ · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "މި އެސައިންމަންޓް ހުށަހެޅުމުގެ ކުރިން މަދުވެގެން އެއް އިޚްތިޔާރީ މަސައްކަތެއްގައި މެސެޖެއް ފޮނުވާ. އެ މަސައްކަތް އޮޓޮމެޓިކްކޮށް ހުށަހަޅާފައިވާ ގޮތުގައި ބެލޭނެ.",
+  "dialog.assignment.turnIn.firstHandIn":
+    "މި އެސައިންމަންޓް ހުށަހެޅުމުގެ ކުރިން މަދުވެގެން އެއް އިޚްތިޔާރީ މަސައްކަތެއް ހުށަހަޅާ.",
+  "dialog.assignment.turnIn.optionalLeft":
+    "ހުށަހަޅާފައިނުވާ އިޚްތިޔާރީ މަސައްކަތްތައް — މިހާރު ހުށަހަޅައިފިނަމަ މިއީ ނުހިމެނޭނެ:",
   "dialog.assignment.task.web": "މި މަސައްކަތް ވެބުގައި ކުރޭ",
   "dialog.assignment.task.elsewhere": "އެހެން ކޮމްޕިއުޓަރެއްގައި ފަށާފައި",
   "dialog.assignment.task.start": "ފަށާ",

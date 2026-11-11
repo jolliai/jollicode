@@ -1264,6 +1264,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Topshirildi: {{date}}",
   "dialog.assignment.task.submitted": "Topshirildi: {{date}}",
   "dialog.assignment.task.notOwed": "Endi kerak emas",
+  "dialog.assignment.task.optionalStatus": "Ixtiyoriy · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Bu topshiriqni topshirishdan oldin kamida bitta ixtiyoriy vazifada xabar yuboring. U avtomatik ravishda topshirilgan hisoblanadi.",
+  "dialog.assignment.turnIn.firstHandIn":
+    "Bu topshiriqni topshirishdan oldin kamida bitta ixtiyoriy vazifani topshiring.",
+  "dialog.assignment.turnIn.optionalLeft": "Topshirilmagan ixtiyoriy vazifalar — hozir topshirsangiz, ular kirmaydi:",
   "dialog.assignment.task.web": "Bu vazifani vebda bajaring",
   "dialog.assignment.task.elsewhere": "Boshqa kompyuterda boshlangan",
   "dialog.assignment.task.start": "Boshlash",

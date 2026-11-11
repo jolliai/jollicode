@@ -1251,6 +1251,11 @@ export const dict: Record<string, string> = {
   "dialog.assignment.task.handedIn": "{{date}} मा बुझाइएको",
   "dialog.assignment.task.submitted": "{{date}} मा बुझाइएको",
   "dialog.assignment.task.notOwed": "अब आवश्यक छैन",
+  "dialog.assignment.task.optionalStatus": "वैकल्पिक · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "यो असाइनमेन्ट बुझाउनुअघि कम्तीमा एउटा वैकल्पिक कार्यमा सन्देश पठाउनुहोस्। त्यो कार्य स्वतः बुझाइएको मानिन्छ।",
+  "dialog.assignment.turnIn.firstHandIn": "यो असाइनमेन्ट बुझाउनुअघि कम्तीमा एउटा वैकल्पिक कार्य बुझाउनुहोस्।",
+  "dialog.assignment.turnIn.optionalLeft": "नबुझाइएका वैकल्पिक कार्यहरू — अहिले बुझाउँदा यी समावेश हुने छैनन्:",
   "dialog.assignment.task.web": "यो कार्य वेबमा गर्नुहोस्",
   "dialog.assignment.task.elsewhere": "अर्को कम्प्युटरमा सुरु गरिएको",
   "dialog.assignment.task.start": "सुरु गर्नुहोस्",

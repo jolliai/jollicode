@@ -1224,6 +1224,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "{{date}} ገብቷል",
   "dialog.assignment.task.submitted": "{{date}} ገብቷል",
   "dialog.assignment.task.notOwed": "ከእንግዲህ አያስፈልግም",
+  "dialog.assignment.task.optionalStatus": "አማራጭ · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "ይህን ምደባ ከማስረከብዎ በፊት ቢያንስ በአንድ አማራጭ ተግባር ውስጥ መልዕክት ይላኩ። ተግባሩ በራስ-ሰር እንደገባ ይቆጠራል።",
+  "dialog.assignment.turnIn.firstHandIn": "ይህን ምደባ ከማስረከብዎ በፊት ቢያንስ አንድ አማራጭ ተግባር ያስረክቡ።",
+  "dialog.assignment.turnIn.optionalLeft": "ያልገቡ አማራጭ ተግባራት — አሁን ማስረከብ እነዚህን ያስቀራቸዋል፦",
   "dialog.assignment.task.web": "ይህን ተግባር በድሩ ላይ ይስሩ",
   "dialog.assignment.task.elsewhere": "በሌላ ኮምፒውተር ላይ ተጀምሯል",
   "dialog.assignment.task.start": "ጀምር",

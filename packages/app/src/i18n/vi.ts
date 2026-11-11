@@ -1261,6 +1261,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Đã nộp lúc {{date}}",
   "dialog.assignment.task.submitted": "Đã nộp lúc {{date}}",
   "dialog.assignment.task.notOwed": "Không còn cần thiết",
+  "dialog.assignment.task.optionalStatus": "Không bắt buộc · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Gửi tin nhắn trong ít nhất một nhiệm vụ không bắt buộc trước khi nộp bài tập này. Nhiệm vụ đó sẽ tự động được tính là đã nộp.",
+  "dialog.assignment.turnIn.firstHandIn": "Nộp ít nhất một nhiệm vụ không bắt buộc trước khi nộp bài tập này.",
+  "dialog.assignment.turnIn.optionalLeft":
+    "Các nhiệm vụ không bắt buộc chưa nộp — nếu nộp bây giờ, chúng sẽ không được tính:",
   "dialog.assignment.task.web": "Làm nhiệm vụ này trên web",
   "dialog.assignment.task.elsewhere": "Đã bắt đầu trên máy tính khác",
   "dialog.assignment.task.start": "Bắt đầu",

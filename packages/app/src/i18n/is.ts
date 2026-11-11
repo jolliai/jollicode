@@ -1249,6 +1249,13 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Skilað {{date}}",
   "dialog.assignment.task.submitted": "Skilað {{date}}",
   "dialog.assignment.task.notOwed": "Ekki lengur þörf",
+  "dialog.assignment.task.optionalStatus": "Valfrjálst · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Sendu skilaboð í að minnsta kosti einu valfrjálsu verkefni áður en þú skilar þessari skilagrein. Verkefnið telst þá sjálfkrafa skilað.",
+  "dialog.assignment.turnIn.firstHandIn":
+    "Skilaðu að minnsta kosti einu valfrjálsu verkefni áður en þú skilar þessari skilagrein.",
+  "dialog.assignment.turnIn.optionalLeft":
+    "Valfrjáls verkefni sem hafa ekki verið skiluð – ef þú skilar núna verða þau ekki með:",
   "dialog.assignment.task.web": "Vinndu þennan verkþátt á vefnum",
   "dialog.assignment.task.elsewhere": "Hafið á annarri tölvu",
   "dialog.assignment.task.start": "Hefja",

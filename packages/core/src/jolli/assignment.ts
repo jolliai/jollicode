@@ -22,6 +22,7 @@ import type {
   StudentAssignmentList,
   StudentAssignmentPart,
 } from "./api"
+import { isOptional, isParticipation, needsFirstHandIn, taskMention } from "./assignment-actions"
 import { orgScopedId, parseOrgScopedId } from "./org-scoped-id"
 
 // ── A task's session ─────────────────────────────────────────────────────────────────────────────
@@ -171,6 +172,9 @@ export function todoAssignments(
           // Every kind's tasks, as the assignment's dialog counts them: `tasks` holds the agent ones alone.
           tasksHandedIn: item.progress.partsSubmitted,
           tasksTotal: item.progress.partsTotal,
+          ...(item.progress.optionalTotal
+            ? { optionalHandedIn: item.progress.optionalSubmitted ?? 0, optionalTotal: item.progress.optionalTotal }
+            : {}),
         })),
     )
     .toSorted(byDue)
@@ -226,9 +230,11 @@ export function projectAssignment(
         assistantId: null,
         assistantBlurb: null,
         place: "web",
+        ...(stopped && { workBlocked: true }),
         handedInAt: part.submission?.submittedAt ?? null,
         handedInSessionID: null,
         owed: part.owed,
+        ...(part.optional && { optional: true }),
         local: null,
         elsewhere: false,
       }
@@ -267,11 +273,13 @@ export function projectAssignment(
       handedInAt: part.submission?.submittedAt ?? null,
       handedInSessionID: place === "jolli_code" ? (handedIn?.conversationId ?? null) : null,
       owed: part.owed,
+      ...(part.optional && { optional: true }),
       local: here ? { sessionID: here.sessionID, directory: here.directory } : null,
       elsewhere: sessions.some((sessionID) => !locals.has(sessionID)),
     }
   })
-  const owed = tasks.filter((task) => task.owed)
+  const required = tasks.filter(isRequired)
+  const optional = tasks.filter(isOptional)
   const turnedIn = assignment.progress.turnedInAt !== null
   return {
     id: String(assignment.id),
@@ -282,16 +290,23 @@ export function projectAssignment(
     dueAt: assignment.dueAt,
     stopAtDue: assignment.stopAtDue,
     authorName: assignment.authorName,
-    tasksHandedIn: owed.filter((task) => task.handedInAt !== null).length,
-    tasksTotal: owed.length,
+    tasksHandedIn: required.filter((task) => task.handedInAt !== null).length,
+    tasksTotal: required.length,
+    ...(optional.length > 0
+      ? { optionalHandedIn: optional.filter((task) => task.handedInAt !== null).length, optionalTotal: optional.length }
+      : {}),
     turnedIn,
+    // ⚠ AS THE GATEWAY'S `turnInNeedsMet`: an assignment of optional tasks alone needs one of them in, so
+    // turning in is never offered with nothing done. One with no task at all, a reading, needs nothing.
     readyToTurnIn:
-      !turnedIn &&
-      assignment.status === "published" &&
-      !pastStop(assignment, now) &&
-      owed.every((task) => task.handedInAt !== null),
+      !turnedIn && !stopped && required.every((task) => task.handedInAt !== null) && !needsFirstHandIn({ tasks }),
     tasks,
   }
+}
+
+/** Whether the student must hand a task in before turning the assignment in: owed, and not optional. */
+function isRequired(task: Pick<Jolli.AssignmentTask, "owed" | "optional">) {
+  return task.owed && task.optional !== true
 }
 
 /** Every session id the assignment's Jolli Code tasks were started under, for the local lookup. */
@@ -469,12 +484,19 @@ function clip(line: string) {
  */
 export function turnInBlocker(assignment: Jolli.Assignment): string | undefined {
   if (assignment.turnedIn) return `${assignment.title} is already turned in.`
-  const left = assignment.tasks.filter((task) => task.owed && task.handedInAt === null)
-  if (left.length === 0) return undefined
-  const named = left.map(
-    (task) => `${task.title} (${task.name})` + (task.place === "web" ? ", which is done on the web" : ""),
-  )
-  return `${assignment.title} can't be turned in yet. Still to hand in: ${named.join("; ")}.`
+  const left = assignment.tasks.filter((task) => isRequired(task) && task.handedInAt === null)
+  if (left.length > 0)
+    return `${assignment.title} can't be turned in yet. Still to hand in: ${left.map(mentionWhere).join("; ")}.`
+  // The gateway refuses this as `no_task_submitted`: see `readyToTurnIn`.
+  if (!needsFirstHandIn(assignment)) return undefined
+  const optional = assignment.tasks.filter(isOptional)
+  if (optional.every(isParticipation))
+    return `${assignment.title} can't be turned in yet. Every task here is optional: send a message in at least one task first; it counts as submitted automatically: ${optional.map(mentionWhere).join("; ")}.`
+  return `${assignment.title} can't be turned in yet. Every task here is optional: hand at least one in first: ${optional.map(mentionWhere).join("; ")}.`
+}
+
+function mentionWhere(task: Jolli.AssignmentTask) {
+  return taskMention(task) + (task.place === "web" ? ", which is done on the web" : "")
 }
 
 /**
@@ -494,7 +516,7 @@ export function turnInLines(assignment: Jolli.Assignment, locale?: string): stri
       .map((task) =>
         task.handedInAt
           ? `${task.title} · ${task.name} · submitted ${day(task.handedInAt)}`
-          : `${task.title} · ${task.name} · not submitted`,
+          : `${task.title} · ${task.name} · ${isOptional(task) ? "optional, not submitted" : "not submitted"}`,
       ),
   ].map(clip)
 }

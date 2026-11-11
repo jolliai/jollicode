@@ -4153,6 +4153,8 @@ export type JolliAssignmentSummary = {
   stopAtDue: boolean
   tasksHandedIn: number
   tasksTotal: number
+  optionalHandedIn?: number
+  optionalTotal?: number
 }
 
 export type JolliAssignmentList = {
@@ -4182,6 +4184,7 @@ export type JolliAssignmentTask = {
   handedInAt: string
   handedInSessionID: string
   owed: boolean
+  optional?: boolean
   local: JolliAssignmentTaskSession
   elsewhere: boolean
 }
@@ -4195,6 +4198,8 @@ export type JolliAssignment = {
   stopAtDue: boolean
   tasksHandedIn: number
   tasksTotal: number
+  optionalHandedIn?: number
+  optionalTotal?: number
   description: string
   authorName: string
   turnedIn: boolean

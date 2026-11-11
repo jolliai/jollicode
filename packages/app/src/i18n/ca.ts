@@ -1268,6 +1268,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Lliurat el {{date}}",
   "dialog.assignment.task.submitted": "Lliurat el {{date}}",
   "dialog.assignment.task.notOwed": "Ja no cal",
+  "dialog.assignment.task.optionalStatus": "Opcional · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Envia un missatge en almenys una tasca opcional abans de lliurar aquest treball. La tasca es considera lliurada automàticament.",
+  "dialog.assignment.turnIn.firstHandIn": "Lliura almenys una tasca opcional abans de lliurar aquest treball.",
+  "dialog.assignment.turnIn.optionalLeft": "Tasques opcionals no lliurades: si ho lliures ara, en queden fora:",
   "dialog.assignment.task.web": "Fes aquest exercici al web",
   "dialog.assignment.task.elsewhere": "Començat en un altre ordinador",
   "dialog.assignment.task.start": "Comença",

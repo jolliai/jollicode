@@ -30,3 +30,50 @@ export function participationWorkBlocked(assignment: Jolli.Assignment, task: Jol
 export function isParticipation(task: Jolli.AssignmentTask | undefined) {
   return task?.requiresExplicitSubmit === false || task?.completionKind === "participation"
 }
+
+/**
+ * WHERE A TASK STANDS, ONCE FOR EVERY SURFACE: the terminal's `/assignment` and the desktop dialog each
+ * word `kind` their own way.
+ *
+ * ⚠ `optional` ONLY FOR A TASK STILL OWED. One nobody owes any more reads "No longer needed" alone.
+ */
+export function taskStandingOf(task: Jolli.AssignmentTask) {
+  const optional = isOptional(task)
+  if (task.handedInAt) return { kind: participationSubmitted(task) ? "submitted" : "handed-in", optional } as const
+  if (!task.owed) return { kind: "not-owed", optional } as const
+  if (task.place === "web") return { kind: "web", optional } as const
+  if (task.local) return { kind: "in-progress", optional } as const
+  if (task.elsewhere) return { kind: "elsewhere", optional } as const
+  return { kind: "not-started", optional } as const
+}
+
+export type TaskStandingKind = ReturnType<typeof taskStandingOf>["kind"]
+
+/** An optional task counts only while the student still owes it. */
+export function isOptional(task: Pick<Jolli.AssignmentTask, "owed" | "optional">) {
+  return task.owed && task.optional === true
+}
+
+/** The gateway needs one receipt when every owed task is optional; a reading with no tasks needs none. */
+export function needsFirstHandIn(assignment: Pick<Jolli.Assignment, "tasks">) {
+  const owed = assignment.tasks.filter((task) => task.owed)
+  return owed.length > 0 && owed.every((task) => isOptional(task) && !task.handedInAt)
+}
+
+/** A next step the student can actually take, omitted when none of the optional tasks can be worked. */
+export function firstHandInAction(assignment: Jolli.Assignment) {
+  if (assignment.turnedIn || !needsFirstHandIn(assignment)) return undefined
+  const available = openOptionalTasks(assignment).filter((task) => !task.workBlocked)
+  if (available.length === 0) return undefined
+  return available.every(isParticipation) ? "participate" : "hand-in"
+}
+
+/** A task as a sentence names it: "Task 2 (Lab report)". */
+export function taskMention(task: Pick<Jolli.AssignmentTask, "title" | "name">) {
+  return `${task.title} (${task.name})`
+}
+
+/** The optional tasks still owed and not handed in: what turning the assignment in now leaves out. */
+export function openOptionalTasks(assignment: Pick<Jolli.Assignment, "tasks">) {
+  return assignment.tasks.filter((task) => isOptional(task) && !task.handedInAt)
+}

@@ -1252,6 +1252,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Inlämnad {{date}}",
   "dialog.assignment.task.submitted": "Inlämnad {{date}}",
   "dialog.assignment.task.notOwed": "Behövs inte längre",
+  "dialog.assignment.task.optionalStatus": "Valfri · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Skicka ett meddelande i minst en valfri uppgift innan du lämnar in den här inlämningen. Uppgiften räknas automatiskt som inlämnad.",
+  "dialog.assignment.turnIn.firstHandIn": "Lämna in minst en valfri uppgift innan du lämnar in den här inlämningen.",
+  "dialog.assignment.turnIn.optionalLeft":
+    "Valfria uppgifter som inte lämnats in – lämnar du in nu kommer de inte med:",
   "dialog.assignment.task.web": "Gör den här deluppgiften på webben",
   "dialog.assignment.task.elsewhere": "Påbörjad på en annan dator",
   "dialog.assignment.task.start": "Starta",

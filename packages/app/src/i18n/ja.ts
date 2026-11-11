@@ -1264,6 +1264,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "{{date}} に提出済み",
   "dialog.assignment.task.submitted": "{{date}} に提出済み",
   "dialog.assignment.task.notOwed": "不要になりました",
+  "dialog.assignment.task.optionalStatus": "任意 · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "この課題を提出するには、先に任意タスクを少なくとも1つ選んでメッセージを送信してください。そのタスクは自動的に提出済みになります。",
+  "dialog.assignment.turnIn.firstHandIn": "この課題を提出するには、先に任意タスクを少なくとも1つ提出してください。",
+  "dialog.assignment.turnIn.optionalLeft": "未提出の任意タスク — 今提出すると、これらは含まれません:",
   "dialog.assignment.task.web": "このタスクはウェブで取り組んでください",
   "dialog.assignment.task.elsewhere": "別のコンピューターで開始済み",
   "dialog.assignment.task.start": "開始",

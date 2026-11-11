@@ -2,9 +2,13 @@ import { describe, expect, test } from "bun:test"
 import type { Jolli } from "@opencode-ai/schema/jolli"
 import {
   isParticipation,
+  firstHandInAction,
+  needsFirstHandIn,
+  openOptionalTasks,
   participationSubmitted,
   participationWorkBlocked,
   taskActionsOf,
+  taskStandingOf,
 } from "../src/jolli/assignment-actions"
 
 const task: Jolli.AssignmentTask = {
@@ -114,5 +118,65 @@ describe("taskActionsOf", () => {
     expect(isParticipation(done)).toBe(true)
     expect(participationSubmitted(done)).toBe(true)
     expect(participationWorkBlocked(assignment, done)).toBe(true)
+  })
+})
+
+describe("taskStandingOf", () => {
+  const open = { ...task, local: null }
+  test("says where a task stands", () => {
+    expect(taskStandingOf(open).kind).toBe("not-started")
+    expect(taskStandingOf(task).kind).toBe("in-progress")
+    expect(taskStandingOf({ ...open, elsewhere: true }).kind).toBe("elsewhere")
+    expect(taskStandingOf({ ...open, place: "web" }).kind).toBe("web")
+    expect(taskStandingOf({ ...open, owed: false }).kind).toBe("not-owed")
+    expect(taskStandingOf({ ...open, handedInAt: "2026-10-26T01:00:00Z" }).kind).toBe("handed-in")
+    expect(taskStandingOf({ ...open, completionKind: "participation", handedInAt: "2026-10-26T01:00:00Z" }).kind).toBe(
+      "submitted",
+    )
+  })
+  test("marks an optional task only while it is owed", () => {
+    expect(taskStandingOf(open).optional).toBe(false)
+    expect(taskStandingOf({ ...open, optional: true })).toEqual({ kind: "not-started", optional: true })
+    expect(taskStandingOf({ ...open, optional: true, owed: false })).toEqual({ kind: "not-owed", optional: false })
+  })
+})
+
+describe("openOptionalTasks", () => {
+  test("lists the optional tasks owed and not handed in", () => {
+    const skipped = { ...task, partId: "31", optional: true }
+    const handed = { ...task, partId: "32", optional: true, handedInAt: "2026-10-26T01:00:00Z" }
+    const removed = { ...task, partId: "33", optional: true, owed: false }
+    expect(openOptionalTasks({ tasks: [task, skipped, handed, removed] }).map((item) => item.partId)).toEqual(["31"])
+  })
+})
+
+describe("needsFirstHandIn", () => {
+  test("explains the first-receipt rule only for owed optional tasks with none handed in", () => {
+    const optional = { ...task, optional: true }
+    expect(needsFirstHandIn({ tasks: [optional] })).toBe(true)
+    expect(needsFirstHandIn({ tasks: [optional, { ...task, owed: false }] })).toBe(true)
+    expect(needsFirstHandIn({ tasks: [optional, task] })).toBe(false)
+    expect(needsFirstHandIn({ tasks: [{ ...optional, handedInAt: "2026-10-26T01:00:00Z" }] })).toBe(false)
+    expect(needsFirstHandIn({ tasks: [{ ...optional, owed: false }] })).toBe(false)
+    expect(needsFirstHandIn({ tasks: [] })).toBe(false)
+  })
+})
+
+describe("firstHandInAction", () => {
+  test("offers only an available way to earn the first optional receipt", () => {
+    const optional = { ...task, optional: true }
+    const participation = { ...optional, requiresExplicitSubmit: false }
+    expect(firstHandInAction({ ...assignment, tasks: [optional] })).toBe("hand-in")
+    expect(firstHandInAction({ ...assignment, tasks: [participation] })).toBe("participate")
+    expect(firstHandInAction({ ...assignment, tasks: [participation, optional] })).toBe("hand-in")
+    expect(firstHandInAction({ ...assignment, tasks: [participation, { ...optional, workBlocked: true }] })).toBe(
+      "participate",
+    )
+    expect(firstHandInAction({ ...assignment, tasks: [{ ...optional, workBlocked: true }] })).toBeUndefined()
+    expect(firstHandInAction({ ...assignment, turnedIn: true, tasks: [optional] })).toBeUndefined()
+    expect(firstHandInAction({ ...assignment, tasks: [optional, task] })).toBeUndefined()
+    expect(
+      firstHandInAction({ ...assignment, tasks: [{ ...participation, handedInAt: "2026-10-26T01:00:00Z" }] }),
+    ).toBeUndefined()
   })
 })

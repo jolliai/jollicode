@@ -1248,6 +1248,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "تحویل داده شده در {{date}}",
   "dialog.assignment.task.submitted": "تحویل داده شده در {{date}}",
   "dialog.assignment.task.notOwed": "دیگر لازم نیست",
+  "dialog.assignment.task.optionalStatus": "اختیاری · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "پیش از تحویل این تکلیف، در دست‌کم یک کار اختیاری پیام بفرست. آن کار به‌طور خودکار تحویل‌شده محسوب می‌شود.",
+  "dialog.assignment.turnIn.firstHandIn": "پیش از تحویل این تکلیف، دست‌کم یک کار اختیاری را تحویل بده.",
+  "dialog.assignment.turnIn.optionalLeft":
+    "کارهای اختیاری تحویل‌نشده — اگر الان تحویل دهی، این‌ها کنار گذاشته می‌شوند:",
   "dialog.assignment.task.web": "این بخش را در وب انجام دهید",
   "dialog.assignment.task.elsewhere": "در رایانهٔ دیگری شروع شده است",
   "dialog.assignment.task.start": "شروع",

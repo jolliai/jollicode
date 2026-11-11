@@ -1257,6 +1257,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "{{date}} को जमा किया गया",
   "dialog.assignment.task.submitted": "{{date}} को जमा किया गया",
   "dialog.assignment.task.notOwed": "अब ज़रूरी नहीं",
+  "dialog.assignment.task.optionalStatus": "वैकल्पिक · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "यह असाइनमेंट जमा करने से पहले कम से कम एक वैकल्पिक कार्य में संदेश भेजें। वह कार्य अपने-आप जमा माना जाएगा।",
+  "dialog.assignment.turnIn.firstHandIn": "यह असाइनमेंट जमा करने से पहले कम से कम एक वैकल्पिक कार्य जमा करें।",
+  "dialog.assignment.turnIn.optionalLeft": "जमा नहीं किए गए वैकल्पिक कार्य — अभी जमा करने पर ये शामिल नहीं होंगे:",
   "dialog.assignment.task.web": "यह कार्य वेब पर करें",
   "dialog.assignment.task.elsewhere": "किसी दूसरे कंप्यूटर पर शुरू किया गया",
   "dialog.assignment.task.start": "शुरू करें",

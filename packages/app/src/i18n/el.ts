@@ -1266,6 +1266,13 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Παραδόθηκε {{date}}",
   "dialog.assignment.task.submitted": "Παραδόθηκε {{date}}",
   "dialog.assignment.task.notOwed": "Δεν απαιτείται πλέον",
+  "dialog.assignment.task.optionalStatus": "Προαιρετικό · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Στείλε ένα μήνυμα σε τουλάχιστον μία προαιρετική εργασία πριν παραδώσεις αυτή την ανάθεση. Η εργασία υπολογίζεται αυτόματα ως παραδομένη.",
+  "dialog.assignment.turnIn.firstHandIn":
+    "Παράδωσε τουλάχιστον μία προαιρετική εργασία πριν παραδώσεις αυτή την ανάθεση.",
+  "dialog.assignment.turnIn.optionalLeft":
+    "Προαιρετικές εργασίες που δεν παραδόθηκαν — αν παραδώσεις τώρα, δεν θα συμπεριληφθούν:",
   "dialog.assignment.task.web": "Κάντε αυτή την άσκηση στον ιστότοπο",
   "dialog.assignment.task.elsewhere": "Ξεκίνησε σε άλλον υπολογιστή",
   "dialog.assignment.task.start": "Έναρξη",

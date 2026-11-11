@@ -726,6 +726,8 @@ export const AssignmentTask = Schema.Struct({
   handedInSessionID: Schema.NullOr(Schema.String),
   /** Whether the student owes it: a task whose agent was deleted, never handed in, is owed by nobody. */
   owed: Schema.Boolean,
+  /** Students may skip it: not needed to turn in. Absent for a required task. */
+  optional: optional(Schema.Boolean),
   /**
    * The task's session on this machine, the newest when there are several; null when none is here.
    *
@@ -748,8 +750,12 @@ export const AssignmentSummary = Schema.Struct({
   dueAt: Schema.NullOr(Schema.String),
   /** Whether it stops taking work at its due date. */
   stopAtDue: Schema.Boolean,
+  /** The required tasks: owed, and not optional. An optional task is counted apart, below. */
   tasksHandedIn: Schema.Int,
   tasksTotal: Schema.Int,
+  /** The optional tasks still owed, and how many are handed in. Absent when there are none. */
+  optionalHandedIn: optional(Schema.Int),
+  optionalTotal: optional(Schema.Int),
 }).annotate({ identifier: "Jolli.AssignmentSummary" })
 
 /**
@@ -774,7 +780,7 @@ export const Assignment = Schema.Struct({
   authorName: Schema.NullOr(Schema.String),
   /** Turned in: nothing more is handed in from here. */
   turnedIn: Schema.Boolean,
-  /** Every task owed is handed in and the assignment is not yet turned in. */
+  /** Every required task is handed in and the assignment is not yet turned in; optional ones need not be. */
   readyToTurnIn: Schema.Boolean,
   tasks: Schema.Array(AssignmentTask),
 }).annotate({ identifier: "Jolli.Assignment" })

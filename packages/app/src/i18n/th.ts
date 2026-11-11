@@ -1327,6 +1327,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "ส่งแล้วเมื่อ {{date}}",
   "dialog.assignment.task.submitted": "ส่งแล้วเมื่อ {{date}}",
   "dialog.assignment.task.notOwed": "ไม่จำเป็นต้องทำแล้ว",
+  "dialog.assignment.task.optionalStatus": "ไม่บังคับ · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "ส่งข้อความในงานที่ไม่บังคับอย่างน้อยหนึ่งงานก่อนส่งงานมอบหมายนี้ ระบบจะนับงานนั้นว่าส่งแล้วโดยอัตโนมัติ",
+  "dialog.assignment.turnIn.firstHandIn": "ส่งงานที่ไม่บังคับอย่างน้อยหนึ่งงานก่อนส่งงานมอบหมายนี้",
+  "dialog.assignment.turnIn.optionalLeft":
+    "งานที่ไม่บังคับซึ่งยังไม่ได้ส่ง — หากส่งตอนนี้ งานเหล่านี้จะไม่รวมอยู่ด้วย:",
   "dialog.assignment.task.web": "ทำงานย่อยนี้บนเว็บ",
   "dialog.assignment.task.elsewhere": "เริ่มบนคอมพิวเตอร์เครื่องอื่นแล้ว",
   "dialog.assignment.task.start": "เริ่ม",

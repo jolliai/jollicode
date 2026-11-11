@@ -1244,6 +1244,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Esitatud {{date}}",
   "dialog.assignment.task.submitted": "Esitatud {{date}}",
   "dialog.assignment.task.notOwed": "Enam pole vaja",
+  "dialog.assignment.task.optionalStatus": "Valikuline · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Enne selle töö esitamist saada vähemalt ühes valikulises ülesandes sõnum. Ülesanne loetakse automaatselt esitatuks.",
+  "dialog.assignment.turnIn.firstHandIn": "Enne selle töö esitamist esita vähemalt üks valikuline ülesanne.",
+  "dialog.assignment.turnIn.optionalLeft": "Esitamata valikulised ülesanded – kui esitad praegu, jäävad need välja:",
   "dialog.assignment.task.web": "Tee see ülesanne veebis",
   "dialog.assignment.task.elsewhere": "Alustatud teises arvutis",
   "dialog.assignment.task.start": "Alusta",

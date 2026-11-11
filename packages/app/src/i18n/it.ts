@@ -1270,6 +1270,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Consegnata il {{date}}",
   "dialog.assignment.task.submitted": "Consegnata il {{date}}",
   "dialog.assignment.task.notOwed": "Non più richiesta",
+  "dialog.assignment.task.optionalStatus": "Facoltativo · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Invia un messaggio in almeno un’attività facoltativa prima di consegnare questo compito. L’attività verrà automaticamente considerata consegnata.",
+  "dialog.assignment.turnIn.firstHandIn": "Consegna almeno un’attività facoltativa prima di consegnare questo compito.",
+  "dialog.assignment.turnIn.optionalLeft": "Attività facoltative non consegnate: se consegni ora, restano escluse:",
   "dialog.assignment.task.web": "Svolgi questa attività sul web",
   "dialog.assignment.task.elsewhere": "Iniziata su un altro computer",
   "dialog.assignment.task.start": "Inizia",

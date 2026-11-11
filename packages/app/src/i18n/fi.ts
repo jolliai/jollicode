@@ -1260,6 +1260,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Palautettu {{date}}",
   "dialog.assignment.task.submitted": "Palautettu {{date}}",
   "dialog.assignment.task.notOwed": "Ei enää tarpeen",
+  "dialog.assignment.task.optionalStatus": "Valinnainen · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Lähetä viesti vähintään yhdessä valinnaisessa tehtävässä ennen tämän tehtäväkokonaisuuden palauttamista. Tehtävä lasketaan automaattisesti palautetuksi.",
+  "dialog.assignment.turnIn.firstHandIn":
+    "Palauta vähintään yksi valinnainen tehtävä ennen tämän tehtäväkokonaisuuden palauttamista.",
+  "dialog.assignment.turnIn.optionalLeft": "Palauttamattomat valinnaiset tehtävät – jos palautat nyt, ne jäävät pois:",
   "dialog.assignment.task.web": "Tee tämä osatehtävä verkossa",
   "dialog.assignment.task.elsewhere": "Aloitettu toisella tietokoneella",
   "dialog.assignment.task.start": "Aloita",

@@ -1293,6 +1293,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Rendue le {{date}}",
   "dialog.assignment.task.submitted": "Rendue le {{date}}",
   "dialog.assignment.task.notOwed": "N'est plus requise",
+  "dialog.assignment.task.optionalStatus": "Facultatif · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Envoie un message dans au moins une tâche facultative avant de rendre ce devoir. La tâche sera automatiquement comptée comme rendue.",
+  "dialog.assignment.turnIn.firstHandIn": "Rends au moins une tâche facultative avant de rendre ce devoir.",
+  "dialog.assignment.turnIn.optionalLeft":
+    "Tâches facultatives non rendues : si tu rends maintenant, elles ne seront pas incluses :",
   "dialog.assignment.task.web": "Faites cette tâche sur le web",
   "dialog.assignment.task.elsewhere": "Commencée sur un autre ordinateur",
   "dialog.assignment.task.start": "Commencer",
