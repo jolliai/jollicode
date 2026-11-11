@@ -23,6 +23,7 @@
 
 import { createComponent, createContext, useContext, type ParentProps } from "solid-js"
 import { useJolliCatalog } from "@/jolli/catalog-fetch"
+import { useGroupChatConnection } from "@/jolli/group-chat"
 import { createHomeController } from "@/pages/home/home-controller"
 import { createHomeProjectsController } from "@/pages/home/home-projects-controller"
 import { createHomeSessionSearchController } from "@/pages/home/home-session-search-controller"
@@ -36,6 +37,7 @@ function createHomeData() {
    * for the bug that taught us this.
    */
   useJolliCatalog()
+  useGroupChatConnection()
 
   const home = createHomeController()
   const projects = createHomeProjectsController(home)

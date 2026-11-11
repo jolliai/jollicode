@@ -1,3 +1,4 @@
+import type { Jolli } from "@opencode-ai/schema/jolli"
 import type { Session } from "@opencode-ai/sdk/v2/client"
 import { createSimpleContext } from "@opencode-ai/ui/context"
 import { createStore, produce } from "solid-js/store"
@@ -8,9 +9,17 @@ import { useLocation, useNavigate, useParams } from "@solidjs/router"
 import { usePlatform } from "./platform"
 import { uuid } from "@/utils/uuid"
 import { SessionTabsRemovedDetail } from "@/components/titlebar-session-events"
-import { sessionHref } from "@/utils/session-route"
+import { groupChatHref, sessionHref } from "@/utils/session-route"
 import { createTabMemory } from "./tab-memory"
-import { nextTabAfterClose, pushClosedTab, removeClosedTabs, takeClosedTab, type ClosedTab } from "./closed-tabs"
+import {
+  nextTabAfterClose,
+  pushClosedTab,
+  releasedGroupChats,
+  removeClosedTabs,
+  removeTabsWhere,
+  takeClosedTab,
+  type ClosedTab,
+} from "./closed-tabs"
 import { createDraftPromptSession, type PromptModel } from "./prompt-state"
 import { migrateTabs } from "./tab-migration"
 
@@ -28,7 +37,9 @@ export type DraftTab = {
   worktree?: string
 }
 
-export type Tab = SessionTab | DraftTab
+export type GroupChatTab = { type: "groupChat"; server: ServerConnection.Key; chatId: Jolli.GroupChatID }
+
+export type Tab = SessionTab | DraftTab | GroupChatTab
 
 export type TabInfo = {
   title?: string
@@ -42,7 +53,11 @@ type RecentTab = {
 export const draftHref = (draftID: string) => `/new-session?draftId=${encodeURIComponent(draftID)}`
 
 export const tabHref = (tab: Tab) =>
-  tab.type === "draft" ? draftHref(tab.draftID) : sessionHref(tab.server, tab.sessionId)
+  tab.type === "draft"
+    ? draftHref(tab.draftID)
+    : tab.type === "groupChat"
+      ? groupChatHref(tab.server, tab.chatId)
+      : sessionHref(tab.server, tab.sessionId)
 
 export const tabKey = (tab: Tab) => (tab.type === "draft" ? `draft:${tab.draftID}` : `${tab.server}\n${tabHref(tab)}`)
 
@@ -66,7 +81,10 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
     )
     const [recent, setRecent, , recentReady] = persisted(Persist.window("tabs.recent"), createStore<RecentTab>({}))
     const [info, setInfo] = persisted(Persist.window("tabs.info"), createStore<Record<string, TabInfo>>({}))
-    const [closed, setClosed, , closedReady] = persisted(Persist.window("tabs.closed"), createStore<ClosedTab[]>([]))
+    const [closed, setClosed, , closedReady] = persisted(
+      Persist.window("tabs.closed"),
+      createStore<ClosedTab<SessionTab | GroupChatTab>[]>([]),
+    )
 
     const params = useParams()
     const navigate = useNavigate()
@@ -91,7 +109,9 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
       })
     }
 
-    const updateClosed = (update: (stack: ClosedTab[]) => ClosedTab[]) => {
+    const updateClosed = (
+      update: (stack: ClosedTab<SessionTab | GroupChatTab>[]) => ClosedTab<SessionTab | GroupChatTab>[],
+    ) => {
       const apply = () => setClosed((stack) => update(stack))
       if (closedReady()) {
         apply()
@@ -152,7 +172,7 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
       navigate(href)
     }
 
-    const removeTab = (index: number) => {
+    const removeTab = (index: number, preserveGroupDraft = false) => {
       const tab = store[index]
       if (!tab) return
       const key = tabKey(tab)
@@ -171,12 +191,46 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
         }
         if (nextTab) navigateTab(nextTab)
       }).finally(() => closing.delete(key))
-      memory.remove(key)
+      if (!preserveGroupDraft) memory.remove(key)
       removeInfo(key)
       if (draftID) removeDraftPersisted(draftID)
     }
 
     const actions = {
+      addGroupChatTab: (input: Omit<GroupChatTab, "type">) => {
+        const next = { type: "groupChat" as const, ...input }
+        if (!store.some((tab) => tabKey(tab) === tabKey(next))) setStore((tabs) => [...tabs, next])
+        return next
+      },
+      setGroupChatInfo(input: GroupChatTab, title: string) {
+        setInfo(tabKey(input), { title })
+      },
+      // Both the page and the global access listener call this for the same chat, often in the
+      // same tick. One filtered update, decided when it applies, keeps a repeat harmless; index
+      // splices captured up front (`removeTab`) would remove the neighbouring tabs instead.
+      removeGroupChats(server: ServerConnection.Key, ids?: readonly string[]) {
+        const matches = (tab: Tab) =>
+          tab.type === "groupChat" && tab.server === server && (ids === undefined || ids.includes(tab.chatId))
+        updateClosed((stack) => {
+          for (const entry of stack) if (matches(entry.tab)) memory.remove(tabKey(entry.tab))
+          return stack.filter((entry) => !matches(entry.tab))
+        })
+        for (const key of store.filter(matches).map(tabKey)) {
+          memory.remove(key)
+          removeInfo(key)
+        }
+        void startTransition(() => {
+          const active = recentKey()
+          const result = removeTabsWhere(store, matches, (tab) => tabKey(tab) === active && location.pathname !== "/")
+          if (result.tabs.length === store.length) return
+          setStore(() => result.tabs)
+          if (result.next === null) {
+            setRecentKey(undefined)
+            navigate("/")
+          }
+          if (result.next) navigateTab(result.next)
+        })
+      },
       addSessionTab: (tab: Omit<SessionTab, "type">) => {
         const next = { type: "session" as const, ...tab }
         const existing = store.find((item) => tabKey(item) === tabKey(next))
@@ -277,8 +331,13 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
       closeTab(index: number) {
         const tab = store[index]
         if (!tab) return
-        if (tab.type === "session") updateClosed((stack) => pushClosedTab(stack, tab, index))
-        removeTab(index)
+        if (tab.type === "session" || tab.type === "groupChat")
+          updateClosed((stack) => {
+            const next = pushClosedTab(stack, tab, index)
+            for (const released of releasedGroupChats(stack, next, store)) memory.remove(tabKey(released))
+            return next
+          })
+        removeTab(index, tab.type === "groupChat")
       },
       reopenClosedTab() {
         if (!closedReady()) {
@@ -309,7 +368,11 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
         if (index !== -1) removeTab(index)
       },
       removeServer(key: ServerConnection.Key) {
-        updateClosed((stack) => stack.filter((entry) => entry.tab.server !== key))
+        updateClosed((stack) => {
+          for (const entry of stack)
+            if (entry.tab.type === "groupChat" && entry.tab.server === key) memory.remove(tabKey(entry.tab))
+          return stack.filter((entry) => entry.tab.server !== key)
+        })
         const drafts = store.flatMap((tab) => (tab.type === "draft" && tab.server === key ? [tab.draftID] : []))
         const removed = store.filter((tab) => tab.server === key).map(tabKey)
         setStore((tabs) => tabs.filter((tab) => tab.server !== key))

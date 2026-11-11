@@ -40,6 +40,8 @@ export function SessionTabsSync() {
           tab.type === "session" && tab.server === (route.server ?? server.key) && tab.sessionId === route.sessionId
         )
       }
+      if (route.type === "groupChat")
+        return tab.type === "groupChat" && tab.server === route.server && tab.chatId === route.chatId
       if (route.type === "draft") return tab.type === "draft" && tab.draftID === route.draftID
       return false
     }

@@ -1,5 +1,6 @@
 export * as EventManifest from "./event-manifest"
 
+import { JolliGroupChatEvent } from "./jolli-group-chat-event"
 import { Catalog } from "./catalog"
 import { Durable } from "./durable-event-manifest"
 import { Event } from "./event"
@@ -58,6 +59,7 @@ export const ServerDefinitions = Event.inventory(
   ...foundationDefinitions,
   ...featureDefinitions,
   ...SessionTodo.Event.Definitions,
+  ...JolliGroupChatEvent.Event.Definitions,
 )
 
 export const Definitions = Event.inventory(
@@ -79,6 +81,7 @@ export const Definitions = Event.inventory(
   ...WorkspaceEvent.Definitions,
   ...WorktreeEvent.Definitions,
   ...ServerEvent.Definitions,
+  ...JolliGroupChatEvent.Event.Definitions,
 )
 export const Latest = Event.latest(Definitions)
 export { Durable }

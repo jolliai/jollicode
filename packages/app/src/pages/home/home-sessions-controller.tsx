@@ -1,3 +1,5 @@
+import type { Jolli } from "@opencode-ai/schema/jolli"
+import { groupChatRows } from "@/jolli/group-chat-state"
 import type { Session } from "@opencode-ai/sdk/v2/client"
 import { preloadMarkdown } from "@opencode-ai/session-ui/markdown-cache"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
@@ -29,7 +31,8 @@ import type { HomeController } from "./home-controller"
 const HOME_SESSION_LIMIT = 64
 
 export type HomeSessionStatus = "active" | "archived" | "all"
-export type HomeSessionRecord = {
+export type HomeLocalSessionRecord = {
+  kind?: "session"
   session: Session
   project: LocalProject
   projectName: string
@@ -39,6 +42,9 @@ export type HomeSessionRecord = {
    */
   course?: Course
 }
+
+export type HomeGroupChatRecord = { kind: "groupChat"; chat: Jolli.GroupChatSummary; course?: Course }
+export type HomeSessionRecord = HomeLocalSessionRecord | HomeGroupChatRecord
 
 export type HomeSessionGroup = {
   id: "recent"
@@ -121,9 +127,9 @@ export function createHomeSessionsController(home: HomeController) {
    * ⚠ THE MAP IS REPLACED RATHER THAN MUTATED, so a session that leaves the list takes its entry
    * with it instead of accumulating for the life of the renderer.
    */
-  let records_ = new Map<string, HomeSessionRecord>()
+  let records_ = new Map<string, HomeLocalSessionRecord>()
   const allRecords = createMemo(() => {
-    const next = new Map<string, HomeSessionRecord>()
+    const next = new Map<string, HomeLocalSessionRecord>()
     const result = buildHomeSessionRecords({
       sessions: indexedSessions,
       projectDirectories,
@@ -146,6 +152,46 @@ export function createHomeSessionsController(home: HomeController) {
     return result
   })
   /**
+   * ⚠ ONE RECORD PER GROUP CHAT, REUSED UNTIL THAT CHAT ACTUALLY CHANGES — the sessions rule above,
+   * for the same reason: the course tree's `<For>` keys by reference. A list refresh replaces every
+   * row object even when nothing changed, so reuse compares the summary's values, not its identity.
+   */
+  let chatRecords_ = new Map<string, HomeGroupChatRecord>()
+  const groupChatRecords = createMemo(() => {
+    const next = new Map<string, HomeGroupChatRecord>()
+    const result =
+      status() === "archived" || home.project.selected()
+        ? []
+        : groupChatRows(home.selection.value().server).map((chat) => {
+            const course = courseById(chat.courseId)
+            const previous = chatRecords_.get(chat.id)
+            const record =
+              previous && previous.course === course && sameGroupChatSummary(previous.chat, chat)
+                ? previous
+                : { kind: "groupChat" as const, chat, course }
+            next.set(chat.id, record)
+            return record
+          })
+    chatRecords_ = next
+    return result.sort((left, right) => homeRecordTime(right) - homeRecordTime(left))
+  })
+  /**
+   * ⚠ GROUP CHATS ARE MERGED INTO THE SESSIONS' ORDER RATHER THAN RE-SORTED WITH THEM, so the
+   * sessions keep exactly the sequence `compareSessionTime` gave them; a chat goes before the first
+   * session it is strictly newer than.
+   */
+  const allChatRecords = createMemo<HomeSessionRecord[]>(() => {
+    const chats = groupChatRecords()
+    if (chats.length === 0) return allRecords()
+    let next = 0
+    const merged = allRecords().flatMap((record) => {
+      const start = next
+      while (next < chats.length && homeRecordTime(chats[next]!) > record.session.time.updated) next++
+      return [...chats.slice(start, next), record]
+    })
+    return [...merged, ...chats.slice(next)]
+  })
+  /**
    * ⚠ THE COURSE FILTER IS APPLIED BEFORE THE LIMIT, so selecting a course cannot show fewer than a
    * full page of its sessions just because busier courses filled the first 64.
    *
@@ -155,8 +201,8 @@ export function createHomeSessionsController(home: HomeController) {
    */
   const courseFiltered = createMemo(() => {
     const courseId = HomeCourseSelection.courseId()
-    if (!courseId) return allRecords()
-    return allRecords().filter((record) => record.course?.id === courseId)
+    if (!courseId) return allChatRecords()
+    return allChatRecords().filter((record) => record.course?.id === courseId)
   })
   const records = createMemo(() => courseFiltered().slice(0, HOME_SESSION_LIMIT))
   const groups = createMemo(() => groupSessions(records(), language))
@@ -167,6 +213,7 @@ export function createHomeSessionsController(home: HomeController) {
     const conn = home.server.focused()
     if (!ctx || !conn) return
     records()
+      .filter((record): record is HomeLocalSessionRecord => record.kind !== "groupChat")
       .slice(0, 2)
       .forEach((record) => {
         const key = `${ServerConnection.key(conn)}\0${record.session.id}`
@@ -236,6 +283,33 @@ export function createHomeSessionsController(home: HomeController) {
     },
   ])
 
+  const openSession = (session: Session, options?: OpenSessionOptions) => {
+    const directoryKey = pathKey(session.directory)
+    const project =
+      home.project
+        .list()
+        .find(
+          (item) =>
+            pathKey(item.worktree) === directoryKey ||
+            item.sandboxes?.some((sandbox) => pathKey(sandbox) === directoryKey),
+        ) ?? projectForSession(session, home.project.list(), projectByID())
+    const conn = home.server.focused()
+    if (!conn) return
+    const directory = project?.worktree ?? session.directory
+    const ctx = home.server.focusedContext()
+    if (!ctx) return
+    ctx.projects.open(directory)
+    if (options?.background) {
+      tabs.addSessionTab({ server: ServerConnection.key(conn), sessionId: session.id })
+      return
+    }
+    ctx.projects.touch(directory)
+    void startTransition(() => {
+      const tab = tabs.addSessionTab({ server: ServerConnection.key(conn), sessionId: session.id })
+      tabs.select(tab)
+    })
+  }
+
   return {
     copy: {
       language,
@@ -246,7 +320,7 @@ export function createHomeSessionsController(home: HomeController) {
       status,
       setStatus,
       loading: () => sessionLoad.isLoading,
-      searchRecords: allRecords,
+      searchRecords: allChatRecords,
     },
     session: {
       showProjectName: () => !home.project.selected(),
@@ -260,31 +334,11 @@ export function createHomeSessionsController(home: HomeController) {
       server: () => home.selection.value().server,
       canCreate: () => !!home.project.newSession(),
       create: home.project.openNewSession,
-      open: (session: Session, options?: OpenSessionOptions) => {
-        const directoryKey = pathKey(session.directory)
-        const project =
-          home.project
-            .list()
-            .find(
-              (item) =>
-                pathKey(item.worktree) === directoryKey ||
-                item.sandboxes?.some((sandbox) => pathKey(sandbox) === directoryKey),
-            ) ?? projectForSession(session, home.project.list(), projectByID())
-        const conn = home.server.focused()
-        if (!conn) return
-        const directory = project?.worktree ?? session.directory
-        const ctx = home.server.focusedContext()
-        if (!ctx) return
-        ctx.projects.open(directory)
-        if (options?.background) {
-          tabs.addSessionTab({ server: ServerConnection.key(conn), sessionId: session.id })
-          return
-        }
-        ctx.projects.touch(directory)
-        void startTransition(() => {
-          const tab = tabs.addSessionTab({ server: ServerConnection.key(conn), sessionId: session.id })
-          tabs.select(tab)
-        })
+      open: openSession,
+      openRecord: (record: HomeSessionRecord, options?: OpenSessionOptions) => {
+        if (record.kind !== "groupChat") return openSession(record.session, options)
+        const tab = tabs.addGroupChatTab({ server: home.selection.value().server, chatId: record.chat.id })
+        if (!options?.background) tabs.select(tab)
       },
       /**
        * RENAME A SESSION FROM ITS ROW.
@@ -359,7 +413,14 @@ export function createHomeSessionsController(home: HomeController) {
     },
     tab: {
       isOpen: (record: HomeSessionRecord) =>
-        sessionHasOpenTab(tabs.store, home.selection.value().server, record.session),
+        record.kind === "groupChat"
+          ? tabs.store.some(
+              (tab) =>
+                tab.type === "groupChat" &&
+                tab.server === home.selection.value().server &&
+                tab.chatId === record.chat.id,
+            )
+          : sessionHasOpenTab(tabs.store, home.selection.value().server, record.session),
     },
   }
 }
@@ -374,7 +435,7 @@ function buildHomeSessionRecords(input: {
   projects: () => LocalProject[]
   projectByID: () => Map<string, LocalProject>
   /** Hands each freshly built record to the caller, which may swap in an equal one it already had. */
-  reuse?: (record: HomeSessionRecord) => HomeSessionRecord
+  reuse?: (record: HomeLocalSessionRecord) => HomeLocalSessionRecord
 }) {
   const directories = new Set(input.projectDirectories().map(pathKey))
   const sessions = input.sessions().filter((session) => directories.has(pathKey(session.directory)))
@@ -390,7 +451,8 @@ function buildHomeSessionRecords(input: {
               pathKey(item.worktree) === directory || item.sandboxes?.some((sandbox) => pathKey(sandbox) === directory),
           ) ?? projectForSession(session, input.projects(), input.projectByID())
       if (!project) return []
-      const record: HomeSessionRecord = {
+      const record: HomeLocalSessionRecord = {
+        kind: "session",
         session,
         project,
         projectName: displayName(project),
@@ -401,7 +463,9 @@ function buildHomeSessionRecords(input: {
 }
 
 export function homeSessionSearchKey(record: HomeSessionRecord) {
-  return `${pathKey(record.session.directory)}:${record.session.id}`
+  return record.kind === "groupChat"
+    ? `groupChat:${record.chat.id}`
+    : `${pathKey(record.session.directory)}:${record.session.id}`
 }
 
 /**
@@ -431,7 +495,7 @@ export type HomeSessionsController = ReturnType<typeof createHomeSessionsControl
 
 export function HomeSessionStatusController(props: {
   server: Accessor<ServerConnection.Key>
-  record: HomeSessionRecord
+  record: HomeLocalSessionRecord
   isOpenTab: (record: HomeSessionRecord) => boolean
   render: (state: { unread: Accessor<boolean>; loading: Accessor<boolean>; open: Accessor<boolean> }) => JSX.Element
 }) {
@@ -445,4 +509,19 @@ export function HomeSessionStatusController(props: {
     loading: avatar.loading,
     open: () => props.isOpenTab(props.record),
   })
+}
+
+/** An unparseable chat time sorts last rather than breaking the order of everything else. */
+export function homeRecordTime(record: HomeSessionRecord) {
+  return record.kind === "groupChat" ? Date.parse(record.chat.updatedAt) || 0 : record.session.time.updated
+}
+
+/** What a group chat is called wherever it is listed or searched: its title, else its size. */
+export function homeGroupChatTitle(chat: Jolli.GroupChatSummary, language: ReturnType<typeof useLanguage>) {
+  return chat.title || language.t("groupChat.unnamed", { count: chat.participantCount })
+}
+
+function sameGroupChatSummary(left: Jolli.GroupChatSummary, right: Jolli.GroupChatSummary) {
+  const keys = Object.keys(left) as (keyof Jolli.GroupChatSummary)[]
+  return keys.length === Object.keys(right).length && keys.every((key) => left[key] === right[key])
 }

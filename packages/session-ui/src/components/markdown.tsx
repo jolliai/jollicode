@@ -330,13 +330,20 @@ function setupCodeCopy(root: HTMLDivElement, getLabels: () => CopyLabels) {
   }
 }
 
-function initialResult(text: string, key: string | undefined, projection: Projection, owner: string): RenderResult {
+function initialResult(
+  text: string,
+  key: string | undefined,
+  projection: Projection,
+  owner: string,
+  untrusted = false,
+): RenderResult {
   if (!text) return { text, blocks: [] }
   const base = key ?? checksum(text)
   if (base) {
     const blocks = projection.blocks.flatMap((block, index) => {
       if (block.mode === "code") return []
-      const cacheKey = `${base}:${index}:${block.mode}`
+      // Untrusted text reads only its own entries, never HTML sanitized for trusted text.
+      const cacheKey = `${untrusted ? "untrusted:" : ""}${base}:${index}:${block.mode}`
       const cached = getCachedMarkdown(cacheKey)
       if (cached?.raw !== block.raw) return []
       return [{ key: `${owner}:${cacheKey}`, mode: block.mode, ...cached }]
@@ -366,11 +373,12 @@ export function Markdown(
     text: string
     cacheKey?: string
     streaming?: boolean
+    untrusted?: boolean
     class?: string
     classList?: Record<string, boolean>
   },
 ) {
-  const [local, others] = splitProps(props, ["text", "cacheKey", "streaming", "class", "classList"])
+  const [local, others] = splitProps(props, ["text", "cacheKey", "streaming", "untrusted", "class", "classList"])
   const i18n = useI18n()
   const [root, setRoot] = createSignal<HTMLDivElement>()
   const owner = createUniqueId()
@@ -430,7 +438,7 @@ export function Markdown(
       const base = src.key ?? checksum(src.text)
       return Promise.all(
         src.projection.blocks.map(async (block, index) => {
-          const key = base ? `${base}:${index}:${block.mode}` : undefined
+          const key = base ? `${local.untrusted ? "untrusted:" : ""}${base}:${index}:${block.mode}` : undefined
           const blockKey = markdownBlockKey(owner, src.key, index, block.mode)
 
           if (block.mode === "code") {
@@ -458,7 +466,7 @@ export function Markdown(
           }
 
           const hash = checksum(block.raw)
-          const safe = sanitizeMarkdown(await parseMarkdown(block.src))
+          const safe = sanitizeMarkdown(await parseMarkdown(block.src), local.untrusted)
           if (key && hash) touchCachedMarkdown(key, { raw: block.raw, hash, html: safe })
           return { key: blockKey, mode: block.mode, raw: block.raw, hash: hash ?? "", html: safe }
         }),
@@ -486,6 +494,7 @@ export function Markdown(
         local.cacheKey,
         local.streaming ? pendingProjection(local.text) : completedProjection(local.text),
         owner,
+        local.untrusted,
       ),
     },
   )

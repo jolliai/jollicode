@@ -1,6 +1,8 @@
+import { GROUP_CHAT_ENGLISH } from "./group-chat-en"
 import { DESKTOP_NATIVE_ENGLISH } from "./desktop-native"
 
 export const dict = {
+  ...GROUP_CHAT_ENGLISH,
   ...DESKTOP_NATIVE_ENGLISH,
   "command.category.suggested": "Suggested",
   "command.category.view": "View",

@@ -1,3 +1,5 @@
+import { Jolli } from "@opencode-ai/schema/jolli"
+import { Schema } from "effect"
 import type { ServerConnection } from "./server"
 import type { Tab } from "./tabs"
 
@@ -7,6 +9,8 @@ export function migrateTabs(value: unknown, fallback: ServerConnection.Key): Tab
     if (!tab || typeof tab !== "object") return []
     if ("server" in tab && typeof tab.server !== "string") return []
     const server = ("server" in tab ? tab.server : fallback) as ServerConnection.Key
+    if (tab.type === "groupChat" && typeof tab.chatId === "string" && Schema.is(Jolli.GroupChatID)(tab.chatId))
+      return [{ type: "groupChat", server, chatId: Jolli.GroupChatID.make(tab.chatId) }]
     if (tab.type === "session" && typeof tab.sessionId === "string") {
       return [{ type: tab.type, server, sessionId: tab.sessionId }]
     }

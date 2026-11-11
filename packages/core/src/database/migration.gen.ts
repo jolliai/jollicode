@@ -41,5 +41,6 @@ export const migrations = (
     import("./migration/20260622170816_reset_v2_session_state"),
     import("./migration/20260622202450_simplify_session_input"),
     import("./migration/20260922032558_jolli_credential"),
+    import("./migration/20261110100530_jolli_group_chat_cache"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

@@ -43,7 +43,7 @@ import { HomeCourseSelection } from "@/jolli/home-selection"
 import { createInlineEditorController } from "@/pages/layout/inline-editor"
 import type { HomeSessionRecord } from "@/pages/home/home-sessions-controller"
 import { APP_SIDEBAR_ROW_LABEL, AppSidebarRow } from "./app-sidebar-row"
-import { AppSidebarSessionRow } from "./app-sidebar-sessions"
+import { AppSidebarConversationRow } from "./app-sidebar-sessions"
 
 /**
  * ⚠ THE TREE IS CAPPED IN HEIGHT AND SCROLLS INSIDE THAT CAP. This section is `shrink-0` in the
@@ -349,7 +349,7 @@ export function AppSidebarCourses() {
                         </div>
                       }
                     >
-                      {(record) => <AppSidebarSessionRow {...rowProps} sessions={sessions} record={record} />}
+                      {(record) => <AppSidebarConversationRow {...rowProps} sessions={sessions} record={record} />}
                     </For>
                   </div>
                 </Show>

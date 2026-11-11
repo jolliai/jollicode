@@ -1,5 +1,8 @@
 import { $ } from "bun"
 import { buildCliToResources } from "./utils"
+import { copyPdfjsAssets } from "../../app/script/copy-pdfjs-assets"
+
+copyPdfjsAssets()
 
 await $`bun run install-electron`
 

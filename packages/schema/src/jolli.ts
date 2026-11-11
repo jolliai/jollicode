@@ -797,3 +797,24 @@ export const AssignmentAnswer = Schema.Struct({
   assignment: Assignment.pipe(optional),
   message: Schema.String.pipe(optional),
 }).annotate({ identifier: "Jolli.AssignmentAnswer" })
+
+export {
+  GroupChatID,
+  ChatPerson,
+  ChatAlias,
+  ChatAssistant,
+  ChatTurn,
+  GroupChatInfo,
+  Reference,
+  ReferenceTarget,
+  ReferenceRequest,
+  ChatMessage,
+  GroupChat,
+  GroupChatSummary,
+  GroupChatPost,
+  GroupChatFeatures,
+  GroupChatRefusalCode,
+  GroupChatAnswer,
+  GroupChatAction,
+  GroupChatCreate,
+} from "./jolli-group-chat"

@@ -60,8 +60,10 @@ export function transitionPromptInputV2(
   state: PromptInputV2InteractionState,
   event: PromptInputV2InteractionEvent,
   persisted: PromptInputV2PersistedState,
+  allowShell = true,
 ): PromptInputV2Transition {
-  if (event.type === "input.changed") return inputChanged(state, event.value, event.persist !== false, persisted.cursor)
+  if (event.type === "input.changed")
+    return inputChanged(state, event.value, event.persist !== false, persisted.cursor, allowShell)
   if (event.type === "commands.open") return openCommands(state, persisted)
   if (event.type === "context.open") return openContext(state, persisted)
   if (event.type === "popover.query") return queryChanged(state, event.value)
@@ -70,7 +72,8 @@ export function transitionPromptInputV2(
   if (event.type === "popover.close") return changed({ ...state, popover: { type: "closed" } })
   if (event.type === "popover.select") return suggestionSelected(state, event.item, persisted)
   if (event.type === "key.down") return keyDown(state, event)
-  if (event.type === "mode.shell") return changed({ ...state, mode: "shell", popover: { type: "closed" } })
+  if (event.type === "mode.shell")
+    return allowShell ? changed({ ...state, mode: "shell", popover: { type: "closed" } }) : changed(state)
   if (event.type === "mode.normal") return changed({ ...state, mode: "normal" })
   if (event.type === "drag.enter") return changed({ ...state, drag: "active" })
   if (event.type === "drag.leave") return changed({ ...state, drag: "idle" })
@@ -86,9 +89,10 @@ function inputChanged(
   value: string,
   persist: boolean,
   cursor: number | undefined,
+  allowShell: boolean,
 ): PromptInputV2Transition {
   const setText: PromptInputV2InteractionCommand[] = persist ? [{ type: "draft.setText", value }] : []
-  if (state.mode === "normal" && value === "!") {
+  if (allowShell && state.mode === "normal" && value === "!") {
     return changed({ ...state, mode: "shell", popover: { type: "closed" }, focus: "editor" }, [
       { type: "draft.setText", value: "" },
     ])

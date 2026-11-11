@@ -23,7 +23,7 @@ import { TextInputV2 } from "@opencode-ai/ui/v2/text-input-v2"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useHomeData } from "@/context/home-data"
 import { useLanguage } from "@/context/language"
-import type { HomeSessionRecord } from "@/pages/home/home-sessions-controller"
+import { homeGroupChatTitle, homeRecordTime, type HomeSessionRecord } from "@/pages/home/home-sessions-controller"
 import { sessionTitle } from "@/utils/session-title"
 import { getRelativeTime } from "@/utils/time"
 import "@/components/dialog-command-palette-v2.css"
@@ -46,7 +46,7 @@ export function DialogSessionSearch() {
   const open = (record: HomeSessionRecord | undefined) => {
     if (!record) return
     dialog.close()
-    sessions.session.open(record.session)
+    sessions.session.openRecord(record)
   }
   const move = (delta: number) => {
     const count = rows().length
@@ -117,7 +117,8 @@ export function DialogSessionSearch() {
                       type="button"
                       class="command-palette-v2-row group"
                       role="option"
-                      data-session-id={record.session.id}
+                      data-session-id={record.kind === "groupChat" ? undefined : record.session.id}
+                      data-group-chat-id={record.kind === "groupChat" ? record.chat.id : undefined}
                       aria-selected={index() === active()}
                       data-active={index() === active() ? "" : undefined}
                       onMouseMove={(event) => {
@@ -131,15 +132,22 @@ export function DialogSessionSearch() {
                       <div class="command-palette-v2-row-main">
                         <div class="command-palette-v2-row-text">
                           <span class="command-palette-v2-title">
-                            {sessionTitle(record.session.title) || record.session.id}
+                            {record.kind === "groupChat"
+                              ? homeGroupChatTitle(record.chat, language)
+                              : sessionTitle(record.session.title) || record.session.id}
                           </span>
                           <span class="command-palette-v2-description">
-                            {[record.course?.code, record.projectName].filter(Boolean).join(" · ")}
+                            {[
+                              record.course?.code,
+                              record.kind === "groupChat" ? language.t("groupChat.title") : record.projectName,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
                           </span>
                         </div>
                       </div>
                       <span class="command-palette-v2-meta">
-                        {getRelativeTime(new Date(record.session.time.updated).toISOString(), language.t)}
+                        {getRelativeTime(new Date(homeRecordTime(record)).toISOString(), language.t)}
                       </span>
                     </button>
                   )}

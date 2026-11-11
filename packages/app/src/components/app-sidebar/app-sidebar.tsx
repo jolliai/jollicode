@@ -17,6 +17,7 @@
 
 import { createEffect, createMemo, For, on, Show } from "solid-js"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { DialogBody } from "@opencode-ai/ui/v2/dialog-v2"
 import { ResizeHandle } from "@opencode-ai/ui/resize-handle"
 import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
 import { IconButtonV2 } from "@opencode-ai/ui/v2/icon-button-v2"
@@ -24,12 +25,16 @@ import { KeybindV2 } from "@opencode-ai/ui/v2/keybind-v2"
 import { MenuV2 } from "@opencode-ai/ui/v2/menu-v2"
 import { TooltipV2 } from "@opencode-ai/ui/v2/tooltip-v2"
 import { newTabTooltipKeybind } from "@/components/command-tooltip-keybind"
+import { ConversationDialog } from "@/components/conversation-dialog"
+import { GroupChatCreateDialog } from "@/components/group-chat-dialogs"
+import { GroupChatIcon } from "@/components/group-chat-icons"
 import { useCommand } from "@/context/command"
 import { useHomeData } from "@/context/home-data"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
 import { refreshAssignments, useTodoAssignments } from "@/jolli/assignments"
 import { listedCourses, refreshCatalog } from "@/jolli/catalog"
+import { groupChatCourses } from "@/jolli/group-chat-state"
 import { HomeCourseSelection } from "@/jolli/home-selection"
 import { HomeProjectsListBody } from "@/pages/home/home-projects-view"
 import { homeProjectsViewProps } from "@/pages/home/home-projects"
@@ -103,8 +108,14 @@ export function AppSidebar() {
    */
   const openCourse = createMemo(() => {
     const route = layout.route()
-    if (route.type !== "session") return undefined
-    return sessions.data.searchRecords().find((record) => record.session.id === route.sessionId)?.course?.id
+    if (route.type !== "session" && route.type !== "groupChat") return undefined
+    return sessions.data
+      .searchRecords()
+      .find((record) =>
+        record.kind === "groupChat"
+          ? route.type === "groupChat" && record.chat.id === route.chatId
+          : route.type === "session" && record.session.id === route.sessionId,
+      )?.course?.id
   })
 
   /**
@@ -131,12 +142,16 @@ export function AppSidebar() {
     if (list.length === 0) return
 
     const route = layout.route()
-    const index = route.type === "session" ? list.findIndex((item) => item.session.id === route.sessionId) : -1
+    const index = list.findIndex((item) =>
+      item.kind === "groupChat"
+        ? route.type === "groupChat" && item.chat.id === route.chatId
+        : route.type === "session" && item.session.id === route.sessionId,
+    )
     const target =
       index === -1 ? list[offset > 0 ? 0 : list.length - 1] : list[(index + offset + list.length) % list.length]
     if (!target) return
 
-    sessions.session.open(target.session)
+    sessions.session.openRecord(target)
   }
   const openSearch = () => dialog.show(() => <DialogSessionSearch />)
 
@@ -302,8 +317,24 @@ export function AppSidebar() {
                   size="small"
                   icon={<IconV2 name="edit" />}
                   aria-label={language.t("command.session.new")}
-                  disabled={!sessions.session.canCreate()}
-                  onClick={sessions.session.create}
+                  disabled={!sessions.session.canCreate() && !groupChatCourses(sessions.session.server()).length}
+                  onClick={() => {
+                    const selected = HomeCourseSelection.courseId()
+                    const enabled = groupChatCourses(sessions.session.server())
+                    const courseId = selected && enabled.includes(selected) ? selected : undefined
+                    // A course without group chats starts a session, unless there is nowhere to run one.
+                    if (!enabled.length || (selected && !courseId && sessions.session.canCreate())) {
+                      sessions.session.create()
+                      return
+                    }
+                    void dialog.show(() => (
+                      <NewConversationDialog
+                        canCreate={sessions.session.canCreate}
+                        onSession={sessions.session.create}
+                        courseId={courseId}
+                      />
+                    ))
+                  }}
                 />
               </TooltipV2>
             </>
@@ -494,5 +525,52 @@ function AppSidebarSessionFilter() {
         </MenuV2.Content>
       </MenuV2.Portal>
     </MenuV2>
+  )
+}
+
+function NewConversationDialog(props: { canCreate: () => boolean; onSession: () => unknown; courseId?: string }) {
+  const language = useLanguage()
+  const dialog = useDialog()
+  const optionClass =
+    "flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-start text-[13px] leading-5 text-v2-text-text-base hover:bg-v2-overlay-simple-overlay-hover active:bg-v2-overlay-simple-overlay-hover focus-visible:bg-v2-overlay-simple-overlay-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-v2-border-border-focus"
+  return (
+    <ConversationDialog title={language.t("command.session.new")}>
+      <DialogBody class="gap-1 px-2 pb-2">
+        <Show when={props.canCreate()}>
+          <button
+            autofocus
+            type="button"
+            class={optionClass}
+            onClick={() => {
+              dialog.close()
+              props.onSession()
+            }}
+          >
+            <span class="flex size-5 shrink-0 items-center justify-center text-v2-icon-icon-muted" aria-hidden="true">
+              <IconV2 name="edit" />
+            </span>
+            <span>{language.t("command.session.new")}</span>
+          </button>
+        </Show>
+        <button
+          autofocus={!props.canCreate()}
+          type="button"
+          class={optionClass}
+          onClick={() =>
+            dialog.show(() => (
+              <GroupChatCreateDialog
+                courseId={props.courseId}
+                onBack={() => void dialog.show(() => <NewConversationDialog {...props} />)}
+              />
+            ))
+          }
+        >
+          <span class="flex size-5 shrink-0 items-center justify-center text-v2-icon-icon-muted" aria-hidden="true">
+            <GroupChatIcon />
+          </span>
+          <span>{language.t("groupChat.new")}</span>
+        </button>
+      </DialogBody>
+    </ConversationDialog>
   )
 }

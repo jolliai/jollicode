@@ -1,5 +1,6 @@
 import { checksum } from "@opencode-ai/core/util/encode"
-import DOMPurify from "dompurify"
+import { sanitizeMarkdown } from "./markdown-sanitize"
+export { sanitizeMarkdown } from "./markdown-sanitize"
 import { parseMarkdown } from "./markdown-worker"
 
 export type MarkdownCacheEntry = {
@@ -10,33 +11,6 @@ export type MarkdownCacheEntry = {
 
 const max = 200
 const cache = new Map<string, MarkdownCacheEntry>()
-const config = {
-  USE_PROFILES: { html: true, mathMl: true },
-  SANITIZE_NAMED_PROPS: true,
-  FORBID_TAGS: ["style"],
-  FORBID_CONTENTS: ["style", "script"],
-  ADD_TAGS: ["svg", "path"],
-  ADD_ATTR: ["d", "viewBox", "preserveAspectRatio", "xmlns", "target"],
-}
-
-if (typeof window !== "undefined" && DOMPurify.isSupported) {
-  DOMPurify.addHook("afterSanitizeAttributes", (node: Element) => {
-    if (!(node instanceof HTMLAnchorElement)) return
-    if (node.target !== "_blank") return
-
-    const rel = node.getAttribute("rel") ?? ""
-    const set = new Set(rel.split(/\s+/).filter(Boolean))
-    set.add("noopener")
-    set.add("noreferrer")
-    node.setAttribute("rel", Array.from(set).join(" "))
-  })
-}
-
-export function sanitizeMarkdown(html: string) {
-  if (!DOMPurify.isSupported) return ""
-  return DOMPurify.sanitize(html, config)
-}
-
 export function getCachedMarkdown(key: string) {
   return cache.get(key)
 }

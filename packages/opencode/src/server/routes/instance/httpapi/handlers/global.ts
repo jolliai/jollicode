@@ -1,3 +1,4 @@
+import { connectGroupChatClient } from "@/jolli/group-chat"
 import { Config } from "@/config/config"
 import { GlobalBus, type GlobalEvent as GlobalBusEvent } from "@/bus/global"
 import { EffectBridge } from "@/effect/bridge"
@@ -22,14 +23,24 @@ function eventData(data: unknown): Sse.Event {
   }
 }
 
-function eventResponse() {
+function eventResponse(clientID?: string) {
   return Effect.gen(function* () {
     yield* Effect.logInfo("global event connected")
     const events = Stream.callback<GlobalBusEvent>((queue) => {
       const handler = (event: GlobalBusEvent) => Queue.offerUnsafe(queue, event)
       return Effect.acquireRelease(
-        Effect.sync(() => GlobalBus.on("event", handler)),
-        () => Effect.sync(() => GlobalBus.off("event", handler)),
+        Effect.sync(() => {
+          GlobalBus.on("event", handler)
+          const release = connectGroupChatClient(clientID)
+          // The renderer watches its open group chats as soon as it hears this, so the lease must exist first.
+          handler({ payload: { id: EventV2.ID.create(), type: "server.connected", properties: {} } })
+          return release
+        }),
+        (release) =>
+          Effect.sync(() => {
+            GlobalBus.off("event", handler)
+            release()
+          }),
       )
     })
     const heartbeat = Stream.tick("10 seconds").pipe(
@@ -38,8 +49,8 @@ function eventResponse() {
     )
 
     return HttpServerResponse.stream(
-      Stream.make({ payload: { id: EventV2.ID.create(), type: "server.connected", properties: {} } }).pipe(
-        Stream.concat(events.pipe(Stream.merge(heartbeat, { haltStrategy: "left" }))),
+      events.pipe(
+        Stream.merge(heartbeat, { haltStrategy: "left" }),
         Stream.map(eventData),
         Stream.pipeThroughChannel(Sse.encode()),
         Stream.encodeText,
@@ -67,8 +78,10 @@ export const globalHandlers = HttpApiBuilder.group(RootHttpApi, "global", (handl
       return { healthy: true as const, version: InstallationVersion }
     })
 
-    const event = Effect.fn("GlobalHttpApi.event")(function* () {
-      return yield* eventResponse()
+    const event = Effect.fn("GlobalHttpApi.event")(function* (ctx: {
+      request: { headers: Readonly<Record<string, string | undefined>> }
+    }) {
+      return yield* eventResponse(ctx.request.headers["x-jolli-client"])
     })
 
     const configGet = Effect.fn("GlobalHttpApi.configGet")(function* () {

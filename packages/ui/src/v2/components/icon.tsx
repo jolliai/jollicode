@@ -64,6 +64,10 @@ const icons = {
     viewBox: "0 0 16 16",
     body: `<path d="M8 2.88867V13.1109" stroke="currentColor" stroke-linejoin="round"/><path d="M2.88867 8H13.1109" stroke="currentColor" stroke-linejoin="round"/>`,
   },
+  stop: {
+    viewBox: "0 0 24 24",
+    body: `<rect x="3" y="3" width="18" height="18" rx="2" fill="currentColor" stroke="currentColor" stroke-width="2"/>`,
+  },
   "settings-gear": {
     viewBox: "0 0 16 16",
     body: `<path d="M7.99998 1.3335L14 4.66683V11.3335L7.99998 14.6668L2 11.3335V4.66683L7.99998 1.3335Z" stroke="currentColor"/><path d="M9.99998 8.00016C9.99998 9.10476 9.10458 10.0002 7.99998 10.0002C6.89538 10.0002 5.99998 9.10476 5.99998 8.00016C5.99998 6.89556 6.89538 6.00016 7.99998 6.00016C9.10458 6.00016 9.99998 6.89556 9.99998 8.00016Z" stroke="currentColor"/>`,
@@ -297,25 +301,22 @@ let spriteInserted = false
 function ensureSprite() {
   if (spriteInserted) return
   if (typeof document === "undefined") return
-  if (document.getElementById(spriteID)) {
-    spriteInserted = true
-    return
-  }
-
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+  const existing = document.getElementById(spriteID)
+  const svg = existing ?? document.createElementNS("http://www.w3.org/2000/svg", "svg")
   svg.id = spriteID
   svg.setAttribute("aria-hidden", "true")
   svg.setAttribute("width", "0")
   svg.setAttribute("height", "0")
   svg.style.position = "absolute"
   svg.style.overflow = "hidden"
+  // Refresh the existing sprite after hot reload so new icons have their symbols immediately.
   svg.innerHTML = Object.entries(icons)
     .map(
       ([name, icon]) =>
         `<symbol id="${symbol(name as keyof typeof icons)}" viewBox="${icon.viewBox}">${icon.body}</symbol>`,
     )
     .join("")
-  document.body.insertBefore(svg, document.body.firstChild)
+  if (!existing) document.body.insertBefore(svg, document.body.firstChild)
   spriteInserted = true
 }
 

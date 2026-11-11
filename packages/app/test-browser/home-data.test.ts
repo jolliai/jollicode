@@ -10,8 +10,11 @@ const made: { owner?: Owner | null; count: number } = { count: 0 }
  * ones; the four controllers stand in for the routes, servers and queries this test has no use for, and
  * nothing else here imports them. The catalogue fetch is mocked as `session-binding.test.ts` mocks it.
  */
-beforeAll(() => {
+beforeAll(async () => {
   mock.module("@/jolli/catalog-fetch", () => ({ useJolliCatalog: () => undefined, useRefusalRefresh: () => undefined }))
+  // The group chat connection needs the server SDK this test does not provide; every other export stays real.
+  const groupChat = await import("@/jolli/group-chat")
+  mock.module("@/jolli/group-chat", () => ({ ...groupChat, useGroupChatConnection: () => undefined }))
   mock.module("@/pages/home/home-controller", () => ({ createHomeController: () => ({ name: "home" }) }))
   mock.module("@/pages/home/home-projects-controller", () => ({
     createHomeProjectsController: () => {

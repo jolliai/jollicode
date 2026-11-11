@@ -17,7 +17,8 @@
  *   GET /api/agent/models                     AgentModelRouter.ts:21 any signed-in user
  * The cross-org list answers `{ courses, unavailable, home }`; the rest a bare array.
  *
- * And the session-share surface, verified against the same tree:
+ * And the local coding-session share surface, verified against the same tree. Group chat shares
+ * have their own participant rules in `group-chat-resources.ts`:
  *   POST   /api/agent/convos                        AgentConvoRouter.ts   `coding_agent` origin, see openConversation
  *   GET    /api/agent/convos/:id                    AgentConvoRouter.ts   owner only, 404 otherwise
  *   PATCH  /api/agent/convos/:id                    AgentConvoRouter.ts   owner only, 404 otherwise
@@ -320,7 +321,7 @@ const ConversationShareRow = Schema.Union([
 /**
  * jolliedu `common/src/types/CourseChat.ts` — `ConversationVisibility`.
  *
- * ⚠ `shares` IS ABSENT FOR ANYBODY BUT THE OWNER. The share routes only ever answer the owner, so
+ * ⚠ ON THIS CODING-SESSION PATH, `shares` IS ABSENT FOR ANYBODY BUT THE OWNER. These helpers ask as the owner, so
  * absence here means the gateway withheld the list, and the mapping reads it as "nobody" rather
  * than guessing.
  */

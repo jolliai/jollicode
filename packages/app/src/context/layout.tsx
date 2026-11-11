@@ -1,3 +1,5 @@
+import { Jolli } from "@opencode-ai/schema/jolli"
+import { Option, Schema } from "effect"
 import { createStore, produce, reconcile } from "solid-js/store"
 import { batch, createEffect, createMemo, onCleanup, onMount, type Accessor } from "solid-js"
 import { useLocation } from "@solidjs/router"
@@ -92,6 +94,7 @@ export type ReviewPanelSource = "context-button" | "other"
 
 export type LayoutRoute =
   | { type: "home" }
+  | { type: "groupChat"; chatId: Jolli.GroupChatID; server: ServerConnection.Key }
   | { type: "draft"; draftID: string; server?: ServerConnection.Key }
   | { type: "dir-new-sesssion"; dir: string; dirBase64: string; server?: ServerConnection.Key }
   | { type: "session"; sessionId: string; server?: ServerConnection.Key }
@@ -136,6 +139,15 @@ export const currentRoute = (pathname: string, search: string): LayoutRoute => {
     const draftID = new URLSearchParams(search).get("draftId")
     if (!draftID) return { type: "home" }
     return { type: "draft", draftID }
+  }
+
+  if (parts[0] === "server" && parts[2] === "group-chat" && parts[3]) {
+    // A malformed chat id is the page's own not-found state; it must not break the layout around it.
+    const chatId = Option.getOrUndefined(
+      Option.flatMap(Option.liftThrowable(decodeURIComponent)(parts[3]), Schema.decodeUnknownOption(Jolli.GroupChatID)),
+    )
+    if (!chatId) return { type: "home" }
+    return { type: "groupChat", chatId, server: requireServerKey(parts[1]) }
   }
 
   if (parts[0] === "server" && parts[2] === "session" && parts[3]) {

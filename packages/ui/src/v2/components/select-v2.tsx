@@ -59,6 +59,8 @@ export type SelectV2Props<T> = Omit<
   numeric?: boolean
   children?: (item: T) => JSX.Element
   valueClass?: string
+  triggerProps?: ComponentProps<"div">
+  contentClass?: string
 }
 
 export function SelectV2<T>(props: SelectV2Props<T>) {
@@ -80,6 +82,8 @@ export function SelectV2<T>(props: SelectV2Props<T>) {
     "numeric",
     "disabled",
     "valueClass",
+    "triggerProps",
+    "contentClass",
     "placement",
     "gutter",
     "sameWidth",
@@ -174,6 +178,7 @@ export function SelectV2<T>(props: SelectV2Props<T>) {
       }}
     >
       <Kobalte.Trigger
+        {...local.triggerProps}
         as="div"
         data-component="select-v2"
         data-appearance={local.appearance ?? "base"}
@@ -200,7 +205,7 @@ export function SelectV2<T>(props: SelectV2Props<T>) {
         </span>
       </Kobalte.Trigger>
       <Kobalte.Portal>
-        <Kobalte.Content data-component="menu-v2-content" data-slot="select-v2-content">
+        <Kobalte.Content data-component="menu-v2-content" data-slot="select-v2-content" class={local.contentClass}>
           <Kobalte.Listbox data-slot="select-v2-listbox" />
         </Kobalte.Content>
       </Kobalte.Portal>

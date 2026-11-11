@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "d8e527ce-628e-42a4-a79f-020a1cb1aaa4",
+  "id": "3b4b009b-f4b7-4c0c-bfb4-2972e90b0bf3",
   "prevIds": [
-    "f14a9b18-8207-487e-a3d3-227e629ba9ad"
+    "d8e527ce-628e-42a4-a79f-020a1cb1aaa4"
   ],
   "ddl": [
     {
@@ -44,6 +44,10 @@
     },
     {
       "name": "jolli_credential",
+      "entityType": "tables"
+    },
+    {
+      "name": "jolli_group_chat_cache",
       "entityType": "tables"
     },
     {
@@ -669,6 +673,86 @@
       "name": "time_updated",
       "entityType": "columns",
       "table": "jolli_credential"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "table": "jolli_group_chat_cache"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "chat_id",
+      "entityType": "columns",
+      "table": "jolli_group_chat_cache"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "course_id",
+      "entityType": "columns",
+      "table": "jolli_group_chat_cache"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "payload",
+      "entityType": "columns",
+      "table": "jolli_group_chat_cache"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "validated_at",
+      "entityType": "columns",
+      "table": "jolli_group_chat_cache"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "accessed_at",
+      "entityType": "columns",
+      "table": "jolli_group_chat_cache"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "confirmed",
+      "entityType": "columns",
+      "table": "jolli_group_chat_cache"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "truncated",
+      "entityType": "columns",
+      "table": "jolli_group_chat_cache"
     },
     {
       "type": "text",
@@ -1829,6 +1913,16 @@
       "name": "control_account_pk",
       "entityType": "pks",
       "table": "control_account"
+    },
+    {
+      "columns": [
+        "account_id",
+        "chat_id"
+      ],
+      "nameExplicit": false,
+      "name": "jolli_group_chat_cache_pk",
+      "entityType": "pks",
+      "table": "jolli_group_chat_cache"
     },
     {
       "columns": [

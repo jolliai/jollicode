@@ -72,6 +72,7 @@ import { NewHome } from "@/pages/home"
 import { LegacyHome } from "@/pages/home/legacy-home"
 
 const NewSession = lazy(() => import("@/pages/new-session"))
+const GroupChatPage = lazy(() => import("@/pages/group-chat"))
 
 const SessionRoute = () => {
   const settings = useSettings()
@@ -132,6 +133,12 @@ function TargetServerRoute(props: ParentProps) {
 const TargetSessionRoute = () => (
   <TargetServerRoute>
     <TargetSessionRouteContent />
+  </TargetServerRoute>
+)
+
+const TargetGroupChatRoute = () => (
+  <TargetServerRoute>
+    <GroupChatPage />
   </TargetServerRoute>
 )
 
@@ -653,6 +660,7 @@ function Routes(props: { serverScoped?: JSX.Element }) {
             <>
               <Route path="/" component={LegacyHome} />
               <Route path="/server/:serverKey/session/:id" component={LegacyTargetSessionRoute} />
+              <Route path="/server/:serverKey/group-chat/:id" component={() => <Navigate href="/" />} />
             </>
           }
         </Show>
@@ -665,6 +673,8 @@ function Routes(props: { serverScoped?: JSX.Element }) {
         <Route path="/" component={NewHome} />
         <Route path="/:dir/session/:id" component={NewLayoutLegacySessionRedirect} />
         <Route path="/server/:serverKey/session/:id" component={TargetSessionRoute} />
+        {/* Only the new layout mounts the group chat connection that lists chats and drops lost ones. */}
+        <Route path="/server/:serverKey/group-chat/:id" component={TargetGroupChatRoute} />
       </Show>
       <Route path="/new-session" component={DraftRoute} />
     </>

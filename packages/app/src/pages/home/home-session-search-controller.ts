@@ -5,7 +5,12 @@ import { makeEventListener } from "@solid-primitives/event-listener"
 import { createMemo, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
 import type { HomeController } from "./home-controller"
-import { homeSessionSearchKey, type HomeSessionRecord, type HomeSessionsController } from "./home-sessions-controller"
+import {
+  homeGroupChatTitle,
+  homeSessionSearchKey,
+  type HomeSessionRecord,
+  type HomeSessionsController,
+} from "./home-sessions-controller"
 
 type HomeSessionSearchSource = Pick<HomeSessionsController, "data" | "session">
 
@@ -20,7 +25,14 @@ export function createHomeSessionSearchController(home: HomeController, sessions
     if (!value) return []
     return sessions.data
       .searchRecords()
-      .filter((record) => `${record.session.title} ${record.projectName}`.toLowerCase().includes(value))
+      .filter((record) =>
+        (record.kind === "groupChat"
+          ? `${homeGroupChatTitle(record.chat, language)} ${record.chat.courseCode}`
+          : `${record.session.title} ${record.projectName}`
+        )
+          .toLowerCase()
+          .includes(value),
+      )
   })
   const active = createMemo(() => {
     const records = results()
@@ -60,7 +72,7 @@ export function createHomeSessionSearchController(home: HomeController, sessions
   }
 
   function select(record: HomeSessionRecord, options?: { background?: boolean }) {
-    sessions.session.open(record.session, options)
+    sessions.session.openRecord(record, options)
     if (!options?.background) close()
   }
 

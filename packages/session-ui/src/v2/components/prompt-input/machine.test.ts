@@ -162,3 +162,25 @@ describe("prompt input v2 interaction machine", () => {
     expect(result.handled).toBeTrue()
   })
 })
+
+describe("composers without a local shell", () => {
+  test("keeps a leading bang as ordinary message text", () => {
+    const result = transitionPromptInputV2(
+      createPromptInputV2InteractionState(),
+      { type: "input.changed", value: "!" },
+      persisted("!"),
+      false,
+    )
+    expect(result.state.mode).toBe("normal")
+    expect(result.commands).toContainEqual({ type: "draft.setText", value: "!" })
+  })
+  test("refuses a shell-mode transition when shell capability is disabled", () => {
+    const result = transitionPromptInputV2(
+      createPromptInputV2InteractionState(),
+      { type: "mode.shell" },
+      persisted(),
+      false,
+    )
+    expect(result.state.mode).toBe("normal")
+  })
+})
