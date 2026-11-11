@@ -9,6 +9,9 @@ const config = {
   ADD_ATTR: ["d", "viewBox", "preserveAspectRatio", "xmlns", "target"],
 }
 
+/** What DOMPurify puts before every `id` and `name` under `SANITIZE_NAMED_PROPS`. */
+const namedPropsPrefix = "user-content-"
+
 if (typeof window !== "undefined" && DOMPurify.isSupported) {
   DOMPurify.addHook("afterSanitizeAttributes", (node: Element) => {
     if (!(node instanceof HTMLAnchorElement)) return
@@ -127,8 +130,14 @@ export function sanitizeMarkdown(html: string, untrusted = false) {
     node.removeAttribute("class")
     if (kept.length) node.setAttribute("class", kept.join(" "))
     const href = node.getAttribute("href")
+    // A link to a place in the same content keeps working: its target's id carries the prefix that
+    // `SANITIZE_NAMED_PROPS` gave every id and name, so the link gets it too. Following it is left to the
+    // page's link guard, which scrolls within the content. It is not judged as an address: against the
+    // desktop app's own page address it would not read as `http(s)`.
+    if (href?.startsWith("#") && href.length > 1) node.setAttribute("href", `#${namedPropsPrefix}${href.slice(1)}`)
     if (
       href &&
+      !href.startsWith("#") &&
       (!URL.canParse(href, window.location.href) ||
         !["http:", "https:"].includes(new URL(href, window.location.href).protocol))
     )

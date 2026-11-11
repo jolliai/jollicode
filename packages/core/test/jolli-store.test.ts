@@ -3,7 +3,7 @@ import { Effect } from "effect"
 import { Database } from "@opencode-ai/core/database/database"
 import { AppNodeBuilder } from "@opencode-ai/core/effect/app-node-builder"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
-import { JolliCredentialTable } from "@opencode-ai/core/jolli/sql"
+import { JolliCredentialTable, JolliGroupChatCacheTable } from "@opencode-ai/core/jolli/sql"
 import { JolliStore } from "@opencode-ai/core/jolli/store"
 
 const run = <A>(effect: Effect.Effect<A, never, JolliStore.Service | Database.Service>) =>
@@ -120,6 +120,22 @@ describe("JolliStore", () => {
     expect(b).not.toBe(a)
   })
 
+  test("the same subject at another deployment or tenant is a different student with a different key", async () => {
+    // Each deployment numbers its users itself: keeping the key would hand user 42 there user 42's courses here.
+    const keys = await run(
+      Effect.gen(function* () {
+        const store = yield* JolliStore.Service
+        const here = yield* store.persist({ subject: "42", baseUrl: "https://acme.jolli.ai", accessToken: "a" })
+        const again = yield* store.persist({ subject: "42", baseUrl: "https://acme.jolli.ai/", accessToken: "b" })
+        const there = yield* store.persist({ subject: "42", baseUrl: "https://beta.jolli.ai", accessToken: "c" })
+        return [here.cache_key, again.cache_key, there.cache_key]
+      }),
+    )
+
+    expect(keys[1]).toBe(keys[0])
+    expect(keys[2]).not.toBe(keys[0])
+  })
+
   test("a new student's sign-in takes the previous student's tokens with it", async () => {
     /**
      * ⚠ MOVING THE ACTIVE POINTER IS NOT SIGNING ANYBODY OUT. Rows are keyed by subject, so "use a
@@ -215,6 +231,50 @@ describe("JolliStore", () => {
     )
 
     expect(after).toBe(before)
+  })
+
+  test("the same person signing in again keeps their offline group chats, and nobody else's survive", async () => {
+    const left = await run(
+      Effect.gen(function* () {
+        const store = yield* JolliStore.Service
+        const { db } = yield* Database.Service
+        const offline = (account: string, chat: string) =>
+          db
+            .insert(JolliGroupChatCacheTable)
+            .values({
+              account_id: account,
+              chat_id: chat,
+              course_id: "7",
+              payload: "{}",
+              validated_at: Date.now(),
+              accessed_at: Date.now(),
+              confirmed: true,
+              truncated: false,
+            })
+            .run()
+            .pipe(Effect.orDie)
+        const rows = () =>
+          db
+            .select({ account: JolliGroupChatCacheTable.account_id, chat: JolliGroupChatCacheTable.chat_id })
+            .from(JolliGroupChatCacheTable)
+            .all()
+            .pipe(Effect.orDie)
+        const first = yield* store.persist({ subject: "usr_1", accessToken: "a" })
+        yield* offline(first.cache_key, "mine")
+        yield* offline("someone-else", "theirs")
+        yield* store.persist({ subject: "usr_1", accessToken: "a-2" })
+        const again = yield* rows()
+        const second = yield* store.persist({ subject: "usr_2", accessToken: "b" })
+        yield* offline(second.cache_key, "b-chat")
+        const other = yield* rows()
+        yield* store.remove(second.id)
+        return { again, other, removed: yield* rows() }
+      }),
+    )
+
+    expect(left.again.map((row) => row.chat)).toEqual(["mine"])
+    expect(left.other.map((row) => row.chat)).toEqual(["b-chat"])
+    expect(left.removed).toEqual([])
   })
 
   test("removing clears the active pointer as well as the row", async () => {

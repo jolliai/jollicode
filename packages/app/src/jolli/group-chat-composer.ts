@@ -28,6 +28,21 @@ export function groupChatTargetPrompt(prompt: PromptInputV2PersistedState["promp
 }
 
 /**
+ * The draft with dictated `text` written after it. A space keeps it apart from what is already written,
+ * unless the draft is empty or either side already has one there. Offsets continue from what is already
+ * written; cursor and mention edits rely on them.
+ */
+export function groupChatDictation(
+  prompt: PromptInputV2PersistedState["prompt"],
+  text: string,
+): PromptInputV2PersistedState["prompt"] {
+  if (!text) return prompt
+  const written = prompt.map((part) => ("content" in part ? part.content : "")).join("")
+  const content = written && !/\s$/.test(written) && !/^\s/.test(text) ? ` ${text}` : text
+  return [...prompt, { type: "text", content, start: written.length, end: written.length + content.length }]
+}
+
+/**
  * The models an ask to `assistantId` may use, and the one it goes with: the person's remembered pick
  * while the assistant still grants it, else the assistant's own default, else the first it grants.
  *
@@ -50,4 +65,28 @@ export function groupChatModel(
     options.some((model) => model.id === id),
   )
   return { options, selected }
+}
+
+/**
+ * The request a send goes out as. A send whose answer was lost keeps its request id, and an identical
+ * send reuses it so the server keeps one copy. Identical means the same draft, files, mentions, model and
+ * recipient: sending to the group instead of asking an agent is another message, under another id.
+ */
+export function groupChatSendRequest(
+  pending: { signature: string; body: Jolli.GroupChatPost } | undefined,
+  prompt: PromptInputV2PersistedState["prompt"],
+  next: Jolli.GroupChatPost,
+  groupOnly: boolean,
+) {
+  const signature = JSON.stringify({
+    prompt,
+    groupOnly,
+    attachmentIds: next.attachmentIds,
+    pinnedMaterialIds: next.pinnedMaterialIds,
+    mentionedAssistantId: next.mentionedAssistantId,
+    mentionedUserIds: next.mentionedUserIds,
+    mentionsAll: next.mentionsAll,
+    modelId: next.modelId,
+  })
+  return { signature, body: pending?.signature === signature ? pending.body : next }
 }

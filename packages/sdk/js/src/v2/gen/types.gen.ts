@@ -1653,7 +1653,7 @@ export type GlobalEvent = {
         id: string
         type: "jolli.groupChat.reset"
         properties: {
-          [key: string]: unknown
+          sameAccount?: boolean
         }
       }
     | EventServerInstanceDisposed
@@ -6576,7 +6576,7 @@ export type JolliGroupChatReset = {
   }
   location?: LocationRef
   data: {
-    [key: string]: unknown
+    sameAccount?: boolean
   }
 }
 
@@ -7577,7 +7577,7 @@ export type EventJolliGroupChatReset = {
   id: string
   type: "jolli.groupChat.reset"
   properties: {
-    [key: string]: unknown
+    sameAccount?: boolean
   }
 }
 
@@ -8025,6 +8025,7 @@ export type JolliGroupChatCancelResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -8140,6 +8141,7 @@ export type JolliGroupChatResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -8257,6 +8259,7 @@ export type JolliGroupChatRenameResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -8374,6 +8377,7 @@ export type JolliGroupChatAddPeopleResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -8490,6 +8494,7 @@ export type JolliGroupChatRemovePersonResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -8608,6 +8613,7 @@ export type JolliGroupChatReadResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -8615,7 +8621,7 @@ export type JolliGroupChatReadResponse = JolliGroupChatReadResponses[keyof Jolli
 
 export type JolliGroupChatTargetData = {
   body?: {
-    assistantId: number
+    assistantId?: number
   }
   path: {
     chatID: JolliGroupChatId
@@ -8725,6 +8731,7 @@ export type JolliGroupChatTargetResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -8840,6 +8847,7 @@ export type JolliGroupChatFeaturesResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -8953,6 +8961,7 @@ export type JolliReferenceResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -9068,6 +9077,7 @@ export type JolliGroupChatMaterialsResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -9183,6 +9193,7 @@ export type JolliGroupChatShareResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -9305,6 +9316,7 @@ export type JolliGroupChatShareAddResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -9421,6 +9433,7 @@ export type JolliGroupChatShareRemoveResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -9539,6 +9552,7 @@ export type JolliGroupChatShareGroupRemoveResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -9657,6 +9671,7 @@ export type JolliGroupChatAttachmentStatusResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -9934,6 +9949,7 @@ export type JolliGroupChatsResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -10052,6 +10068,7 @@ export type JolliGroupChatCreateResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -10167,6 +10184,7 @@ export type JolliGroupChatPeopleResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -10291,6 +10309,7 @@ export type JolliGroupChatPostResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 
@@ -10409,6 +10428,7 @@ export type JolliGroupChatWatchResponses = {
       creator?: boolean
     }>
     createdId?: JolliGroupChatId
+    owner?: string
   }
 }
 

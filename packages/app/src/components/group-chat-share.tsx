@@ -8,7 +8,13 @@ import { TextInputV2 } from "@opencode-ai/ui/v2/text-input-v2"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useServerSDK } from "@/context/server-sdk"
 import { useLanguage } from "@/context/language"
-import { decodeChatAnswer, groupChatRefusal, type GroupChatRefusal } from "@/jolli/group-chat"
+import {
+  decodeChatAnswer,
+  groupChatActionNotice,
+  groupChatOutcomeUnknown,
+  useCloseOnGroupChatReset,
+  type GroupChatRefusal,
+} from "@/jolli/group-chat"
 
 const Share = Schema.Struct({
   subjectIsClass: Schema.Boolean,
@@ -41,6 +47,7 @@ export function GroupChatShareDialog(props: {
   const language = useLanguage()
   const dialog = useDialog()
   const sdk = useServerSDK()
+  useCloseOnGroupChatReset()
   const [state, setState] = createStore<{ search: string; busy: boolean; error?: GroupChatRefusal }>({
     search: "",
     busy: false,
@@ -55,27 +62,19 @@ export function GroupChatShareDialog(props: {
   const shares = () => (snapshot.error ? undefined : snapshot())
   const write = async (subject: number | "everyone" | { groupId: number }, remove = false) => {
     setState({ busy: true, error: undefined })
-    try {
-      const response = remove
+    const answer = await (
+      remove
         ? typeof subject === "object"
-          ? await sdk().client.jolli.groupChatShareGroupRemove({
-              chatID: props.chat.id,
-              groupId: String(subject.groupId),
-            })
-          : await sdk().client.jolli.groupChatShareRemove({ chatID: props.chat.id, subject: String(subject) })
-        : await sdk().client.jolli.groupChatShareAdd({ chatID: props.chat.id, subject })
-      const answer = decodeChatAnswer(response.data)
-      props.onAnswer?.(answer)
-      if (answer.status !== "ok") {
-        setState("error", groupChatRefusal(answer, "action"))
-        return
-      }
-      await refetch()
-    } catch {
-      setState("error", { key: "groupChat.actionFailed" })
-    } finally {
-      setState("busy", false)
-    }
+          ? sdk().client.jolli.groupChatShareGroupRemove({ chatID: props.chat.id, groupId: String(subject.groupId) })
+          : sdk().client.jolli.groupChatShareRemove({ chatID: props.chat.id, subject: String(subject) })
+        : sdk().client.jolli.groupChatShareAdd({ chatID: props.chat.id, subject })
+    )
+      .then((response) => decodeChatAnswer(response.data))
+      .catch(() => undefined)
+    if (answer) props.onAnswer?.(answer)
+    // A change with no answer may have been made, so the shares are read again to show whether.
+    if (answer?.status === "ok" || groupChatOutcomeUnknown(answer)) await refetch()
+    setState({ busy: false, error: groupChatActionNotice(answer) })
   }
   const candidates = () => {
     const data = shares()

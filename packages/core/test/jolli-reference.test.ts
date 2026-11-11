@@ -132,23 +132,135 @@ describe("reference readers shared by every conversation", () => {
     for (const input of inputs) await refuses(readJolliReference(request, input), 400)
     expect(calls).toBe(0)
   })
-  test("group reference reads recheck access before reading any content", async () => {
+  test("a group's course reference reads the chat's course once, and a refused open stops it", async () => {
     const paths: string[] = []
     const request = gateway((request) => {
       const path = new URL(request.url).pathname
       paths.push(path)
-      if (path === "/api/me/courses")
-        return Response.json({ home: { tenantSlug: "school", orgSlug: "org" }, courses: [] })
       return Response.json({ error: "Forbidden" }, { status: 403 })
     })
     await refuses(
       readJolliReference(request, {
-        target: { kind: "group", chatID: Jolli.GroupChatID.make("school:org:chat-1") },
+        target: { kind: "group", chatID },
         reference: { kind: "material", materialId: 7 },
         operation: "read",
       }),
       403,
     )
-    expect(paths).toEqual(["/api/me/courses", "/api/agent/convos/chat-1/open"])
+    expect(paths).toEqual(["/api/agent/convos/chat-1/open"])
+  })
+  test("a group's course references learn the chat's course from one open read and keep to it", async () => {
+    const paths: string[] = []
+    const request = gateway((request) => {
+      const path = new URL(request.url).pathname
+      paths.push(path)
+      expect(request.headers.get("x-org-slug")).toBe("org")
+      if (path === "/api/agent/convos/chat-1/open") return Response.json(opened([]))
+      return Response.json({ title: "Lecture" })
+    })
+    for (const operation of ["read", "page"] as const)
+      await readJolliReference(request, {
+        target: { kind: "group", chatID },
+        reference: { kind: "material", materialId: 7 },
+        operation,
+      })
+    await readJolliReference(request, {
+      target: { kind: "group", chatID },
+      reference: { kind: "assignment", courseId: 32, assignmentId: 8, staffView: false },
+      operation: "read",
+    })
+    await refuses(
+      readJolliReference(request, {
+        target: { kind: "group", chatID },
+        reference: { kind: "assignment", courseId: 99, assignmentId: 8, staffView: false },
+        operation: "read",
+      }),
+      400,
+    )
+    expect(paths).toEqual([
+      "/api/agent/convos/chat-1/open",
+      "/api/courses/32/materials/7/view",
+      "/api/courses/32/materials/7/page-url",
+      "/api/courses/32/assignments/8/student-view",
+    ])
+  })
+  test("a group reference never reads the chat's transcript, and an attachment is described by its address route", async () => {
+    const paths: string[] = []
+    const bodies: Record<string, unknown> = {}
+    const request = gateway(async (request) => {
+      const path = new URL(request.url).pathname
+      paths.push(path)
+      if (request.method === "POST") bodies[path] = await request.json()
+      if (path === "/api/agent/convos/chat-1/open")
+        return Response.json(opened([{ attachmentId: 5, filename: "notes.pdf" }]))
+      return Response.json({
+        urls: { "5": "https://storage.example/signed" },
+        attachments: {
+          "5": { attachment: { id: 5, filename: "notes.pdf", mimeType: "application/pdf", state: "pending" } },
+        },
+      })
+    })
+    await readJolliReference(request, {
+      target: { kind: "group", chatID },
+      reference: { kind: "artifact", artifactId: "artifact-1" },
+      operation: "read",
+    })
+    for (const operation of ["content", "page"] as const)
+      await readJolliReference(request, {
+        target: { kind: "group", chatID },
+        reference: { kind: "attachment", attachmentId: 5 },
+        operation,
+      })
+    expect(paths).toEqual([
+      "/api/studio-artifacts/artifact-1",
+      "/api/agent/convos/chat-1/attachment-urls",
+      "/api/agent/convos/chat-1/attachment-page-urls",
+    ])
+    // The address route takes a list; the page route takes one id, in the singular, as the web client sends it.
+    expect(bodies).toEqual({
+      "/api/agent/convos/chat-1/attachment-urls": { attachmentIds: [5] },
+      "/api/agent/convos/chat-1/attachment-page-urls": { attachmentId: 5 },
+    })
+    expect(
+      await readJolliReference(request, {
+        target: { kind: "group", chatID },
+        reference: { kind: "attachment", attachmentId: 5 },
+        operation: "read",
+      }),
+    ).toEqual({ id: 5, attachmentId: 5, filename: "notes.pdf", mimeType: "application/pdf", state: "pending" })
+    expect(paths.at(-1)).toBe("/api/agent/convos/chat-1/attachment-urls")
+    expect(paths).not.toContain("/api/agent/convos/chat-1/open")
+    await refuses(
+      readJolliReference(request, {
+        target: { kind: "group", chatID },
+        reference: { kind: "attachment", attachmentId: 6 },
+        operation: "read",
+      }),
+      404,
+    )
   })
 })
+
+const chatID = Jolli.GroupChatID.make("school:org:chat-1")
+function opened(attachments: object[]) {
+  return {
+    access: "participant",
+    detail: {
+      kind: "group",
+      spaceId: 32,
+      group: { participants: [], formerPeople: [], aliases: [] },
+      timeline: [
+        {
+          kind: "message",
+          id: 1,
+          seq: 1,
+          turnId: 1,
+          role: "user",
+          content: "See the notes",
+          timestamp: "2026-11-10T00:00:00Z",
+          payload: { attachments },
+        },
+      ],
+    },
+  }
+}

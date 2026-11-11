@@ -161,8 +161,9 @@ export const GroupChatRefusalCode = Schema.Literals([
 ])
 export type GroupChatRefusalCode = typeof GroupChatRefusalCode.Type
 /**
- * - `revoked`: only from opening a chat, when the chat's own open read answered 403/404 (other than
- *   `sso_required`); the offline copy is already purged.
+ * - `revoked`: access to the chat is gone. From any route, on a 404 labelled
+ *   `conversation_access_revoked`; from opening a chat, also when its own open read answered a plain
+ *   403/404 from jolliedu. Opening a chat has already purged its offline copy.
  * - `refused`: the server answered a 4xx other than 401; `code` and `httpStatus` say which. From any
  *   route but opening a chat, a 403/404 here does not mean access is gone: read the chat again.
  * - `signed-out`: a 401 that survived one refresh and retry, or no credential.
@@ -185,12 +186,27 @@ export const GroupChatAnswer = Schema.Struct({
   chats: Schema.Array(GroupChatSummary).pipe(optional),
   people: Schema.Array(ChatPerson).pipe(optional),
   createdId: GroupChatID.pipe(optional),
+  /**
+   * On a chat list and on an opened chat (read live or from the offline copy), an opaque fingerprint of whose
+   * chats these are (deployment, tenant and person), absent when the credential the answer was read with is no
+   * longer active. A window that missed a reset, because its event stream was down, or that the sidecar never
+   * told (it adopts the first credential it meets after a start), compares it with the owner of the chats it
+   * holds and drops them when they differ.
+   */
+  owner: Schema.String.pipe(optional),
 })
 export type GroupChatAnswer = typeof GroupChatAnswer.Type
+/**
+ * Who the composer asks: the agent `assistantId` names, or the whole group when it is absent. Absent
+ * rather than null, because the generated SDK drops `null` from body fields; core sends the server's
+ * null for the group.
+ */
+export const GroupChatTarget = Schema.Struct({ assistantId: Schema.Int.pipe(optional) })
+export type GroupChatTarget = typeof GroupChatTarget.Type
 export const GroupChatAction = Schema.Union([
   Schema.Struct({ type: Schema.Literal("cancel") }),
   Schema.Struct({ type: Schema.Literal("read"), seq: Schema.Int }),
-  Schema.Struct({ type: Schema.Literal("target"), assistantId: Schema.NullOr(Schema.Int) }),
+  Schema.Struct({ type: Schema.Literal("target"), ...GroupChatTarget.fields }),
   Schema.Struct({ type: Schema.Literal("rename"), title: Schema.String }),
   Schema.Struct({ type: Schema.Literal("add"), userIds: Schema.Array(Schema.Int) }),
   Schema.Struct({ type: Schema.Literal("remove"), userId: Schema.Int }),

@@ -4,7 +4,7 @@ import { getDocument, GlobalWorkerOptions, PDFWorker, version, type RenderTask }
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 import { useLanguage } from "@/context/language"
 import type { GroupChatLocator } from "@/jolli/group-chat-sources"
-import { safeReferenceUrl } from "@/jolli/reference-preview"
+import { safeReferenceUrl } from "@/jolli/external-link"
 
 GlobalWorkerOptions.workerSrc = workerUrl
 let worker: PDFWorker | undefined

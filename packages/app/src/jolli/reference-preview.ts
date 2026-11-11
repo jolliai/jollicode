@@ -5,6 +5,7 @@ import type { ServerSDK } from "@/context/server-sdk"
 import type { GroupChatLocator, GroupChatSource } from "./group-chat-sources"
 import { groupChatSourceUrl } from "./group-chat-sources"
 import { groupChatFetch } from "./group-chat-media"
+import { safeReferenceUrl } from "./external-link"
 
 export type ReferencePreview = {
   target?: Jolli.ReferenceTarget
@@ -77,6 +78,21 @@ export function referencePreviewOf(
   }
 }
 
+/** The server answered that this reference is gone or not the reader's to see; asking again will not change it. */
+export class ReferenceUnavailableError extends Error {}
+
+/** The sidecar answered that the Jolli credential is gone: nothing of the server's chats may stay in the window. */
+export class ReferenceSignedOutError extends Error {}
+
+/**
+ * One read of a reference. Every failure throws; only an answer that the reference is gone or withheld
+ * throws {@link ReferenceUnavailableError}: the chat gone, a 404 or 410, or a 403 that names no code,
+ * which is the reference route's own refusal. A lost sign-in throws {@link ReferenceSignedOutError}, which
+ * says nothing about the reference either but drops the window's chats of the server. Anything else may be
+ * read again: no answer, the server out of reach, and a refusal that names a code, which turns the request
+ * away rather than the reference (an org it could not be placed in, the school asking for a fresh sign-in,
+ * a tenant the sign-in does not match).
+ */
 export async function readReference(
   sdk: ServerSDK,
   target: Jolli.ReferenceTarget,
@@ -92,8 +108,21 @@ export async function readReference(
   })
   if (!response.ok) throw new Error("Reference request failed")
   const answer = Schema.decodeUnknownSync(Jolli.GroupChatAnswer)(await response.json())
-  if (answer.status !== "ok" || answer.resource === undefined) throw new Error("Reference is unavailable")
-  return answer.resource
+  if (answer.status === "ok" && answer.resource !== undefined) return answer.resource
+  if (answer.status === "signed-out") throw new ReferenceSignedOutError("Signed out of Jolli")
+  // Only the server's own answer makes it final: a refusal carries its sentence (`message`) only when the body
+  // was jolliedu's JSON, so a proxy's or firewall's 403/404 page stays something to try again.
+  if (
+    answer.status === "ok" ||
+    answer.status === "revoked" ||
+    (answer.status === "refused" &&
+      answer.message !== undefined &&
+      (answer.httpStatus === 404 ||
+        answer.httpStatus === 410 ||
+        (answer.httpStatus === 403 && answer.code === undefined)))
+  )
+    throw new ReferenceUnavailableError("Reference is unavailable")
+  throw new Error("Reference request failed")
 }
 
 export const ReferenceMaterial = Schema.Struct({
@@ -209,12 +238,6 @@ export const ReferencePlan = Schema.Struct({
     Schema.Struct({ kind: Schema.String, id: Schema.Union([Schema.String, Schema.Number]), title: Schema.String }),
   ),
 })
-
-export function safeReferenceUrl(value: string | undefined) {
-  if (!value || !URL.canParse(value)) return undefined
-  const url = new URL(value)
-  return url.protocol === "http:" || url.protocol === "https:" ? url.href : undefined
-}
 
 export function referenceFileMime(filename: string) {
   const extension = filename.split(".").at(-1)?.toLowerCase()

@@ -25,6 +25,8 @@ export function ReferenceDock(props: {
   onOpen: (item: ReferencePreview) => void
   onExpand: () => void
   onResize: (width: number) => void
+  /** A read of a reference answered that the credential is gone. */
+  onSignedOut: () => void
 }) {
   const language = useLanguage()
   const openLink = useExternalLinkConfirm()
@@ -182,6 +184,7 @@ export function ReferenceDock(props: {
                   target={props.target}
                   item={props.active}
                   onOpen={props.onOpen}
+                  onSignedOut={props.onSignedOut}
                   actions={elements.actions}
                 />
               </Suspense>

@@ -22,16 +22,23 @@ export class JolliUnavailable extends Schema.TaggedErrorClass<JolliUnavailable>(
   message: Schema.String,
 }) {}
 
-const changes = new Set<() => void>()
+/**
+ * Why the credential changed. `signed-in` stored a credential, possibly the same person's again;
+ * `signed-out` is the student signing out; `expired` is a credential that could not be renewed and was
+ * removed, which says nothing about who signs in next.
+ */
+export type JolliSessionChange = "signed-in" | "signed-out" | "expired"
+
+const changes = new Set<(change: JolliSessionChange) => void>()
 /** Process-local resources tied to the previous credential stop when another one is stored or it is removed. */
-export function onJolliSessionChanged(listener: () => void) {
+export function onJolliSessionChanged(listener: (change: JolliSessionChange) => void) {
   changes.add(listener)
   return () => {
     changes.delete(listener)
   }
 }
-function notifySessionChanged() {
-  for (const listener of changes) listener()
+function notifySessionChanged(change: JolliSessionChange) {
+  for (const listener of changes) listener(change)
 }
 
 export type JolliSessionError = JolliSignedOut | JolliUnavailable
@@ -174,13 +181,12 @@ const layer = Layer.effect(
       })
 
     // The refusals go first: they are this process's memory, and a row that will not delete is no
-    // reason to hand them to whoever signs in next.
-    const forget = (row: JolliStore.Row) =>
-      Effect.sync(() => {
-        JolliClosedAssistants.reset()
-        notifySessionChanged()
-      }).pipe(
+    // reason to hand them to whoever signs in next. Listeners hear of the change once the row is gone,
+    // so one that reads again finds no credential, and they hear of it even when the row would not delete.
+    const forget = (row: JolliStore.Row, change: "signed-out" | "expired") =>
+      Effect.sync(JolliClosedAssistants.reset).pipe(
         Effect.andThen(store.remove(row.id)),
+        Effect.ensuring(Effect.sync(() => notifySessionChanged(change))),
         Effect.andThen(clearCatalogCache),
         Effect.catchCause(() => Effect.void),
       )
@@ -249,13 +255,13 @@ const layer = Layer.effect(
         Effect.gen(function* () {
           const refreshToken = row.refresh_token
           if (!refreshToken) {
-            yield* forget(row)
+            yield* forget(row, "expired")
             return yield* new JolliSignedOut({
               message: "Your Jolli session expired and there is nothing to renew it with. Please sign in again.",
             })
           }
           return yield* rotate(row, refreshToken).pipe(
-            Effect.tapError((error) => (error._tag === "Jolli.SignedOut" ? forget(row) : Effect.void)),
+            Effect.tapError((error) => (error._tag === "Jolli.SignedOut" ? forget(row, "expired") : Effect.void)),
           )
         }),
       )
@@ -341,7 +347,7 @@ const layer = Layer.effect(
     })
 
     return Service.of({
-      chatCache: Object.hasOwn(store, "chatCache") ? store.chatCache : undefined,
+      chatCache: store.chatCache,
       current: Effect.fn("JolliSession.current")(() => active()),
 
       token,
@@ -378,15 +384,25 @@ const layer = Layer.effect(
         })
         // After the write: listeners tell the renderer to read again, and that read must find this
         // credential rather than the one it replaces.
-        notifySessionChanged()
+        notifySessionChanged("signed-in")
         return row
       }),
 
+      /**
+       * ⚠ AN EXPLICIT SIGN-OUT ALWAYS SAYS SO AND PURGES EVERY OFFLINE GROUP CHAT, WITH A CREDENTIAL OR WITHOUT
+       * ONE. With none left (it expired, or another process removed it unnoticed) the app may still hold that
+       * person's group chats, and listeners drop them on this word; and a read this process still had out when
+       * another process removed it may have written a copy after that purge (see the cache's `put`).
+       */
       signOut: Effect.fn("JolliSession.signOut")(function* () {
         // The injected credential is not ours to remove, and the stored one may still be there.
         const row = yield* store.active()
-        if (!row) return
-        yield* forget(row)
+        if (row) return yield* forget(row, "signed-out")
+        return yield* Effect.sync(JolliClosedAssistants.reset).pipe(
+          Effect.andThen(Effect.promise(() => store.chatCache?.clear() ?? Promise.resolve())),
+          Effect.ensuring(Effect.sync(() => notifySessionChanged("signed-out"))),
+          Effect.catchCause(() => Effect.void),
+        )
       }),
     })
   }),

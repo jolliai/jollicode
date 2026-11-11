@@ -1,14 +1,14 @@
 import type { GroupChatAttachmentDraft } from "@/jolli/group-chat-media"
 import { parseOrgScopedId } from "@opencode-ai/core/jolli/org-scoped-id"
-import { composerTargetFallback, executableChatFile, replaceAliases } from "@opencode-ai/core/jolli/group-chat-rules"
-import { Option, Schema } from "effect"
+import { composerTargetFallback, replaceAliases } from "@opencode-ai/core/jolli/group-chat-rules"
 import { GroupChatShareDialog } from "@/components/group-chat-share"
 import { GroupChatMaterialsDialog } from "@/components/group-chat-materials"
 import { GroupChatSources } from "@/components/group-chat-sources"
 import { ReferenceDock } from "@/components/reference-dock"
 import { GroupChatArtifactCard } from "@/components/group-chat-artifact-card"
 import { referencePreviewOf, scopedReferencePreview, type ReferencePreview } from "@/jolli/reference-preview"
-import { useGroupChatAttachments, downloadGroupAttachment, changeGroupChat } from "@/jolli/group-chat-media"
+import { useGroupChatAttachments, groupAttachmentFile, changeGroupChat } from "@/jolli/group-chat-media"
+import { ChatFileDownloadError, downloadChatFile } from "@/jolli/reference-download"
 import { useGroupChatVoice } from "@/jolli/group-chat-voice"
 import { GroupChatIcon } from "@/components/group-chat-icons"
 import { createEffect, createMemo, ErrorBoundary, For, on, onCleanup, onMount, Show } from "solid-js"
@@ -23,53 +23,61 @@ import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useServerSDK } from "@/context/server-sdk"
 import { useTabs } from "@/context/tabs"
 import { useLanguage } from "@/context/language"
-import { ReferenceWorkspace } from "@/context/reference-preview"
-import { requireServerKey } from "@/utils/session-route"
+import { groupChatRouteId, requireServerKey } from "@/utils/session-route"
 import { showToast } from "@/utils/toast"
 import {
+  beginGroupChatLeave,
   decodeChatAnswer,
   canStopGroupAnswer,
+  groupChatActionNotice,
+  groupChatActionRefused,
+  groupChatMarkerSettled,
+  groupChatOutcomeUnknown,
   groupChatRefusal,
   groupChatRefusalNeedsRead,
-  groupChatRouteId,
+  groupChatRefusalPasses,
   groupMessagePayload,
   runningGroupTurn,
+  useGroupChatAccount,
   useGroupChatLoss,
   type GroupChatRefusal,
 } from "@/jolli/group-chat"
 import { groupChatSourcesByMessage } from "@/jolli/group-chat-sources"
-import { markGroupChatRead } from "@/jolli/group-chat-state"
+import { createGroupChatFollow } from "@/jolli/group-chat-follow"
+import { createGroupChatFeatures } from "@/jolli/group-chat-features"
+import { groupChatDrops, markGroupChatRead } from "@/jolli/group-chat-state"
 import { assistantsForCourse, courseById } from "@/jolli/catalog"
 import { GroupChatComposer } from "@/components/group-chat-composer"
+import { groupChatDictation } from "@/jolli/group-chat-composer"
 import { GroupChatConfirmation, GroupChatPeopleDialog } from "@/components/group-chat-dialogs"
-import { useExternalLinkConfirm } from "@/components/external-link-confirm"
+import { useConfirmation, useExternalLinkConfirm } from "@/components/external-link-confirm"
 import { guardExternalLinks } from "@/jolli/external-link"
 import { SessionRouteFrame } from "@/components/session/session-route-frame"
+import "@/components/reference-preview.css"
 import "./group-chat.css"
+
+/** How long a read marker that did not get through first waits before it is sent again. */
+const MARK_PAUSE_MS = 5_000
 
 export default function GroupChatRoute() {
   const params = useParams<{ id: string; serverKey: string }>()
   const language = useLanguage()
   return (
     <SessionRouteFrame>
-      <ReferenceWorkspace>
-        {/* A failure inside the chat or one of its dialogs stays on this page instead of replacing the app. */}
-        <ErrorBoundary
-          fallback={(_, reset) => <GroupChatNotice text={language.t("groupChat.crashed")} retry={reset} />}
-        >
-          <Show when={params.id} keyed>
-            {(raw) => (
-              <Show
-                when={groupChatRouteId(raw)}
-                keyed
-                fallback={<GroupChatNotice text={language.t("groupChat.notFound")} />}
-              >
-                {(id) => <GroupChatPage id={id} serverKey={params.serverKey} />}
-              </Show>
-            )}
-          </Show>
-        </ErrorBoundary>
-      </ReferenceWorkspace>
+      {/* A failure inside the chat or one of its dialogs stays on this page instead of replacing the app. */}
+      <ErrorBoundary fallback={(_, reset) => <GroupChatNotice text={language.t("groupChat.crashed")} retry={reset} />}>
+        <Show when={params.id} keyed>
+          {(raw) => (
+            <Show
+              when={groupChatRouteId(raw)}
+              keyed
+              fallback={<GroupChatNotice text={language.t("groupChat.notFound")} />}
+            >
+              {(id) => <GroupChatPage id={id} serverKey={params.serverKey} />}
+            </Show>
+          )}
+        </Show>
+      </ErrorBoundary>
     </SessionRouteFrame>
   )
 }
@@ -101,13 +109,14 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
   const language = useLanguage()
   const dialog = useDialog()
   const openLink = useExternalLinkConfirm()
+  const confirm = useConfirmation()
   const lose = useGroupChatLoss()
+  const account = useGroupChatAccount()
   const [state, setState] = createStore<{
     answer?: Jolli.GroupChatAnswer
     loading: boolean
     /** The server could not be reached; whatever was read last stays on screen. */
     failed: boolean
-    signedOut: boolean
     /** Why the server refused to open the chat, while it does. */
     refusal?: GroupChatRefusal
     stream: string
@@ -120,7 +129,6 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
   }>({
     loading: true,
     failed: false,
-    signedOut: false,
     stream: "",
     seq: -1,
     frameSeq: 0,
@@ -132,7 +140,7 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
   const chat = () => state.answer?.chat
   const offline = () => state.answer?.source === "cache"
   /** Nothing new can be sent: the copy is offline, the server is out of reach, or it will not let the reader in. */
-  const halted = () => offline() || state.failed || state.signedOut || state.refusal !== undefined
+  const halted = () => offline() || state.failed || state.refusal !== undefined
   const writable = () => {
     const value = chat()
     return value !== undefined && value.access !== "reader" && !value.locked && !halted()
@@ -186,18 +194,12 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
   const attachmentDraft = tabs.state(tab(), "group-chat-attachments", () =>
     createStore<GroupChatAttachmentDraft>({ files: [], materials: [], error: false }),
   )
-  const attachments = useGroupChatAttachments(sdk, id, attachmentDraft)
+  const attachments = useGroupChatAttachments(sdk, id, attachmentDraft, () => account.signOut(server()))
   const voice = useGroupChatVoice({
     sdk,
     id,
     locale: language.intl,
-    append: (text) => {
-      draft()[1]("prompt", (prompt) => {
-        // Offsets continue from what is already written; cursor and mention edits rely on them.
-        const start = prompt.reduce((length, part) => length + ("content" in part ? part.content.length : 0), 0)
-        return [...prompt, { type: "text", content: ` ${text}`, start, end: start + text.length + 1 }]
-      })
-    },
+    append: (text) => draft()[1]("prompt", (prompt) => groupChatDictation(prompt, text)),
   })
   // The agent this reader last asked, as the server remembers it; `saving` holds off reads that predate a change.
   const [target, setTarget] = createStore<{ assistantId: number | null; saving: number }>({
@@ -213,24 +215,6 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
     if (target.assistantId === null || remembered() !== null || !chat()) return undefined
     return agentName(target.assistantId) ?? ""
   }
-  const [capabilities, setCapabilities] = createStore<Jolli.GroupChatFeatures>({ input: false, readAloud: false })
-  const [featureStatus, setFeatureStatus] = createStore({ loading: true, loaded: false })
-  const loadFeatures = () => {
-    setFeatureStatus("loading", true)
-    return sdk()
-      .client.jolli.groupChatFeatures({ chatID: id() })
-      .then((response) => {
-        const answer = decodeChatAnswer(response.data)
-        if (answer.status !== "ok") return
-        const features = Option.getOrUndefined(Schema.decodeUnknownOption(Jolli.GroupChatFeatures)(answer.resource))
-        if (!features) return
-        setCapabilities(reconcile(features))
-        setFeatureStatus("loaded", true)
-      })
-      .catch(() => undefined)
-      .finally(() => setFeatureStatus("loading", false))
-  }
-  void loadFeatures()
   let picker: HTMLInputElement | undefined
   const pick = () => picker?.click()
   // Files are taken only where this reader can send them; a read-only, locked or offline chat ignores them.
@@ -275,31 +259,30 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
       title: typeof raw.title === "string" ? raw.title : "",
     })
   }
-  const downloadFailed = (name: string) =>
-    showToast({ variant: "error", title: language.t("groupChat.downloadFailed", { name }) })
+  /**
+   * Downloads on their way, ended with the page and by {@link drop}: a file of a chat this reader left, or
+   * of the previous account, is neither confirmed nor saved once it arrives.
+   */
+  let downloads = new AbortController()
+  onCleanup(() => downloads.abort())
   /** A failed download is that file's alone: it is reported for the file and never stops the chat. */
-  const download = (attachment: { attachmentId: number; filename: string; mimeType?: string }) => {
-    const save = () =>
-      void downloadGroupAttachment(sdk(), id(), attachment.attachmentId, attachment.filename)
-        .then((status) => {
-          if (status < 400) return
-          downloadFailed(attachment.filename)
-          if (status === 403 || status === 404) void refresh()
-        })
-        .catch(() => downloadFailed(attachment.filename))
-    if (executableChatFile(attachment.filename, attachment.mimeType ?? "")) {
-      void dialog.show(() => (
-        <GroupChatConfirmation
-          title={language.t("groupChat.download")}
-          detail={language.t("groupChat.unsafeFile")}
-          confirm={language.t("groupChat.download")}
-          onConfirm={save}
-        />
-      ))
-      return
-    }
-    save()
-  }
+  const download = (attachment: { attachmentId: number; filename: string; mimeType?: string }) =>
+    void downloadChatFile({
+      source: (signal) => groupAttachmentFile(sdk(), id(), attachment.attachmentId, attachment.filename, signal),
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      allowExecutable: () =>
+        confirm({
+          title: language.t("groupChat.download"),
+          detail: language.t("groupChat.unsafeFile"),
+          confirm: language.t("groupChat.download"),
+        }),
+      signal: downloads.signal,
+    }).catch((error: unknown) => {
+      showToast({ variant: "error", title: language.t("groupChat.downloadFailed", { name: attachment.filename }) })
+      // A refused file may mean the reader lost the chat; the chat's own read decides.
+      if (error instanceof ChatFileDownloadError && (error.status === 403 || error.status === 404)) void refresh()
+    })
   const openMaterial = (materialId: number, title: string) => {
     const current = chat()
     const course = parseOrgScopedId(current?.courseId ?? "")
@@ -322,9 +305,30 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
   let leaving = false
   /** Counts answers that started on the live stream, so a read can tell it predates the one now streaming. */
   let answerStarts = 0
+  /** The reader's access as the server itself last told it; an offline copy may predate it. */
+  let confirmedAccess: Jolli.GroupChat["access"] | undefined
+  /** Asks this connection to follow the chat's live updates again; set while the page follows a chat. */
+  let rewatch: (() => void) | undefined
+  const follow = createGroupChatFollow({ read: () => void refresh(), watch: () => rewatch?.() })
+  /**
+   * No read marker is sent before `markPause`: one that was turned away for now, or got no answer, is sent
+   * again after `markDelay`, longer each time it fails again.
+   */
+  let markPause = 0
+  let markDelay = 0
+  let markRetry: ReturnType<typeof setTimeout> | undefined
   let scroller: HTMLDivElement | undefined
-  /** Drops everything this page holds for the chat, including a dialog still open on it. */
+  /**
+   * Drops everything this page holds for the chat, including a dialog still open on it and a download on
+   * its way. A read still out is dropped when it answers too: after a reset it may be the previous
+   * account's, and after lost access it would bring the chat back.
+   */
   const drop = () => {
+    generation++
+    follow.stop()
+    clearTimeout(markRetry)
+    downloads.abort()
+    downloads = new AbortController()
     dialog.close()
     setReferences({ items: [], active: undefined, expanded: false })
     attachments.clear()
@@ -338,6 +342,22 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
     drop()
     lose(server(), id(), known, quiet)
   }
+  /**
+   * No credential any more: nothing of the chats stays in this window, this page included (it drops on
+   * the server's drop count, and its tab closes). The sidecar's reset says so too, but may have been missed.
+   */
+  const signOut = () => account.signOut(server())
+  // Every drop of this server's chats in this window: a reset, a lost sign-in, or a list of somebody else's.
+  createEffect(on(() => groupChatDrops(server()), drop, { defer: true }))
+  // Read for every chat the page shows (see the effect below), and again after anything that may have changed them.
+  const features = createGroupChatFeatures({
+    read: () =>
+      sdk()
+        .client.jolli.groupChatFeatures({ chatID: id() })
+        .then((response) => decodeChatAnswer(response.data)),
+    generation: () => generation,
+    signOut,
+  })
   /** What every request except the open read does with lost access, a lost sign-in, or a refusal that may mean either. */
   const settle = (answer: Jolli.GroupChatAnswer) => {
     if (answer.status === "revoked") {
@@ -345,12 +365,25 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
       return
     }
     if (answer.status === "signed-out") {
-      setState("signedOut", true)
+      signOut()
       return
     }
     if (groupChatRefusalNeedsRead(answer)) void refresh()
   }
   const apply = (answer: Jolli.GroupChatAnswer | undefined, startsBefore: number) => {
+    if (answer?.status === "signed-out") {
+      signOut()
+      return
+    }
+    // Turned away for now (a timeout, a rate limit, an org the request could not be placed in, the
+    // account changing under it) is no more an answer about the chat than no answer at all, and is
+    // asked again on its own like one.
+    const reached =
+      answer !== undefined &&
+      answer.status !== "unreachable" &&
+      answer.source !== "cache" &&
+      !groupChatRefusalPasses(answer)
+    follow.read({ reached })
     if (!answer || answer.status === "unreachable") {
       setState("failed", true)
       return
@@ -359,33 +392,30 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
       loseAccess()
       return
     }
-    // A lost sign-in is not lost access: the chat stays, and signing in again brings it back.
-    if (answer.status === "signed-out") {
-      setState({ signedOut: true, failed: false })
-      return
-    }
     if (answer.status !== "ok" || !answer.chat) {
       setState({ refusal: groupChatRefusal(answer, "open"), failed: false })
       return
     }
-    const recovering = offline() || state.failed || !featureStatus.loaded || capabilities.composer?.unavailable === true
-    const before = chat()?.access
+    const recovering =
+      offline() || state.failed || !features.status.loaded || features.capabilities.composer?.unavailable === true
     if (answer.chat.access === "reader") leaving = false
     setState("answer", reconcile(answer))
-    setState({ failed: false, signedOut: false, refusal: undefined })
+    setState({ failed: false, refusal: undefined })
     // A read made before the stream started the next answer says "not processing" about the last one;
     // it must not wipe the text that has arrived since.
     if (!answer.chat.processing && startsBefore === answerStarts)
       setState({ stream: "", seq: -1, frameSeq: 0, asking: undefined })
     if (!target.saving) setTarget("assistantId", answer.chat.group.composerTargetAssistantId ?? null)
-    // Becoming a reader drops what only a participant could send. Later reads leave a read-aloud playing.
-    if (answer.chat.access === "reader" && before !== "reader") {
+    // Becoming a reader drops what only a participant could send, once the server itself says so: an
+    // offline copy may be older than the access it shows. Later reads leave a read-aloud playing.
+    if (reached && answer.chat.access === "reader" && confirmedAccess !== "reader") {
       void voice.stop()
       attachments.clear()
       clearDraft()
     }
+    if (reached) confirmedAccess = answer.chat.access
     tabs.setGroupChatInfo(tab(), title())
-    if (recovering && answer.source !== "cache" && !featureStatus.loading) void loadFeatures()
+    if (recovering && answer.source !== "cache" && !features.status.loading) void features.load()
   }
   /** One read at a time per connection; a read asked for meanwhile runs once after it. */
   const refresh = (): Promise<void> => {
@@ -400,7 +430,11 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
       .client.jolli.groupChat({ chatID: id() })
       .then((response) => decodeChatAnswer(response.data))
       .catch(() => undefined)
-      .then((answer) => {
+      .then(async (answer) => {
+        if (run !== generation) return
+        // Another owner than the one whose chats this window holds drops them all, this page with its tab.
+        // The window's record loads asynchronously, so a drop meanwhile is checked for again after it.
+        if (await account.otherOwner(server(), answer)) return
         if (run === generation) apply(answer, startsBefore)
       })
       .finally(() => {
@@ -416,15 +450,27 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
   }
   const action = async (body: Jolli.GroupChatAction) => {
     const own = body.type === "remove" && body.userId === chat()?.viewerId
-    // Set before the request: the live stream can report the lost access before this answer arrives.
+    // Set before the request: the live stream can report the lost access before this answer arrives,
+    // to this page and to the app-wide listener alike.
     if (own) leaving = true
+    const undoLeave = own ? beginGroupChatLeave(server(), id()) : undefined
+    // A change to the chat itself shows in its read. A change with no answer may still have been made,
+    // so the read is asked for then too. The reader's own marker and recipient are not read back.
+    const shown = body.type !== "read" && body.type !== "target"
     const answer = await changeGroupChat(sdk(), id(), body).catch((error: unknown) => {
-      if (own) leaving = false
+      // A leave with no answer may have gone through, so its mark stays and the read shows which.
+      if (shown) void refresh()
       throw error
     })
-    if (own && answer.status !== "ok") leaving = false
+    // Only a leave the server turned down is undone. Gone (`revoked`) is out of the chat as well, and a
+    // lost answer is decided by the read.
+    if (own && groupChatActionRefused(answer)) {
+      leaving = false
+      undoLeave?.()
+    }
     settle(answer)
-    if (answer.status === "ok" && body.type !== "read" && body.type !== "target") await refresh()
+    if (shown && answer.status === "unreachable") void refresh()
+    if (shown && answer.status === "ok") await refresh()
     return answer
   }
   const stopAnswer = async () => {
@@ -432,32 +478,34 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
     setState("stopping", true)
     const answer = await action({ type: "cancel" }).catch(() => undefined)
     setState("stopping", false)
-    if (answer?.status === "ok" || answer?.status === "revoked" || answer?.status === "signed-out") return
-    const refusal = answer ? groupChatRefusal(answer, "action") : undefined
-    showToast({
-      variant: "error",
-      title: refusal?.message ?? language.t(refusal?.key ?? "groupChat.actionFailed"),
-    })
+    // A stop with no answer may have stopped the answer: `action` reads the chat again, which shows whether,
+    // and the page's banner says when the chat cannot be reached. A lost sign-in has dropped the chat.
+    if (groupChatOutcomeUnknown(answer) || answer?.status === "signed-out") return
+    const notice = groupChatActionNotice(answer)
+    if (notice) showToast({ variant: "error", title: notice.message ?? language.t(notice.key) })
   }
   /** Picking or clearing an agent updates the remembered recipient before the next message is sent. */
   const chooseTarget = (assistantId: number | null) => {
     setTarget({ assistantId, saving: target.saving + 1 })
-    void action({ type: "target", assistantId })
+    void action({ type: "target", assistantId: assistantId ?? undefined })
       .catch(() => undefined)
       .finally(() => setTarget("saving", (count) => count - 1))
   }
   const post = async (body: Jolli.GroupChatPost) => {
-    const answer = decodeChatAnswer(
-      (
-        await sdk().client.jolli.groupChatPost({
-          chatID: id(),
-          ...body,
-          mentionedUserIds: body.mentionedUserIds ? [...body.mentionedUserIds] : undefined,
-          attachmentIds: body.attachmentIds ? [...body.attachmentIds] : undefined,
-          pinnedMaterialIds: body.pinnedMaterialIds ? [...body.pinnedMaterialIds] : undefined,
-        })
-      ).data,
-    )
+    const answer = await sdk()
+      .client.jolli.groupChatPost({
+        chatID: id(),
+        ...body,
+        mentionedUserIds: body.mentionedUserIds ? [...body.mentionedUserIds] : undefined,
+        attachmentIds: body.attachmentIds ? [...body.attachmentIds] : undefined,
+        pinnedMaterialIds: body.pinnedMaterialIds ? [...body.pinnedMaterialIds] : undefined,
+      })
+      .then((response) => decodeChatAnswer(response.data))
+      .catch((error: unknown) => {
+        // A message with no answer may still have arrived; the chat's read shows whether before a retry.
+        void refresh()
+        throw error
+      })
     if (answer.status === "ok") {
       attachments.accepted(body.attachmentIds ?? [], body.pinnedMaterialIds ?? [])
       const asked = body.mentionedAssistantId
@@ -470,6 +518,7 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
       return answer
     }
     settle(answer)
+    if (answer.status === "unreachable") void refresh()
     if (answer.status === "refused" && answer.code === undefined && body.attachmentIds?.length)
       void attachments.recheck()
     return answer
@@ -477,16 +526,35 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
   const markRead = () => {
     if (!atBottom || offline() || !document.hasFocus() || document.visibilityState === "hidden") return
     const seq = chat()?.messages.at(-1)?.seq
-    if (seq === undefined || seq <= lastMarked || seq <= pendingRead) return
+    if (seq === undefined || seq <= lastMarked || seq <= pendingRead || Date.now() < markPause) return
     pendingRead = seq
+    const run = generation
+    /** Sends the marker again after a pause, so neither scrolling nor a server that keeps refusing floods it. */
+    const pause = () => {
+      if (run !== generation) return
+      markDelay = Math.min(markDelay * 2 || MARK_PAUSE_MS, 60_000)
+      markPause = Date.now() + markDelay
+      clearTimeout(markRetry)
+      markRetry = setTimeout(() => {
+        markPause = 0
+        markRead()
+      }, markDelay)
+    }
     void changeGroupChat(sdk(), id(), { type: "read", seq })
       .then((answer) => {
+        if (run !== generation) return
         if (answer.status === "revoked" || answer.status === "signed-out") settle(answer)
-        // A refused marker is not asked again for the same message, and says nothing about the chat itself.
-        if (answer.status === "ok" || answer.status === "refused") lastMarked = Math.max(lastMarked, seq)
+        // A marker the server refused for good is not asked again for the same message, and says nothing
+        // about the chat itself. One turned away for now, or with no answer, is sent again after a pause.
+        const settled = groupChatMarkerSettled(answer)
+        if (settled) {
+          lastMarked = Math.max(lastMarked, seq)
+          markDelay = 0
+        }
+        if (!settled) pause()
         if (answer.status === "ok") markGroupChatRead(server(), id())
       })
-      .catch(() => undefined)
+      .catch(pause)
       .finally(() => {
         if (pendingRead === seq) pendingRead = -1
       })
@@ -496,6 +564,11 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
       () => [id(), sdk()] as const,
       ([current, client]) => {
         generation++
+        confirmedAccess = undefined
+        follow.reset()
+        clearTimeout(markRetry)
+        markPause = 0
+        markDelay = 0
         setState({
           answer: undefined,
           stream: "",
@@ -503,7 +576,6 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
           frameSeq: 0,
           loading: true,
           failed: false,
-          signedOut: false,
           refusal: undefined,
           asking: undefined,
         })
@@ -511,24 +583,43 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
         // Cleared on cleanup: the first read can answer after the page left this chat, and a watch
         // asked for then would hold an upstream subscription nobody releases.
         let live = true
+        /** Follows the chat's live updates; one that does not get through is asked again with the read. */
         const watch = () => {
           if (!live) return
+          follow.watching()
           void client.client.jolli
             .groupChatWatch({ chatID: current, clientID: client.clientID, active: true })
+            .then((response) => decodeChatAnswer(response.data))
             .catch(() => undefined)
+            .then((answer) => {
+              if (!live) return
+              if (answer?.status === "signed-out") {
+                signOut()
+                return
+              }
+              follow.watched({ ok: answer?.status === "ok" })
+            })
         }
+        rewatch = watch
         void refresh().then(watch)
+        void features.load()
+        /** Reads the chat again and follows it again, after anything that may have stopped either. */
+        const resume = () => {
+          watch()
+          void refresh()
+          if (!features.status.loading) void features.load()
+        }
         const stop = client.event.listen((event) => {
           const data = event.details
           if (data.type === "server.connected") {
-            watch()
-            void refresh()
-            if (!featureStatus.loading) void loadFeatures()
+            resume()
             return
           }
-          // The account changed: nothing of this chat may stay on screen. The app closes the tab.
+          // The same person signed in again over a credential that was still valid. Its live updates stopped
+          // with the old sign-in; the chat, its draft and its open references stay. Any other reset is the
+          // window's, which every server's stream reaches: this page drops on its drop count, and its tab closes.
           if (data.type === "jolli.groupChat.reset") {
-            drop()
+            if (data.properties.sameAccount === true) resume()
             return
           }
           if (
@@ -569,9 +660,12 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
         document.addEventListener("visibilitychange", focus)
         onCleanup(() => {
           live = false
+          rewatch = undefined
           generation++
+          follow.stop()
           stop()
           clearInterval(clock)
+          clearTimeout(markRetry)
           window.removeEventListener("focus", focus)
           document.removeEventListener("visibilitychange", focus)
           void client.client.jolli
@@ -620,12 +714,7 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
   onMount(() => {
     const element = scroller
     if (!element) return
-    onCleanup(
-      guardExternalLinks(element, {
-        open: (url) => void openLink(url),
-        fragment: (target) => element.querySelector(`[id="${CSS.escape(target)}"]`)?.scrollIntoView(),
-      }),
-    )
+    onCleanup(guardExternalLinks(element, { open: (url) => void openLink(url) }))
   })
   return (
     <div
@@ -722,11 +811,6 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
             </Show>
           </div>
         </Show>
-        <Show when={state.signedOut}>
-          <div class="group-chat-banner" role="alert">
-            {language.t("groupChat.signedOut")}
-          </div>
-        </Show>
         <Show when={state.refusal}>
           {(refusal) => (
             <div class="group-chat-banner" role="alert">
@@ -734,7 +818,7 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
             </div>
           )}
         </Show>
-        <Show when={state.failed && !state.signedOut}>
+        <Show when={state.failed}>
           <div class="group-chat-banner" role="alert">
             {language.t("groupChat.unavailable")}
           </div>
@@ -851,6 +935,7 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
                                     chatID={id()}
                                     artifactId={artifact().id}
                                     onOpen={openReference}
+                                    onSignedOut={signOut}
                                   />
                                 )}
                               </Show>
@@ -862,8 +947,8 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
                                     staff={staff()}
                                     onOpen={(source, trigger, url) => {
                                       const preview = referencePreviewOf(source, chat()!, staff())
-                                      if (preview) openReference(preview, trigger)
-                                      else void openLink(url)
+                                      if (preview) return openReference(preview, trigger)
+                                      void openLink(url)
                                     }}
                                   />
                                 )}
@@ -919,7 +1004,7 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
                               when={
                                 message.role === "assistant" &&
                                 !message.incomplete &&
-                                capabilities.readAloud &&
+                                features.capabilities.readAloud &&
                                 !offline()
                               }
                             >
@@ -927,10 +1012,9 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
                                 variant="ghost"
                                 size="small"
                                 disabled={voice.state.mode !== "idle" && voice.state.playingId !== message.id}
-                                onClick={() => {
-                                  if (voice.state.playingId === message.id) void voice.stop()
-                                  else void voice.play(message.id)
-                                }}
+                                onClick={() =>
+                                  void (voice.state.playingId === message.id ? voice.stop() : voice.play(message.id))
+                                }
                               >
                                 {language.t(
                                   voice.state.playingId === message.id ? "groupChat.stopAloud" : "groupChat.readAloud",
@@ -1038,7 +1122,7 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
                     ))
                   }
                   onDictate={
-                    capabilities.input
+                    features.capabilities.input
                       ? () =>
                           void dialog.show(() => (
                             <GroupChatConfirmation
@@ -1050,9 +1134,9 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
                           ))
                       : undefined
                   }
-                  features={capabilities}
-                  featuresLoading={featureStatus.loading}
-                  onReloadFeatures={() => void loadFeatures()}
+                  features={features.capabilities}
+                  featuresLoading={features.status.loading}
+                  onReloadFeatures={() => void features.load()}
                   target={remembered()}
                   onTarget={chooseTarget}
                   running={running()}
@@ -1143,6 +1227,7 @@ function GroupChatPage(props: { id: Jolli.GroupChatID; serverKey: string }) {
             onOpen={openReference}
             onExpand={() => setReferences("expanded", !references.expanded)}
             onResize={(width) => setReferences("width", width)}
+            onSignedOut={signOut}
           />
         )}
       </Show>

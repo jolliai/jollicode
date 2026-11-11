@@ -4,7 +4,8 @@ import type { Schema } from "effect"
 import { useLanguage } from "@/context/language"
 import { ReferenceMarkdown } from "./reference-markdown"
 import { referenceMindMap, referenceMindMapLayout, type ReferenceMapTopic } from "@/jolli/reference-mindmap"
-import { safeReferenceUrl, type ReferencePreview } from "@/jolli/reference-preview"
+import type { ReferencePreview } from "@/jolli/reference-preview"
+import { safeReferenceUrl } from "@/jolli/external-link"
 
 export function ReferenceMindMapViewer(props: { data: Schema.Json; onOpen: (item: ReferencePreview) => void }) {
   const language = useLanguage()

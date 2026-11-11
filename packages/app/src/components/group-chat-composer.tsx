@@ -14,6 +14,7 @@ import {
   groupChatAssistantId,
   groupChatModel,
   groupChatRecipient,
+  groupChatSendRequest,
   groupChatTargetPrompt,
 } from "@/jolli/group-chat-composer"
 import { useAgentModelPreferences } from "@/jolli/agent-model-preferences"
@@ -139,25 +140,15 @@ export function GroupChatComposer(props: {
       ...(props.pinnedMaterialIds?.length ? { pinnedMaterialIds: props.pinnedMaterialIds } : {}),
     }
   }
-  let pending: { text: string; body: Jolli.GroupChatPost } | undefined
+  let pending: { signature: string; body: Jolli.GroupChatPost } | undefined
   const send = async (groupOnly = false) => {
     if (controlsDisabled() || props.sendDisabled || !controller.value().trim()) return
     if (!groupOnly && askBlocked()) return
     setState({ sending: true, busy: false, error: undefined })
     const text = JSON.stringify(props.draft[0].prompt)
-    const next = draftBody(groupOnly)
-    const signature = JSON.stringify({
-      text,
-      attachmentIds: next.attachmentIds,
-      pinnedMaterialIds: next.pinnedMaterialIds,
-      mentionedAssistantId: next.mentionedAssistantId,
-      mentionedUserIds: next.mentionedUserIds,
-      mentionsAll: next.mentionsAll,
-      modelId: next.modelId,
-    })
     // A send whose fate is unknown is retried under the same request id, so the server keeps one copy.
-    const body = pending?.text === signature && !groupOnly ? pending.body : next
-    pending = { text: signature, body }
+    pending = groupChatSendRequest(pending, props.draft[0].prompt, draftBody(groupOnly), groupOnly)
+    const body = pending.body
     const answer = await props.post(body).catch(() => undefined)
     setState("sending", false)
     if (answer?.status === "ok") {
@@ -166,9 +157,11 @@ export function GroupChatComposer(props: {
       pending = undefined
       return
     }
-    // A definite refusal frees the request id; a lost answer keeps it for the retry.
+    // A definite refusal frees the request id; a lost answer keeps it for the retry. A lost message to
+    // the group keeps its button too, so the retry can go the same way.
     if (answer && answer.status !== "unreachable") pending = undefined
-    // The page tells of lost access and of a lost sign-in itself.
+    if (groupOnly && (!answer || answer.status === "unreachable")) setState("busy", true)
+    // The page tells of lost access itself, and a lost sign-in drops the chat with its draft.
     if (answer?.status === "revoked" || answer?.status === "signed-out") return
     if (answer?.code === "agent_busy") {
       setState("busy", true)

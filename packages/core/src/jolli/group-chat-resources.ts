@@ -3,7 +3,15 @@ import { Effect, Option, Schema } from "effect"
 import { FetchHttpClient } from "effect/unstable/http"
 import { Jolli } from "@opencode-ai/schema/jolli"
 import { fetchAssistantChoices, fetchModelIndex, JolliApiError, scopedRequest, type GatewayRequest } from "./api"
-import { chatRequest, fetchGroupResource, groupJson, groupViewer, readChatOpen, requestHeaders } from "./group-chat"
+import {
+  chatRequest,
+  fetchGroupResource,
+  groupJson,
+  groupViewer,
+  readChatOpen,
+  requestHeaders,
+  STREAM_IDLE_MS,
+} from "./group-chat"
 import { parseOrgScopedId } from "./org-scoped-id"
 
 /** Node requires duplex for streamed request bodies; Bun accepts the same option. */
@@ -52,6 +60,8 @@ export async function chatFeatures(request: GatewayRequest, id: Jolli.GroupChatI
  * without a model and the server uses the agent's default.
  */
 async function composerChoices(request: GatewayRequest, id: Jolli.GroupChatID) {
+  // The whole chat, for its access, course and mentionable agents: jolliedu answers them nowhere lighter. A
+  // page that opens the chat at the same moment shares this read.
   const opened = await readChatOpen(request, id).catch(() => undefined)
   if (opened?.access === "reader") return undefined
   const target = chatRequest(request, id)
@@ -80,6 +90,8 @@ async function composerChoices(request: GatewayRequest, id: Jolli.GroupChatID) {
 }
 
 export async function chatShares(request: GatewayRequest, id: Jolli.GroupChatID, subject?: string | null) {
+  // The whole chat, for its access, assignment group, course and participants' roles: jolliedu answers them
+  // nowhere lighter. An open read of the same chat under way is shared.
   const opened = await readChatOpen(request, id)
   if (opened.access === "reader" || opened.detail.group.assignmentGroupId !== undefined)
     throw new JolliApiError({ path: "shares", status: 403, code: "not_allowed", message: "This chat cannot be shared" })
@@ -231,6 +243,7 @@ export async function downloadChatAttachment(
   attachmentId: number,
   filename: string,
   signal?: AbortSignal,
+  idle = STREAM_IDLE_MS,
 ) {
   const batch = Schema.decodeUnknownSync(Schema.Struct({ urls: Schema.Record(Schema.String, Schema.String) }))(
     await attachmentUrls(request, id, [attachmentId]),
@@ -238,81 +251,49 @@ export async function downloadChatAttachment(
   const url = batch.urls[String(attachmentId)]
   if (!url || !URL.canParse(url) || !/^https?:$/.test(new URL(url).protocol))
     throw new Error("Attachment download URL is missing")
-  // No size cap or timeout of our own: the backend signs this URL for a file its upload policy already
-  // capped (the upload ticket signs the declared length), and `signal` ends the transfer with the
-  // caller's request. A failed or cancelled copy removes its temporary directory.
-  const response = await fetch(url, { redirect: "error", signal })
+  // No size cap of our own: the backend signs this URL for a file its upload policy already capped (the
+  // upload ticket signs the declared length). The bytes pass straight through to the caller, who saves
+  // them, and `signal` ends the transfer with the caller's request. A source that stops sending, before
+  // its headers or between chunks, ends it too, so a download never waits forever.
+  const stalled = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const wait = () => {
+    clearTimeout(timer)
+    timer = setTimeout(() => stalled.abort(new DOMException("The attachment download stalled", "TimeoutError")), idle)
+    timer.unref?.()
+  }
+  wait()
+  const response = await fetch(url, {
+    redirect: "error",
+    signal: AbortSignal.any([...(signal ? [signal] : []), stalled.signal]),
+  }).catch((cause: unknown) => {
+    clearTimeout(timer)
+    throw cause
+  })
   if (!response.ok || !response.body) {
+    clearTimeout(timer)
     await response.body?.cancel()
     throw new Error("Attachment download failed")
   }
-  const { mkdtemp, open, rm } = await import("node:fs/promises")
-  const { tmpdir } = await import("node:os")
-  const { join } = await import("node:path")
-  const name = safeChatFilename(filename)
-  const directory = await mkdtemp(join(tmpdir(), "jolli-group-chat-"))
-  const path = join(directory, name)
-  const cleanup = () => rm(directory, { recursive: true, force: true })
-  const saved = await saveDownload(response.body, path)
-    .then(() => open(path, "r"))
-    .catch(async (error) => {
-      await cleanup()
-      throw error
-    })
-  let closed = false
-  const close = async () => {
-    if (closed) return
-    closed = true
-    await saved.close().finally(cleanup)
-  }
-  const body = new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      const chunk = await saved.read(new Uint8Array(64 * 1024)).catch(async (error) => {
-        await close()
-        controller.error(error)
-        return undefined
-      })
-      if (!chunk) return
-      if (!chunk.bytesRead) {
-        await close()
-        controller.close()
-        return
-      }
-      controller.enqueue(chunk.buffer.subarray(0, chunk.bytesRead))
-    },
-    cancel: close,
-  })
+  const body = response.body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        wait()
+        controller.enqueue(chunk)
+      },
+      flush() {
+        clearTimeout(timer)
+      },
+    }),
+  )
   return new Response(body, {
     headers: {
       "Content-Type": "application/octet-stream",
-      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(name)}`,
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(safeChatFilename(filename))}`,
       "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",
     },
   })
-}
-
-/** Write a peer's bytes to a new private file; the handle is closed whatever happens. */
-async function saveDownload(source: ReadableStream<Uint8Array>, path: string) {
-  const { open } = await import("node:fs/promises")
-  const file = await open(path, "wx", 0o600)
-  const reader = source.getReader()
-  try {
-    while (true) {
-      const chunk = await reader.read()
-      if (chunk.done) return
-      let offset = 0
-      while (offset < chunk.value.length) {
-        const written = await file.write(chunk.value, offset, chunk.value.length - offset)
-        if (!written.bytesWritten) throw new Error("Attachment could not be saved")
-        offset += written.bytesWritten
-      }
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined)
-    reader.releaseLock()
-    await file.close()
-  }
 }
 
 export async function voiceRequest(

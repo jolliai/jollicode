@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import path from "node:path"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
 import { Global } from "@opencode-ai/core/global"
 import { Database } from "@opencode-ai/core/database/database"
 import { AppNodeBuilder } from "@opencode-ai/core/effect/app-node-builder"
@@ -9,6 +9,8 @@ import { LayerNode } from "@opencode-ai/core/effect/layer-node"
 import { JolliClosedAssistants } from "@opencode-ai/core/jolli/closed-assistants"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { JolliStore } from "@opencode-ai/core/jolli/store"
+import { groupChatID } from "@opencode-ai/core/jolli/org-scoped-id"
+import { Jolli } from "@opencode-ai/schema/jolli"
 
 /**
  * ⚠ SIGN-OUT DRIVES THE REAL CATALOGUE CACHE DIRECTORY, as `jolli-cache.test.ts` and
@@ -503,6 +505,130 @@ describe("JolliSession", () => {
     )
 
     expect(seen).toEqual(["usr_2"])
+  })
+
+  test("a sign-out announces the change only once the credential is gone", async () => {
+    const seen = await run(
+      Effect.gen(function* () {
+        const session = yield* JolliSession.Service
+        const store = yield* JolliStore.Service
+        yield* signedIn(store, Date.now() + 30 * MINUTE)
+        const active: (string | undefined)[] = []
+        const stop = JolliSession.onJolliSessionChanged(() => active.push(Effect.runSync(store.active())?.id))
+        yield* session.signOut()
+        stop()
+        return active
+      }),
+    )
+
+    expect(seen).toEqual([undefined])
+  })
+
+  test("a sign-out announces the change even when the credential will not delete", async () => {
+    const row = {
+      id: "usr_1",
+      subject: "usr_1",
+      email: null,
+      base_url: TENANT,
+      access_token: "access-1",
+      refresh_token: "refresh-1",
+      token_expiry: null,
+      cache_key: "a",
+      time_created: 0,
+      time_updated: 0,
+    } satisfies JolliStore.Row
+    let announced = 0
+    const stop = JolliSession.onJolliSessionChanged(() => announced++)
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const session = yield* JolliSession.Service
+        yield* session.signOut()
+      }).pipe(
+        Effect.provide(
+          AppNodeBuilder.build(services, [
+            [Database.node, Database.layerFromPath(":memory:")],
+            [
+              JolliStore.node,
+              Layer.mock(JolliStore.Service)({
+                active: () => Effect.succeed(row),
+                remove: () => Effect.die(new Error("database is locked")),
+              }),
+            ],
+          ]),
+        ),
+        Effect.scoped,
+      ),
+    ).finally(stop)
+
+    expect(announced).toBe(1)
+  })
+
+  test("each change says why: a sign-in, a credential that could not be renewed, or a sign-out", async () => {
+    const seen: JolliSession.JolliSessionChange[] = []
+    const stop = JolliSession.onJolliSessionChanged((change) => seen.push(change))
+    await run(
+      Effect.gen(function* () {
+        const session = yield* JolliSession.Service
+        // Nothing to renew it with, so the refusal finishes the credential.
+        yield* session.signIn({ token: "access-1", subject: "usr_1", baseUrl: TENANT })
+        yield* Effect.flip(session.refused("access-1"))
+        yield* session.signIn({ token: "access-2", subject: "usr_1", baseUrl: TENANT })
+        yield* session.signOut()
+      }),
+    ).finally(stop)
+
+    expect(seen).toEqual(["signed-in", "expired", "signed-in", "signed-out"])
+  })
+
+  test("signing out with no credential left still announces it", async () => {
+    const seen: JolliSession.JolliSessionChange[] = []
+    const stop = JolliSession.onJolliSessionChanged((change) => seen.push(change))
+    await run(
+      Effect.gen(function* () {
+        const session = yield* JolliSession.Service
+        yield* session.signIn({ token: "access-1", subject: "usr_1", baseUrl: TENANT })
+        // It expires with nothing to renew it, so the row is already gone when the student signs out.
+        yield* Effect.flip(session.refused("access-1"))
+        yield* session.signOut()
+      }),
+    ).finally(stop)
+
+    expect(seen).toEqual(["signed-in", "expired", "signed-out"])
+  })
+
+  test("signing out with no credential left purges every offline group chat, and a read still out keeps none", async () => {
+    const chat = {
+      id: groupChatID({ tenantSlug: "school", orgSlug: "course" }, "chat-1"),
+      viewerId: 1,
+      title: "Lab",
+      courseId: "7",
+      access: "participant",
+      processing: false,
+      group: { participants: [], formerPeople: [], aliases: [] },
+      messages: [],
+    } satisfies Jolli.GroupChat
+    const kept = await run(
+      Effect.gen(function* () {
+        const session = yield* JolliSession.Service
+        const store = yield* JolliStore.Service
+        const cache = store.chatCache!
+        const row = yield* session.signIn({ token: "access-1", subject: "usr_1", baseUrl: TENANT })
+        yield* Effect.flip(session.refused("access-1"))
+        // A copy written once the credential was gone, as a read this process still had out writes one after
+        // another process removed the credential: nothing here moved its version.
+        yield* Effect.promise(() => cache.put(row.cache_key, chat, cache.version(row.cache_key, chat.id)))
+        const before = yield* Effect.promise(() => cache.get(row.cache_key, chat.id))
+        const outstanding = cache.version(row.cache_key, chat.id)
+        yield* session.signOut()
+        const after = yield* Effect.promise(() => cache.get(row.cache_key, chat.id))
+        yield* Effect.promise(() => cache.put(row.cache_key, chat, outstanding))
+        return { before, after, late: yield* Effect.promise(() => cache.get(row.cache_key, chat.id)) }
+      }),
+    )
+
+    expect(kept.before?.chat.id).toBe(chat.id)
+    expect(kept.after).toBeUndefined()
+    expect(kept.late).toBeUndefined()
   })
 
   test("an injected credential outranks the database", async () => {

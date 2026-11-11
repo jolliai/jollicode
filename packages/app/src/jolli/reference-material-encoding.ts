@@ -23,6 +23,8 @@
  * Uint8Array, so the server passes its own without converting.
  */
 
+import { Option } from "effect"
+
 const UTF8_BOM: ReadonlyArray<number> = [0xef, 0xbb, 0xbf]
 
 /** Most bytes one character can take in UTF-8. */
@@ -111,18 +113,16 @@ export function readMaterialText(
   if (options.truncated) {
     body = withoutPartialTrailingUtf8(body)
   }
-  try {
-    // Strict, so that bytes which are not UTF-8 throw rather than decode as `�`: that is what
-    // makes the fallbacks reachable.
-    return { text: new TextDecoder("utf-8", { fatal: true }).decode(body), reading: "utf-8" }
-  } catch {
-    // Not an error: a file saved in a legacy encoding is a supported file, and this is how one
-    // is recognised. Windows-1252 is the last resort: every byte is one of its characters.
-    const legacy = legacyEncodingOf(body, options)
-    return {
-      text: decodeMaterialTextAs(body, legacy ?? "windows-1252", options),
-      reading: legacy ?? "unrecognised",
-    }
+  // Strict, so that bytes which are not UTF-8 throw rather than decode as `�`: that is what
+  // makes the fallbacks reachable.
+  const utf8 = Option.liftThrowable(() => new TextDecoder("utf-8", { fatal: true }).decode(body))()
+  if (Option.isSome(utf8)) return { text: utf8.value, reading: "utf-8" }
+  // Not an error: a file saved in a legacy encoding is a supported file, and this is how one
+  // is recognised. Windows-1252 is the last resort: every byte is one of its characters.
+  const legacy = legacyEncodingOf(body, options)
+  return {
+    text: decodeMaterialTextAs(body, legacy ?? "windows-1252", options),
+    reading: legacy ?? "unrecognised",
   }
 }
 
@@ -547,11 +547,9 @@ function decodeStrictly(bytes: Uint8Array, encoding: LegacyCjkEncoding, cut: boo
   // at most three behind.
   const trims = cut ? [0, 1, 2, 3] : [0]
   for (const trim of trims) {
-    try {
-      return decoder.decode(bytes.subarray(0, bytes.length - trim))
-    } catch {
-      // Try a shorter tail, or give up.
-    }
+    // A tail that does not decode tries a shorter one, or gives up.
+    const text = Option.liftThrowable(() => decoder.decode(bytes.subarray(0, bytes.length - trim)))()
+    if (Option.isSome(text)) return text.value
   }
   return undefined
 }

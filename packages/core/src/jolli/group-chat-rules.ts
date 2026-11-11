@@ -71,14 +71,26 @@ export function safeChatFilename(name: string) {
 }
 /**
  * Whether a peer's file can run or open active content once saved, so it is downloaded only after the
- * person confirms. Covers Windows, macOS and Linux launchers and installers, scripts the OS runs on a
- * double click, and pages or images that carry script.
+ * person confirms. Covers Windows, macOS and Linux launchers, installers, packages and disk images,
+ * scripts the OS runs on a double click, shortcuts that open another location, libraries and
+ * certificates, help and web archives, macro-enabled Office documents, and pages or images that carry
+ * script.
+ *
+ * ⚠ THE NAME IS JUDGED AS IT WILL BE SAVED, NOT ONLY AS IT WAS SENT. Saving strips trailing dots and
+ * spaces and replaces reserved characters ({@link safeChatFilename}), so "setup.exe." is checked as the
+ * "setup.exe" it becomes on disk.
+ *
+ * Legacy Word, Excel and PowerPoint documents (`.doc`, `.xls`, `.ppt`) are left out on purpose: they are
+ * what students share most, a prompt on every one would teach people to click through it, and Office's
+ * default macro setting already asks before a document's macros run. Their templates, add-ins and
+ * show files are rarely shared for any other reason, so those are covered.
  */
 export function executableChatFile(name: string, mime: string) {
+  const extension =
+    /\.(?:exe|com|scr|saver|pif|cpl|msc|msi|msix|msixbundle|msu|appx|appxbundle|appref-ms|appinstaller|diagcab|ppkg|cab|xll|dll|ocx|msp|mst|gadget|application|xbap|jnlp|bat|cmd|ps1|psm1|psd1|psc1|psc2|ps1xml|ps2|ps2xml|msh|msh1|msh2|mshxml|msh1xml|msh2xml|vb|vbs|vbe|bas|js|jse|mjs|cjs|wsf|wsh|wsc|ws|wsb|sct|shb|shs|scf|xnk|website|theme|cer|crt|der|hta|chm|hlp|mht|mhtml|lnk|url|reg|inf|library-ms|search-ms|settingcontent-ms|mdb|mde|mda|accde|adp|ade|jar|sh|bash|zsh|csh|ksh|fish|command|tool|terminal|action|prefpane|desktop|app|dmg|pkg|mpkg|workflow|scpt|applescript|webloc|inetloc|fileloc|iso|img|vhdx?|appimage|snap|flatpak|flatpakref|deb|rpm|run|apk|vsix|xpi|py|pyw|pyz|pyzw|pyc|pyo|rb|pl|php|docm|dot|dotm|xlsm|xlsb|xlt|xltm|xla|xlam|pptm|pot|potm|ppa|ppam|pps|ppsm|sldm|one|onepkg|html?|xht|xhtml|shtml|svgz?)$/i
   return (
-    /\.(?:exe|com|scr|pif|cpl|msc|msi|msix|msixbundle|appx|appxbundle|bat|cmd|ps1|psm1|vbs|vbe|js|jse|mjs|cjs|wsf|wsh|hta|lnk|url|reg|inf|jar|sh|bash|zsh|command|tool|terminal|app|dmg|pkg|workflow|scpt|applescript|appimage|deb|rpm|run|apk|py|rb|pl|php|html?|xhtml|svg)$/i.test(
-      name,
-    ) ||
+    extension.test(name) ||
+    extension.test(safeChatFilename(name)) ||
     /(?:executable|shellscript|javascript|x-python|x-sh|x-msdownload|x-msdos-program|x-ms-installer|java-archive|x-apple-diskimage|android\.package-archive|application\/hta|text\/html|xhtml|image\/svg)/i.test(
       mime,
     )

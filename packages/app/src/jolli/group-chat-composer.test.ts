@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test"
-import { groupChatAssistantId, groupChatModel, groupChatRecipient, groupChatTargetPrompt } from "./group-chat-composer"
+import {
+  groupChatAssistantId,
+  groupChatDictation,
+  groupChatModel,
+  groupChatRecipient,
+  groupChatSendRequest,
+  groupChatTargetPrompt,
+} from "./group-chat-composer"
 
 const composer = {
   models: [
@@ -115,5 +122,68 @@ describe("group chat composer recipients and model grants", () => {
       options: [],
       selected: undefined,
     })
+  })
+})
+
+describe("group chat dictation", () => {
+  const empty = { type: "text" as const, content: "", start: 0, end: 0 }
+
+  test("dictating into an empty draft adds the words with no leading space", () => {
+    expect(groupChatDictation([empty], "hello there")).toEqual([
+      empty,
+      { type: "text", content: "hello there", start: 0, end: 11 },
+    ])
+    expect(groupChatDictation([], "hello")).toEqual([{ type: "text", content: "hello", start: 0, end: 5 }])
+  })
+
+  test("a space separates dictation from written words, but is never doubled", () => {
+    const written = { type: "text" as const, content: "Hi", start: 0, end: 2 }
+    expect(groupChatDictation([written], "again").at(-1)).toEqual({ type: "text", content: " again", start: 2, end: 8 })
+    const spaced = { type: "text" as const, content: "Hi ", start: 0, end: 3 }
+    expect(groupChatDictation([spaced], "again").at(-1)).toEqual({ type: "text", content: "again", start: 3, end: 8 })
+    expect(groupChatDictation([written], " again").at(-1)).toEqual({
+      type: "text",
+      content: " again",
+      start: 2,
+      end: 8,
+    })
+  })
+
+  test("offsets continue after mentions, and an empty transcript leaves the draft as it was", () => {
+    const prompt = [mention("person:7")]
+    expect(groupChatDictation(prompt, "look").at(-1)).toEqual({ type: "text", content: " look", start: 9, end: 14 })
+    expect(groupChatDictation(prompt, "")).toBe(prompt)
+  })
+})
+
+describe("retrying a send whose answer was lost", () => {
+  const prompt = [{ type: "text" as const, content: "Can someone check step 3?", start: 0, end: 25 }]
+  const body = (clientRequestId: string, assistant?: number) => ({
+    message: "Can someone check step 3?",
+    clientRequestId,
+    ...(assistant === undefined ? {} : { mentionedAssistantId: assistant, modelId: "luna" }),
+    mentionedUserIds: [],
+    mentionsAll: false,
+  })
+
+  test("an identical retry goes under the lost send's request id, asking an agent or sending to the group", () => {
+    const asked = groupChatSendRequest(undefined, prompt, body("first", 21), false)
+    expect(groupChatSendRequest(asked, prompt, body("second", 21), false).body.clientRequestId).toBe("first")
+    const grouped = groupChatSendRequest(undefined, prompt, body("first"), true)
+    expect(groupChatSendRequest(grouped, prompt, body("second"), true).body.clientRequestId).toBe("first")
+  })
+
+  test("sending to the group instead of asking an agent is another message, under its own id", () => {
+    const asked = groupChatSendRequest(undefined, prompt, body("first", 21), false)
+    expect(groupChatSendRequest(asked, prompt, body("second"), true).body.clientRequestId).toBe("second")
+    // With no agent to ask the two bodies match, yet the choice still makes them two sends.
+    const plain = groupChatSendRequest(undefined, prompt, body("first"), false)
+    expect(groupChatSendRequest(plain, prompt, body("second"), true).body.clientRequestId).toBe("second")
+  })
+
+  test("a changed draft is a new message", () => {
+    const asked = groupChatSendRequest(undefined, prompt, body("first", 21), false)
+    const edited = [{ ...prompt[0], content: "Can someone check step 4?" }]
+    expect(groupChatSendRequest(asked, edited, body("second", 21), false).body.clientRequestId).toBe("second")
   })
 })

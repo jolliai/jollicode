@@ -13,19 +13,21 @@ import { useConfirmation, useExternalLinkConfirm } from "./external-link-confirm
 import { ReferenceFileViewer } from "./reference-file-viewer"
 import { ReferenceMarkdown } from "./reference-markdown"
 import { ReferenceMindMapViewer } from "./reference-mindmap-viewer"
+import { jsonRecord } from "@/jolli/reference-mindmap"
 import {
   readReference,
+  ReferenceSignedOutError,
   ReferenceMaterial,
   ReferenceAssignment,
   ReferenceArtifact,
   ReferencePlan,
-  safeReferenceUrl,
   referenceFileMime,
   referenceCourseTarget,
   type ReferencePreview,
 } from "@/jolli/reference-preview"
+import { safeReferenceUrl } from "@/jolli/external-link"
 import { assignmentReferenceStatus } from "@/jolli/reference-assignment-status"
-import { downloadReferenceFile } from "@/jolli/reference-download"
+import { downloadChatFile } from "@/jolli/reference-download"
 import { showToast } from "@/utils/toast"
 
 type ReaderProps = {
@@ -33,7 +35,17 @@ type ReaderProps = {
   target: Jolli.ReferenceTarget
   item: ReferencePreview
   onOpen: (item: ReferencePreview) => void
+  /** A read answered that the credential is gone; the window drops the server's chats, this pane with them. */
+  onSignedOut: () => void
   actions?: HTMLElement
+}
+
+/** One read of the reference a reader shows. */
+function readShown(props: ReaderProps, operation: Jolli.ReferenceRequest["operation"], signal?: AbortSignal) {
+  return readReference(props.sdk, props.target, props.item.reference, operation, signal).catch((error: unknown) => {
+    if (error instanceof ReferenceSignedOutError) props.onSignedOut()
+    throw error
+  })
 }
 
 export function ReferencePreviewContent(props: ReaderProps) {
@@ -42,14 +54,14 @@ export function ReferencePreviewContent(props: ReaderProps) {
   onCleanup(() => abort.abort())
   const [resource, { refetch }] = createResource(
     () => props.item.key,
-    () => readReference(props.sdk, props.target, props.item.reference, "read", abort.signal),
+    () => readShown(props, "read", abort.signal),
   )
   let checks = 0
   createEffect(() => {
     if (resource.error || resource.loading) return
-    const value = record(resource())
-    const phase = record(value?.map)?.phase
-    const latest = record(value?.latestVersion)?.status
+    const value = jsonRecord(resource())
+    const phase = jsonRecord(value?.map)?.phase
+    const latest = jsonRecord(value?.latestVersion)?.status
     const pending =
       value?.state === "pending" ||
       phase === "reading" ||
@@ -62,8 +74,8 @@ export function ReferencePreviewContent(props: ReaderProps) {
     }
     const timer = setTimeout(
       () => {
-        if (document.hidden) document.addEventListener("visibilitychange", ask, { once: true })
-        else ask()
+        if (document.hidden) return document.addEventListener("visibilitychange", ask, { once: true })
+        ask()
       },
       Math.min(1200 * 2 ** checks++, 10000),
     )
@@ -181,9 +193,7 @@ function MaterialReferenceContent(props: ReaderProps & { material: ReferenceMate
           title={props.material.title}
           first={props.material.webPage?.url}
           renew={async () =>
-            Schema.decodeUnknownSync(Schema.Struct({ url: Schema.String }))(
-              await readReference(props.sdk, props.target, props.item.reference, "page"),
-            ).url
+            Schema.decodeUnknownSync(Schema.Struct({ url: Schema.String }))(await readShown(props, "page")).url
           }
         />
       </Match>
@@ -375,6 +385,10 @@ function ReferenceDownload(props: { url: string; filename: string; mimeType?: st
   const language = useLanguage()
   const confirm = useConfirmation()
   const [state, setState] = createStore({ busy: false })
+  // Ended with the preview, which the chat page closes when the reader loses the chat or the account
+  // resets: a file still on its way is then neither confirmed nor saved.
+  const abort = new AbortController()
+  onCleanup(() => abort.abort())
   return (
     <Show when={props.mount}>
       {(mount) => (
@@ -389,13 +403,18 @@ function ReferenceDownload(props: { url: string; filename: string; mimeType?: st
             onClick={() => {
               if (state.busy) return
               setState("busy", true)
-              void downloadReferenceFile(props.url, props.filename, props.mimeType, () =>
-                confirm({
-                  title: language.t("groupChat.preview.download"),
-                  detail: language.t("groupChat.unsafeFile"),
-                  confirm: language.t("groupChat.preview.download"),
-                }),
-              )
+              void downloadChatFile({
+                source: props.url,
+                filename: props.filename,
+                mimeType: props.mimeType,
+                allowExecutable: () =>
+                  confirm({
+                    title: language.t("groupChat.preview.download"),
+                    detail: language.t("groupChat.unsafeFile"),
+                    confirm: language.t("groupChat.preview.download"),
+                  }),
+                signal: abort.signal,
+              })
                 .catch(() => showToast({ title: language.t("groupChat.preview.downloadFailed"), variant: "error" }))
                 .finally(() => setState("busy", false))
             }}
@@ -430,9 +449,7 @@ function AssignmentFileReferenceContent(props: ReaderProps & { address: string }
         <ReferencePageFrame
           title={props.item.title}
           renew={async () =>
-            Schema.decodeUnknownSync(Schema.Struct({ url: Schema.String }))(
-              await readReference(props.sdk, props.target, props.item.reference, "page"),
-            ).url
+            Schema.decodeUnknownSync(Schema.Struct({ url: Schema.String }))(await readShown(props, "page")).url
           }
         />
       </Show>
@@ -485,9 +502,7 @@ function StudioReferenceContent(props: ReaderProps & { artifact: typeof Referenc
               title={props.artifact.title}
               studio
               renew={async () =>
-                Schema.decodeUnknownSync(Schema.Struct({ url: Schema.String }))(
-                  await readReference(props.sdk, props.target, props.item.reference, "page"),
-                ).url
+                Schema.decodeUnknownSync(Schema.Struct({ url: Schema.String }))(await readShown(props, "page")).url
               }
             />
           </div>
@@ -503,9 +518,7 @@ function CoursePlanReferenceContent(props: ReaderProps) {
   const abort = new AbortController()
   onCleanup(() => abort.abort())
   const [plan] = createResource(async () =>
-    Schema.decodeUnknownSync(ReferencePlan)(
-      await readReference(props.sdk, props.target, props.item.reference, "plan", abort.signal),
-    ),
+    Schema.decodeUnknownSync(ReferencePlan)(await readShown(props, "plan", abort.signal)),
   )
   return (
     <Show
@@ -552,8 +565,8 @@ function CoursePlanReferenceContent(props: ReaderProps) {
             <h3>{language.t("session.sources.materials")}</h3>
             <For each={document().plan.materials}>
               {(material) => {
-                const value = record(material)
-                const ref = record(value?.ref)
+                const value = jsonRecord(material)
+                const ref = jsonRecord(value?.ref)
                 const title = stringOf(ref?.titleAtPlanning)
                 const reference: Jolli.Reference | undefined =
                   ref?.kind === "material" && typeof ref.materialId === "number"
@@ -597,7 +610,9 @@ function CoursePlanReferenceContent(props: ReaderProps) {
           <Show when={document().plan.notes?.length}>
             <h3>{language.t("groupChat.preview.notes")}</h3>
             <For each={document().plan.notes ?? []}>
-              {(note) => <Markdown text={typeof note === "string" ? note : stringOf(record(note)?.text)} untrusted />}
+              {(note) => (
+                <Markdown text={typeof note === "string" ? note : stringOf(jsonRecord(note)?.text)} untrusted />
+              )}
             </For>
           </Show>
           <h3>{language.t("session.sources.references")}</h3>
@@ -649,9 +664,9 @@ function PlanAgentSettings(props: {
   materials: readonly Schema.Json[]
 }) {
   const language = useLanguage()
-  const flags = () => record(props.agent.guardrails)
-  const models = () => record(props.agent.models)
-  const context = () => record(props.agent.contextMaterials)
+  const flags = () => jsonRecord(props.agent.guardrails)
+  const models = () => jsonRecord(props.agent.models)
+  const context = () => jsonRecord(props.agent.contextMaterials)
   const materialIds = () => {
     const value = context()?.materialIds
     return Array.isArray(value) ? value : []
@@ -659,8 +674,8 @@ function PlanAgentSettings(props: {
   const titles = () =>
     props.materials
       .flatMap((material) => {
-        const data = record(material)
-        const ref = record(data?.ref)
+        const data = jsonRecord(material)
+        const ref = jsonRecord(data?.ref)
         return materialIds().includes(data?.id ?? null) ? [stringOf(ref?.titleAtPlanning)] : []
       })
       .filter(Boolean)
@@ -692,13 +707,13 @@ function PlanAgentSettings(props: {
         </Show>
       </dl>
       <For each={props.agent.reasons ?? []}>
-        {(reason) => <Markdown text={stringOf(record(reason)?.text)} untrusted />}
+        {(reason) => <Markdown text={stringOf(jsonRecord(reason)?.text)} untrusted />}
       </For>
       <For each={props.agent.skills ?? []}>
         {(skill) => (
           <details>
-            <summary>{stringOf(record(skill)?.name)}</summary>
-            <Markdown text={stringOf(record(skill)?.instructions)} untrusted />
+            <summary>{stringOf(jsonRecord(skill)?.name)}</summary>
+            <Markdown text={stringOf(jsonRecord(skill)?.instructions)} untrusted />
           </details>
         )}
       </For>
@@ -708,7 +723,7 @@ function PlanAgentSettings(props: {
 function PlanTiming(props: { value?: Schema.Json; label: string }) {
   const language = useLanguage()
   const label = () => {
-    const value = record(props.value)
+    const value = jsonRecord(props.value)
     if (value?.kind === "relative") return stringOf(value.text)
     const at = stringOf(value?.at)
     return at && Number.isFinite(Date.parse(at)) ? new Date(at).toLocaleString(language.intl()) : at
@@ -723,7 +738,7 @@ function PlanTiming(props: { value?: Schema.Json; label: string }) {
 }
 function PlanGrading(props: { value?: Schema.Json }) {
   const language = useLanguage()
-  const grade = () => record(props.value)
+  const grade = () => jsonRecord(props.value)
   const points = () => {
     const value = grade()?.points
     return typeof value === "number" ? value : undefined
@@ -745,8 +760,8 @@ function PlanGrading(props: { value?: Schema.Json }) {
         <For each={criteria()}>
           {(criterion) => (
             <div>
-              <strong>{stringOf(record(criterion)?.name)}</strong>
-              <p>{stringOf(record(criterion)?.description)}</p>
+              <strong>{stringOf(jsonRecord(criterion)?.name)}</strong>
+              <p>{stringOf(jsonRecord(criterion)?.description)}</p>
             </div>
           )}
         </For>
@@ -756,7 +771,7 @@ function PlanGrading(props: { value?: Schema.Json }) {
 }
 function PlanTask(props: { task: Schema.Json }) {
   const language = useLanguage()
-  const data = () => record(props.task)
+  const data = () => jsonRecord(props.task)
   return (
     <div class="reference-task">
       <strong>{stringOf(data()?.name ?? data()?.title) || language.t("session.sources.task")}</strong>
@@ -773,7 +788,7 @@ function stringOf(value: Schema.Json | undefined) {
 
 function MindMapReferenceContent(props: ReaderProps) {
   const language = useLanguage()
-  const [map] = createResource(() => readReference(props.sdk, props.target, props.item.reference, "map"))
+  const [map] = createResource(() => readShown(props, "map"))
   return (
     <Show
       when={map()}
@@ -792,13 +807,13 @@ function AttachmentReferenceContent(props: ReaderProps & { attachment: Schema.Js
   const language = useLanguage()
   const [address] = createResource(async () => {
     const urls = Schema.decodeUnknownSync(Schema.Struct({ urls: Schema.Record(Schema.String, Schema.String) }))(
-      await readReference(props.sdk, props.target, props.item.reference, "content"),
+      await readShown(props, "content"),
     )
     // The server leaves out an attachment whose bytes were cleared or are not available, rather than
     // signing an address to a 404, so a read that names none is final, not still loading.
     return props.item.reference.kind === "attachment" ? urls.urls[String(props.item.reference.attachmentId)] : undefined
   })
-  const attachment = () => record(props.attachment)
+  const attachment = () => jsonRecord(props.attachment)
   const mimeType = () => {
     const value = attachment()?.mimeType
     return typeof value === "string" ? value : null
@@ -941,10 +956,4 @@ export function ReferenceFailure(props: { retry: () => void }) {
       </button>
     </div>
   )
-}
-
-function record(value: Schema.Json | undefined): { readonly [key: string]: Schema.Json } | undefined {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? Object.fromEntries(Object.entries(value))
-    : undefined
 }

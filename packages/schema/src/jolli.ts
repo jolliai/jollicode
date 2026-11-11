@@ -815,6 +815,7 @@ export {
   GroupChatFeatures,
   GroupChatRefusalCode,
   GroupChatAnswer,
+  GroupChatTarget,
   GroupChatAction,
   GroupChatCreate,
 } from "./jolli-group-chat"

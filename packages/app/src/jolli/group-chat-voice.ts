@@ -173,7 +173,7 @@ export function useGroupChatVoice(input: {
     })().catch(() => undefined)
     if (current(run, sessionId) && !signal.aborted) {
       if (text === undefined) setState("error", "failed")
-      else input.append(text)
+      if (text !== undefined) input.append(text)
     }
     if (run === generation) await stop()
   }
