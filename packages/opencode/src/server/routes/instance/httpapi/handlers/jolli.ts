@@ -1,3 +1,33 @@
+import {
+  createChat,
+  groupChatFailure,
+  knownGroupHome,
+  listChats,
+  openChat,
+  people,
+  performAction,
+} from "@opencode-ai/core/jolli/group-chat"
+import { readJolliReference } from "@opencode-ai/core/jolli/reference"
+import {
+  chatMaterials,
+  chatFeatures,
+  chatShares,
+  changeChatShare,
+  uploadChatAttachment,
+  downloadChatAttachment,
+  chatAttachmentStatus,
+  voiceRequest,
+} from "@opencode-ai/core/jolli/group-chat-resources"
+import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
+import { canReadOffline, offlineCredentialFailure } from "@opencode-ai/core/jolli/group-chat-cache"
+import {
+  configureGroupChats,
+  currentGroupChatRequest,
+  groupChatAccess,
+  withGroupChatAuth,
+  watchGroupChat,
+  sendGroupChatMessage,
+} from "@/jolli/group-chat"
 /**
  * ⚠ THE MAPPING HAPPENS HERE SO THE RENDERER NEVER MEETS THE GATEWAY'S SHAPES. Registry UUIDs,
  * vendor groupings, the `viewerRole` an institution administrator gets on courses that are not
@@ -21,7 +51,7 @@ import {
   unshareConversation,
   type ConversationVisibility,
   type GatewayRequest,
-  type JolliApiError,
+  JolliApiError,
   type StudentAssignment,
 } from "@opencode-ai/core/jolli/api"
 import {
@@ -41,7 +71,7 @@ import { viewerFromToken } from "@opencode-ai/core/jolli/identity"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { classSizeOf, projectMembers, projectReaders, refusalOf, WRITABLE_ACCESS } from "@opencode-ai/core/jolli/share"
 import { Jolli } from "@opencode-ai/schema/jolli"
-import { Effect, Layer, Option, Schema } from "effect"
+import { Effect, Layer, Schema } from "effect"
 import { Session } from "@/session/session"
 import { SessionID } from "@/session/schema"
 import { FetchHttpClient } from "effect/unstable/http"
@@ -77,6 +107,8 @@ const UNREACHABLE_ASSIGNMENT = { status: "unreachable" as const }
 export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handlers) =>
   Effect.gen(function* () {
     const session = yield* JolliSession.Service
+    const groupCache = Object.hasOwn(session, "chatCache") ? session.chatCache : undefined
+    configureGroupChats(session, groupCache)
     const sessions = yield* Session.Service
 
     const course = Effect.fn("JolliHttpApi.course")(function* (ctx: { query: { fresh?: boolean } }) {
@@ -505,7 +537,283 @@ export const jolliHandlers = HttpApiBuilder.group(RootHttpApi, "jolli", (handler
       )
     })
 
+    /** One refresh and retry on a 401, with the home org known before the chat is addressed. */
+    const groupAuth = <A>(run: (request: GatewayRequest) => Promise<A>) =>
+      withGroupChatAuth(async (request) => {
+        await knownGroupHome(request)
+        return run(request)
+      })
+    /**
+     * Every group chat answer goes through here: one refresh and retry on a 401 (`groupAuth`), then
+     * `groupChatFailure` decides what a failure means. Only `opened`, the chat's own open read, may
+     * answer `revoked`; `offline` answers when the credential cannot be refreshed for an outage.
+     * `renews` marks a `run` that already refreshes and retries on a 401 itself: wrapping it again
+     * would repeat the request up to four times for one expired token.
+     */
+    const groupCall = (
+      run: (request: GatewayRequest) => Promise<Jolli.GroupChatAnswer>,
+      options: { offline?: () => Promise<Jolli.GroupChatAnswer>; opened?: Jolli.GroupChatID; renews?: boolean } = {},
+    ) =>
+      Effect.tryPromise({
+        try: async () => {
+          // A plain try/catch rather than the error channel: the offline answer replaces a failure only
+          // after the single retry is spent, and whatever it throws maps through `groupChatFailure` below.
+          try {
+            if (!options.renews) return await groupAuth(run)
+            const request = await currentGroupChatRequest()
+            await knownGroupHome(request)
+            return await run(request)
+          } catch (error) {
+            if (options.offline && offlineCredentialFailure(error)) return options.offline()
+            throw error
+          }
+        },
+        catch: (error) => groupChatFailure(error, options.opened),
+      }).pipe(Effect.catch((answer) => Effect.succeed(answer)))
+
+    /** The offline copy is a convenience: failing to keep it never fails the live answer. */
+    const cacheFailure = (cause: unknown) =>
+      Effect.runPromise(Effect.logWarning("Jolli: the group chat offline copy could not be updated", { cause }))
+    const credentialSubject = async () => (await Effect.runPromise(session.current()))?.subject
+
+    const cachedGroups = async (
+      courses: readonly Jolli.Course[],
+      courseId?: string,
+      identity?: string,
+    ): Promise<Jolli.GroupChatAnswer> => {
+      const account = identity ?? (await Effect.runPromise(session.current()))?.cache_key
+      if (!account || !groupCache) return { status: "unreachable" }
+      const entries = await groupCache.list(account)
+      return {
+        status: "ok",
+        source: "cache",
+        complete: false,
+        enabledCourseIds: [],
+        chats: entries
+          .filter((entry) => !courseId || entry.chat.courseId === courseId)
+          .map((entry) => ({
+            id: entry.chat.id,
+            title: entry.chat.title,
+            courseId: entry.chat.courseId,
+            courseCode: courses.find((course) => course.id === entry.chat.courseId)?.code ?? "",
+            updatedAt: entry.chat.messages.at(-1)?.timestamp ?? new Date(entry.validatedAt).toISOString(),
+            participantCount: entry.chat.group.participants.length,
+            unreadCount: 0,
+            processing: false,
+            ownership: entry.chat.access === "reader" ? "shared" : "owned",
+          })),
+      }
+    }
+    const cachedGroup = async (id: Jolli.GroupChatID): Promise<Jolli.GroupChatAnswer> => {
+      const account = (await Effect.runPromise(session.current()))?.cache_key
+      const cached = account ? await groupCache?.get(account, id) : undefined
+      return cached ? { status: "ok", ...cached, source: "cache" } : { status: "unreachable" }
+    }
+    const groupChats = Effect.fn("JolliHttpApi.groupChats")(function* (ctx: { query: { courseId?: string } }) {
+      const catalog = yield* course({ query: {} })
+      // A catalogue that could not be read is not an empty one: rows keep the course they name, and
+      // the list is incomplete, so it purges nothing.
+      const courses = catalog.status === "ok" ? catalog.courses : undefined
+      return yield* groupCall(
+        async (request) => {
+          try {
+            const result = await Effect.runPromise(listChats(request, courses, ctx.query.courseId))
+            await groupCache
+              ?.reconcile(
+                request.identity,
+                result.chats.map((chat) => chat.id),
+                result.complete,
+                ctx.query.courseId,
+              )
+              .catch(cacheFailure)
+            return { status: "ok", ...result }
+          } catch (error) {
+            // Here rather than in the error channel: the offline copy belongs to `request.identity`, the
+            // account this attempt used, which exists only inside the authorized call.
+            if (error instanceof JolliApiError && canReadOffline(error.status))
+              return cachedGroups(catalog.courses, ctx.query.courseId, request.identity)
+            throw error
+          }
+        },
+        { offline: () => cachedGroups(catalog.courses, ctx.query.courseId) },
+      )
+    })
+    const groupChat = (id: Jolli.GroupChatID) =>
+      groupCall(
+        async (request) => {
+          const version = groupCache?.version(request.identity, id) ?? 0
+          try {
+            const chat = await Effect.runPromise(openChat(request, id, await credentialSubject()))
+            await groupCache?.put(request.identity, chat, version).catch(cacheFailure)
+            // Access changed while this read was out (revoked, membership, another sign-in).
+            if (version !== (groupCache?.version(request.identity, id) ?? 0)) return { status: "unreachable" }
+            groupChatAccess(chat.id, chat.access)
+            return { status: "ok", chat, source: "server" }
+          } catch (cause) {
+            // Here rather than in the error channel: the purge and the offline read use this attempt's
+            // `request.identity`, the same account the open read was made for.
+            if (groupChatFailure(cause, id).status === "revoked")
+              await groupCache?.remove(request.identity, id).catch(cacheFailure)
+            const cached =
+              cause instanceof JolliApiError && canReadOffline(cause.status)
+                ? await groupCache?.get(request.identity, id).catch(() => undefined)
+                : undefined
+            if (cached) return { status: "ok", ...cached, source: "cache" }
+            throw cause
+          }
+        },
+        { offline: () => cachedGroup(id), opened: id },
+      )
+
+    const resource = (run: (request: GatewayRequest) => Promise<unknown>) =>
+      groupCall(async (request) => ({
+        status: "ok",
+        resource: Schema.decodeUnknownSync(Schema.Json)(await run(request)),
+      }))
+    /** A route that answers with the upstream response itself, or a JSON error with its status. */
+    const respond = (run: (signal: AbortSignal) => Promise<Response>) =>
+      Effect.tryPromise({ try: run, catch: (error) => error }).pipe(
+        Effect.map(HttpServerResponse.fromWeb),
+        Effect.catch((error) => {
+          const answer = groupChatFailure(error)
+          const status =
+            answer.status === "signed-out"
+              ? 401
+              : error instanceof JolliApiError && error.status !== undefined
+                ? error.status
+                : 502
+          return Effect.succeed(
+            HttpServerResponse.jsonUnsafe(
+              { error: "Group chat request failed", ...(answer.code ? { code: answer.code } : {}) },
+              { status },
+            ),
+          )
+        }),
+      )
+    /** The same single refresh and retry on a 401 that every answer from `groupCall` gets. */
+    const authorized = (run: (request: GatewayRequest, signal: AbortSignal) => Promise<Response>) =>
+      respond((signal) => groupAuth((request) => run(request, signal)))
+    const rawVoice = (
+      ctx: {
+        request: HttpServerRequest.HttpServerRequest
+        query: { chatID: Jolli.GroupChatID }
+        params?: { requestId: string }
+      },
+      operation: "transcription" | "poll" | "read-aloud" | "release",
+    ) =>
+      Effect.gen(function* () {
+        const web = yield* HttpServerRequest.toWeb(ctx.request)
+        return yield* respond(async () => {
+          // Cloned before the first send, because a body cannot be copied once it has gone out, which is
+          // when a 401 arrives. For a recording the copy holds at most one upload (two minutes of 16 kHz
+          // mono WAV, about 3.8 MB, see `voice-wav.ts`) until this request ends; the rest carry no body
+          // or a small JSON one.
+          const retry = web.clone()
+          const request = await currentGroupChatRequest()
+          await knownGroupHome(request)
+          const response = await voiceRequest(request, ctx.query.chatID, web, operation, ctx.params?.requestId)
+          if (response.status !== 401) return response
+          await response.body?.cancel()
+          await Effect.runPromise(session.refused(request.token))
+          return voiceRequest(
+            await currentGroupChatRequest(),
+            ctx.query.chatID,
+            retry,
+            operation,
+            ctx.params?.requestId,
+          )
+        })
+      }).pipe(
+        Effect.catch(() =>
+          Effect.succeed(HttpServerResponse.jsonUnsafe({ error: "Invalid voice request" }, { status: 400 })),
+        ),
+      )
+    const groupAction = (id: Jolli.GroupChatID, action: Jolli.GroupChatAction) =>
+      groupCall(async (request) => {
+        await Effect.runPromise(performAction(request, id, action))
+        return { status: "ok" }
+      })
     return handlers
+      .handle("groupChatCancel", (ctx) => groupAction(ctx.params.chatID, { type: "cancel" }))
+      .handle("groupChatRename", (ctx) => groupAction(ctx.params.chatID, { type: "rename", ...ctx.payload }))
+      .handle("groupChatAddPeople", (ctx) => groupAction(ctx.params.chatID, { type: "add", ...ctx.payload }))
+      .handle("groupChatRemovePerson", (ctx) =>
+        groupAction(ctx.params.chatID, { type: "remove", userId: ctx.params.userId }),
+      )
+      .handle("groupChatRead", (ctx) => groupAction(ctx.params.chatID, { type: "read", ...ctx.payload }))
+      .handle("groupChatTarget", (ctx) => groupAction(ctx.params.chatID, { type: "target", ...ctx.payload }))
+      .handle("groupChatFeatures", (ctx) => resource((request) => chatFeatures(request, ctx.params.chatID)))
+      .handle("reference", (ctx) => resource((request) => readJolliReference(request, ctx.payload)))
+      .handle("groupChatMaterials", (ctx) => resource((request) => chatMaterials(request, ctx.params.courseId)))
+      .handle("groupChatShare", (ctx) =>
+        resource(async (request) => chatShares(request, ctx.params.chatID, await credentialSubject())),
+      )
+      .handle("groupChatShareAdd", (ctx) =>
+        resource((request) => changeChatShare(request, ctx.params.chatID, ctx.payload.subject, false)),
+      )
+      .handle("groupChatShareRemove", (ctx) => {
+        const subject = subjectOf(ctx.params.subject)
+        if (subject === undefined) return Effect.succeed({ status: "refused" as const, httpStatus: 400 })
+        return resource((request) => changeChatShare(request, ctx.params.chatID, subject, true))
+      })
+      .handle("groupChatShareGroupRemove", (ctx) =>
+        resource((request) => changeChatShare(request, ctx.params.chatID, { groupId: ctx.params.groupId }, true)),
+      )
+      .handle("groupChatAttachmentStatus", (ctx) =>
+        resource((request) => chatAttachmentStatus(request, ctx.params.chatID, ctx.params.attachmentId)),
+      )
+      .handleRaw("groupChatAttachment", (ctx) =>
+        Effect.gen(function* () {
+          const web = yield* HttpServerRequest.toWeb(ctx.request)
+          // Each gateway call retries on its own: the body is read once, so the upload as a whole cannot be replayed.
+          return yield* respond(async () =>
+            Response.json(await uploadChatAttachment(groupAuth, ctx.params.chatID, web)),
+          )
+        }).pipe(
+          Effect.catch(() =>
+            Effect.succeed(HttpServerResponse.jsonUnsafe({ error: "Invalid attachment request" }, { status: 400 })),
+          ),
+        ),
+      )
+      .handleRaw("groupChatDownload", (ctx) =>
+        authorized((request, signal) =>
+          downloadChatAttachment(request, ctx.params.chatID, ctx.params.attachmentId, ctx.query.filename, signal),
+        ),
+      )
+      .handleRaw("groupChatTranscription", (ctx) => rawVoice(ctx, "transcription"))
+      .handleRaw("groupChatTranscriptionPoll", (ctx) => rawVoice(ctx, "poll"))
+      .handleRaw("groupChatReadAloud", (ctx) => rawVoice(ctx, "read-aloud"))
+      .handleRaw("groupChatVoiceRelease", (ctx) => rawVoice(ctx, "release"))
+      .handle("groupChats", groupChats)
+      .handle("groupChat", (ctx) => groupChat(ctx.params.chatID))
+      .handle("groupChatCreate", (ctx) =>
+        groupCall(async (request) => ({
+          status: "ok",
+          createdId: await Effect.runPromise(createChat(request, { ...ctx.payload, courseId: ctx.params.courseId })),
+        })),
+      )
+      .handle("groupChatPeople", (ctx) =>
+        groupCall(async (request) => ({
+          status: "ok",
+          people: await Effect.runPromise(people(request, ctx.params.courseId)),
+        })),
+      )
+      .handle("groupChatPost", (ctx) =>
+        groupCall(
+          async () => {
+            await sendGroupChatMessage(ctx.params.chatID, ctx.payload)
+            return { status: "ok" }
+          },
+          { renews: true },
+        ),
+      )
+      .handle("groupChatWatch", (ctx) =>
+        groupCall(async () => ({
+          status: (await watchGroupChat(ctx.params.chatID, ctx.payload.clientID, ctx.payload.active))
+            ? "ok"
+            : "unreachable",
+        })),
+      )
       .handle("course", course)
       .handle("share", share)
       .handle("shareReaders", shareReaders)

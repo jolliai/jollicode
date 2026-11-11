@@ -1,3 +1,4 @@
+import { GroupChatID } from "@opencode-ai/schema/jolli-group-chat"
 /**
  * COURSE AND ASSISTANT IDS THAT NAME THEIR ORGANIZATION, SO TWO ORGANIZATIONS CAN NEVER BE CONFUSED.
  *
@@ -71,4 +72,15 @@ export function sameOrg(left: OrgScope | undefined, right: OrgScope | undefined)
 export function orgScopeHeaders(org: OrgScope | undefined): Record<string, string> {
   if (!org) return {}
   return { "x-jolli-org-scope": "1", "x-tenant-slug": org.tenantSlug, "x-org-slug": org.orgSlug }
+}
+
+/** Chats always name their organization, including the home organization. */
+export function groupChatID(org: OrgScope, publicId: string): GroupChatID {
+  return GroupChatID.make(`${org.tenantSlug}:${org.orgSlug}:${publicId}`)
+}
+
+export function parseGroupChatID(value: GroupChatID): { scope: OrgScope; publicId: string } {
+  const valid = GroupChatID.make(value)
+  const [tenantSlug, orgSlug, publicId] = valid.split(":")
+  return { scope: { tenantSlug, orgSlug }, publicId }
 }

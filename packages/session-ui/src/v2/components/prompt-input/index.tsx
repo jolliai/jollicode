@@ -47,6 +47,8 @@ export type PromptInputV2Props = {
   borderUnderlay?: boolean
   class?: string
   modelControl?: JSX.Element
+  addControl?: JSX.Element
+  attachmentControl?: JSX.Element
   /**
    * A reason the composer cannot send yet, from the caller. Upstream the submit button is disabled
    * only by an empty prompt (`canSubmit`); Jolli Code also refuses a session with no course, which
@@ -218,6 +220,7 @@ export function PromptInputV2(props: PromptInputV2Props) {
         </Show>
 
         <Show when={state.mode === "normal"}>
+          {props.attachmentControl}
           <PromptInputV2Attachments
             attachments={props.controller.attachments()}
             comments={props.controller.comments()}
@@ -230,7 +233,7 @@ export function PromptInputV2(props: PromptInputV2Props) {
           />
         </Show>
 
-        <div class="relative min-h-[60px]">
+        <div data-slot="prompt-input-v2-editor-body" class="relative min-h-[60px]">
           <div
             ref={(element) => {
               editor = element
@@ -302,6 +305,7 @@ export function PromptInputV2(props: PromptInputV2Props) {
           />
           <Show when={!props.controller.value()}>
             <div
+              data-slot="prompt-input-v2-placeholder"
               class="pointer-events-none absolute inset-x-0 top-0 px-4 pt-4 text-[13px] font-[440] leading-5 text-v2-text-text-faint"
               classList={{ "font-mono!": state.mode === "shell" }}
             >
@@ -313,27 +317,35 @@ export function PromptInputV2(props: PromptInputV2Props) {
           </Show>
         </div>
 
-        <div class="flex h-11 items-center px-2">
+        <div data-slot="prompt-input-v2-toolbar" class="flex h-11 items-center px-2">
           <div
+            data-slot="prompt-input-v2-controls"
             class="flex min-w-0 flex-1 items-center gap-1"
             aria-hidden={state.mode === "shell"}
             inert={state.mode === "shell" ? true : undefined}
             style={buttons()}
           >
-            <PromptInputV2AddMenu
-              disabled={state.mode === "shell"}
-              title={i18n.t("ui.promptInput.add")}
-              keybind={props.attachKeybind ?? ["Mod", "U"]}
-              attachLabel={i18n.t("ui.promptInput.attachments")}
-              attachShortcut={props.attachShortcut ?? "Mod+U"}
-              commandsLabel={i18n.t("ui.promptInput.commands")}
-              contextLabel={i18n.t("ui.promptInput.context")}
-              shellLabel={i18n.t("ui.promptInput.shell")}
-              onAttach={props.controller.attach}
-              onCommands={props.controller.openCommands}
-              onContext={props.controller.openContext}
-              onShell={props.controller.openShell}
-            />
+            <Show
+              when={props.addControl !== undefined}
+              fallback={
+                <PromptInputV2AddMenu
+                  disabled={state.mode === "shell"}
+                  title={i18n.t("ui.promptInput.add")}
+                  keybind={props.attachKeybind ?? ["Mod", "U"]}
+                  attachLabel={i18n.t("ui.promptInput.attachments")}
+                  attachShortcut={props.attachShortcut ?? "Mod+U"}
+                  commandsLabel={i18n.t("ui.promptInput.commands")}
+                  contextLabel={i18n.t("ui.promptInput.context")}
+                  shellLabel={i18n.t("ui.promptInput.shell")}
+                  onAttach={props.controller.attach}
+                  onCommands={props.controller.openCommands}
+                  onContext={props.controller.openContext}
+                  onShell={props.controller.openShell}
+                />
+              }
+            >
+              {props.addControl}
+            </Show>
             <Show when={view.agent} keyed>
               {(control) => (
                 <PromptInputV2ConfiguredSelect
@@ -857,7 +869,42 @@ export function PromptInputV2SubmitButton(props: {
 }
 
 function PromptInputV2SuggestionIcon(props: { item: PromptInputV2Suggestion }) {
-  if (props.item.kind === "agent") return <Icon name="brain" size="small" class="shrink-0 text-icon-info-active" />
+  if (props.item.icon === "person")
+    return (
+      <span
+        aria-hidden="true"
+        data-suggestion-icon="person"
+        class="flex size-4 shrink-0 items-center justify-center text-v2-icon-icon-muted"
+      >
+        <IconV2 name="user" size="small" />
+      </span>
+    )
+  if (props.item.icon === "group")
+    return (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden="true"
+        data-suggestion-icon="group"
+        class="shrink-0 text-v2-icon-icon-muted"
+      >
+        <path
+          d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m20 0v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    )
+  if (props.item.kind === "agent")
+    return (
+      <span aria-hidden="true" data-suggestion-icon="agent" class="flex size-4 shrink-0 items-center justify-center">
+        <Icon name="brain" size="small" class="text-icon-info-active" />
+      </span>
+    )
   if (props.item.kind === "command") return null
   return (
     <FileIcon

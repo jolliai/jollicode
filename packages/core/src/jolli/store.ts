@@ -1,3 +1,4 @@
+import { makeGroupChatCache, type GroupChatCache } from "./group-chat-cache"
 export * as JolliStore from "./store"
 
 import { randomUUID } from "node:crypto"
@@ -5,7 +6,7 @@ import { eq, ne } from "drizzle-orm"
 import { Context, Effect, Layer } from "effect"
 import { Database } from "../database/database"
 import { makeGlobalNode } from "../effect/app-node"
-import { JolliCredentialStateTable, JolliCredentialTable } from "./sql"
+import { JolliCredentialStateTable, JolliCredentialTable, JolliGroupChatCacheTable } from "./sql"
 
 /** `jolli_credential_state` holds exactly one row. */
 const STATE_ID = 1
@@ -38,6 +39,7 @@ export interface Rotation {
 }
 
 export interface Interface {
+  readonly chatCache?: GroupChatCache
   /** The active credential, or undefined when signed out. Never touches the network. */
   readonly active: () => Effect.Effect<Row | undefined>
   /** Replaces the credential for this identity and makes it active. Returns the stored row. */
@@ -62,11 +64,17 @@ const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const { db } = yield* Database.Service
+    const chatCache = makeGroupChatCache({ db })
+    // An offline copy that could not be expired now is expired on its next read; it never stops sign-in.
+    yield* Effect.promise(() => chatCache.expire()).pipe(
+      Effect.catchCause((cause) => Effect.logWarning("Jolli: could not expire the group chat cache", { cause })),
+    )
 
     const read = (id: string) =>
       db.select().from(JolliCredentialTable).where(eq(JolliCredentialTable.id, id)).get().pipe(Effect.orDie)
 
     return Service.of({
+      chatCache,
       active: Effect.fn("JolliStore.active")(function* () {
         const state = yield* db
           .select()
@@ -80,6 +88,7 @@ const layer = Layer.effect(
 
       persist: Effect.fn("JolliStore.persist")(function* (input) {
         const id = input.subject ?? DEFAULT_ID
+        chatCache.forget()
         // Minted once per call so the insert and the subjectless update below agree on it.
         const identity = randomUUID()
         /**
@@ -127,6 +136,7 @@ const layer = Layer.effect(
                * token readable in a database the next person on this machine shares. There is no
                * account switcher to keep them for: the interface exposes one active credential.
                */
+              yield* tx.delete(JolliGroupChatCacheTable).run()
               yield* tx.delete(JolliCredentialTable).where(ne(JolliCredentialTable.id, id)).run()
               yield* tx
                 .insert(JolliCredentialStateTable)
@@ -157,6 +167,7 @@ const layer = Layer.effect(
       }),
 
       remove: Effect.fn("JolliStore.remove")(function* (id) {
+        chatCache.forget()
         yield* db
           .transaction((tx) =>
             Effect.gen(function* () {
@@ -167,6 +178,7 @@ const layer = Layer.effect(
                 .set({ active_credential_id: null })
                 .where(eq(JolliCredentialStateTable.active_credential_id, id))
                 .run()
+              yield* tx.delete(JolliGroupChatCacheTable).run()
               yield* tx.delete(JolliCredentialTable).where(eq(JolliCredentialTable.id, id)).run()
             }),
           )

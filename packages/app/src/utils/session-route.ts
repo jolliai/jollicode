@@ -1,3 +1,4 @@
+import type { Jolli } from "@opencode-ai/schema/jolli"
 import { base64Encode } from "@opencode-ai/core/util/encode"
 import { ServerConnection } from "@/context/server"
 import { decode64 } from "@/utils/base64"
@@ -36,4 +37,8 @@ export async function rootSession<T extends SessionParent>(session: T, get: (ses
     current = await get(current.parentID)
   }
   return current
+}
+
+export function groupChatHref(server: ServerConnection.Key, id: Jolli.GroupChatID) {
+  return `/server/${base64Encode(server)}/group-chat/${encodeURIComponent(id)}`
 }

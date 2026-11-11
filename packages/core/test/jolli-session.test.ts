@@ -488,6 +488,23 @@ describe("JolliSession", () => {
     expect(row?.token_expiry).toBeGreaterThanOrEqual(before + 28_800_000)
   })
 
+  test("a sign-in announces the change only once the new credential is stored", async () => {
+    const seen = await run(
+      Effect.gen(function* () {
+        const session = yield* JolliSession.Service
+        const store = yield* JolliStore.Service
+        yield* signedIn(store, undefined)
+        const active: (string | undefined)[] = []
+        const stop = JolliSession.onJolliSessionChanged(() => active.push(Effect.runSync(store.active())?.id))
+        yield* session.signIn({ token: "access-2", subject: "usr_2", baseUrl: TENANT })
+        stop()
+        return active
+      }),
+    )
+
+    expect(seen).toEqual(["usr_2"])
+  })
+
   test("an injected credential outranks the database", async () => {
     // The development override for a hand-started server. Nothing the product ships sets these.
     process.env["JOLLICODE_JOLLI_TOKEN"] = "injected"

@@ -166,6 +166,7 @@ export function resumeStreamAfterPageShow(event: PageTransitionEvent, start: () 
 
 type ServerEventEmitter = ReturnType<typeof createGlobalEmitter<{ [key: string]: ServerEvent }>>
 type ServerSDKBase = {
+  clientID: string
   server: ServerConnection.Any
   scope: ServerScope
   protocol: Promise<ServerProtocol>
@@ -187,6 +188,7 @@ type ServerSDKBase = {
 function createServerSdkContextBase(server: ServerConnection.Any, scope: ServerScope): ServerSDKBase {
   const platform = usePlatform()
   const abort = new AbortController()
+  const clientID = crypto.randomUUID()
 
   const eventFetch = (() => {
     if (!platform.fetch || !server) return
@@ -275,7 +277,8 @@ function createServerSdkContextBase(server: ServerConnection.Any, scope: ServerS
           const kind = await protocol
           const events =
             kind === "v1"
-              ? (await eventSdk.global.event({ signal: attempt.signal })).stream
+              ? (await eventSdk.global.event({ signal: attempt.signal, headers: { "x-jolli-client": clientID } }))
+                  .stream
               : eventApi.event.subscribe({ signal: attempt.signal })
           let yielded = Date.now()
           for await (const event of events) {
@@ -349,6 +352,7 @@ function createServerSdkContextBase(server: ServerConnection.Any, scope: ServerS
   const api = createCompatibleApi({ protocol, current: currentApi, legacy })
 
   return {
+    clientID,
     server,
     scope,
     protocol,

@@ -1,3 +1,4 @@
+import type { GroupChatCache } from "./group-chat-cache"
 export * as JolliSession from "./session"
 
 import { Cache, Clock, Context, Duration, Effect, Layer, Schema } from "effect"
@@ -20,6 +21,18 @@ export class JolliSignedOut extends Schema.TaggedErrorClass<JolliSignedOut>()("J
 export class JolliUnavailable extends Schema.TaggedErrorClass<JolliUnavailable>()("Jolli.Unavailable", {
   message: Schema.String,
 }) {}
+
+const changes = new Set<() => void>()
+/** Process-local resources tied to the previous credential stop when another one is stored or it is removed. */
+export function onJolliSessionChanged(listener: () => void) {
+  changes.add(listener)
+  return () => {
+    changes.delete(listener)
+  }
+}
+function notifySessionChanged() {
+  for (const listener of changes) listener()
+}
 
 export type JolliSessionError = JolliSignedOut | JolliUnavailable
 
@@ -115,6 +128,7 @@ const fromEnv = (): JolliStore.Row | undefined => {
 }
 
 export interface Interface {
+  readonly chatCache?: GroupChatCache
   /** The stored credential, without ever touching the network. Safe on polled endpoints. */
   readonly current: () => Effect.Effect<JolliStore.Row | undefined>
   /** A usable access token, refreshing first when this one is close to expiry. */
@@ -162,7 +176,10 @@ const layer = Layer.effect(
     // The refusals go first: they are this process's memory, and a row that will not delete is no
     // reason to hand them to whoever signs in next.
     const forget = (row: JolliStore.Row) =>
-      Effect.sync(JolliClosedAssistants.reset).pipe(
+      Effect.sync(() => {
+        JolliClosedAssistants.reset()
+        notifySessionChanged()
+      }).pipe(
         Effect.andThen(store.remove(row.id)),
         Effect.andThen(clearCatalogCache),
         Effect.catchCause(() => Effect.void),
@@ -324,6 +341,7 @@ const layer = Layer.effect(
     })
 
     return Service.of({
+      chatCache: Object.hasOwn(store, "chatCache") ? store.chatCache : undefined,
       current: Effect.fn("JolliSession.current")(() => active()),
 
       token,
@@ -350,7 +368,7 @@ const layer = Layer.effect(
         const expiry = expiryFor(credentials.expiresIn, credentials.refreshToken, now)
         // A sign-in may replace another student's without a sign-out between them.
         JolliClosedAssistants.reset()
-        return yield* store.persist({
+        const row = yield* store.persist({
           accessToken: credentials.token,
           ...(credentials.refreshToken ? { refreshToken: credentials.refreshToken } : {}),
           ...(expiry !== undefined ? { expiry } : {}),
@@ -358,6 +376,10 @@ const layer = Layer.effect(
           ...(credentials.email ? { email: credentials.email } : {}),
           ...(credentials.baseUrl ? { baseUrl: credentials.baseUrl } : {}),
         })
+        // After the write: listeners tell the renderer to read again, and that read must find this
+        // credential rather than the one it replaces.
+        notifySessionChanged()
+        return row
       }),
 
       signOut: Effect.fn("JolliSession.signOut")(function* () {

@@ -1,3 +1,4 @@
+import { JolliGroupChatEvent } from "../src/jolli-group-chat-event"
 import { describe, expect, test } from "bun:test"
 import { FileSystem, Integration, Permission, Project, Reference, Session, Workspace } from "../src"
 import { EventManifest } from "../src/event-manifest"
@@ -9,8 +10,8 @@ import { WorkspaceEvent } from "../src/workspace-event"
 
 describe("public event manifest", () => {
   test("owns the complete public event surface", () => {
-    expect(EventManifest.ServerDefinitions.length).toBe(58)
-    expect(EventManifest.Definitions.length).toBe(88)
+    expect(EventManifest.ServerDefinitions.length).toBe(64)
+    expect(EventManifest.Definitions.length).toBe(94)
     expect(SessionV1.Event.Definitions).toEqual([
       SessionV1.Event.Created,
       SessionV1.Event.Updated,
@@ -23,7 +24,7 @@ describe("public event manifest", () => {
       SessionV1.Event.Diff,
       SessionV1.Event.Error,
     ])
-    expect(EventManifest.Latest.size).toBe(88)
+    expect(EventManifest.Latest.size).toBe(94)
     expect(EventManifest.Durable.size).toBe(35)
   })
 
@@ -52,5 +53,21 @@ describe("public event manifest", () => {
     ])
     expect(EventManifest.Durable.has("session.next.step.ended.1")).toBe(false)
     expect(EventManifest.Durable.get("session.next.step.ended.2")).toBe(SessionEvent.Step.Ended)
+  })
+  test("registers the canonical group chat events without making them session history", () => {
+    const group = JolliGroupChatEvent.Event
+    expect(group.Definitions).toEqual([
+      group.Changed,
+      group.Revoked,
+      group.Answer,
+      group.Mention,
+      group.ListChanged,
+      group.Reset,
+    ])
+    for (const definition of group.Definitions) {
+      expect(EventManifest.ServerDefinitions.includes(definition)).toBe(true)
+      expect(EventManifest.Latest.get(definition.type)).toBe(definition)
+      expect(definition.durable).toBeUndefined()
+    }
   })
 })

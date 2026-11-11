@@ -32,6 +32,7 @@ import { taskDraftOf } from "@opencode-ai/core/jolli/assignment"
 import { AssignmentIntent } from "@/jolli/assignment-intent"
 import { readAssignment, turnIn, useTaskTitle, type AssignmentRead } from "@/jolli/assignments"
 import { courseIntentRouteKey } from "@/jolli/course-intent"
+import type { HomeLocalSessionRecord } from "@/pages/home/home-sessions-controller"
 
 export function DialogAssignment(props: { courseId: string; assignmentId: string; title: string }) {
   const language = useLanguage()
@@ -87,7 +88,9 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
    * opened weeks ago is past it, and opening needs only its id and folder.
    */
   const resume = (local: Jolli.AssignmentTaskSession) => {
-    const record = sessions.data.searchRecords().find((item) => item.session.id === local.sessionID)
+    const record = sessions.data
+      .searchRecords()
+      .find((item): item is HomeLocalSessionRecord => item.kind !== "groupChat" && item.session.id === local.sessionID)
     dialog.close()
     // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- `open` reads only the id, the folder and the project id.
     sessions.session.open(record?.session ?? ({ id: local.sessionID, directory: local.directory } as Session))

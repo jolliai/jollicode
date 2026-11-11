@@ -96,6 +96,60 @@ import type {
   JolliAssignmentsResponses,
   JolliCourseErrors,
   JolliCourseResponses,
+  JolliGroupChatAddPeopleErrors,
+  JolliGroupChatAddPeopleResponses,
+  JolliGroupChatAttachmentErrors,
+  JolliGroupChatAttachmentResponses,
+  JolliGroupChatAttachmentStatusErrors,
+  JolliGroupChatAttachmentStatusResponses,
+  JolliGroupChatCancelErrors,
+  JolliGroupChatCancelResponses,
+  JolliGroupChatCreateErrors,
+  JolliGroupChatCreateResponses,
+  JolliGroupChatDownloadErrors,
+  JolliGroupChatDownloadResponses,
+  JolliGroupChatErrors,
+  JolliGroupChatFeaturesErrors,
+  JolliGroupChatFeaturesResponses,
+  JolliGroupChatId,
+  JolliGroupChatMaterialsErrors,
+  JolliGroupChatMaterialsResponses,
+  JolliGroupChatPeopleErrors,
+  JolliGroupChatPeopleResponses,
+  JolliGroupChatPostErrors,
+  JolliGroupChatPostResponses,
+  JolliGroupChatReadAloudErrors,
+  JolliGroupChatReadAloudResponses,
+  JolliGroupChatReadErrors,
+  JolliGroupChatReadResponses,
+  JolliGroupChatRemovePersonErrors,
+  JolliGroupChatRemovePersonResponses,
+  JolliGroupChatRenameErrors,
+  JolliGroupChatRenameResponses,
+  JolliGroupChatResponses,
+  JolliGroupChatsErrors,
+  JolliGroupChatShareAddErrors,
+  JolliGroupChatShareAddResponses,
+  JolliGroupChatShareErrors,
+  JolliGroupChatShareGroupRemoveErrors,
+  JolliGroupChatShareGroupRemoveResponses,
+  JolliGroupChatShareRemoveErrors,
+  JolliGroupChatShareRemoveResponses,
+  JolliGroupChatShareResponses,
+  JolliGroupChatsResponses,
+  JolliGroupChatTargetErrors,
+  JolliGroupChatTargetResponses,
+  JolliGroupChatTranscriptionErrors,
+  JolliGroupChatTranscriptionPollErrors,
+  JolliGroupChatTranscriptionPollResponses,
+  JolliGroupChatTranscriptionResponses,
+  JolliGroupChatVoiceReleaseErrors,
+  JolliGroupChatVoiceReleaseResponses,
+  JolliGroupChatWatchErrors,
+  JolliGroupChatWatchResponses,
+  JolliReferenceErrors,
+  JolliReferenceRequest,
+  JolliReferenceResponses,
   JolliShareAddErrors,
   JolliShareAddResponses,
   JolliShareErrors,
@@ -1402,6 +1456,690 @@ export class Global extends HeyApiClient {
 }
 
 export class Jolli extends HeyApiClient {
+  public groupChatCancel<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "chatID" }] }])
+    return (options?.client ?? this.client).post<
+      JolliGroupChatCancelResponses,
+      JolliGroupChatCancelErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/group-chat/{chatID}/cancel",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Open a server group chat
+   */
+  public groupChat<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "chatID" }] }])
+    return (options?.client ?? this.client).get<JolliGroupChatResponses, JolliGroupChatErrors, ThrowOnError>({
+      url: "/jolli/group-chat/{chatID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  public groupChatRename<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+      title?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatID" },
+            { in: "body", key: "title" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).patch<
+      JolliGroupChatRenameResponses,
+      JolliGroupChatRenameErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/group-chat/{chatID}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  public groupChatAddPeople<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+      userIds?: Array<number>
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatID" },
+            { in: "body", key: "userIds" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      JolliGroupChatAddPeopleResponses,
+      JolliGroupChatAddPeopleErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/group-chat/{chatID}/participants",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  public groupChatRemovePerson<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+      userId: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatID" },
+            { in: "path", key: "userId" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<
+      JolliGroupChatRemovePersonResponses,
+      JolliGroupChatRemovePersonErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/group-chat/{chatID}/participants/{userId}",
+      ...options,
+      ...params,
+    })
+  }
+
+  public groupChatRead<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+      seq?: number
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatID" },
+            { in: "body", key: "seq" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<JolliGroupChatReadResponses, JolliGroupChatReadErrors, ThrowOnError>({
+      url: "/jolli/group-chat/{chatID}/read",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  public groupChatTarget<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+      assistantId?: number
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatID" },
+            { in: "body", key: "assistantId" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).put<
+      JolliGroupChatTargetResponses,
+      JolliGroupChatTargetErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/group-chat/{chatID}/composer-target",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  public groupChatFeatures<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "chatID" }] }])
+    return (options?.client ?? this.client).get<
+      JolliGroupChatFeaturesResponses,
+      JolliGroupChatFeaturesErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/group-chat/{chatID}/features",
+      ...options,
+      ...params,
+    })
+  }
+
+  public reference<ThrowOnError extends boolean = false>(
+    parameters?: {
+      jolliReferenceRequest?: JolliReferenceRequest
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ key: "jolliReferenceRequest", map: "body" }] }])
+    return (options?.client ?? this.client).post<JolliReferenceResponses, JolliReferenceErrors, ThrowOnError>({
+      url: "/jolli/reference",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  public groupChatMaterials<ThrowOnError extends boolean = false>(
+    parameters: {
+      courseId: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }])
+    return (options?.client ?? this.client).get<
+      JolliGroupChatMaterialsResponses,
+      JolliGroupChatMaterialsErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/course/{courseId}/material",
+      ...options,
+      ...params,
+    })
+  }
+
+  public groupChatShare<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "chatID" }] }])
+    return (options?.client ?? this.client).get<JolliGroupChatShareResponses, JolliGroupChatShareErrors, ThrowOnError>({
+      url: "/jolli/group-chat/{chatID}/share",
+      ...options,
+      ...params,
+    })
+  }
+
+  public groupChatShareAdd<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+      subject?:
+        | number
+        | "everyone"
+        | {
+            groupId: number
+          }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatID" },
+            { in: "body", key: "subject" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      JolliGroupChatShareAddResponses,
+      JolliGroupChatShareAddErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/group-chat/{chatID}/share",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  public groupChatShareRemove<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+      subject: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatID" },
+            { in: "path", key: "subject" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<
+      JolliGroupChatShareRemoveResponses,
+      JolliGroupChatShareRemoveErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/group-chat/{chatID}/share/{subject}",
+      ...options,
+      ...params,
+    })
+  }
+
+  public groupChatShareGroupRemove<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+      groupId: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatID" },
+            { in: "path", key: "groupId" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<
+      JolliGroupChatShareGroupRemoveResponses,
+      JolliGroupChatShareGroupRemoveErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/group-chat/{chatID}/share/groups/{groupId}",
+      ...options,
+      ...params,
+    })
+  }
+
+  public groupChatAttachmentStatus<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+      attachmentId: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatID" },
+            { in: "path", key: "attachmentId" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      JolliGroupChatAttachmentStatusResponses,
+      JolliGroupChatAttachmentStatusErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/group-chat/{chatID}/attachment/{attachmentId}",
+      ...options,
+      ...params,
+    })
+  }
+
+  public groupChatAttachment<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "chatID" }] }])
+    return (options?.client ?? this.client).post<
+      JolliGroupChatAttachmentResponses,
+      JolliGroupChatAttachmentErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/group-chat/{chatID}/attachment",
+      ...options,
+      ...params,
+    })
+  }
+
+  public groupChatDownload<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+      attachmentId: string
+      filename: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatID" },
+            { in: "path", key: "attachmentId" },
+            { in: "query", key: "filename" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      JolliGroupChatDownloadResponses,
+      JolliGroupChatDownloadErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/group-chat/{chatID}/download/{attachmentId}",
+      ...options,
+      ...params,
+    })
+  }
+
+  public groupChatTranscription<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "chatID" }] }])
+    return (options?.client ?? this.client).post<
+      JolliGroupChatTranscriptionResponses,
+      JolliGroupChatTranscriptionErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/voice/transcription",
+      ...options,
+      ...params,
+    })
+  }
+
+  public groupChatTranscriptionPoll<ThrowOnError extends boolean = false>(
+    parameters: {
+      requestId: string
+      chatID: JolliGroupChatId
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "requestId" },
+            { in: "query", key: "chatID" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<
+      JolliGroupChatTranscriptionPollResponses,
+      JolliGroupChatTranscriptionPollErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/voice/transcription/{requestId}",
+      ...options,
+      ...params,
+    })
+  }
+
+  public groupChatReadAloud<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "chatID" }] }])
+    return (options?.client ?? this.client).post<
+      JolliGroupChatReadAloudResponses,
+      JolliGroupChatReadAloudErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/voice/read-aloud",
+      ...options,
+      ...params,
+    })
+  }
+
+  public groupChatVoiceRelease<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "chatID" }] }])
+    return (options?.client ?? this.client).delete<
+      JolliGroupChatVoiceReleaseResponses,
+      JolliGroupChatVoiceReleaseErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/voice/session",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * List server-owned group chats
+   */
+  public groupChats<ThrowOnError extends boolean = false>(
+    parameters?: {
+      courseId?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "courseId" }] }])
+    return (options?.client ?? this.client).get<JolliGroupChatsResponses, JolliGroupChatsErrors, ThrowOnError>({
+      url: "/jolli/group-chat",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Create a course group chat
+   */
+  public groupChatCreate<ThrowOnError extends boolean = false>(
+    parameters: {
+      courseId: string
+      participantIds?: Array<number>
+      title?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "courseId" },
+            { in: "body", key: "participantIds" },
+            { in: "body", key: "title" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      JolliGroupChatCreateResponses,
+      JolliGroupChatCreateErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/course/{courseId}/group-chat",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * List people who can join a group chat
+   */
+  public groupChatPeople<ThrowOnError extends boolean = false>(
+    parameters: {
+      courseId: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "courseId" }] }])
+    return (options?.client ?? this.client).get<
+      JolliGroupChatPeopleResponses,
+      JolliGroupChatPeopleErrors,
+      ThrowOnError
+    >({
+      url: "/jolli/course/{courseId}/group-chat/people",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Send a group message without a local session
+   */
+  public groupChatPost<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+      message?: string
+      clientRequestId?: string
+      mentionedAssistantId?: number
+      mentionedUserIds?: Array<number>
+      mentionsAll?: boolean
+      attachmentIds?: Array<number>
+      pinnedMaterialIds?: Array<number>
+      modelId?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatID" },
+            { in: "body", key: "message" },
+            { in: "body", key: "clientRequestId" },
+            { in: "body", key: "mentionedAssistantId" },
+            { in: "body", key: "mentionedUserIds" },
+            { in: "body", key: "mentionsAll" },
+            { in: "body", key: "attachmentIds" },
+            { in: "body", key: "pinnedMaterialIds" },
+            { in: "body", key: "modelId" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<JolliGroupChatPostResponses, JolliGroupChatPostErrors, ThrowOnError>({
+      url: "/jolli/group-chat/{chatID}/messages",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Lease group updates to a global event connection
+   */
+  public groupChatWatch<ThrowOnError extends boolean = false>(
+    parameters: {
+      chatID: JolliGroupChatId
+      clientID?: string
+      active?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "chatID" },
+            { in: "body", key: "clientID" },
+            { in: "body", key: "active" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<JolliGroupChatWatchResponses, JolliGroupChatWatchErrors, ThrowOnError>(
+      {
+        url: "/jolli/group-chat/{chatID}/watch",
+        ...options,
+        ...params,
+        headers: {
+          "Content-Type": "application/json",
+          ...options?.headers,
+          ...params.headers,
+        },
+      },
+    )
+  }
+
   /**
    * List the signed-in student's courses
    *

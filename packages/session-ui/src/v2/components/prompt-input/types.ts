@@ -95,6 +95,8 @@ export type PromptInputV2Option = {
 export type PromptInputV2Suggestion = {
   id: string
   kind: "agent" | "command" | "file" | "reference" | "resource"
+  /** A semantic icon override for people and whole-group mentions. */
+  icon?: "person" | "group"
   label: string
   /**
    * Header this item sits under in the popover, or undefined to sit under none.

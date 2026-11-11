@@ -93,6 +93,12 @@ export type Event =
   | EventWorktreeFailed
   | EventServerConnected
   | EventGlobalDisposed
+  | EventJolliGroupChatChanged
+  | EventJolliGroupChatRevoked
+  | EventJolliGroupChatAnswer
+  | EventJolliGroupChatMention
+  | EventJolliGroupChatListChanged
+  | EventJolliGroupChatReset
   | EventServerInstanceDisposed
 
 export type QuestionReplied = {
@@ -1602,6 +1608,54 @@ export type GlobalEvent = {
           [key: string]: unknown
         }
       }
+    | {
+        id: string
+        type: "jolli.groupChat.changed"
+        properties: {
+          chatID?: string
+        }
+      }
+    | {
+        id: string
+        type: "jolli.groupChat.revoked"
+        properties: {
+          chatID: string
+        }
+      }
+    | {
+        id: string
+        type: "jolli.groupChat.answer"
+        properties: {
+          chatID: string
+          type: string
+          content?: string
+          seq?: number
+          frameSeq?: number
+          reset?: boolean
+          truncated?: boolean
+        }
+      }
+    | {
+        id: string
+        type: "jolli.groupChat.mention"
+        properties: {
+          chatID: string
+        }
+      }
+    | {
+        id: string
+        type: "jolli.groupChat.listChanged"
+        properties: {
+          chatID?: string
+        }
+      }
+    | {
+        id: string
+        type: "jolli.groupChat.reset"
+        properties: {
+          [key: string]: unknown
+        }
+      }
     | EventServerInstanceDisposed
     | SyncEventSessionCreated
     | SyncEventSessionUpdated
@@ -2961,6 +3015,12 @@ export type V2Event =
   | WorktreeFailed
   | ServerConnected
   | GlobalDisposed
+  | JolliGroupChatChanged
+  | JolliGroupChatRevoked
+  | JolliGroupChatAnswer
+  | JolliGroupChatMention
+  | JolliGroupChatListChanged
+  | JolliGroupChatReset
 
 export type V2EventStream = string
 
@@ -3871,6 +3931,63 @@ export type ConfigV2ExperimentalPolicy = {
   action: "provider.use"
   effect: PolicyEffect
   resource: string
+}
+
+export type JolliGroupChatId = string
+
+export type JolliReferenceTarget =
+  | {
+      kind: "group"
+      chatID: JolliGroupChatId
+    }
+  | {
+      kind: "course"
+      courseId: string
+    }
+  | {
+      kind: "account"
+    }
+
+export type JolliReference =
+  | {
+      kind: "material"
+      materialId: number
+    }
+  | {
+      kind: "assignment"
+      courseId: number
+      assignmentId: number
+      staffView: boolean
+    }
+  | {
+      kind: "artifact"
+      artifactId: string
+      version?: number
+    }
+  | {
+      kind: "attachment"
+      attachmentId: number
+    }
+  | {
+      kind: "assignmentFile"
+      courseId: number
+      assignmentId: number
+      taskId: number
+      fileId: number
+    }
+  | {
+      kind: "assignmentDoc"
+      courseId: number
+      assignmentId: number
+      taskId: number
+      docId: number
+      submitted: boolean
+    }
+
+export type JolliReferenceRequest = {
+  target: JolliReferenceTarget
+  reference: JolliReference
+  operation: "read" | "content" | "page" | "map" | "plan"
 }
 
 export type JolliCatalogStatus = "ok" | "unreachable"
@@ -6355,6 +6472,114 @@ export type GlobalDisposed = {
   }
 }
 
+export type JolliGroupChatChanged = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "jolli.groupChat.changed"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    chatID?: string
+  }
+}
+
+export type JolliGroupChatRevoked = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "jolli.groupChat.revoked"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    chatID: string
+  }
+}
+
+export type JolliGroupChatAnswer = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "jolli.groupChat.answer"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    chatID: string
+    type: string
+    content?: string
+    seq?: number
+    frameSeq?: number
+    reset?: boolean
+    truncated?: boolean
+  }
+}
+
+export type JolliGroupChatMention = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "jolli.groupChat.mention"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    chatID: string
+  }
+}
+
+export type JolliGroupChatListChanged = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "jolli.groupChat.listChanged"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    chatID?: string
+  }
+}
+
+export type JolliGroupChatReset = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "jolli.groupChat.reset"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    [key: string]: unknown
+  }
+}
+
 export type QuestionV2Request = {
   id: string
   sessionID: string
@@ -7302,6 +7527,60 @@ export type EventGlobalDisposed = {
   }
 }
 
+export type EventJolliGroupChatChanged = {
+  id: string
+  type: "jolli.groupChat.changed"
+  properties: {
+    chatID?: string
+  }
+}
+
+export type EventJolliGroupChatRevoked = {
+  id: string
+  type: "jolli.groupChat.revoked"
+  properties: {
+    chatID: string
+  }
+}
+
+export type EventJolliGroupChatAnswer = {
+  id: string
+  type: "jolli.groupChat.answer"
+  properties: {
+    chatID: string
+    type: string
+    content?: string
+    seq?: number
+    frameSeq?: number
+    reset?: boolean
+    truncated?: boolean
+  }
+}
+
+export type EventJolliGroupChatMention = {
+  id: string
+  type: "jolli.groupChat.mention"
+  properties: {
+    chatID: string
+  }
+}
+
+export type EventJolliGroupChatListChanged = {
+  id: string
+  type: "jolli.groupChat.listChanged"
+  properties: {
+    chatID?: string
+  }
+}
+
+export type EventJolliGroupChatReset = {
+  id: string
+  type: "jolli.groupChat.reset"
+  properties: {
+    [key: string]: unknown
+  }
+}
+
 export type CredentialOAuth = {
   type: "oauth"
   methodID: string
@@ -7635,6 +7914,2505 @@ export type GlobalUpgradeResponses = {
 }
 
 export type GlobalUpgradeResponse = GlobalUpgradeResponses[keyof GlobalUpgradeResponses]
+
+export type JolliGroupChatCancelData = {
+  body?: never
+  path: {
+    chatID: JolliGroupChatId
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}/cancel"
+}
+
+export type JolliGroupChatCancelErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatCancelError = JolliGroupChatCancelErrors[keyof JolliGroupChatCancelErrors]
+
+export type JolliGroupChatCancelResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatCancelResponse = JolliGroupChatCancelResponses[keyof JolliGroupChatCancelResponses]
+
+export type JolliGroupChatData = {
+  body?: never
+  path: {
+    chatID: JolliGroupChatId
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}"
+}
+
+export type JolliGroupChatErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatError = JolliGroupChatErrors[keyof JolliGroupChatErrors]
+
+export type JolliGroupChatResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatResponse = JolliGroupChatResponses[keyof JolliGroupChatResponses]
+
+export type JolliGroupChatRenameData = {
+  body?: {
+    title: string
+  }
+  path: {
+    chatID: JolliGroupChatId
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}"
+}
+
+export type JolliGroupChatRenameErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatRenameError = JolliGroupChatRenameErrors[keyof JolliGroupChatRenameErrors]
+
+export type JolliGroupChatRenameResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatRenameResponse = JolliGroupChatRenameResponses[keyof JolliGroupChatRenameResponses]
+
+export type JolliGroupChatAddPeopleData = {
+  body?: {
+    userIds: Array<number>
+  }
+  path: {
+    chatID: JolliGroupChatId
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}/participants"
+}
+
+export type JolliGroupChatAddPeopleErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatAddPeopleError = JolliGroupChatAddPeopleErrors[keyof JolliGroupChatAddPeopleErrors]
+
+export type JolliGroupChatAddPeopleResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatAddPeopleResponse = JolliGroupChatAddPeopleResponses[keyof JolliGroupChatAddPeopleResponses]
+
+export type JolliGroupChatRemovePersonData = {
+  body?: never
+  path: {
+    chatID: JolliGroupChatId
+    userId: string
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}/participants/{userId}"
+}
+
+export type JolliGroupChatRemovePersonErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatRemovePersonError = JolliGroupChatRemovePersonErrors[keyof JolliGroupChatRemovePersonErrors]
+
+export type JolliGroupChatRemovePersonResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatRemovePersonResponse =
+  JolliGroupChatRemovePersonResponses[keyof JolliGroupChatRemovePersonResponses]
+
+export type JolliGroupChatReadData = {
+  body?: {
+    seq: number
+  }
+  path: {
+    chatID: JolliGroupChatId
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}/read"
+}
+
+export type JolliGroupChatReadErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatReadError = JolliGroupChatReadErrors[keyof JolliGroupChatReadErrors]
+
+export type JolliGroupChatReadResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatReadResponse = JolliGroupChatReadResponses[keyof JolliGroupChatReadResponses]
+
+export type JolliGroupChatTargetData = {
+  body?: {
+    assistantId: number
+  }
+  path: {
+    chatID: JolliGroupChatId
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}/composer-target"
+}
+
+export type JolliGroupChatTargetErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatTargetError = JolliGroupChatTargetErrors[keyof JolliGroupChatTargetErrors]
+
+export type JolliGroupChatTargetResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatTargetResponse = JolliGroupChatTargetResponses[keyof JolliGroupChatTargetResponses]
+
+export type JolliGroupChatFeaturesData = {
+  body?: never
+  path: {
+    chatID: JolliGroupChatId
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}/features"
+}
+
+export type JolliGroupChatFeaturesErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatFeaturesError = JolliGroupChatFeaturesErrors[keyof JolliGroupChatFeaturesErrors]
+
+export type JolliGroupChatFeaturesResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatFeaturesResponse = JolliGroupChatFeaturesResponses[keyof JolliGroupChatFeaturesResponses]
+
+export type JolliReferenceData = {
+  body?: JolliReferenceRequest
+  path?: never
+  query?: never
+  url: "/jolli/reference"
+}
+
+export type JolliReferenceErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliReferenceError = JolliReferenceErrors[keyof JolliReferenceErrors]
+
+export type JolliReferenceResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliReferenceResponse = JolliReferenceResponses[keyof JolliReferenceResponses]
+
+export type JolliGroupChatMaterialsData = {
+  body?: never
+  path: {
+    courseId: string
+  }
+  query?: never
+  url: "/jolli/course/{courseId}/material"
+}
+
+export type JolliGroupChatMaterialsErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatMaterialsError = JolliGroupChatMaterialsErrors[keyof JolliGroupChatMaterialsErrors]
+
+export type JolliGroupChatMaterialsResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatMaterialsResponse = JolliGroupChatMaterialsResponses[keyof JolliGroupChatMaterialsResponses]
+
+export type JolliGroupChatShareData = {
+  body?: never
+  path: {
+    chatID: JolliGroupChatId
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}/share"
+}
+
+export type JolliGroupChatShareErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatShareError = JolliGroupChatShareErrors[keyof JolliGroupChatShareErrors]
+
+export type JolliGroupChatShareResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatShareResponse = JolliGroupChatShareResponses[keyof JolliGroupChatShareResponses]
+
+export type JolliGroupChatShareAddData = {
+  body?: {
+    subject:
+      | number
+      | "everyone"
+      | {
+          groupId: number
+        }
+  }
+  path: {
+    chatID: JolliGroupChatId
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}/share"
+}
+
+export type JolliGroupChatShareAddErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatShareAddError = JolliGroupChatShareAddErrors[keyof JolliGroupChatShareAddErrors]
+
+export type JolliGroupChatShareAddResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatShareAddResponse = JolliGroupChatShareAddResponses[keyof JolliGroupChatShareAddResponses]
+
+export type JolliGroupChatShareRemoveData = {
+  body?: never
+  path: {
+    chatID: JolliGroupChatId
+    subject: string
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}/share/{subject}"
+}
+
+export type JolliGroupChatShareRemoveErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatShareRemoveError = JolliGroupChatShareRemoveErrors[keyof JolliGroupChatShareRemoveErrors]
+
+export type JolliGroupChatShareRemoveResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatShareRemoveResponse =
+  JolliGroupChatShareRemoveResponses[keyof JolliGroupChatShareRemoveResponses]
+
+export type JolliGroupChatShareGroupRemoveData = {
+  body?: never
+  path: {
+    chatID: JolliGroupChatId
+    groupId: string
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}/share/groups/{groupId}"
+}
+
+export type JolliGroupChatShareGroupRemoveErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatShareGroupRemoveError =
+  JolliGroupChatShareGroupRemoveErrors[keyof JolliGroupChatShareGroupRemoveErrors]
+
+export type JolliGroupChatShareGroupRemoveResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatShareGroupRemoveResponse =
+  JolliGroupChatShareGroupRemoveResponses[keyof JolliGroupChatShareGroupRemoveResponses]
+
+export type JolliGroupChatAttachmentStatusData = {
+  body?: never
+  path: {
+    chatID: JolliGroupChatId
+    attachmentId: string
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}/attachment/{attachmentId}"
+}
+
+export type JolliGroupChatAttachmentStatusErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatAttachmentStatusError =
+  JolliGroupChatAttachmentStatusErrors[keyof JolliGroupChatAttachmentStatusErrors]
+
+export type JolliGroupChatAttachmentStatusResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatAttachmentStatusResponse =
+  JolliGroupChatAttachmentStatusResponses[keyof JolliGroupChatAttachmentStatusResponses]
+
+export type JolliGroupChatAttachmentData = {
+  body?: never
+  path: {
+    chatID: JolliGroupChatId
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}/attachment"
+}
+
+export type JolliGroupChatAttachmentErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatAttachmentError = JolliGroupChatAttachmentErrors[keyof JolliGroupChatAttachmentErrors]
+
+export type JolliGroupChatAttachmentResponses = {
+  /**
+   * Success
+   */
+  200: unknown
+}
+
+export type JolliGroupChatDownloadData = {
+  body?: never
+  path: {
+    chatID: JolliGroupChatId
+    attachmentId: string
+  }
+  query: {
+    filename: string
+  }
+  url: "/jolli/group-chat/{chatID}/download/{attachmentId}"
+}
+
+export type JolliGroupChatDownloadErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatDownloadError = JolliGroupChatDownloadErrors[keyof JolliGroupChatDownloadErrors]
+
+export type JolliGroupChatDownloadResponses = {
+  /**
+   * Success
+   */
+  200: string
+}
+
+export type JolliGroupChatDownloadResponse = JolliGroupChatDownloadResponses[keyof JolliGroupChatDownloadResponses]
+
+export type JolliGroupChatTranscriptionData = {
+  body?: never
+  path?: never
+  query: {
+    chatID: JolliGroupChatId
+  }
+  url: "/jolli/voice/transcription"
+}
+
+export type JolliGroupChatTranscriptionErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatTranscriptionError =
+  JolliGroupChatTranscriptionErrors[keyof JolliGroupChatTranscriptionErrors]
+
+export type JolliGroupChatTranscriptionResponses = {
+  /**
+   * Success
+   */
+  200: unknown
+}
+
+export type JolliGroupChatTranscriptionPollData = {
+  body?: never
+  path: {
+    requestId: string
+  }
+  query: {
+    chatID: JolliGroupChatId
+  }
+  url: "/jolli/voice/transcription/{requestId}"
+}
+
+export type JolliGroupChatTranscriptionPollErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatTranscriptionPollError =
+  JolliGroupChatTranscriptionPollErrors[keyof JolliGroupChatTranscriptionPollErrors]
+
+export type JolliGroupChatTranscriptionPollResponses = {
+  /**
+   * Success
+   */
+  200: unknown
+}
+
+export type JolliGroupChatReadAloudData = {
+  body?: never
+  path?: never
+  query: {
+    chatID: JolliGroupChatId
+  }
+  url: "/jolli/voice/read-aloud"
+}
+
+export type JolliGroupChatReadAloudErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatReadAloudError = JolliGroupChatReadAloudErrors[keyof JolliGroupChatReadAloudErrors]
+
+export type JolliGroupChatReadAloudResponses = {
+  /**
+   * Success
+   */
+  200: string
+}
+
+export type JolliGroupChatReadAloudResponse = JolliGroupChatReadAloudResponses[keyof JolliGroupChatReadAloudResponses]
+
+export type JolliGroupChatVoiceReleaseData = {
+  body?: never
+  path?: never
+  query: {
+    chatID: JolliGroupChatId
+  }
+  url: "/jolli/voice/session"
+}
+
+export type JolliGroupChatVoiceReleaseErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatVoiceReleaseError = JolliGroupChatVoiceReleaseErrors[keyof JolliGroupChatVoiceReleaseErrors]
+
+export type JolliGroupChatVoiceReleaseResponses = {
+  /**
+   * Success
+   */
+  200: unknown
+}
+
+export type JolliGroupChatsData = {
+  body?: never
+  path?: never
+  query?: {
+    courseId?: string
+  }
+  url: "/jolli/group-chat"
+}
+
+export type JolliGroupChatsErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatsError = JolliGroupChatsErrors[keyof JolliGroupChatsErrors]
+
+export type JolliGroupChatsResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatsResponse = JolliGroupChatsResponses[keyof JolliGroupChatsResponses]
+
+export type JolliGroupChatCreateData = {
+  body?: {
+    participantIds: Array<number>
+    title?: string
+  }
+  path: {
+    courseId: string
+  }
+  query?: never
+  url: "/jolli/course/{courseId}/group-chat"
+}
+
+export type JolliGroupChatCreateErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatCreateError = JolliGroupChatCreateErrors[keyof JolliGroupChatCreateErrors]
+
+export type JolliGroupChatCreateResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatCreateResponse = JolliGroupChatCreateResponses[keyof JolliGroupChatCreateResponses]
+
+export type JolliGroupChatPeopleData = {
+  body?: never
+  path: {
+    courseId: string
+  }
+  query?: never
+  url: "/jolli/course/{courseId}/group-chat/people"
+}
+
+export type JolliGroupChatPeopleErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatPeopleError = JolliGroupChatPeopleErrors[keyof JolliGroupChatPeopleErrors]
+
+export type JolliGroupChatPeopleResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatPeopleResponse = JolliGroupChatPeopleResponses[keyof JolliGroupChatPeopleResponses]
+
+export type JolliGroupChatPostData = {
+  body?: {
+    message: string
+    clientRequestId: string
+    mentionedAssistantId?: number
+    mentionedUserIds?: Array<number>
+    mentionsAll?: boolean
+    attachmentIds?: Array<number>
+    pinnedMaterialIds?: Array<number>
+    modelId?: string
+  }
+  path: {
+    chatID: JolliGroupChatId
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}/messages"
+}
+
+export type JolliGroupChatPostErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatPostError = JolliGroupChatPostErrors[keyof JolliGroupChatPostErrors]
+
+export type JolliGroupChatPostResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatPostResponse = JolliGroupChatPostResponses[keyof JolliGroupChatPostResponses]
+
+export type JolliGroupChatWatchData = {
+  body?: {
+    clientID: string
+    active: boolean
+  }
+  path: {
+    chatID: JolliGroupChatId
+  }
+  query?: never
+  url: "/jolli/group-chat/{chatID}/watch"
+}
+
+export type JolliGroupChatWatchErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JolliGroupChatWatchError = JolliGroupChatWatchErrors[keyof JolliGroupChatWatchErrors]
+
+export type JolliGroupChatWatchResponses = {
+  /**
+   * Success
+   */
+  200: {
+    status: "ok" | "unreachable" | "refused" | "revoked" | "unsupported" | "signed-out"
+    code?: string
+    httpStatus?: number
+    message?: string
+    complete?: boolean
+    resource?: unknown
+    source?: "server" | "cache"
+    validatedAt?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+    truncated?: boolean
+    enabledCourseIds?: Array<string>
+    chat?: {
+      id: JolliGroupChatId
+      title: string
+      viewerId: number
+      webBaseUrl?: string
+      courseId: string
+      access: "owner" | "participant" | "reader"
+      processing: boolean
+      locked?: boolean
+      shareBlocked?: boolean
+      group: {
+        assignmentGroupId?: number
+        ownerId?: number
+        participants: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        formerPeople: Array<{
+          userId: number
+          name: string
+          picture?: string
+          role?: string
+          creator?: boolean
+        }>
+        aliases: Array<{
+          alias: string
+          userId: number
+        }>
+        mentionable?: Array<{
+          id: number
+          name: string
+        }>
+        turns?: Array<{
+          turnId: number
+          mode: string
+          assistantId: number
+          askerId: number
+          triggerSeq: number
+        }>
+        composerTargetAssistantId?: number
+        lastReadSeq?: number
+      }
+      messages: Array<{
+        kind: "message"
+        id: number
+        seq: number
+        turnId: number
+        role: string
+        content: string
+        authorId?: number
+        payload?: unknown
+        timestamp: string
+        incomplete?: boolean
+      }>
+    }
+    chats?: Array<{
+      id: JolliGroupChatId
+      title: string
+      courseId: string
+      courseCode: string
+      updatedAt: string
+      participantCount: number
+      unreadCount: number
+      processing: boolean
+      ownership: string
+    }>
+    people?: Array<{
+      userId: number
+      name: string
+      picture?: string
+      role?: string
+      creator?: boolean
+    }>
+    createdId?: JolliGroupChatId
+  }
+}
+
+export type JolliGroupChatWatchResponse = JolliGroupChatWatchResponses[keyof JolliGroupChatWatchResponses]
 
 export type JolliCourseData = {
   body?: never

@@ -2,6 +2,10 @@ import { describe, expect, test } from "bun:test"
 import { createRoot, createSignal } from "solid-js"
 import { createSessionKeyReader, ensureSessionKey, pruneSessionKeys } from "./layout-helpers"
 import { migrateSidebar } from "./layout-migration"
+import { currentRoute } from "./layout"
+import { Jolli } from "@opencode-ai/schema/jolli"
+import { groupChatHref } from "@/utils/session-route"
+import type { ServerConnection } from "./server"
 
 describe("layout session-key helpers", () => {
   test("couples touch and scroll seed in order", () => {
@@ -107,5 +111,22 @@ describe("migrateSidebar", () => {
     expect(migrateSidebar(null)).toBeNull()
     expect(migrateSidebar("nonsense")).toBe("nonsense")
     expect(migrateSidebar([1, 2])).toEqual([1, 2])
+  })
+})
+
+describe("currentRoute for group chats", () => {
+  const server = "local\nhttp://localhost:4096" as ServerConnection.Key
+
+  test("reads the server and the encoded org-scoped chat id", () => {
+    const chatId = Jolli.GroupChatID.make("tenant:org:42")
+
+    expect(currentRoute(groupChatHref(server, chatId), "")).toEqual({ type: "groupChat", chatId, server })
+  })
+
+  test("a malformed chat id is no route rather than an error", () => {
+    const prefix = groupChatHref(server, Jolli.GroupChatID.make("tenant:org:42")).replace(/[^/]+$/, "")
+
+    expect(currentRoute(`${prefix}%E0%A4%A`, "")).toEqual({ type: "home" })
+    expect(currentRoute(`${prefix}not-scoped`, "")).toEqual({ type: "home" })
   })
 })

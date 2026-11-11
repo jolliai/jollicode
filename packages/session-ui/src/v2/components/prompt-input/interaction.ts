@@ -55,6 +55,7 @@ export function createPromptInputV2State() {
 
 export function createPromptInputV2Controller(input: {
   store: PromptInputV2StoreInput
+  allowShell?: boolean
   state?: ReturnType<typeof createPromptInputV2State>
   identity?: Accessor<unknown>
   history?: PromptInputV2History
@@ -161,7 +162,7 @@ export function createPromptInputV2Controller(input: {
 
   function dispatch(event: PromptInputV2InteractionEvent) {
     const mode = state.mode
-    const result = transitionPromptInputV2(state, event, draft.state)
+    const result = transitionPromptInputV2(state, event, draft.state, input.allowShell !== false)
     const action = event.type === "popover.select" ? input.onSuggestionSelect?.(event.item) : undefined
     if (event.type === "popover.select") {
       if (!action || state.popover.type !== "command-menu") result.commands.forEach(execute)

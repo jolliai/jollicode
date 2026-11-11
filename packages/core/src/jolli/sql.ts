@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core"
 import { Timestamps } from "../database/schema.sql"
 
 /**
@@ -63,3 +63,19 @@ export const JolliCredentialStateTable = sqliteTable("jolli_credential_state", {
   id: integer().primaryKey(),
   active_credential_id: text().references(() => JolliCredentialTable.id, { onDelete: "set null" }),
 })
+
+/** Bounded read copies live outside the local session and runner tables. */
+export const JolliGroupChatCacheTable = sqliteTable(
+  "jolli_group_chat_cache",
+  {
+    account_id: text().notNull(),
+    chat_id: text().notNull(),
+    course_id: text().notNull(),
+    payload: text().notNull(),
+    validated_at: integer().notNull(),
+    accessed_at: integer().notNull(),
+    confirmed: integer({ mode: "boolean" }).notNull(),
+    truncated: integer({ mode: "boolean" }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.account_id, table.chat_id] })],
+)

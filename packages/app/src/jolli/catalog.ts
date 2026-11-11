@@ -30,6 +30,7 @@ const [store, setStore] = createStore<{
    * than the course list is.
    */
   viewer?: Viewer
+  account?: string
 }>({
   courses: [],
   assistants: [],
@@ -96,6 +97,11 @@ export function viewer(): Viewer | undefined {
   return store.viewer
 }
 
+/** Stable credential identity for account-scoped local preferences. */
+export function account() {
+  return store.account
+}
+
 /**
  * Called once the server has answered.
  *
@@ -142,6 +148,7 @@ export function setCatalog(catalog: Catalog) {
     setStore(
       produce((draft) => {
         draft.viewer = payload?.viewer
+        draft.account = payload?.account
       }),
     )
     setRevision((value) => value + 1)
@@ -344,6 +351,7 @@ export function ensureCatalog(key: string, load: () => Promise<Catalog>): Promis
        */
       if (catalog.status !== "ok") {
         setStore("viewer", catalog.viewer)
+        setStore("account", catalog.account)
         setLoaded(true)
         inFlight = undefined
         return
@@ -413,6 +421,7 @@ export function resetCatalog() {
       draft.courses = []
       draft.assistants = []
       draft.viewer = undefined
+      draft.account = undefined
     }),
   )
   ModelTiers.set({})
