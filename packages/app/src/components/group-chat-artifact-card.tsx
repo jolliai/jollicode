@@ -3,29 +3,60 @@ import { Schema } from "effect"
 import type { Jolli } from "@opencode-ai/schema/jolli"
 import type { ServerSDK } from "@/context/server-sdk"
 import { useLanguage } from "@/context/language"
-import { readReference, ReferenceArtifact, type ReferencePreview } from "@/jolli/reference-preview"
+import {
+  readReference,
+  ReferenceArtifact,
+  ReferenceSignedOutError,
+  ReferenceUnavailableError,
+  type ReferencePreview,
+} from "@/jolli/reference-preview"
 
 export function GroupChatArtifactCard(props: {
   sdk: ServerSDK
   chatID: Jolli.GroupChatID
   artifactId: string
   onOpen: (item: ReferencePreview, trigger: HTMLElement) => void
+  /** The read answered that the credential is gone; the window drops the server's chats, this card's with them. */
+  onSignedOut: () => void
 }) {
   const language = useLanguage()
-  const [artifact] = createResource(
+  const [artifact, { refetch }] = createResource(
     () => props.artifactId,
     async (artifactId) =>
       Schema.decodeUnknownSync(ReferenceArtifact)(
-        await readReference(props.sdk, { kind: "group", chatID: props.chatID }, { kind: "artifact", artifactId }),
+        await readReference(props.sdk, { kind: "group", chatID: props.chatID }, { kind: "artifact", artifactId }).catch(
+          (error: unknown) => {
+            if (error instanceof ReferenceSignedOutError) props.onSignedOut()
+            throw error
+          },
+        ),
       ),
   )
+  /** Only the server's answer that the artifact is gone says so; any other failure may be read again. */
+  const gone = () => artifact.error instanceof ReferenceUnavailableError
   return (
     <Show
       when={!artifact.loading && !artifact.error}
       fallback={
-        <button type="button" class="group-chat-artifact-card" disabled>
+        <button
+          type="button"
+          class="group-chat-artifact-card"
+          disabled={artifact.loading || gone()}
+          onClick={() => void refetch()}
+        >
           <span class="reference-kind">{language.t("groupChat.preview.artifact")}</span>
-          <strong>{language.t(artifact.error ? "groupChat.preview.unavailable" : "groupChat.preview.loading")}</strong>
+          <strong>
+            {language.t(
+              artifact.loading
+                ? "groupChat.preview.loading"
+                : gone()
+                  ? "groupChat.preview.unavailable"
+                  : "groupChat.preview.failed",
+            )}
+          </strong>
+          <Show when={!artifact.loading && !gone()}>
+            <span>{language.t("groupChat.preview.retry")}</span>
+          </Show>
         </button>
       }
     >

@@ -4,7 +4,7 @@ import { $ } from "bun"
 import { buildCliToResources, resolveChannel } from "./utils"
 import { copyPdfjsAssets } from "../../app/script/copy-pdfjs-assets"
 
-copyPdfjsAssets()
+await copyPdfjsAssets()
 
 const channel = resolveChannel()
 await $`bun ./scripts/copy-icons.ts ${channel}`

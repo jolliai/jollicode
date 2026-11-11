@@ -2,7 +2,7 @@ import { onCleanup } from "solid-js"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useLanguage } from "@/context/language"
 import { usePlatform } from "@/context/platform"
-import { safeReferenceUrl } from "@/jolli/reference-preview"
+import { safeReferenceUrl } from "@/jolli/external-link"
 import { GroupChatConfirmation } from "./group-chat-dialogs"
 
 /**

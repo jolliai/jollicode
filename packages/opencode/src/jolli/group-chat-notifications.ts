@@ -11,7 +11,7 @@ import {
   type Frame,
 } from "@opencode-ai/core/jolli/group-chat"
 import { groupChatID, sameOrg, type OrgScope } from "@opencode-ai/core/jolli/org-scoped-id"
-import type { Jolli } from "@opencode-ai/schema/jolli"
+import { Jolli } from "@opencode-ai/schema/jolli"
 
 /** Only the envelope identifies an event's organization; neither its stream nor topic does. */
 export function notificationChat(frame: Frame, allowed: ReadonlySet<string>) {
@@ -26,8 +26,19 @@ export function notificationChat(frame: Frame, allowed: ReadonlySet<string>) {
   )
     return
   if (!allowed.has(`${org.tenantSlug}:${org.orgSlug}`)) return
-  if (frame.type === "chats:changed" && typeof frame.convoId === "string")
-    return { type: "listChanged", id: groupChatID({ tenantSlug: org.tenantSlug, orgSlug: org.orgSlug }, frame.convoId) }
+  const scope = { tenantSlug: org.tenantSlug, orgSlug: org.orgSlug }
+  // An id this client cannot address is dropped here; building it would throw and cost the stream the
+  // frames behind it.
+  const chat = (publicId: string) =>
+    Schema.is(Jolli.GroupChatID)(`${scope.tenantSlug}:${scope.orgSlug}:${publicId}`)
+      ? groupChatID(scope, publicId)
+      : undefined
+  // `chats:changed` always names the chat by its public id, a string. The frame schema admits numbers
+  // only for other frames' use of the field, so a number here is ignored rather than coerced.
+  if (frame.type === "chats:changed" && typeof frame.convoId === "string") {
+    const id = chat(frame.convoId)
+    return id ? { type: "listChanged", id } : undefined
+  }
   const notice = frame.notification
   if (
     frame.type !== "notification:created" ||
@@ -42,16 +53,15 @@ export function notificationChat(frame: Frame, allowed: ReadonlySet<string>) {
     typeof notice.payload.recordId !== "string"
   )
     return
-  return {
-    type: "mention",
-    id: groupChatID({ tenantSlug: org.tenantSlug, orgSlug: org.orgSlug }, notice.payload.recordId),
-  }
+  const id = chat(notice.payload.recordId)
+  return id ? { type: "mention", id } : undefined
 }
 
 /** Nobody is signed in to Jolli, so no retry can succeed until somebody signs in. */
 export function signedOut(error: unknown) {
   return (
-    error instanceof JolliSignedOut || (error instanceof JolliApiError && error.status === 401 && error.path === "group-chat")
+    error instanceof JolliSignedOut ||
+    (error instanceof JolliApiError && error.status === 401 && error.path === "group-chat")
   )
 }
 
@@ -110,16 +120,17 @@ export async function openHub(request: GatewayRequest, subject: object, signal: 
 export function groupChatNotifications(input: {
   request: () => Promise<GatewayRequest>
   refresh: (token: string) => Promise<unknown>
-  event: (type: string, id?: Jolli.GroupChatID) => void
+  /** `identity` keys the credential the stream that heard the event was opened with. */
+  event: (type: string, identity: string, id?: Jolli.GroupChatID) => void
   /** The loop ended because nobody is signed in; whatever next finds a credential starts another. */
   signedOut: () => void
 }) {
   const abort = new AbortController()
   let nudge: ReturnType<typeof setTimeout> | undefined
   // A stream that (re)opened may have missed events, so a burst of openings re-reads the list once.
-  const reopened = () => {
+  const reopened = (identity: string) => {
     clearTimeout(nudge)
-    nudge = setTimeout(() => input.event("listChanged"), 250)
+    nudge = setTimeout(() => input.event("listChanged", identity), 250)
   }
   /** Renews a token the server refused; true once the credential is finished and every stream stops. */
   const finished = async (error: unknown, token: string | undefined) => {
@@ -137,12 +148,12 @@ export function groupChatNotifications(input: {
     }
     return true
   }
-  const consume = async (response: Response, allowed: ReadonlySet<string>) => {
+  const consume = async (response: Response, allowed: ReadonlySet<string>, identity: string) => {
     for await (const frame of readFrames(response)) {
       // The stream is about to close: the list is read again, and reconnecting decides the rest.
-      if (frame.type === "session_revoked") return reopened()
+      if (frame.type === "session_revoked") return reopened(identity)
       const event = notificationChat(frame, allowed)
-      if (event) input.event(event.type, event.id)
+      if (event) input.event(event.type, identity, event.id)
     }
   }
   /** One org's direct stream, retried on its own so another org's failure never touches it. */
@@ -162,8 +173,8 @@ export function groupChatNotifications(input: {
           signal,
         )
         opened = true
-        reopened()
-        await consume(response, allowed)
+        reopened(request.identity)
+        await consume(response, allowed, request.identity)
       })().then(
         () => undefined,
         (cause: unknown) => cause,
@@ -205,8 +216,8 @@ export function groupChatNotifications(input: {
         if (hub) {
           // Some org's topics are missing from this token, so another one is asked for shortly.
           if (hub.token.incomplete) retry = setTimeout(cancel, 30_000)
-          reopened()
-          return consume(hub.response, allowed)
+          reopened(request.identity)
+          return consume(hub.response, allowed, request.identity)
         }
         await Promise.all([...orgs.values()].map((org) => follow(org, environment.home, allowed, attempt.signal)))
       })().then(

@@ -53,12 +53,10 @@ async function answer(request: ExcelMaterialRequest): Promise<ExcelMaterialRespo
 
 /** Never rejects, so one request cannot stop the queue behind it. */
 async function respond(request: ExcelMaterialRequest): Promise<void> {
-  let response: ExcelMaterialResponse
-  try {
-    response = await answer(request)
-  } catch {
-    response = { id: request.id, kind: "failed" }
-  }
+  const response = await answer(request).catch((): ExcelMaterialResponse => ({ id: request.id, kind: "failed" }))
+  // `postMessage` throws synchronously, and a throw here would reject the queue and stop every request
+  // behind this one. A plain try/catch rather than `Option.liftThrowable`, as the loader uses: this
+  // worker's bundle carries no effect, and one guarded call is no reason to add it.
   try {
     self.postMessage(response)
   } catch {

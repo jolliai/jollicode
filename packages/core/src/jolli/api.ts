@@ -61,6 +61,12 @@ export class JolliApiError extends Schema.TaggedErrorClass<JolliApiError>()("Jol
    * step with theirs.
    */
   explanation: Schema.optional(Schema.String),
+  /**
+   * Set when the answer came from the gateway itself: a refusal whose body is its own JSON error
+   * (`{ error, code? }`). A page that a proxy, CDN or ingress answered in its place leaves it unset, and
+   * its status says nothing the gateway decided. Only group chat reads record it.
+   */
+  fromGateway: Schema.optional(Schema.Boolean),
   message: Schema.String,
   cause: Schema.optional(Schema.Defect()),
 }) {}

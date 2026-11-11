@@ -1,6 +1,7 @@
 import { Option, Schema } from "effect"
 import type { Jolli } from "@opencode-ai/schema/jolli"
 import { parseOrgScopedId } from "@opencode-ai/core/jolli/org-scoped-id"
+import { safeReferenceUrl } from "./external-link"
 
 const PositiveInt = Schema.Int.check(Schema.isGreaterThan(0), Schema.isLessThanOrEqualTo(Number.MAX_SAFE_INTEGER))
 const Locator = Schema.Union([
@@ -111,44 +112,40 @@ export function groupChatSourceGroups(sources: readonly GroupChatSource[]) {
 }
 
 export function groupChatSourceUrl(source: GroupChatSource, chat: Jolli.GroupChat, staff: boolean) {
-  if (source.kind === "web") return webUrl(source.url)
+  if (source.kind === "web") {
+    const address = safeReferenceUrl(source.url)
+    return address ? new URL(address) : undefined
+  }
   if (source.kind === "material") {
     const successor = source.unavailable && !source.assignment ? source.replacedBy : undefined
     if (source.unavailable && !successor) return undefined
-    if (!source.unavailable && source.sourceUrl) {
-      const address = webUrl(source.sourceUrl)
-      if (address) {
-        const heading = source.locator?.kind === "heading" ? source.locator.path.at(-1)?.trim() : undefined
-        if (heading) address.hash += `:~:text=${encodeURIComponent(heading).replaceAll("-", "%2D")}`
-        return address
-      }
+    const address = source.unavailable ? undefined : safeReferenceUrl(source.sourceUrl)
+    if (address) {
+      const url = new URL(address)
+      const heading = source.locator?.kind === "heading" ? source.locator.path.at(-1)?.trim() : undefined
+      if (heading) url.hash += `:~:text=${encodeURIComponent(heading).replaceAll("-", "%2D")}`
+      return url
     }
     if (!staff && !source.assignment && source.studentAccess !== "download" && !successor) return undefined
-    const base = webUrl(chat.webBaseUrl)
+    const base = safeReferenceUrl(chat.webBaseUrl)
     const course = parseOrgScopedId(chat.courseId)
     if (!base || !course) return undefined
     const prefix = staff ? "courses" : "learn"
     if (source.assignment)
       return new URL(
-        `${base.href.replace(/\/$/, "")}/${prefix}/${source.assignment.courseId}/assignments/${source.id}${staff ? "/preview" : ""}`,
+        `${base.replace(/\/$/, "")}/${prefix}/${source.assignment.courseId}/assignments/${source.id}${staff ? "/preview" : ""}`,
       )
-    const url = new URL(`${base.href.replace(/\/$/, "")}/${prefix}/${course.id}/materials/${successor ?? source.id}`)
+    const url = new URL(`${base.replace(/\/$/, "")}/${prefix}/${course.id}/materials/${successor ?? source.id}`)
     if (!successor && source.locator?.kind === "page") url.searchParams.set("page", String(source.locator.page))
     if (!successor && source.locator?.kind === "heading")
       source.locator.path.forEach((heading) => url.searchParams.append("heading", heading))
     return url
   }
-  const base = webUrl(chat.webBaseUrl)
+  const base = safeReferenceUrl(chat.webBaseUrl)
   if (!base) return undefined
   const url = new URL(
-    `${base.href.replace(/\/$/, "")}/${staff ? "courses" : "learn"}/${source.courseId}/assignments/${source.assignmentId}`,
+    `${base.replace(/\/$/, "")}/${staff ? "courses" : "learn"}/${source.courseId}/assignments/${source.assignmentId}`,
   )
   if (source.taskId) url.hash = `task-${source.taskId}`
   return url
-}
-
-function webUrl(value: string | undefined) {
-  if (!value || !URL.canParse(value)) return undefined
-  const url = new URL(value)
-  return url.protocol === "http:" || url.protocol === "https:" ? url : undefined
 }

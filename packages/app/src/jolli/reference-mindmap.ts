@@ -9,7 +9,8 @@ export type ReferenceMapTopic = {
   image?: string
   parts: { id: number; title: string }[]
 }
-function record(value: Schema.Json | undefined) {
+/** A JSON value's fields when it is an object, else nothing. */
+export function jsonRecord(value: Schema.Json | undefined) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? Object.fromEntries(Object.entries(value))
     : undefined
@@ -18,18 +19,18 @@ export function referenceMindMap(value: Schema.Json) {
   const seen = new Set<string>()
   let partial = false
   const parse = (value: Schema.Json, depth: number): ReferenceMapTopic | undefined => {
-    const node = record(value)
+    const node = jsonRecord(value)
     if (!node || typeof node.oid !== "string" || seen.has(node.oid)) return undefined
     if (seen.size >= 2000 || depth > 64) {
       partial = true
       return undefined
     }
     seen.add(node.oid)
-    const link = record(node.link)
-    const image = record(node.image)
+    const link = jsonRecord(node.link)
+    const image = jsonRecord(node.image)
     const attachments = Array.isArray(node.attachments)
       ? node.attachments.flatMap((value) => {
-          const part = record(value)
+          const part = jsonRecord(value)
           return typeof part?.materialId === "number"
             ? [{ id: part.materialId, title: typeof part.name === "string" ? part.name : "" }]
             : []
@@ -57,7 +58,7 @@ export function referenceMindMap(value: Schema.Json) {
         : [],
     }
   }
-  const data = record(value)
+  const data = jsonRecord(value)
   const roots = [data?.root ?? null, ...(Array.isArray(data?.floating) ? data.floating : [])].flatMap((value) => {
     const result = parse(value, 0)
     return result ? [result] : []

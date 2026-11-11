@@ -1,30 +1,36 @@
-import { Effect } from "effect"
 import type { Jolli } from "@opencode-ai/schema/jolli"
+import { Option, Schema } from "effect"
 import { JolliApiError, scopedRequest, type GatewayRequest } from "./api"
-import { chatRequest, fetchGroupResource, openChat } from "./group-chat"
+import { chatCourse, chatRequest, fetchGroupResource, groupJson } from "./group-chat"
 import { parseOrgScopedId } from "./org-scoped-id"
 
 /**
  * Read through the same authorized routes as the web chat reference viewers.
  *
- * A group reference opens its chat on every read, though it needs only the chat's course: that open
- * read is the access recheck, so a reader removed from the chat stops reading its references at once.
- * The home org and viewer the open also asks for come from memory after the chat's first open.
+ * A group reference never reads its chat's transcript: an attachment is described by the chat's address
+ * route, and a course's reference needs only the chat's course, which is remembered after the chat's
+ * first open. Every content route checks access itself: attachment addresses by the chat, course routes
+ * by the course.
  */
+/** The address route's description of each file; only the fields of each attachment pass through as sent. */
+const AttachmentDescriptions = Schema.Struct({
+  attachments: Schema.Record(
+    Schema.String,
+    Schema.Struct({ attachment: Schema.Record(Schema.String, Schema.Json) }),
+  ).pipe(Schema.optional),
+})
+
 export async function readJolliReference(request: GatewayRequest, input: Jolli.ReferenceRequest): Promise<unknown> {
-  const chat =
-    input.target.kind === "group" ? await Effect.runPromise(openChat(request, input.target.chatID)) : undefined
-  const course = parseOrgScopedId(chat?.courseId ?? (input.target.kind === "course" ? input.target.courseId : ""))
-  if (input.target.kind === "course" && !course)
+  const target = input.target
+  const course = target.kind === "course" ? parseOrgScopedId(target.courseId) : undefined
+  if (target.kind === "course" && !course)
     throw new JolliApiError({ path: "reference", status: 400, message: "Invalid reference course" })
-  const target =
-    input.target.kind === "group"
-      ? chatRequest(request, input.target.chatID)
-      : { request: scopedRequest(request, course?.org), path: "" }
+  const chat = target.kind === "group" ? chatRequest(request, target.chatID) : undefined
+  const scope = chat?.request ?? scopedRequest(request, course?.org)
   const reference = input.reference
   const invalid = () => new JolliApiError({ path: "reference", status: 400, message: "Invalid reference operation" })
   const read = async (path: string, method = "GET", body?: object) =>
-    (await fetchGroupResource(target.request, path, method, body)).json()
+    groupJson(await fetchGroupResource(scope, path, method, body), path)
   if (reference.kind === "artifact") {
     if (!/^[A-Za-z0-9_-]{1,200}$/.test(reference.artifactId)) throw invalid()
     if (reference.version !== undefined && (!Number.isSafeInteger(reference.version) || reference.version <= 0))
@@ -38,48 +44,38 @@ export async function readJolliReference(request: GatewayRequest, input: Jolli.R
     throw invalid()
   }
   if (reference.kind === "attachment") {
-    if (!chat) throw invalid()
+    if (target.kind !== "group" || !chat) throw invalid()
     if (!Number.isSafeInteger(reference.attachmentId) || reference.attachmentId <= 0) throw invalid()
     if (input.operation === "read") {
-      const attachment = chat.messages
-        .flatMap((message) => {
-          const payload = message.payload
-          return payload &&
-            typeof payload === "object" &&
-            !Array.isArray(payload) &&
-            "attachments" in payload &&
-            Array.isArray(payload.attachments)
-            ? payload.attachments
-            : []
-        })
-        .find(
-          (value) =>
-            value &&
-            typeof value === "object" &&
-            !Array.isArray(value) &&
-            "attachmentId" in value &&
-            value.attachmentId === reference.attachmentId,
-        )
-      if (!attachment) throw new JolliApiError({ path: "reference", status: 404, message: "Chat attachment not found" })
-      return attachment
+      // The address route also describes each file as it stands now, which is what the reader needs (its
+      // type, and whether it is still being processed), without reading the chat's whole transcript.
+      const described = Option.getOrUndefined(
+        Schema.decodeUnknownOption(AttachmentDescriptions)(
+          await read(`${chat.path}/attachment-urls`, "POST", { attachmentIds: [reference.attachmentId] }),
+        ),
+      )?.attachments?.[String(reference.attachmentId)]?.attachment
+      if (!described) throw new JolliApiError({ path: "reference", status: 404, message: "Chat attachment not found" })
+      return { ...described, attachmentId: reference.attachmentId }
     }
     if (input.operation === "content")
-      return read(`${target.path}/attachment-urls`, "POST", { attachmentIds: [reference.attachmentId] })
+      return read(`${chat.path}/attachment-urls`, "POST", { attachmentIds: [reference.attachmentId] })
     if (input.operation === "page")
-      return read(`${target.path}/attachment-page-urls`, "POST", { attachmentIds: [reference.attachmentId] })
+      // One file per request, named in the singular: unlike `attachment-urls`, this route reads `attachmentId`.
+      return read(`${chat.path}/attachment-page-urls`, "POST", { attachmentId: reference.attachmentId })
     throw invalid()
   }
-  if (!course) throw invalid()
+  const courseId = target.kind === "group" ? await chatCourse(request, target.chatID) : course?.id
+  if (courseId === undefined) throw invalid()
   if (reference.kind === "assignmentFile" || reference.kind === "assignmentDoc") {
     if (
-      reference.courseId !== course.id ||
+      reference.courseId !== courseId ||
       !Number.isSafeInteger(reference.assignmentId) ||
       reference.assignmentId <= 0 ||
       !Number.isSafeInteger(reference.taskId) ||
       reference.taskId <= 0
     )
       throw invalid()
-    const path = `/api/courses/${course.id}/assignments/${reference.assignmentId}/parts/${reference.taskId}`
+    const path = `/api/courses/${courseId}/assignments/${reference.assignmentId}/parts/${reference.taskId}`
     if (reference.kind === "assignmentFile") {
       if (!Number.isSafeInteger(reference.fileId) || reference.fileId <= 0) throw invalid()
       if (input.operation === "read" || input.operation === "content")
@@ -96,20 +92,16 @@ export async function readJolliReference(request: GatewayRequest, input: Jolli.R
     return read(`${path}/${reference.submitted ? "handed-in-docs" : "docs"}/${reference.docId}`)
   }
   if (reference.kind === "assignment") {
-    if (
-      reference.courseId !== course.id ||
-      !Number.isSafeInteger(reference.assignmentId) ||
-      reference.assignmentId <= 0
-    )
+    if (reference.courseId !== courseId || !Number.isSafeInteger(reference.assignmentId) || reference.assignmentId <= 0)
       throw invalid()
     if (input.operation !== "read") throw invalid()
     return read(
-      `/api/courses/${course.id}/assignments/${reference.assignmentId}/${reference.staffView ? "preview" : "student-view"}`,
+      `/api/courses/${courseId}/assignments/${reference.assignmentId}/${reference.staffView ? "preview" : "student-view"}`,
     )
   }
   if (!Number.isSafeInteger(reference.materialId) || reference.materialId <= 0) throw invalid()
   if (input.operation === "plan") throw invalid()
   const suffix = { read: "view", content: "content", page: "page-url", map: "map" }[input.operation]
   if (!suffix) throw invalid()
-  return read(`/api/courses/${course.id}/materials/${reference.materialId}/${suffix}`)
+  return read(`/api/courses/${courseId}/materials/${reference.materialId}/${suffix}`)
 }

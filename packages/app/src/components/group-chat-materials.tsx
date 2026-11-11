@@ -4,10 +4,11 @@ import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from "@op
 import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { useServerSDK } from "@/context/server-sdk"
+import { ServerConnection } from "@/context/server"
 import { useLanguage } from "@/context/language"
 import { Schema } from "effect"
 import { MaterialList, type ChatMaterial } from "@/jolli/group-chat-media"
-import { decodeChatAnswer } from "@/jolli/group-chat"
+import { decodeChatAnswer, useCloseOnGroupChatReset, useGroupChatAccount } from "@/jolli/group-chat"
 export function GroupChatMaterialsDialog(props: {
   courseId: string
   selected: readonly number[]
@@ -16,8 +17,12 @@ export function GroupChatMaterialsDialog(props: {
   const sdk = useServerSDK()
   const language = useLanguage()
   const dialog = useDialog()
+  const account = useGroupChatAccount()
+  useCloseOnGroupChatReset()
   const [materials] = createResource(async () => {
     const answer = decodeChatAnswer((await sdk().client.jolli.groupChatMaterials({ courseId: props.courseId })).data)
+    // The window drops the server's chats, and this dialog closes with them.
+    if (answer.status === "signed-out") account.signOut(ServerConnection.key(sdk().server))
     if (answer.status !== "ok") throw new Error("Course materials unavailable")
     const list = Schema.decodeUnknownSync(MaterialList)(answer.resource)
     return Array.isArray(list) ? list : "readings" in list ? list.readings : "materials" in list ? list.materials : []

@@ -390,18 +390,6 @@
   }
 }
 
-.conversation-reference-main {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-}
-.group-chat-workspace-expanded > .conversation-reference-main {
-  display: none;
-}
-
 .reference-map {
   display: flex;
   flex: 1;

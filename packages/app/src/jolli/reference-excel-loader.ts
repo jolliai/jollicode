@@ -5,6 +5,7 @@ import type {
   ExcelPendingRequest,
   ExcelWorkerMessage,
 } from "./reference-excel-types"
+import { Option } from "effect"
 import { READER_EXCEL_START_TIMEOUT_MS, READER_EXCEL_TIMEOUT_MS } from "./reference-reader-limits"
 
 /**
@@ -64,11 +65,8 @@ export async function openExcelMaterial(bytes: Uint8Array, signal: AbortSignal):
     }
     inFlight = next
     next.timer = setTimeout(close, READER_EXCEL_TIMEOUT_MS)
-    try {
-      worker.postMessage(next.message, next.transfer)
-    } catch {
-      close()
-    }
+    // A message the worker cannot be handed closes the preview, as a worker that stopped answering does.
+    if (Option.isNone(Option.liftThrowable(() => worker.postMessage(next.message, next.transfer))())) close()
   }
 
   function request(command: ExcelMaterialCommand, transfer: Array<Transferable> = []): Promise<ExcelMaterialResponse> {
@@ -127,29 +125,29 @@ export async function openExcelMaterial(bytes: Uint8Array, signal: AbortSignal):
     close()
   }
 
-  try {
-    const buffer =
-      bytes.buffer instanceof ArrayBuffer && bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
-        ? bytes.buffer
-        : bytes.slice().buffer
-    const opened = await request({ kind: "open", bytes: buffer }, [buffer])
-    if (opened.kind !== "opened") {
-      throw new Error("Invalid workbook response")
-    }
-    return {
-      sheetNames: opened.sheetNames,
-      partial: opened.partial,
-      async readSheet(name) {
-        const response = await request({ kind: "sheet", name })
-        if (response.kind !== "sheet") {
-          throw new Error("Invalid worksheet response")
-        }
-        return response.preview
-      },
-      close,
-    }
-  } catch (error) {
+  const buffer =
+    bytes.buffer instanceof ArrayBuffer && bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
+      ? bytes.buffer
+      : bytes.slice().buffer
+  // A workbook that does not open releases its worker before the failure reaches the caller.
+  const opened = await request({ kind: "open", bytes: buffer }, [buffer]).catch((error: unknown) => {
     close()
     throw error
+  })
+  if (opened.kind !== "opened") {
+    close()
+    throw new Error("Invalid workbook response")
+  }
+  return {
+    sheetNames: opened.sheetNames,
+    partial: opened.partial,
+    async readSheet(name) {
+      const response = await request({ kind: "sheet", name })
+      if (response.kind !== "sheet") {
+        throw new Error("Invalid worksheet response")
+      }
+      return response.preview
+    },
+    close,
   }
 }

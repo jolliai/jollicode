@@ -13,8 +13,16 @@ import { useNavigate } from "@solidjs/router"
 import { Jolli } from "@opencode-ai/schema/jolli"
 import { memberActions, isAttemptChat } from "@opencode-ai/core/jolli/group-chat-rules"
 import { courseById, listedCourses } from "@/jolli/catalog"
-import { groupChatCourses } from "@/jolli/group-chat-state"
-import { decodeChatAnswer, groupChatRefusal, type GroupChatRefusal } from "@/jolli/group-chat"
+import { groupChatCourses, groupChatDrops } from "@/jolli/group-chat-state"
+import {
+  decodeChatAnswer,
+  groupChatActionNotice,
+  groupChatOutcomeUnknown,
+  groupChatRefusal,
+  useCloseOnGroupChatReset,
+  useGroupChatAccount,
+  type GroupChatRefusal,
+} from "@/jolli/group-chat"
 import { showToast } from "@/utils/toast"
 import { groupChatHref } from "@/utils/session-route"
 import { ConversationDialog } from "@/components/conversation-dialog"
@@ -27,6 +35,7 @@ export function GroupChatConfirmation(props: {
 }) {
   const dialog = useDialog()
   const language = useLanguage()
+  useCloseOnGroupChatReset()
   return (
     <Dialog fit>
       <DialogHeader>
@@ -60,6 +69,8 @@ export function GroupChatPeopleDialog(props: {
   const language = useLanguage()
   const dialog = useDialog()
   const sdk = useServerSDK()
+  const account = useGroupChatAccount()
+  useCloseOnGroupChatReset()
   const [state, setState] = createStore<{
     search: string
     title: string
@@ -71,6 +82,8 @@ export function GroupChatPeopleDialog(props: {
     () => (actions().add && !props.disabled ? props.chat.courseId : undefined),
     async (courseId) => {
       const answer = decodeChatAnswer((await sdk().client.jolli.groupChatPeople({ courseId })).data)
+      // The window drops the server's chats, and this dialog closes with them.
+      if (answer.status === "signed-out") account.signOut(ServerConnection.key(sdk().server))
       if (answer.status !== "ok") throw new Error("Course people unavailable")
       return answer.people ?? []
     },
@@ -91,22 +104,29 @@ export function GroupChatPeopleDialog(props: {
       )
       .slice(0, 30),
   )
+  /**
+   * `action` reads the chat back after a change whose answer was lost, and this dialog follows that read,
+   * so the change shows here if it was made; the notice says only that the chat could not be reached.
+   */
   const run = async (body: Jolli.GroupChatAction) => {
     setState({ busy: true, failed: undefined })
     const answer = await props.action(body).catch(() => undefined)
-    setState("busy", false)
-    if (answer?.status === "ok" || answer?.status === "revoked") return
-    setState("failed", answer ? groupChatRefusal(answer, "action") : { key: "groupChat.actionFailed" })
+    setState({ busy: false, failed: groupChatActionNotice(answer) })
   }
-  /** A change confirmed in a dialog of its own: this one is closed by then, so a refusal is told in a toast. */
+  /**
+   * A change confirmed in a dialog of its own: this one is closed by then, so a refusal is told in a toast.
+   * The reader's own leave with no answer is told by `action`, which reads the chat back and keeps the
+   * leave's mark: the chat closing then is the leave going through.
+   */
   const confirmed = (body: Jolli.GroupChatAction) =>
     void props
       .action(body)
       .catch(() => undefined)
       .then((answer) => {
-        if (answer?.status === "ok" || answer?.status === "revoked") return
-        const refusal = answer ? groupChatRefusal(answer, "action") : { key: "groupChat.actionFailed" as const }
-        showToast({ variant: "error", title: refusal.message ?? language.t(refusal.key) })
+        const own = body.type === "remove" && body.userId === props.chat.viewerId
+        if (own && groupChatOutcomeUnknown(answer)) return
+        const notice = groupChatActionNotice(answer)
+        if (notice) showToast({ variant: "error", title: notice.message ?? language.t(notice.key) })
       })
   return (
     <Dialog fit>
@@ -241,6 +261,8 @@ export function GroupChatCreateDialog(props: { courseId?: string; onBack?: () =>
   const server = useServer()
   const dialog = useDialog()
   const navigate = useNavigate()
+  const account = useGroupChatAccount()
+  useCloseOnGroupChatReset()
   const [state, setState] = createStore<{
     course: string
     search: string
@@ -261,6 +283,8 @@ export function GroupChatCreateDialog(props: { courseId?: string; onBack?: () =>
     () => state.course || undefined,
     async (courseId) => {
       const answer = decodeChatAnswer((await sdk().client.jolli.groupChatPeople({ courseId })).data)
+      // The window drops the server's chats, and this dialog closes with them.
+      if (answer.status === "signed-out") account.signOut(ServerConnection.key(sdk().server))
       if (answer.status !== "ok") throw new Error("Unable to load group chat participants")
       return answer.people ?? []
     },
@@ -273,27 +297,34 @@ export function GroupChatCreateDialog(props: { courseId?: string; onBack?: () =>
   const create = async () => {
     if (!state.course || !state.selected.length || state.busy || people.loading || people.error) return
     setState({ busy: true, error: undefined })
-    try {
-      const answer = decodeChatAnswer(
-        (
-          await sdk().client.jolli.groupChatCreate({
-            courseId: state.course,
-            participantIds: state.selected,
-            ...(state.title.trim() ? { title: state.title.trim() } : {}),
-          })
-        ).data,
-      )
-      if (answer.status !== "ok" || !answer.createdId) {
-        setState("error", groupChatRefusal(answer, "action"))
-        return
-      }
-      dialog.close()
-      navigate(groupChatHref(ServerConnection.key(sdk().server) ?? server.key, answer.createdId))
-    } catch {
-      setState("error", { key: "groupChat.actionFailed" })
-    } finally {
-      setState("busy", false)
+    const key = ServerConnection.key(sdk().server)
+    const drops = groupChatDrops(key)
+    const answer = await sdk()
+      .client.jolli.groupChatCreate({
+        courseId: state.course,
+        participantIds: state.selected,
+        ...(state.title.trim() ? { title: state.title.trim() } : {}),
+      })
+      .then((response) => decodeChatAnswer(response.data))
+      .catch(() => undefined)
+    // Dropped meanwhile (the credential went away or someone else signed in): the chat is not opened for them.
+    if (drops !== groupChatDrops(key)) return
+    if (answer?.status === "signed-out") {
+      account.signOut(key)
+      return
     }
+    setState("busy", false)
+    // A create with no answer that names the chat may have made it, which the list shows when it is next
+    // read: it is not told as not made.
+    if (!answer || answer.status !== "ok" || !answer.createdId) {
+      setState(
+        "error",
+        answer && answer.status !== "ok" ? groupChatRefusal(answer, "action") : { key: "groupChat.unavailable" },
+      )
+      return
+    }
+    dialog.close()
+    navigate(groupChatHref(key ?? server.key, answer.createdId))
   }
   return (
     <ConversationDialog title={language.t("groupChat.new")} onBack={props.onBack} busy={state.busy}>

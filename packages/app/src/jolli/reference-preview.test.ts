@@ -1,17 +1,21 @@
 import { describe, expect, test } from "bun:test"
+import { createServer } from "node:http"
 import JSZip from "jszip"
 import { utils, write } from "xlsx"
-import { guardExternalLinks } from "./external-link"
+import { guardExternalLinks, safeReferenceUrl } from "./external-link"
 import { prepareDocxPackage } from "./reference-docx-package"
 import { READER_DOCX_ENTRIES, READER_DOCX_INFLATED_BYTES } from "./reference-reader-limits"
 import { materialViewerKind } from "./reference-viewer-kind"
 import {
+  readReference,
   scopedReferencePreview,
   referenceCourseTarget,
   ReferenceAssignment,
-  safeReferenceUrl,
+  ReferenceSignedOutError,
+  ReferenceUnavailableError,
   type ReferencePreview,
 } from "./reference-preview"
+import type { ServerSDK } from "@/context/server-sdk"
 import { Schema } from "effect"
 import { Jolli } from "@opencode-ai/schema/jolli"
 import { assignmentReferenceStatus } from "./reference-assignment-status"
@@ -233,6 +237,40 @@ describe("links inside previewed content", () => {
     heading.cleanup()
   })
 
+  test("an in-content link scrolls to its target inside the guarded content, never navigates, and never reaches outside", () => {
+    const root = document.createElement("div")
+    root.innerHTML =
+      '<a id="jump" href="#user-content-week-2"><span>Week 2</span></a>' +
+      '<a id="named" href="#user-content-notes">Notes</a>' +
+      '<a id="encoded" href="#user-content-caf%C3%A9">Cafe</a>' +
+      '<a id="missing" href="#user-content-elsewhere">Elsewhere</a>' +
+      '<h2 id="user-content-week-2">Week 2</h2><a name="user-content-notes"></a><h3 id="user-content-caf\u00e9">Cafe</h3>'
+    const outside = document.createElement("h2")
+    outside.id = "user-content-elsewhere"
+    document.body.append(root, outside)
+    const scrolled: string[] = []
+    for (const element of [...Array.from(root.querySelectorAll("h2, h3, a[name]")), outside])
+      Object.defineProperty(element, "scrollIntoView", {
+        value: () => scrolled.push(element.id || (element.getAttribute("name") ?? "")),
+      })
+    const opened: string[] = []
+    const release = guardExternalLinks(root, { open: (url) => opened.push(url) })
+    const press = (id: string) => {
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true })
+      // The label inside the link where it has one, as a real click would land.
+      const anchor = root.querySelector(`#${id}`)
+      const target = anchor?.firstElementChild ?? anchor
+      target?.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    expect(["jump", "named", "encoded", "missing"].map(press)).toEqual([true, true, true, true])
+    expect(scrolled).toEqual(["user-content-week-2", "user-content-notes", "user-content-caf\u00e9"])
+    expect(opened).toEqual([])
+    release()
+    root.remove()
+    outside.remove()
+  })
+
   test("a link the parent window made is still caught inside a frame whose window has classes of its own", () => {
     // docx-preview makes a Word document's nodes with the parent's `document` and moves them into its
     // frame, where they keep the parent window's prototypes: the frame's `Element` and `MouseEvent` are
@@ -323,5 +361,87 @@ describe("Word documents are bounded before they are unzipped or rendered", () =
     view.setUint16(end + 8, 1, true)
     view.setUint16(end + 10, 1, true)
     expect(await refusal(bytes)).toBeInstanceOf(Error)
+  })
+})
+
+describe("reading a reference", () => {
+  test("only the server's answer that a reference is gone or withheld reads as unavailable", async () => {
+    const answers: unknown[] = [
+      { status: "ok", resource: { title: "Plan" } },
+      { status: "refused", httpStatus: 404, message: "Artifact not found" },
+      { status: "refused", httpStatus: 410, message: "Artifact was deleted" },
+      { status: "refused", httpStatus: 403, message: "Not allowed" },
+      { status: "revoked", httpStatus: 404 },
+      { status: "ok" },
+      // A 403 that names a code turns the request away, not the reference: it may be read again.
+      { status: "refused", httpStatus: 403, code: "tenant_resolution_failed" },
+      { status: "refused", httpStatus: 403, code: "sso_required" },
+      { status: "refused", httpStatus: 403, code: "not_allowed" },
+      { status: "refused", httpStatus: 409, code: "account_changed" },
+      { status: "refused", httpStatus: 429 },
+      // A lost sign-in says nothing about the reference, but is told apart: the window drops the server's chats.
+      { status: "signed-out", httpStatus: 401 },
+      { status: "unreachable" },
+      // A proxy's or firewall's page carries no sentence from the server: it is tried again, never final.
+      { status: "refused", httpStatus: 404 },
+      { status: "refused", httpStatus: 403 },
+    ]
+    const server = createServer((request, response) => {
+      const cors = {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, OPTIONS",
+        "access-control-allow-headers": "content-type",
+      }
+      if (request.method === "OPTIONS") {
+        response.writeHead(204, cors)
+        response.end()
+        return
+      }
+      response.writeHead(200, { ...cors, "content-type": "application/json" })
+      response.end(JSON.stringify(answers.shift()))
+    })
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
+    const address = server.address()
+    if (!address || typeof address === "string") throw new Error("Reference test server did not bind")
+    const url = `http://127.0.0.1:${address.port}`
+    const sdk = { url, server: { http: { url } } } as unknown as ServerSDK
+    const read = () =>
+      readReference(
+        sdk,
+        { kind: "group", chatID: Jolli.GroupChatID.make("school:course:chat-1") },
+        {
+          kind: "artifact",
+          artifactId: "a1",
+        },
+      ).then(
+        () => "read",
+        (error: unknown) =>
+          error instanceof ReferenceUnavailableError
+            ? "unavailable"
+            : error instanceof ReferenceSignedOutError
+              ? "signed-out"
+              : "failed",
+      )
+    const outcomes: string[] = []
+    // Each read takes the next answer.
+    while (answers.length) outcomes.push(await read())
+    server.close()
+    expect(outcomes).toEqual([
+      "read",
+      "unavailable",
+      "unavailable",
+      "unavailable",
+      "unavailable",
+      "unavailable",
+      "failed",
+      "failed",
+      "failed",
+      "failed",
+      "failed",
+      "signed-out",
+      "failed",
+      "failed",
+      "failed",
+    ])
   })
 })

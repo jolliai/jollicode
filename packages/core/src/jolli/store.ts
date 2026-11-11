@@ -1,4 +1,4 @@
-import { makeGroupChatCache, type GroupChatCache } from "./group-chat-cache"
+import { groupChatOwner, makeGroupChatCache, type GroupChatCache } from "./group-chat-cache"
 export * as JolliStore from "./store"
 
 import { randomUUID } from "node:crypto"
@@ -54,7 +54,11 @@ export interface Interface {
    * every later refresh to the auth hub instead of the tenant, permanently, over one bad read.
    */
   readonly persistToken: (input: Rotation) => Effect.Effect<void>
-  /** Removes the credential and clears the active pointer. */
+  /**
+   * Removes the credential and clears the active pointer, and every offline group chat copy with it. Sign-out
+   * and a credential that expired both come here, and neither knows who signs in next; the same person's next
+   * credential gets a new key anyway, so a copy kept for them could never be read again.
+   */
   readonly remove: (id: string) => Effect.Effect<void>
 }
 
@@ -88,9 +92,25 @@ const layer = Layer.effect(
 
       persist: Effect.fn("JolliStore.persist")(function* (input) {
         const id = input.subject ?? DEFAULT_ID
-        chatCache.forget()
-        // Minted once per call so the insert and the subjectless update below agree on it.
-        const identity = randomUUID()
+        // The key this sign-in leaves on the row (see the upsert below): the one the subject's credential still
+        // has, or one minted once per call, so the insert and the update agree on it. The offline group chat
+        // copies filed under it are this account's and stay; every other account's go, and their reads still
+        // under way are dropped. A credential that was removed (signed out or expired) took every copy with it,
+        // so signing in after that starts with none.
+        const existing = id === DEFAULT_ID ? undefined : yield* read(id)
+        // ⚠ THE SAME SUBJECT AT ANOTHER DEPLOYMENT OR TENANT IS SOMEBODY ELSE: each numbers its users itself, so
+        // user 42 there is not user 42 here, and keeping the key would hand them this one's courses and chats.
+        const identity =
+          existing &&
+          groupChatOwner(existing) ===
+            groupChatOwner({
+              base_url: input.baseUrl ?? null,
+              subject: input.subject ?? null,
+              cache_key: existing.cache_key,
+            })
+            ? existing.cache_key
+            : randomUUID()
+        chatCache.forget(identity)
         /**
          * ⚠ EVERY NULLABLE FIELD IS WRITTEN EXPLICITLY, INCLUDING WHEN IT IS ABSENT. Omitting a key
          * from `set` tells drizzle to leave the old value alone, which would keep a tenant the new
@@ -113,7 +133,8 @@ const layer = Layer.effect(
                 /**
                  * ⚠ THE IDENTITY SURVIVES A RE-SIGN-IN, BECAUSE RE-MINTING IT WOULD ORPHAN THE
                  * PREVIOUS CATALOGUE SNAPSHOT — the cold three-request reload on the startup path
-                 * that `jolli/cache.ts` keys its filename to avoid. So it is absent from `set`.
+                 * that `jolli/cache.ts` keys its filename to avoid. So `set` writes back the key the
+                 * row already has, unless the same subject now signs in at another tenant (above).
                  *
                  * ⚠ EXCEPT ON THE SUBJECTLESS ROW, WHERE KEEPING IT SERVED ONE STUDENT'S COURSES TO
                  * THE NEXT. `sub` is optional on the wire (`exchange.ts` tolerates its absence), and
@@ -124,11 +145,14 @@ const layer = Layer.effect(
                  * Without a subject there is nothing to tell a re-sign-in from a different person,
                  * and a cold reload is the cheaper of the two things to be wrong about.
                  */
-                .onConflictDoUpdate({
-                  target: JolliCredentialTable.id,
-                  set: id === DEFAULT_ID ? { ...fields, cache_key: identity } : fields,
-                })
+                .onConflictDoUpdate({ target: JolliCredentialTable.id, set: { ...fields, cache_key: identity } })
                 .run()
+              /**
+               * ⚠ SIGNING IN OVER THE SAME PERSON'S CREDENTIAL KEEPS THEIR OFFLINE GROUP CHATS; NOBODY ELSE'S
+               * SURVIVE. Only while that credential is stored: one that expired was removed with every copy
+               * (see `remove`). The upsert above writes `identity` as the row's key either way, so it files them.
+               */
+              yield* tx.delete(JolliGroupChatCacheTable).where(ne(JolliGroupChatCacheTable.account_id, identity)).run()
               /**
                * ⚠ SIGNING IN IS SIGNING IN AS SOMEBODY, AND THE PREVIOUS SOMEBODY'S TOKENS GO WITH
                * IT. Rows are keyed by subject, so "use a different account" writes a second row
@@ -136,7 +160,6 @@ const layer = Layer.effect(
                * token readable in a database the next person on this machine shares. There is no
                * account switcher to keep them for: the interface exposes one active credential.
                */
-              yield* tx.delete(JolliGroupChatCacheTable).run()
               yield* tx.delete(JolliCredentialTable).where(ne(JolliCredentialTable.id, id)).run()
               yield* tx
                 .insert(JolliCredentialStateTable)

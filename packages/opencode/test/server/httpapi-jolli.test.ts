@@ -6,10 +6,13 @@ import { Global } from "@opencode-ai/core/global"
 import { CATALOG_SCHEMA, catalogCachePath } from "@opencode-ai/core/jolli/cache"
 import { base64Encode } from "@opencode-ai/core/util/encode"
 import { Hash } from "@opencode-ai/core/util/hash"
-import { Context, Effect, Layer, Option } from "effect"
+import { Context, Effect, Layer, ManagedRuntime, Option } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpRouter } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
-import { gatewayRequest } from "@opencode-ai/core/jolli/api"
+import { gatewayRequest, type GatewayRequest } from "@opencode-ai/core/jolli/api"
+import { groupChatOwner, makeGroupChatCache, type GroupChatCache } from "@opencode-ai/core/jolli/group-chat-cache"
+import { groupChatID } from "@opencode-ai/core/jolli/org-scoped-id"
+import { Database } from "@opencode-ai/core/database/database"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
 import { JolliStore } from "@opencode-ai/core/jolli/store"
 import { Auth } from "../../src/auth"
@@ -47,11 +50,18 @@ function apiLayer(
   refused?: (token: string) => void,
   gateway: typeof globalThis.fetch = globalThis.fetch,
   local: ReadonlyArray<Session.Info> = [],
+  /** The group chat routes reach the gateway with the global `fetch`, so their cases point it at a local server. */
+  direct?: GatewayRequest,
+  /** The offline group chat copies, for the cases that need the open route to keep one. */
+  chatCache?: GroupChatCache,
+  /** The credential `current()` answers, for the cases where it changes while a request is out. */
+  active?: () => JolliStore.Row | undefined,
 ) {
   const request =
-    credential?.baseUrl && credential.token
+    direct ??
+    (credential?.baseUrl && credential.token
       ? gatewayRequest(credential.baseUrl, { token: credential.token, identity: IDENTITY })
-      : undefined
+      : undefined)
   /**
    * ⚠ `current()` IS MOCKED SEPARATELY FROM `request()` BECAUSE THE HANDLER READS THEM SEPARATELY,
    * and that separation is the behaviour under test: the viewer comes off the stored token without
@@ -88,7 +98,9 @@ function apiLayer(
     Layer.provideMerge(NodeHttpServer.layerTest),
     Layer.provide(
       Layer.mock(JolliSession.Service)({
-        current: () => Effect.succeed(row),
+        // Declared even when absent: `Layer.mock` answers an unmocked member with a dying effect, not undefined.
+        chatCache,
+        current: () => Effect.sync(() => (active ? active() : row)),
         request: () => Effect.succeed(request),
         /**
          * ⚠ DECLARED EVEN WHERE NO CASE CALLS IT, because the handler reaches for it on a refused
@@ -905,5 +917,277 @@ describe("jolli HttpApi — an assignment", () => {
       yield* HttpClientRequest.get(assignmentPath("7", "41")).pipe(HttpClient.execute)
       expect(reads()).toBe(2)
     }),
+  )
+})
+
+/** What a fake gateway was asked to point each composer at. */
+const targets: unknown[] = []
+const groupGateway = Bun.serve({
+  port: 0,
+  hostname: "127.0.0.1",
+  async fetch(request) {
+    if (new URL(request.url).pathname !== "/api/agent/convos/chat-1/composer-target")
+      return Response.json({ error: "Unexpected fake route" }, { status: 404 })
+    targets.push(await request.json())
+    return new Response(null, { status: 204 })
+  },
+})
+afterAll(() => groupGateway.stop(true))
+const groupChats = testEffect(
+  apiLayer({ token: TOKEN, baseUrl: TENANT }, undefined, undefined, [], {
+    origin: groupGateway.url.origin,
+    token: TOKEN,
+    identity: IDENTITY,
+  }),
+)
+
+describe("jolli HttpApi — group chat composer target", () => {
+  const path = `/jolli/group-chat/${encodeURIComponent("school:org:chat-1")}/composer-target`
+
+  groupChats.live(
+    "a request with no body, as the generated client sends for the whole group, points at the group",
+    () =>
+      Effect.gen(function* () {
+        targets.length = 0
+        const bare = yield* HttpClientRequest.put(path).pipe(HttpClient.execute)
+        expect(bare.status).toBe(200)
+        expect(yield* bare.json).toEqual({ status: "ok" })
+        // An empty body that still names JSON as its type is the same request.
+        const typed = yield* HttpClientRequest.put(path).pipe(
+          HttpClientRequest.setHeader("content-type", "application/json"),
+          HttpClient.execute,
+        )
+        expect(typed.status).toBe(200)
+        for (const body of [{}, { assistantId: 21 }]) {
+          const response = yield* HttpClientRequest.put(path).pipe(
+            HttpClientRequest.bodyJsonUnsafe(body),
+            HttpClient.execute,
+          )
+          expect(response.status).toBe(200)
+        }
+        expect(targets).toEqual([
+          { assistantId: null },
+          { assistantId: null },
+          { assistantId: null },
+          { assistantId: 21 },
+        ])
+      }),
+  )
+})
+
+/** The offline copies the open route keeps, in a database that stays open for the whole file. */
+const offlineDatabase = ManagedRuntime.make(Database.layerFromPath(":memory:"))
+afterAll(() => offlineDatabase.dispose())
+const offline = makeGroupChatCache(
+  await offlineDatabase.runPromise(
+    Effect.gen(function* () {
+      return yield* Database.Service
+    }),
+  ),
+)
+const school = { tenantSlug: "school", orgSlug: "org" }
+const movingChat = groupChatID(school, "chat-9")
+let opens = 0
+/** How many of the next open reads see the chat's access move while they are out, as a membership change does. */
+let moving = 0
+/** Whether the viewer lookup fails, as it does when `/api/profile` cannot be reached. */
+let profileFails = false
+const openGateway = Bun.serve({
+  port: 0,
+  hostname: "127.0.0.1",
+  async fetch(request) {
+    const path = new URL(request.url).pathname
+    if (path === "/api/me/courses") return Response.json({ home: school, courses: [{ id: 7, org: school }] })
+    if (path === "/api/profile")
+      return profileFails ? Response.json({ error: "Unavailable" }, { status: 503 }) : Response.json({ userId: 1 })
+    if (path !== "/api/agent/convos/chat-9/open")
+      return Response.json({ error: "Unexpected fake route" }, { status: 404 })
+    opens++
+    if (moving > 0) {
+      moving--
+      await offline.unconfirm(IDENTITY, movingChat)
+    }
+    return Response.json({
+      access: "participant",
+      detail: {
+        kind: "group",
+        title: "Lab",
+        spaceId: 7,
+        group: { ownerId: 1, participants: [], formerPeople: [], aliases: [] },
+        timeline: [],
+      },
+    })
+  },
+})
+afterAll(() => openGateway.stop(true))
+const openingChats = testEffect(
+  apiLayer(
+    { token: TOKEN, baseUrl: TENANT },
+    undefined,
+    undefined,
+    [],
+    { origin: openGateway.url.origin, token: TOKEN, identity: IDENTITY },
+    offline,
+  ),
+)
+
+describe("jolli HttpApi — a group chat whose access moves while it is opened", () => {
+  const path = `/jolli/group-chat/${encodeURIComponent(movingChat)}`
+
+  // First in the file on purpose: a viewer once looked up is remembered for the account, and never falls back.
+  openingChats.live("shows a read whose viewer lookup failed but keeps no offline copy of it", () =>
+    Effect.gen(function* () {
+      opens = 0
+      moving = 0
+      profileFails = true
+      const response = yield* HttpClientRequest.get(path).pipe(HttpClient.execute)
+      profileFails = false
+      expect(yield* response.json).toMatchObject({ status: "ok", source: "server", chat: { viewerId: null } })
+      expect(yield* Effect.promise(() => offline.get(IDENTITY, movingChat))).toBeUndefined()
+      // The next read learns the viewer, and that one is kept.
+      yield* HttpClientRequest.get(path).pipe(HttpClient.execute)
+      expect((yield* Effect.promise(() => offline.get(IDENTITY, movingChat)))?.chat.viewerId).toBe(1)
+    }),
+  )
+
+  openingChats.live("reads it once more and answers that read, keeping its offline copy", () =>
+    Effect.gen(function* () {
+      opens = 0
+      moving = 1
+      const response = yield* HttpClientRequest.get(path).pipe(HttpClient.execute)
+      expect(yield* response.json).toMatchObject({ status: "ok", source: "server", chat: { id: movingChat } })
+      expect(opens).toBe(2)
+      expect((yield* Effect.promise(() => offline.get(IDENTITY, movingChat)))?.chat.id).toBe(movingChat)
+    }),
+  )
+
+  openingChats.live("answers unreachable only when access moves under the second read too", () =>
+    Effect.gen(function* () {
+      opens = 0
+      moving = 2
+      const response = yield* HttpClientRequest.get(path).pipe(HttpClient.execute)
+      expect(yield* response.json).toEqual({ status: "unreachable" })
+      expect(opens).toBe(2)
+    }),
+  )
+})
+
+/** The credential the list's session holds; the gateway replaces it while a list is out when a case asks. */
+const LISTER = "student-lists"
+let listerKey = LISTER
+let replaceWhileListing = false
+const lister = (): JolliStore.Row => ({
+  id: "usr_1",
+  subject: "usr_1",
+  email: null,
+  base_url: TENANT,
+  access_token: TOKEN,
+  refresh_token: null,
+  token_expiry: null,
+  cache_key: listerKey,
+  time_created: 0,
+  time_updated: 0,
+})
+const listGateway = Bun.serve({
+  port: 0,
+  hostname: "127.0.0.1",
+  fetch(request) {
+    const path = new URL(request.url).pathname
+    if (path === "/api/me/courses") return Response.json({ home: school, courses: [{ id: 7, org: school }] })
+    if (path === "/api/auth/session-config") return Response.json({ groupChatsEnabled: true })
+    if (path !== "/api/me/agent-convos") return Response.json({ error: "Unexpected fake route" }, { status: 404 })
+    // Somebody signs in elsewhere while the list is out: the credential it was read with is gone.
+    if (replaceWhileListing) listerKey = "student-replaced"
+    return Response.json({ convos: [], unavailable: [] })
+  },
+})
+const listDirect = { origin: listGateway.url.origin, token: TOKEN, identity: LISTER }
+afterAll(() => {
+  listGateway.stop(true)
+  return rm(catalogCachePath(listDirect), { force: true })
+})
+const listingChats = testEffect(
+  apiLayer({ token: TOKEN, baseUrl: TENANT }, undefined, undefined, [], listDirect, undefined, lister),
+)
+
+describe("jolli HttpApi — whose group chats a list holds", () => {
+  listingChats.live("names the person the list was read as, and nobody once that credential was replaced", () =>
+    Effect.gen(function* () {
+      listerKey = LISTER
+      replaceWhileListing = false
+      const read = yield* HttpClientRequest.get("/jolli/group-chat").pipe(HttpClient.execute)
+      expect(yield* read.json).toMatchObject({ status: "ok", owner: groupChatOwner(lister()) })
+      replaceWhileListing = true
+      const replaced = yield* HttpClientRequest.get("/jolli/group-chat").pipe(HttpClient.execute)
+      const answer = yield* replaced.json
+      expect(answer).toMatchObject({ status: "ok", chats: [] })
+      expect(answer).not.toHaveProperty("owner")
+    }),
+  )
+})
+
+/** The credential the opener's session holds; the gateway replaces it while a chat is opened when a case asks. */
+const OPENER = "student-opens"
+let openerKey = OPENER
+let replaceWhileOpening = false
+/** Whether the gateway answers the open read 503, which the open route answers from the offline copy. */
+let openerOffline = false
+const opener = (): JolliStore.Row => ({ ...lister(), cache_key: openerKey })
+const openedChat = groupChatID(school, "chat-11")
+const openerGateway = Bun.serve({
+  port: 0,
+  hostname: "127.0.0.1",
+  fetch(request) {
+    const path = new URL(request.url).pathname
+    if (path === "/api/me/courses") return Response.json({ home: school, courses: [{ id: 7, org: school }] })
+    if (path === "/api/profile") return Response.json({ userId: 1 })
+    if (path !== "/api/agent/convos/chat-11/open")
+      return Response.json({ error: "Unexpected fake route" }, { status: 404 })
+    if (openerOffline) return Response.json({ error: "Unavailable" }, { status: 503 })
+    // Somebody signs in elsewhere while the chat is opened: the credential it was read with is gone.
+    if (replaceWhileOpening) openerKey = "student-replaced"
+    return Response.json({
+      access: "participant",
+      detail: {
+        kind: "group",
+        title: "Lab",
+        spaceId: 7,
+        group: { ownerId: 1, participants: [], formerPeople: [], aliases: [] },
+        timeline: [],
+      },
+    })
+  },
+})
+const openerDirect = { origin: openerGateway.url.origin, token: TOKEN, identity: OPENER }
+afterAll(() => {
+  openerGateway.stop(true)
+  return rm(catalogCachePath(openerDirect), { force: true })
+})
+const openingAsOpener = testEffect(
+  apiLayer({ token: TOKEN, baseUrl: TENANT }, undefined, undefined, [], openerDirect, offline, opener),
+)
+
+describe("jolli HttpApi — whose group chat an open answer holds", () => {
+  const path = `/jolli/group-chat/${encodeURIComponent(openedChat)}`
+
+  openingAsOpener.live(
+    "names the person a live or offline read was made as, and nobody once that credential was replaced",
+    () =>
+      Effect.gen(function* () {
+        openerKey = OPENER
+        replaceWhileOpening = false
+        openerOffline = false
+        const live = yield* HttpClientRequest.get(path).pipe(HttpClient.execute)
+        expect(yield* live.json).toMatchObject({ status: "ok", source: "server", owner: groupChatOwner(opener()) })
+        openerOffline = true
+        const cached = yield* HttpClientRequest.get(path).pipe(HttpClient.execute)
+        expect(yield* cached.json).toMatchObject({ status: "ok", source: "cache", owner: groupChatOwner(opener()) })
+        openerOffline = false
+        replaceWhileOpening = true
+        const replaced = yield* HttpClientRequest.get(path).pipe(HttpClient.execute)
+        const answer = yield* replaced.json
+        expect(answer).toMatchObject({ status: "ok", source: "server", chat: { id: openedChat } })
+        expect(answer).not.toHaveProperty("owner")
+      }),
   )
 })

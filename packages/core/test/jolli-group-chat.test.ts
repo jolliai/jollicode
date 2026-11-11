@@ -1,17 +1,26 @@
-import { voiceRequest, downloadChatAttachment, uploadChatAttachment } from "../src/jolli/group-chat-resources"
-import { afterEach, describe, expect, test } from "bun:test"
+import {
+  chatShares,
+  voiceRequest,
+  downloadChatAttachment,
+  uploadChatAttachment,
+} from "../src/jolli/group-chat-resources"
+import { afterEach, describe, expect, setSystemTime, test } from "bun:test"
 import { Effect, Schema } from "effect"
 import { Jolli } from "@opencode-ai/schema/jolli"
 import { SessionID } from "@opencode-ai/schema/session-id"
 import { groupChatID, parseGroupChatID } from "../src/jolli/org-scoped-id"
 import { JolliSignedOut } from "../src/jolli/session"
 import {
+  accessRevoked,
   groupChatFailure,
+  groupEnvironment,
   groupJson,
+  knownGroupHome,
   listChats,
   openChat,
   performAction,
   postMessage,
+  readChatOpen,
   readFrames,
 } from "../src/jolli/group-chat"
 import { composerTargetFallback, isAttemptChat, memberActions, replaceAliases } from "../src/jolli/group-chat-rules"
@@ -42,6 +51,7 @@ const start = (handle: (request: Request) => Response | Promise<Response>): Gate
 afterEach(() => {
   server?.stop(true)
   server = undefined
+  setSystemTime()
 })
 const json = (body: unknown, status = 200) => Response.json(body, { status })
 const environment = {
@@ -114,6 +124,19 @@ describe("server-owned group chats", () => {
       return json({ success: true, cancelled: true })
     })
     await Effect.runPromise(performAction(request, id, { type: "cancel" }))
+  })
+
+  test("a target without an agent asks the server for the whole group with null", async () => {
+    const seen: unknown[] = []
+    const request = start(async (request) => {
+      expect(new URL(request.url).pathname).toBe("/api/agent/convos/chat-1/composer-target")
+      expect(request.method).toBe("PUT")
+      seen.push(await request.json())
+      return new Response(null, { status: 204 })
+    })
+    await Effect.runPromise(performAction(request, id, { type: "target" }))
+    await Effect.runPromise(performAction(request, id, { type: "target", assistantId: 21 }))
+    expect(seen).toEqual([{ assistantId: null }, { assistantId: 21 }])
   })
 
   test("keeps a refused stop as an action refusal without retrying or revoking the chat", async () => {
@@ -193,6 +216,46 @@ describe("server-owned group chats", () => {
     await response.body?.cancel()
   })
 
+  test("a remembered course list that misses a newly joined school reads as incomplete and is asked again", async () => {
+    const college = { tenantSlug: "college", orgSlug: "main" }
+    const reads = { courses: 0 }
+    const joined = { college: false }
+    const request = start((request) => {
+      const url = new URL(request.url)
+      if (url.pathname === "/api/me/courses") {
+        reads.courses += 1
+        return json({
+          home: org,
+          courses: [{ id: 7, org }, ...(joined.college ? [{ id: 3, org: college }] : [])],
+        })
+      }
+      if (url.pathname === "/api/auth/session-config") return json({ groupChatsEnabled: true })
+      const row = (id: string, at: typeof org, spaceId: number) => ({
+        id,
+        title: "Lab",
+        updatedAt: "2026-11-10T00:00:00Z",
+        org: at,
+        kind: "group",
+        ownership: "owned",
+        spaceId,
+      })
+      return json({
+        convos: [row("chat-1", org, 7), ...(joined.college ? [row("chat-2", college, 3)] : [])],
+        unavailable: [],
+      })
+    })
+    expect((await Effect.runPromise(listChats(request, undefined))).chats).toHaveLength(1)
+    joined.college = true
+    // The course list is still the remembered one, which knows nothing of the college.
+    const stale = await Effect.runPromise(listChats(request, undefined))
+    expect(stale.complete).toBe(false)
+    expect(stale.chats.map((chat) => chat.id)).toEqual([groupChatID(org, "chat-1")])
+    expect(reads.courses).toBe(1)
+    const fresh = await Effect.runPromise(listChats(request, undefined))
+    expect(reads.courses).toBe(2)
+    expect(fresh.chats.map((chat) => chat.id)).toEqual([groupChatID(org, "chat-1"), groupChatID(college, "chat-2")])
+  })
+
   test("filters the course before the limit and reports incomplete pagination", async () => {
     const request = start((request) => {
       const url = new URL(request.url)
@@ -239,6 +302,31 @@ describe("server-owned group chats", () => {
       { type: "content_chunk", content: "hello", seq: 0 },
       { type: "processing_complete" },
     ])
+  })
+
+  test("one read holding many complete frames past the size limit yields them all", async () => {
+    const content = "x".repeat(100 * 1024)
+    const records = Array.from(
+      { length: 30 },
+      (_, seq) => `data: ${JSON.stringify({ type: "content_chunk", content, seq })}\n\n`,
+    ).join("")
+    expect(records.length).toBeGreaterThan(2 * 1024 * 1024)
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(records))
+          controller.close()
+        },
+      }),
+    )
+    expect((await Array.fromAsync(readFrames(response))).map((frame) => frame.seq)).toEqual(
+      Array.from({ length: 30 }, (_, seq) => seq),
+    )
+  })
+
+  test("one record that grows past the size limit before it ends is refused", async () => {
+    const response = new Response(`data: {"type":"content_chunk","content":"${"x".repeat(2 * 1024 * 1024)}`)
+    await expect(Array.fromAsync(readFrames(response))).rejects.toThrow("exceeds the size limit")
   })
 
   test.each([55, "chat-1"])("parses conversation SSE frames with conversation ID %s", async (convoId) => {
@@ -302,6 +390,119 @@ describe("server-owned group chats", () => {
     expect(executableChatFile("notes.txt", "text/plain")).toBe(false)
     for (const name of ["a.scr", "a.vbs", "a.hta", "a.lnk", "a.command", "a.reg", "a.wsf", "a.msix", "a.AppImage"])
       expect(executableChatFile(name, "application/octet-stream")).toBe(true)
+    for (const extension of [
+      "xla",
+      "ppa",
+      "dot",
+      "xlt",
+      "pot",
+      "pps",
+      "one",
+      "onepkg",
+      "appinstaller",
+      "crt",
+      "der",
+      "mde",
+      "accde",
+      "adp",
+      "mda",
+      "pyo",
+      "pyzw",
+      "psc2",
+      "saver",
+      "flatpak",
+      "msh",
+      "ps2",
+      "psd1",
+      "sct",
+      "shb",
+      "shs",
+      "vb",
+      "bas",
+      "website",
+      "xnk",
+      "mdb",
+      "ade",
+      "wsb",
+      "ppkg",
+      "msu",
+      "cab",
+      "theme",
+      "cer",
+      "dll",
+      "ocx",
+      "vsix",
+      "pyz",
+      "pyc",
+      "action",
+      "prefpane",
+      "snap",
+      "flatpakref",
+      "xpi",
+      "xht",
+      "shtml",
+      "svgz",
+      "xlsb",
+      "appref-ms",
+      "diagcab",
+      "xll",
+      "pyw",
+      "chm",
+      "hlp",
+      "msp",
+      "mst",
+      "gadget",
+      "application",
+      "xbap",
+      "jnlp",
+      "scf",
+      "wsc",
+      "ws",
+      "psc1",
+      "ps1xml",
+      "mht",
+      "mhtml",
+      "iso",
+      "img",
+      "vhd",
+      "vhdx",
+      "desktop",
+      "csh",
+      "ksh",
+      "fish",
+      "mpkg",
+      "webloc",
+      "inetloc",
+      "fileloc",
+      "library-ms",
+      "search-ms",
+      "settingcontent-ms",
+      "docm",
+      "dotm",
+      "xlsm",
+      "xltm",
+      "xlam",
+      "pptm",
+      "potm",
+      "ppam",
+      "ppsm",
+      "sldm",
+    ])
+      expect(executableChatFile(`a.${extension.toUpperCase()}`, "application/octet-stream")).toBe(true)
+    for (const name of [
+      "report.docx",
+      "sheet.xlsx",
+      "slides.pptx",
+      "photo.png",
+      "notes.md",
+      "essay.doc",
+      "data.xls",
+      "talk.ppt",
+    ])
+      expect(executableChatFile(name, "application/octet-stream")).toBe(false)
+    // Judged as saved: trailing dots and spaces are stripped on disk, so they cannot hide the extension.
+    for (const name of ["setup.exe.", "setup.exe ", "setup.exe. . ", "run.bat..."])
+      expect(executableChatFile(name, "application/octet-stream")).toBe(true)
     expect(executableChatFile("installer", "application/x-msdownload")).toBe(true)
     expect(executableChatFile("report.pdf", "application/pdf")).toBe(false)
   })
@@ -327,7 +528,7 @@ test("voice proxy exposes narration metadata to a renderer on another origin", a
   expect(await response.text()).toBe("audio")
 })
 
-test("peer downloads return saved bytes as an attachment and never an executable response", async () => {
+test("peer downloads return the bytes as an attachment and never an executable response", async () => {
   const request = start((request) =>
     new URL(request.url).pathname.endsWith("/attachment-urls")
       ? Response.json({ urls: { "10": `${server!.url.origin}/bytes` } })
@@ -338,6 +539,39 @@ test("peer downloads return saved bytes as an attachment and never an executable
   expect(response.headers.get("Content-Disposition")).toContain("attachment;")
   expect(response.headers.get("Content-Disposition")).not.toContain("../")
   expect(await response.text()).toBe("untrusted file bytes")
+})
+
+test("peer downloads pass bytes through as they arrive, and a source that stops sending ends the download", async () => {
+  const encoder = new TextEncoder()
+  let finish: (() => void) | undefined
+  const request = start((request) => {
+    if (new URL(request.url).pathname.endsWith("/attachment-urls"))
+      return Response.json({ urls: { "10": `${server!.url.origin}/bytes`, "11": `${server!.url.origin}/stalled` } })
+    const stalled = new URL(request.url).pathname === "/stalled"
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode("first "))
+          finish = () => {
+            controller.enqueue(encoder.encode("last"))
+            controller.close()
+          }
+          if (stalled) finish = undefined
+        },
+      }),
+    )
+  })
+  const streaming = await downloadChatAttachment(request, id, 10, "notes.txt", undefined, 1000)
+  const reader = streaming.body!.getReader()
+  const decoder = new TextDecoder()
+  // The first bytes are readable while the source is still sending the rest.
+  expect(decoder.decode((await reader.read()).value)).toBe("first ")
+  finish!()
+  const rest: string[] = []
+  for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) rest.push(decoder.decode(chunk.value))
+  expect(rest.join("")).toBe("last")
+  const stalled = await downloadChatAttachment(request, id, 11, "notes.txt", undefined, 50)
+  await expect(stalled.text()).rejects.toBeDefined()
 })
 
 describe("group chat answers", () => {
@@ -385,13 +619,184 @@ describe("group chat answers", () => {
     const chat = await Effect.runPromise(openChat(request, id))
     expect(chat.access).toBe("participant")
     expect(chat.courseId).toBe("school:course:7")
-    expect(
-      await failure(
-        opening(() => json({ access: "participant", detail }), {
-          "/api/profile": () => json({ error: "Forbidden" }, 403),
-        }),
-      ),
-    ).toEqual({ status: "refused", httpStatus: 403, message: "Forbidden" })
+  })
+
+  test("a viewer lookup that fails opens the chat without a viewer, and the next open fills it in", async () => {
+    let profile = () => json({ error: "Forbidden" }, 403)
+    const request = opening(() => json({ access: "participant", detail }), { "/api/profile": () => profile() })
+    const first = await Effect.runPromise(openChat(request, id))
+    expect(first.viewerId).toBeNull()
+    expect(first.messages).toEqual([])
+    profile = () => json({ userId: 2 })
+    expect((await Effect.runPromise(openChat(request, id))).viewerId).toBe(2)
+  })
+
+  test("a gate in front of the chat on its open read is a refusal, not a loss of access", async () => {
+    // jolliedu answers every tenant resolution failure alike, on purpose: it names no chat.
+    expect(await failure(opening(() => json({ error: "tenant_resolution_failed" }, 403)))).toEqual({
+      status: "refused",
+      code: "tenant_resolution_failed",
+      httpStatus: 403,
+    })
+    const revokedCheck = new JolliApiError({
+      path: "/api/mercure/conversation-access",
+      status: 404,
+      code: "conversation_access_revoked",
+      message: "Group chat request failed: 404",
+    })
+    expect(accessRevoked(revokedCheck)).toBe(true)
+    expect(groupChatFailure(revokedCheck).status).toBe("revoked")
+    // A bare 404 counts only on the chat's own open read, and only as jolliedu's own answer.
+    const elsewhere = new JolliApiError({
+      path: "/api/agent/convos/chat-1/stream",
+      status: 404,
+      fromGateway: true,
+      message: "Not found",
+    })
+    expect(accessRevoked(elsewhere, id)).toBe(false)
+    const own = new JolliApiError({
+      path: "/api/agent/convos/chat-1/open",
+      status: 404,
+      fromGateway: true,
+      message: "Not found",
+    })
+    expect(accessRevoked(own, id)).toBe(true)
+    const page = new JolliApiError({ path: "/api/agent/convos/chat-1/open", status: 404, message: "Not found" })
+    expect(accessRevoked(page, id)).toBe(false)
+  })
+
+  test("a 403 or 404 page from something in front of jolliedu on the open read is no loss of access", async () => {
+    // A WAF or CDN block page, an ingress that lost the route, and a proxy's JSON that is not jolliedu's error:
+    // none is the chat's word, so the chat reads again rather than being lost or refused for good.
+    const html = (status: number) =>
+      new Response("<html><body>Access denied</body></html>", { status, headers: { "content-type": "text/html" } })
+    expect(await failure(opening(() => html(403)))).toEqual({ status: "unreachable" })
+    expect(await failure(opening(() => html(404)))).toEqual({ status: "unreachable" })
+    expect(await failure(opening(() => json({ message: "Forbidden" }, 403)))).toEqual({ status: "unreachable" })
+    // The same words as plain text are not jolliedu's JSON either.
+    const text = new Response(JSON.stringify({ error: "Conversation not found" }), {
+      status: 404,
+      headers: { "content-type": "text/plain" },
+    })
+    expect(await failure(opening(() => text))).toEqual({ status: "unreachable" })
+    // A coded refusal is still read for what it says.
+    expect(await failure(opening(() => json({ error: "sso_required" }, 403)))).toMatchObject({ status: "refused" })
+  })
+
+  test("concurrent identical open reads share one request, and nothing is kept once it settles", async () => {
+    let reads = 0
+    let answer: (() => void) | undefined
+    const request = opening(() => json({ error: "Not found" }, 404), {
+      "/api/agent/convos/chat-1/open": () => {
+        reads++
+        return new Promise<Response>((resolve) => {
+          answer = () => resolve(json({ access: "participant", detail }))
+        }) as unknown as Response
+      },
+    })
+    // The home is known first, so every caller addresses the chat alike.
+    await groupEnvironment(request)
+    const together = [
+      Effect.runPromise(openChat(request, id, "1")),
+      readChatOpen(request, id),
+      chatShares(request, id, "1").catch(() => undefined),
+    ]
+    await Bun.sleep(30)
+    expect(reads).toBe(1)
+    answer!()
+    const [chat, opened] = await Promise.all(together)
+    expect(chat).toMatchObject({ access: "participant", courseId: "7" })
+    expect(opened).toMatchObject({ access: "participant" })
+    // Settled: the next read asks again, so a revocation since is never answered from it.
+    const next = readChatOpen(request, id)
+    await Bun.sleep(30)
+    expect(reads).toBe(2)
+    answer!()
+    await next
+  })
+
+  test("a read kept offline joins only a read made under the same offline version", async () => {
+    let reads = 0
+    const answers: (() => void)[] = []
+    const request = opening(() => json({ error: "Not found" }, 404), {
+      "/api/agent/convos/chat-1/open": () => {
+        reads++
+        return new Promise<Response>((resolve) => {
+          answers.push(() => resolve(json({ access: "participant", detail })))
+        }) as unknown as Response
+      },
+    })
+    await groupEnvironment(request)
+    // The copy was invalidated after the first read set out: the second must not take its answer.
+    const before = readChatOpen(request, id, undefined, 1)
+    const after = readChatOpen(request, id, undefined, 2)
+    const same = readChatOpen(request, id, undefined, 2)
+    // A caller that keeps nothing joins whichever read is under way.
+    const plain = readChatOpen(request, id)
+    await Bun.sleep(30)
+    expect(reads).toBe(2)
+    answers.forEach((resolve) => resolve())
+    await Promise.all([before, after, same, plain])
+  })
+
+  test("a caller that leaves stops waiting without cancelling the read the others share", async () => {
+    let answer: (() => void) | undefined
+    const request = opening(() => json({ error: "Not found" }, 404), {
+      "/api/agent/convos/chat-1/open": () =>
+        new Promise<Response>((resolve) => {
+          answer = () => resolve(json({ access: "reader", transcript: detail }))
+        }) as unknown as Response,
+    })
+    await groupEnvironment(request)
+    const leaving = new AbortController()
+    const left = readChatOpen(request, id, leaving.signal).catch((error: unknown) => error)
+    const staying = readChatOpen(request, id)
+    await Bun.sleep(30)
+    leaving.abort(new Error("left"))
+    expect(await left).toMatchObject({ message: "left" })
+    answer!()
+    expect(await staying).toMatchObject({ access: "reader" })
+  })
+
+  test("an open read is joined only under the same token, and is cancelled once every caller has left", async () => {
+    const tokens: (string | null)[] = []
+    let cancelled = 0
+    const answers: (() => void)[] = []
+    const request = start((incoming) => {
+      const path = new URL(incoming.url).pathname
+      if (path === "/api/me/courses") return json(environment)
+      if (path !== "/api/agent/convos/chat-1/open") return json({ error: "Not found" }, 404)
+      tokens.push(incoming.headers.get("authorization"))
+      incoming.signal.addEventListener("abort", () => cancelled++)
+      return new Promise<Response>((resolve) => answers.push(() => resolve(json({ access: "participant", detail }))))
+    })
+    await groupEnvironment(request)
+    // A 401 retry carries the renewed token, and never takes the answer to the one that was refused.
+    const refused = readChatOpen(request, id)
+    const renewed = readChatOpen({ ...request, token: "renewed-token" }, id)
+    await Bun.sleep(30)
+    expect(tokens).toEqual(["Bearer test-token", "Bearer renewed-token"])
+    answers.forEach((answer) => answer())
+    await Promise.all([refused, renewed])
+    // Two callers share a read; it runs on while either of them still waits.
+    const callers = [new AbortController(), new AbortController()]
+    const left = callers.map((caller) => readChatOpen(request, id, caller.signal).catch((error: unknown) => error))
+    await Bun.sleep(30)
+    expect(tokens).toHaveLength(3)
+    callers[0].abort(new Error("left"))
+    await Bun.sleep(30)
+    expect(cancelled).toBe(0)
+    callers[1].abort(new Error("left"))
+    expect(await Promise.all(left)).toMatchObject([{ message: "left" }, { message: "left" }])
+    const end = Date.now() + 1500
+    while (cancelled === 0 && Date.now() < end) await Bun.sleep(5)
+    expect(cancelled).toBe(1)
+    // The cancelled read is gone: the next caller asks afresh rather than joining it.
+    const next = readChatOpen(request, id)
+    await Bun.sleep(30)
+    expect(tokens).toHaveLength(4)
+    answers.at(-1)!()
+    expect(await next).toMatchObject({ access: "participant" })
   })
 
   test("the credential's subject names the viewer without asking for the profile", async () => {
@@ -505,6 +910,13 @@ describe("group chat lists that cannot be complete", () => {
     expect(answer.complete).toBe(false)
   })
 
+  test("a course the catalogue does not name lists nothing and never reports a complete list", async () => {
+    const request = listing(environment, { convos: [{ ...row, spaceId: 7 }], unavailable: [] })
+    const answer = await Effect.runPromise(listChats(request, [{ id: "8" }], "7"))
+    expect(answer.chats).toEqual([])
+    expect(answer.complete).toBe(false)
+  })
+
   test("an org the course list could not reach makes the list incomplete", async () => {
     const request = listing(
       { ...environment, unavailable: [other] },
@@ -540,6 +952,78 @@ describe("group chat lists that cannot be complete", () => {
     const answer = await Effect.runPromise(listChats(request, [{ id: "7" }]))
     expect(pages).toBe(5)
     expect(answer.complete).toBe(false)
+  })
+
+  test("reads the course list and the first page together, and each school's switch once in a while", async () => {
+    let configs = 0
+    let configFails = false
+    let pageAsked: (() => void) | undefined
+    const pageSeen = new Promise<void>((resolve) => (pageAsked = resolve))
+    const request = start(async (request) => {
+      const path = new URL(request.url).pathname
+      if (path === "/api/me/courses") {
+        // Answers only once the first page has been asked for, which a list read in turn never does.
+        await Promise.race([pageSeen, Bun.sleep(1000).then(() => Promise.reject(new Error("Read in turn")))])
+        return json(environment)
+      }
+      if (path === "/api/auth/session-config") {
+        configs++
+        return configFails ? json({ error: "Down" }, 503) : json({ groupChatsEnabled: true })
+      }
+      pageAsked?.()
+      return json({ convos: [{ ...row, spaceId: 7 }], unavailable: [] })
+    })
+    const first = await Effect.runPromise(listChats(request, [{ id: "7" }]))
+    expect(first.chats).toHaveLength(1)
+    expect(first.complete).toBe(true)
+    configFails = true
+    // A remembered switch still makes a complete list while the school cannot be asked.
+    const second = await Effect.runPromise(listChats(request, [{ id: "7" }]))
+    expect(second.complete).toBe(true)
+    expect(configs).toBe(1)
+  })
+
+  test.each([
+    ["answers 404", () => json({ error: "Not found" }, 404)],
+    ["answers a config without the switch", () => json({ voice: { input: true, readAloud: false } })],
+    ["cannot be read", () => json({ error: "Down" }, 503)],
+  ])(
+    "a school that %s is off for this read, leaves the list incomplete and is asked again only after a minute",
+    async (_, config) => {
+      let configs = 0
+      const request = start((request) => {
+        const path = new URL(request.url).pathname
+        if (path === "/api/me/courses") return json(environment)
+        if (path === "/api/auth/session-config") {
+          configs++
+          return config()
+        }
+        return json({ convos: [{ ...row, spaceId: 7 }], unavailable: [] })
+      })
+      const now = Date.now()
+      setSystemTime(now)
+      const answer = await Effect.runPromise(listChats(request, [{ id: "7" }]))
+      expect(answer.chats).toEqual([])
+      // Complete, it would purge the school's offline copies.
+      expect(answer.complete).toBe(false)
+      // Every message nudge reads the list again: the school is not asked each time, and the list stays incomplete.
+      const nudged = await Effect.runPromise(listChats(request, [{ id: "7" }]))
+      expect(nudged.complete).toBe(false)
+      expect(configs).toBe(1)
+      setSystemTime(now + 60_001)
+      await Effect.runPromise(listChats(request, [{ id: "7" }]))
+      expect(configs).toBe(2)
+    },
+  )
+})
+
+describe("the home org", () => {
+  test("a snapshot without a home is asked again later, and a course list read names the home at once", async () => {
+    const request = start(() => json(environment))
+    expect(await knownGroupHome(request)).toBeUndefined()
+    expect(await knownGroupHome(request)).toBeUndefined()
+    await groupEnvironment(request)
+    expect(await knownGroupHome(request)).toEqual(org)
   })
 })
 

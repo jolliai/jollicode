@@ -275,6 +275,9 @@ function createServerSdkContextBase(server: ServerConnection.Any, scope: ServerS
         abort.signal.addEventListener("abort", onAbort)
         try {
           const kind = await protocol
+          // Only v1 sends the client id: group chat leases live on its `/global/event` route. The v2 server serves
+          // no `/jolli` routes, so it has no group chats to relay, and this sidecar is always detected as v1
+          // (see the header of the `jolli` HttpApi group in groups/jolli.ts).
           const events =
             kind === "v1"
               ? (await eventSdk.global.event({ signal: attempt.signal, headers: { "x-jolli-client": clientID } }))

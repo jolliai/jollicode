@@ -1,5 +1,4 @@
-import { Jolli } from "@opencode-ai/schema/jolli"
-import { Option, Schema } from "effect"
+import type { Jolli } from "@opencode-ai/schema/jolli"
 import { createStore, produce, reconcile } from "solid-js/store"
 import { batch, createEffect, createMemo, onCleanup, onMount, type Accessor } from "solid-js"
 import { useLocation } from "@solidjs/router"
@@ -21,7 +20,7 @@ import type { ProjectAvatarVariant } from "@opencode-ai/ui/v2/project-avatar-v2"
 import { migrateLegacySessionStateKeys, ServerScope, SessionStateKey } from "@/utils/server-scope"
 import { createSessionKeyReader, ensureSessionKey, pruneSessionKeys } from "./layout-helpers"
 import { isRecord, migrateSidebar } from "./layout-migration"
-import { requireServerKey } from "@/utils/session-route"
+import { groupChatRouteId, requireServerKey } from "@/utils/session-route"
 import { type DraftTab, useTabs } from "./tabs"
 import { closeSessionTab, openSessionTab, previewSessionTab, type SessionTabs } from "./layout-tabs"
 
@@ -143,9 +142,7 @@ export const currentRoute = (pathname: string, search: string): LayoutRoute => {
 
   if (parts[0] === "server" && parts[2] === "group-chat" && parts[3]) {
     // A malformed chat id is the page's own not-found state; it must not break the layout around it.
-    const chatId = Option.getOrUndefined(
-      Option.flatMap(Option.liftThrowable(decodeURIComponent)(parts[3]), Schema.decodeUnknownOption(Jolli.GroupChatID)),
-    )
+    const chatId = groupChatRouteId(parts[3])
     if (!chatId) return { type: "home" }
     return { type: "groupChat", chatId, server: requireServerKey(parts[1]) }
   }

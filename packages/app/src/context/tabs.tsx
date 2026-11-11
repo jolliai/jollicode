@@ -22,6 +22,7 @@ import {
 } from "./closed-tabs"
 import { createDraftPromptSession, type PromptModel } from "./prompt-state"
 import { migrateTabs } from "./tab-migration"
+import { createGroupChatOwners } from "@/jolli/group-chat-owner"
 
 export type SessionTab = {
   type: "session"
@@ -84,6 +85,21 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
     const [closed, setClosed, , closedReady] = persisted(
       Persist.window("tabs.closed"),
       createStore<ClosedTab<SessionTab | GroupChatTab>[]>([]),
+    )
+    /** Group chat tabs this window opened during this run, which it therefore did not keep from an earlier one. */
+    const opened = new Set<string>()
+    // Whose group chats these tabs and their drafts are, so a list of somebody else's drops them. Told which
+    // servers' chats the window kept from an earlier run once both lists of tabs have loaded; a store that could
+    // not be read kept nothing.
+    const groupChatOwners = createGroupChatOwners(
+      platform,
+      Promise.all([ready.promise, closedReady.promise])
+        .then(() =>
+          [...store, ...closed.map((entry) => entry.tab)].flatMap((tab) =>
+            tab.type === "groupChat" && !opened.has(tabKey(tab)) ? [tab.server] : [],
+          ),
+        )
+        .catch(() => []),
     )
 
     const params = useParams()
@@ -163,7 +179,10 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
       if (!closedReady()) return
       const servers = new Set(server.list.map(ServerConnection.key))
       const next = closed.filter((entry) => servers.has(entry.tab.server))
-      if (next.length !== closed.length) setClosed(() => next)
+      if (next.length === closed.length) return
+      // A closed group chat keeps its draft for reopening; with its server gone it can never reopen.
+      for (const tab of releasedGroupChats(closed, next, store)) memory.remove(tabKey(tab))
+      setClosed(() => next)
     })
 
     const navigateTab = (tab: Tab) => {
@@ -199,7 +218,9 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
     const actions = {
       addGroupChatTab: (input: Omit<GroupChatTab, "type">) => {
         const next = { type: "groupChat" as const, ...input }
-        if (!store.some((tab) => tabKey(tab) === tabKey(next))) setStore((tabs) => [...tabs, next])
+        if (store.some((tab) => tabKey(tab) === tabKey(next))) return next
+        opened.add(tabKey(next))
+        setStore((tabs) => [...tabs, next])
         return next
       },
       setGroupChatInfo(input: GroupChatTab, title: string) {
@@ -467,6 +488,6 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
       },
     }
 
-    return { ...actions, store, info, ready, recentReady }
+    return { ...actions, store, info, ready, recentReady, groupChatOwners }
   },
 })

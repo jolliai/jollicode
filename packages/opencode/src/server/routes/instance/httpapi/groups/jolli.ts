@@ -13,7 +13,7 @@
 import { Jolli } from "@opencode-ai/schema/jolli"
 import { PositiveInt } from "@opencode-ai/schema/schema"
 import { Schema } from "effect"
-import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
+import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi"
 import { described } from "./metadata"
 import { QueryBoolean } from "./query"
 
@@ -91,7 +91,8 @@ export const JolliApi = HttpApi.make("jolli").add(
     .add(
       HttpApiEndpoint.put("groupChatTarget", "/jolli/group-chat/:chatID/composer-target", {
         params: { chatID: Jolli.GroupChatID },
-        payload: Schema.Struct({ assistantId: Schema.NullOr(Schema.Int) }),
+        // No body is the whole group, as `{}` is: the generated client sends none for a target without an agent.
+        payload: [HttpApiSchema.NoContent, Jolli.GroupChatTarget],
         success: Jolli.GroupChatAnswer,
       }),
     )

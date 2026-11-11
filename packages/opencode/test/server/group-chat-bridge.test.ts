@@ -1,16 +1,22 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
+import { Database } from "@opencode-ai/core/database/database"
+import { AppNodeBuilder } from "@opencode-ai/core/effect/app-node-builder"
+import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import { JolliApiError } from "@opencode-ai/core/jolli/api"
 import { groupChatFailure, readFrames } from "@opencode-ai/core/jolli/group-chat"
 import { groupChatID } from "@opencode-ai/core/jolli/org-scoped-id"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
-import type { JolliStore } from "@opencode-ai/core/jolli/store"
+import { JolliStore } from "@opencode-ai/core/jolli/store"
 import { GlobalBus } from "../../src/bus/global"
 import {
   configureGroupChats,
   connectGroupChatClient,
+  currentGroupChatRequest,
   groupChatAccess,
   sendGroupChatMessage,
   watchGroupChat,
+  withGroupChatAuth,
 } from "../../src/jolli/group-chat"
 import { notificationChat } from "../../src/jolli/group-chat-notifications"
 
@@ -22,13 +28,23 @@ const contents = () => events.flatMap((event) => (event.properties.content ? [ev
 let server: ReturnType<typeof Bun.serve> | undefined
 let release: (() => void) | undefined
 let removeListener: (() => void) | undefined
-const events: { type: string; properties: { content?: string; chatID?: string; reset?: boolean } }[] = []
+const events: {
+  type: string
+  properties: { content?: string; chatID?: string; reset?: boolean; sameAccount?: boolean }
+}[] = []
 let conversation: ReadableStreamDefaultController<Uint8Array> | undefined
 let streamClosed = false
 let streams = 0
 let baselines = 0
+/** Notification streams opened: once one is, the loop that asked for it is idle. */
+let notices = 0
+/** The notification stream opened last, and whether it was closed. */
+let notifications: ReadableStreamDefaultController<Uint8Array> | undefined
+let noticesClosed = false
 let baselineResponse: () => Response | Promise<Response> = () => Response.json({ running: false })
 let postResponse: (request: Request) => Response | Promise<Response> = () => Response.json({ turnId: 1, seq: 1 })
+/** Set to refuse the conversation stream itself instead of opening it. */
+let streamRefusal: (() => Response) | undefined
 
 async function until(check: () => boolean) {
   const end = Date.now() + 1500
@@ -40,6 +56,9 @@ function start() {
   streamClosed = false
   streams = 0
   baselines = 0
+  notices = 0
+  notifications = undefined
+  noticesClosed = false
   events.length = 0
   server = Bun.serve({
     port: 0,
@@ -48,21 +67,28 @@ function start() {
       const path = new URL(request.url).pathname
       if (path === "/api/me/courses") return Response.json({ home: org, courses: [{ id: 7, org }] })
       if (path === "/api/mercure/config") return Response.json({ enabled: false, hubUrl: null })
-      if (path === "/api/notifications/stream")
+      if (path === "/api/notifications/stream") {
+        notices++
         return new Response(
           new ReadableStream({
             start(controller) {
+              notifications = controller
               controller.enqueue(record({ type: "connected" }))
+            },
+            cancel() {
+              noticesClosed = true
             },
           }),
           { headers: { "content-type": "text/event-stream" } },
         )
+      }
       if (path.endsWith("/turn-baseline")) {
         baselines++
         return baselineResponse()
       }
       if (path.endsWith("/stream")) {
         streams++
+        if (streamRefusal) return streamRefusal()
         return new Response(
           new ReadableStream({
             start(controller) {
@@ -82,7 +108,7 @@ function start() {
   })
   const request = { origin: server.url.origin, token: "fake-token", identity: crypto.randomUUID() }
   const session = JolliSession.Service.of({
-    current: () => Effect.succeed(undefined),
+    current: () => Effect.succeed(credentialOf(request)),
     token: () => Effect.succeed(request.token),
     request: () => Effect.succeed(request),
     refused: () => Effect.succeed(request.token),
@@ -90,7 +116,7 @@ function start() {
     signOut: () => Effect.void,
   })
   configureGroupChats(session)
-  const listener = (event: { payload: { type: string; properties: { content?: string; chatID?: string; reset?: boolean } } }) => {
+  const listener = (event: { payload: (typeof events)[number] }) => {
     if (event.payload.type.startsWith("jolli.groupChat.")) events.push(event.payload)
   }
   GlobalBus.on("event", listener)
@@ -98,6 +124,61 @@ function start() {
   release = connectGroupChatClient("window-1")
   return request
 }
+/** The stored credential a request is made from. */
+function credentialOf(request: { token: string; identity: string }, subject: string | null = null) {
+  return {
+    id: subject ?? "default",
+    cache_key: request.identity,
+    subject,
+    email: null,
+    base_url: null,
+    access_token: request.token,
+    refresh_token: null,
+    token_expiry: null,
+    time_created: 1,
+    time_updated: 1,
+  } satisfies JolliStore.Row
+}
+/**
+ * A real session over an in-memory store, so sign-ins, sign-outs and a credential that cannot be renewed
+ * announce themselves as they do in the product. Only its requests are pointed at the fake gateway.
+ */
+function withStoredSession(
+  check: (input: { session: JolliSession.Interface; store: JolliStore.Interface }) => Promise<void>,
+) {
+  return Effect.runPromise(
+    Effect.gen(function* () {
+      const stored = yield* JolliSession.Service
+      const store = yield* JolliStore.Service
+      yield* Effect.promise(() => check({ session: stored, store }))
+    }).pipe(
+      Effect.provide(
+        AppNodeBuilder.build(LayerNode.group([JolliSession.node, JolliStore.node]), [
+          [Database.node, Database.layerFromPath(":memory:")],
+        ]),
+      ),
+      Effect.scoped,
+    ),
+  )
+}
+/**
+ * Configure the bridge with `stored`, its requests going to the fake gateway `start` opened. Each call is a
+ * fresh start of the sidecar as far as the bridge is concerned: nothing in memory.
+ */
+function follow(stored: JolliSession.Interface) {
+  const origin = server!.url.origin
+  configureGroupChats(
+    {
+      ...stored,
+      request: () =>
+        stored
+          .current()
+          .pipe(Effect.map((row) => (row ? { origin, token: row.access_token, identity: row.cache_key } : undefined))),
+    },
+    stored.chatCache,
+  )
+}
+const resets = () => events.filter((event) => event.type === "jolli.groupChat.reset")
 afterEach(() => {
   release?.()
   removeListener?.()
@@ -105,6 +186,7 @@ afterEach(() => {
   server = undefined
   baselineResponse = () => Response.json({ running: false })
   postResponse = () => Response.json({ turnId: 1, seq: 1 })
+  streamRefusal = undefined
 })
 
 describe("group chat sidecar relay", () => {
@@ -146,6 +228,45 @@ describe("group chat sidecar relay", () => {
     expect(events.filter((event) => event.type === "jolli.groupChat.changed")).toHaveLength(1)
   })
 
+  test("while an ask of ours runs, classmates' messages and membership changes still refresh the chat", async () => {
+    let finish: (() => void) | undefined
+    postResponse = () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(record({ type: "message_received" }))
+            controller.enqueue(record({ type: "turn_start", turnId: 4, frameSeq: 1 }))
+            finish = () => {
+              controller.enqueue(record({ type: "processing_complete" }))
+              controller.close()
+            }
+          },
+        }),
+        { headers: { "content-type": "text/event-stream" } },
+      )
+    start()
+    groupChatAccess(id, "participant")
+    await watchGroupChat(id, "window-1", true)
+    await until(() => baselines === 1 && events.some((event) => event.type === "jolli.groupChat.changed"))
+    await Bun.sleep(170)
+    events.length = 0
+    const refreshes = () => events.filter((event) => event.type === "jolli.groupChat.changed").length
+    await sendGroupChatMessage(id, { message: "help", clientRequestId: "r-busy", mentionedAssistantId: 21 })
+    conversation!.enqueue(record({ type: "group_message_added", seq: 2 }))
+    await until(() => refreshes() === 1)
+    conversation!.enqueue(record({ type: "membership_changed" }))
+    await until(() => refreshes() === 2)
+    // The subscription's copy of our own turn's end waits for the ask's own refresh.
+    conversation!.enqueue(record({ type: "turn_start", turnId: 4, frameSeq: 1 }))
+    conversation!.enqueue(record({ type: "processing_complete" }))
+    await Bun.sleep(200)
+    expect(refreshes()).toBe(2)
+    finish!()
+    await until(() => refreshes() === 3)
+    await Bun.sleep(170)
+    expect(refreshes()).toBe(3)
+  })
+
   test("joins baseline and buffered frames once, in order", async () => {
     let resume: (() => void) | undefined
     baselineResponse = () =>
@@ -175,6 +296,8 @@ describe("group chat sidecar relay", () => {
 
   test("readers subscribe without calling a baseline or forwarding answer text", async () => {
     start()
+    // Settled first, as the open read that tells a reader apart always is.
+    await currentGroupChatRequest()
     groupChatAccess(id, "reader")
     await watchGroupChat(id, "window-1", true)
     await until(() => conversation !== undefined)
@@ -288,6 +411,16 @@ describe("group chat sidecar relay", () => {
     expect(events.some((event) => event.type === "jolli.groupChat.revoked")).toBe(false)
     expect(events.some((event) => event.type === "jolli.groupChat.answer")).toBe(false)
     expect(streamClosed).toBe(false)
+  })
+
+  test("a stream refused without the server saying access ended asks for a read instead of revoking", async () => {
+    // What jolliedu answers a request it cannot place in a tenant, not a word about this reader's access.
+    streamRefusal = () => Response.json({ error: "Tenant context required" }, { status: 404 })
+    start()
+    groupChatAccess(id, "participant")
+    await watchGroupChat(id, "window-1", true)
+    await until(() => streams >= 1 && events.some((event) => event.type === "jolli.groupChat.changed"))
+    expect(events.some((event) => event.type === "jolli.groupChat.revoked")).toBe(false)
   })
 
   test("a direct stream's named session_revoked event revokes the chat", async () => {
@@ -432,18 +565,7 @@ describe("group chat sidecar relay", () => {
   test("a credential that names no gateway is unreachable, not a sign-out", async () => {
     // The same identity as `start`'s session, whose background reads may still be landing.
     const request = start()
-    const credential = {
-      id: "student-a",
-      cache_key: "a",
-      subject: null,
-      email: null,
-      base_url: null,
-      access_token: request.token,
-      refresh_token: null,
-      token_expiry: null,
-      time_created: 1,
-      time_updated: 1,
-    } satisfies JolliStore.Row
+    const credential = credentialOf(request)
     let reachable = true
     configureGroupChats(
       JolliSession.Service.of({
@@ -456,6 +578,7 @@ describe("group chat sidecar relay", () => {
       }),
     )
     expect(await watchGroupChat(id, "window-1", true)).toBe(true)
+    events.length = 0
     reachable = false
     const error = await watchGroupChat(id, "window-1", true).then(
       () => undefined,
@@ -478,5 +601,207 @@ describe("group chat sidecar relay", () => {
     expect(
       notificationChat({ type: "chats:changed", convoId: "chat-1", org: { ...org, orgSlug: "other" } }, allowed)?.id,
     ).toBe(groupChatID({ ...org, orgSlug: "other" }, "chat-1"))
+    // An id this client cannot address is dropped instead of throwing out of the stream's frame loop.
+    expect(notificationChat({ type: "chats:changed", convoId: "bad:id", org }, allowed)).toBeUndefined()
+    expect(
+      notificationChat(
+        { ...notification, notification: { type: "group-chat-mention", payload: { recordId: "bad:id" } } },
+        allowed,
+      ),
+    ).toBeUndefined()
   })
+})
+
+describe("group chat credential changes", () => {
+  /** A stored session in place of `start`'s, once the loop `start` began under its own is idle. */
+  async function signedIn(session: JolliSession.Interface, subject: string, token: string) {
+    await until(() => notices === 1)
+    const row = await Effect.runPromise(session.signIn({ token, subject }))
+    follow(session)
+    groupChatAccess(id, "participant")
+    expect(await watchGroupChat(id, "window-1", true)).toBe(true)
+    await until(() => streams === 1)
+    events.length = 0
+    return row
+  }
+
+  test("the same person signing in again restarts the streams and keeps the renderer's chats", () =>
+    withStoredSession(async ({ session }) => {
+      start()
+      await signedIn(session, "usr_1", "first")
+      await Effect.runPromise(session.signIn({ token: "second", subject: "usr_1" }))
+      await until(() => resets().length === 1 && streamClosed)
+      expect(resets()[0].properties).toEqual({ sameAccount: true })
+      // The renderer watches again, under the new token.
+      expect(await watchGroupChat(id, "window-1", true)).toBe(true)
+      await until(() => streams === 2)
+      expect(resets()).toHaveLength(1)
+    }))
+
+  test("another person's sign-in, and signing out, drop the renderer's chats", () =>
+    withStoredSession(async ({ session }) => {
+      start()
+      await signedIn(session, "usr_1", "first")
+      await Effect.runPromise(session.signIn({ token: "second", subject: "usr_2" }))
+      await until(() => resets().length === 1)
+      expect(resets()[0].properties).toEqual({})
+      expect(await watchGroupChat(id, "window-1", true)).toBe(true)
+      await Effect.runPromise(session.signOut())
+      await until(() => resets().length === 2)
+      expect(resets()[1].properties).toEqual({})
+    }))
+
+  test("a credential that could not be renewed drops the renderer's chats, and so does the next sign-in", () =>
+    withStoredSession(async ({ session }) => {
+      start()
+      await signedIn(session, "usr_1", "first")
+      // Nothing to renew it with: the refusal finishes the credential.
+      await Effect.runPromise(Effect.flip(session.refused("first")))
+      await until(() => resets().length === 1 && streamClosed)
+      expect(resets()[0].properties).toEqual({})
+      // A read the renderer still makes answers signed out, and says nothing more.
+      const read = await currentGroupChatRequest().then(
+        () => undefined,
+        (error: unknown) => error,
+      )
+      expect(groupChatFailure(read).status).toBe("signed-out")
+      expect(resets()).toHaveLength(1)
+      // The same person signs in again under a new key, since the expired row is gone: nothing was kept to keep.
+      await Effect.runPromise(session.signIn({ token: "second", subject: "usr_1" }))
+      await until(() => resets().length === 2)
+      expect(resets()[1].properties).toEqual({})
+    }))
+
+  test("a credential another process removed drops the renderer's chats on the next request, once", () =>
+    withStoredSession(async ({ session, store }) => {
+      start()
+      const first = await signedIn(session, "usr_1", "first")
+      await until(() => baselines === 1 && notices === 2)
+      await Effect.runPromise(store.remove(first.id))
+      const missing = await watchGroupChat(id, "window-1", true).then(
+        () => undefined,
+        (error: unknown) => error,
+      )
+      expect(groupChatFailure(missing).status).toBe("signed-out")
+      await until(() => streamClosed)
+      expect(resets().map((event) => event.properties)).toEqual([{}])
+      // Asking again while signed out answers signed out without another reset, so a renderer that reads its
+      // list on every reset does not go round in a loop.
+      await currentGroupChatRequest().catch(() => undefined)
+      expect(resets()).toHaveLength(1)
+      // Another process signs somebody in: the first credential since the loss is taken as it is.
+      await Effect.runPromise(store.persist({ subject: "usr_1", accessToken: "again" }))
+      expect(await watchGroupChat(id, "window-1", true)).toBe(true)
+      expect(resets()).toHaveLength(1)
+      await until(() => baselines === 2 && notices === 3)
+      // Somebody else replaces it there: everything goes, and the request that found out is refused.
+      await Effect.runPromise(store.persist({ subject: "usr_2", accessToken: "other" }))
+      const changed = await currentGroupChatRequest().then(
+        () => undefined,
+        (error: unknown) => error,
+      )
+      expect(groupChatFailure(changed)).toMatchObject({ status: "refused", code: "account_changed" })
+      expect(resets().map((event) => event.properties)).toEqual([{}, {}])
+    }))
+
+  test.each([
+    [
+      "signs somebody else in",
+      (store: JolliStore.Interface) => store.persist({ subject: "usr_2", accessToken: "other" }),
+    ],
+    ["signs out", (store: JolliStore.Interface, first: JolliStore.Row) => store.remove(first.id)],
+  ])("when another process %s, nothing the streams hear afterwards is relayed, and they stop", (_, change) =>
+    withStoredSession(async ({ session, store }) => {
+      start()
+      const first = await signedIn(session, "usr_1", "first")
+      await until(() => baselines === 1 && notices === 2 && notifications !== undefined)
+      // The join's refresh and the reopened stream's list nudge are out of the way.
+      await Bun.sleep(300)
+      events.length = 0
+      noticesClosed = false
+      // This process hears nothing of it: no session change, no request.
+      await Effect.runPromise(change(store, first))
+      conversation!.enqueue(record({ type: "content_chunk", content: "theirs", seq: 0, frameSeq: 1 }))
+      conversation!.enqueue(record({ type: "group_message_added", seq: 2 }))
+      notifications!.enqueue(
+        record({
+          type: "notification:created",
+          org,
+          notification: { type: "group-chat-mention", payload: { recordId: "chat-1" } },
+        }),
+      )
+      await until(() => resets().length === 1 && streamClosed && noticesClosed)
+      await Bun.sleep(200)
+      expect(events.map((event) => event.type)).toEqual(["jolli.groupChat.reset"])
+      expect(resets()[0].properties).toEqual({})
+    }),
+  )
+
+  test("signing out after the credential lapsed still drops the renderer's chats", () =>
+    withStoredSession(async ({ session }) => {
+      start()
+      await signedIn(session, "usr_1", "first")
+      await Effect.runPromise(Effect.flip(session.refused("first")))
+      await until(() => resets().length === 1 && streamClosed)
+      // Nothing is stored any more, and the sign-out still reaches the renderer.
+      await Effect.runPromise(session.signOut())
+      await until(() => resets().length === 2)
+      expect(resets()[1].properties).toEqual({})
+    }))
+
+  test("a fresh process takes the first credential it meets without a reset, whoever it names", () =>
+    withStoredSession(async ({ session, store }) => {
+      start()
+      await signedIn(session, "usr_1", "first")
+      // A restart: nothing in memory. Each window checks the list's owner against the chats it holds.
+      follow(session)
+      expect(await watchGroupChat(id, "window-1", true)).toBe(true)
+      expect(await watchGroupChat(id, "window-1", true)).toBe(true)
+      // While the sidecar was down another process signed somebody else in.
+      await Effect.runPromise(store.persist({ subject: "usr_2", accessToken: "other" }))
+      follow(session)
+      expect(await watchGroupChat(id, "window-1", true)).toBe(true)
+      expect(resets()).toEqual([])
+      // A sign-in in a process that never followed a credential cannot tell whose chats are on screen.
+      follow(session)
+      await Effect.runPromise(session.signIn({ token: "second", subject: "usr_2" }))
+      await until(() => resets().length === 1)
+      expect(resets()[0].properties).toEqual({})
+    }))
+
+  test("the same user id on another deployment is somebody else", () =>
+    withStoredSession(async ({ session }) => {
+      start()
+      await signedIn(session, "42", "first")
+      await Effect.runPromise(session.signIn({ token: "second", subject: "42", baseUrl: "https://beta.jolli.ai" }))
+      await until(() => resets().length === 1)
+      expect(resets()[0].properties).toEqual({})
+    }))
+
+  test("a refused request is never retried as somebody who signed in meanwhile", () =>
+    withStoredSession(async ({ session, store }) => {
+      start()
+      await signedIn(session, "usr_1", "first")
+      for (const signIn of [
+        // In this process, which settles the new person before the retry asks.
+        () => Effect.runPromise(session.signIn({ token: "second", subject: "usr_2" })),
+        // In another process, which the retry is the first to meet.
+        () => Effect.runPromise(store.persist({ subject: "usr_3", accessToken: "third" })),
+      ]) {
+        const sent: string[] = []
+        const outcome = await withGroupChatAuth(async (request) => {
+          sent.push(request.token)
+          if (sent.length > 1) return "replayed"
+          await signIn()
+          throw new JolliApiError({ path: "/messages", status: 401, message: "Group chat request failed: 401" })
+        }).then(
+          (value) => value,
+          (error: unknown) => error,
+        )
+        expect(sent).toHaveLength(1)
+        expect(groupChatFailure(outcome)).toMatchObject({ status: "refused", code: "account_changed" })
+        // Whoever is signed in now gets requests of their own.
+        await currentGroupChatRequest().catch(() => undefined)
+      }
+    }))
 })

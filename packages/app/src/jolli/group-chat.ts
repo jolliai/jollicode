@@ -1,24 +1,29 @@
-import { createEffect, onCleanup } from "solid-js"
+import { createEffect, on, onCleanup } from "solid-js"
+import { throttle } from "@solid-primitives/scheduled"
 import { Option, Schema } from "effect"
 import { Jolli } from "@opencode-ai/schema/jolli"
-import { useServerSDK } from "@/context/server-sdk"
+import { useServerSDK, type ServerSDK } from "@/context/server-sdk"
 import { ServerConnection } from "@/context/server"
+import { useGlobal } from "@/context/global"
 import { tabKey, useTabs } from "@/context/tabs"
 import { useLayout } from "@/context/layout"
 import { usePlatform } from "@/context/platform"
 import { useLanguage } from "@/context/language"
 import { useNavigate } from "@solidjs/router"
-import { groupChatHref } from "@/utils/session-route"
+import { useDialog } from "@opencode-ai/ui/context/dialog"
+import { groupChatHref, groupChatRouteId } from "@/utils/session-route"
 import type { GROUP_CHAT_ENGLISH } from "@/i18n/group-chat-en"
 import { HomeCourseSelection } from "./home-selection"
 import { catalogGeneration } from "./catalog"
 import {
-  groupChatCourses,
+  groupChatGeneration,
+  groupChatDrops,
   groupChatRows,
   removeGroupChatRow,
-  resetGroupChatRows,
-  setGroupChatCourses,
-  setGroupChatRows,
+  resetGroupChatWindow,
+  takeGroupChatList,
+  takeGroupChatOwner,
+  type GroupChatWindow,
 } from "./group-chat-state"
 import { showToast } from "@/utils/toast"
 
@@ -26,15 +31,6 @@ export type GroupChatMessageKey = keyof typeof GROUP_CHAT_ENGLISH
 
 export function decodeChatAnswer(value: unknown) {
   return Schema.decodeUnknownSync(Jolli.GroupChatAnswer)(value)
-}
-
-/**
- * The chat a route names, or nothing for an address that names none. A chat id holds only letters,
- * digits, `_`, `-` and the `:` separators, so `%3A` is the only escape a valid address carries.
- */
-export function groupChatRouteId(raw: string | undefined) {
-  if (!raw) return undefined
-  return Option.getOrUndefined(Schema.decodeUnknownOption(Jolli.GroupChatID)(raw.replaceAll(/%3a/gi, ":")))
 }
 
 const PayloadAttachment = Schema.Struct({
@@ -80,6 +76,9 @@ export function groupMessagePayload(payload: unknown) {
  * The wording for a request the server refused. `send` is a message, `action` a change to the chat,
  * `open` reading it; `carried` says the refused message brought files or course materials, which the
  * server refuses without naming a code.
+ *
+ * A change with no answer that could be read ({@link groupChatOutcomeUnknown}) is told as a chat that
+ * could not be reached, never as a change that was not saved: it may have been.
  */
 export function groupChatRefusalKey(
   answer: { status: string; code?: string; httpStatus?: number },
@@ -94,6 +93,7 @@ export function groupChatRefusalKey(
         : "groupChat.actionFailed"
   if (answer.status === "signed-out") return "groupChat.signedOut"
   if (answer.status === "unsupported") return "groupChat.unsupported"
+  if (answer.status === "unreachable" && request === "action") return "groupChat.unavailable"
   if (answer.status !== "refused") return fallback
   switch (answer.code) {
     case "agent_busy":
@@ -139,6 +139,58 @@ export function groupChatRefusal(
   const key = groupChatRefusalKey(answer, request, carried)
   const generic = key === "groupChat.sendFailed" || key === "groupChat.actionFailed" || key === "groupChat.unavailable"
   return generic && answer.status === "refused" && answer.message ? { key, message: answer.message } : { key }
+}
+
+/**
+ * A change whose outcome is unknown: no answer arrived, or the server could not be reached or answered in
+ * a way that could not be read. It may still have been made, so the chat is read back to show whether,
+ * and nothing that rests on it having failed (a leave's mark, a "not saved" notice) is undone or told.
+ */
+export function groupChatOutcomeUnknown(answer: { status: string } | undefined) {
+  return answer === undefined || answer.status === "unreachable"
+}
+
+/** A change the server turned down, so nothing was made: neither done, nor the chat gone, nor unknown. */
+export function groupChatActionRefused(answer: { status: string } | undefined) {
+  return !groupChatOutcomeUnknown(answer) && answer?.status !== "ok" && answer?.status !== "revoked"
+}
+
+/** What to tell about a change that did not go through as asked, or nothing when it did or the chat is gone. */
+export function groupChatActionNotice(answer: Jolli.GroupChatAnswer | undefined): GroupChatRefusal | undefined {
+  if (!answer) return { key: "groupChat.unavailable" }
+  if (answer.status === "ok" || answer.status === "revoked") return undefined
+  return groupChatRefusal(answer, "action")
+}
+
+/**
+ * The refusal codes that turn the request away rather than answer for the chat or the change, and that a
+ * later request may get past: an org the request could not be placed in for now (jolliedu answers
+ * `tenant_resolution_failed` alike for every reason on purpose), a sign-in that does not match the
+ * tenant yet, the account changing while the request was out, and the school asking for a fresh sign-in,
+ * which the person may give in their browser without this app hearing of it.
+ */
+const PASSING_REFUSALS = new Set(["tenant_resolution_failed", "tenant_mismatch", "account_changed", "sso_required"])
+
+/**
+ * A refusal that says nothing lasting about what was asked: a timeout or a rate limit, or one of
+ * {@link PASSING_REFUSALS}. Asked again later, the same request may be answered.
+ */
+export function groupChatRefusalPasses(answer: { status: string; code?: string; httpStatus?: number }) {
+  return (
+    answer.status === "refused" &&
+    (answer.httpStatus === 408 ||
+      answer.httpStatus === 429 ||
+      (answer.code !== undefined && PASSING_REFUSALS.has(answer.code)))
+  )
+}
+
+/**
+ * Whether a read marker's answer settles it for its message: taken, or refused for good. A refusal that
+ * turns the request away for now ({@link groupChatRefusalPasses}), a lost sign-in or no answer at all
+ * leaves the marker to be sent again.
+ */
+export function groupChatMarkerSettled(answer: { status: string; code?: string; httpStatus?: number }) {
+  return answer.status === "ok" || (answer.status === "refused" && !groupChatRefusalPasses(answer))
 }
 
 /**
@@ -197,6 +249,20 @@ export function canStopGroupAnswer(chat: Jolli.GroupChat | undefined, own?: { as
 
 const lossNotices = new Map<string, number>()
 
+/**
+ * Marks the reader's own leave before its request goes out. The revocation that follows can reach the
+ * app-wide listener before the leave's own answer does, and nobody should be told they lost a chat they
+ * just left. Returns the undo, only for a leave the server turned down ({@link groupChatActionRefused}): a
+ * leave whose answer was lost may have been taken, and the revocation that follows is then its own.
+ */
+export function beginGroupChatLeave(server: ServerConnection.Key, id: Jolli.GroupChatID) {
+  const key = `${server}\n${id}`
+  lossNotices.set(key, Date.now())
+  return () => {
+    lossNotices.delete(key)
+  }
+}
+
 /** Takes a chat the reader can no longer open out of the sidebar and the tabs, and says so once. */
 export function useGroupChatLoss() {
   const tabs = useTabs()
@@ -209,13 +275,73 @@ export function useGroupChatLoss() {
       language.t("groupChat.title")
     removeGroupChatRow(server, id)
     tabs.removeGroupChats(server, [id])
-    if (quiet || !firstGroupChatLossNotice(lossNotices, `${server}\n${id}`, Date.now())) return
+    // Recorded even when quiet: leaving a chat is followed by its revocation on the stream, and the
+    // app-wide listener must not then tell the person they lost a chat they just left.
+    const first = firstGroupChatLossNotice(lossNotices, `${server}\n${id}`, Date.now())
+    if (quiet || !first) return
     showToast({ title: language.t("groupChat.revoked", { title: known }) })
   }
 }
 
+/**
+ * Closes the dialog that calls this when its server's group chats are dropped: the credential went away,
+ * or another person signed in. A group chat dialog shows one account's chat, people or course, and acts as
+ * that account: neither may carry over to the next person, and a dialog opened outside a chat page has no
+ * page to close it.
+ */
+export function useCloseOnGroupChatReset() {
+  const dialog = useDialog()
+  const sdk = useServerSDK()
+  // Every drop, whether a reset event said so, or a list or answer showed a reset that was missed.
+  createEffect(
+    on(
+      () => groupChatDrops(ServerConnection.key(sdk().server)),
+      () => dialog.close(),
+      { defer: true },
+    ),
+  )
+}
+
+/**
+ * What an answer about the person a read went out as does to everything this window holds of a server's group
+ * chats: rows, tabs open or closed with their drafts and files, pages, dialogs and downloads. Every group chat
+ * read in the window goes through it, so none keeps anything on its own once the person is gone or another.
+ */
+export function useGroupChatAccount() {
+  const tabs = useTabs()
+  return {
+    /** The answer said the credential is gone. The sidecar's reset says so too, but may have been missed. */
+    signOut: (server: ServerConnection.Key) => resetGroupChatWindow(tabs, server),
+    /** An open answer naming another owner than the one this window recorded drops them. Answers whether it did. */
+    otherOwner: async (server: ServerConnection.Key, answer: Jolli.GroupChatAnswer | undefined) =>
+      answer?.owner !== undefined &&
+      takeGroupChatOwner(tabs, server, answer.owner, await tabs.groupChatOwners.held(server)),
+  }
+}
+
+/**
+ * Applies `jolli.groupChat.reset` from each server's own event stream to this window, once per event and
+ * server, and then calls `after` with the server it came from. Returns the stop.
+ */
+export function listenGroupChatResets(
+  tabs: GroupChatWindow,
+  servers: readonly { key: ServerConnection.Key; events: Pick<ServerSDK["event"], "listen"> }[],
+  after: (server: ServerConnection.Key) => void,
+) {
+  const stops = servers.map((server) =>
+    server.events.listen((event) => {
+      const data = event.details
+      if (data.type !== "jolli.groupChat.reset") return
+      resetGroupChatWindow(tabs, server.key, data.properties)
+      after(server.key)
+    }),
+  )
+  return () => stops.forEach((stop) => stop())
+}
+
 /** Mounted once by the navigation model; updates also reach chats that are not open. */
 export function useGroupChatConnection() {
+  const global = useGlobal()
   const serverSDK = useServerSDK()
   const tabs = useTabs()
   const layout = useLayout()
@@ -223,6 +349,23 @@ export function useGroupChatConnection() {
   const language = useLanguage()
   const navigate = useNavigate()
   const lose = useGroupChatLoss()
+  /** The selected server's list read, which a reset of that server asks for again once it is applied. */
+  let current: { server: ServerConnection.Key; refresh: () => void } | undefined
+  // Every server's resets, not only the selected one's: a page, a tab open or closed with its draft, or rows of
+  // another server would otherwise outlive the credential they were read with.
+  createEffect(
+    on(global.servers.list, (list) =>
+      onCleanup(
+        listenGroupChatResets(
+          tabs,
+          list.map((conn) => ({ key: ServerConnection.key(conn), events: global.ensureServerCtx(conn).sdk.event })),
+          (server) => {
+            if (current?.server === server) current.refresh()
+          },
+        ),
+      ),
+    ),
+  )
   createEffect(() => {
     const sdk = serverSDK()
     const server = ServerConnection.key(sdk.server)
@@ -231,50 +374,46 @@ export function useGroupChatConnection() {
     let disposed = false
     let loading = false
     let again = false
-    const refresh = async () => {
+    const refresh = (): void => {
+      // A read starting now also covers every nudge that was waiting for one.
+      nudge.clear()
       if (loading) {
         again = true
         return
       }
       loading = true
-      try {
-        const answer = decodeChatAnswer((await sdk.client.jolli.groupChats(courseId ? { courseId } : {})).data)
-        if (disposed) return
-        if (answer.status === "ok") {
-          setGroupChatRows(server, answer.chats ?? [], courseId, answer.complete !== false)
-          // A partial list may leave out tenants it could not ask, so their courses stay as they were.
-          setGroupChatCourses(server, [
-            ...new Set([
-              ...(answer.complete === false ? groupChatCourses(server) : []),
-              ...(answer.enabledCourseIds ?? []),
-            ]),
-          ])
-        }
-        if (answer.status === "signed-out" || answer.status === "unsupported") resetGroupChatRows(server)
-      } catch {
-        /* Keep the last confirmed list through a transient disconnect. */
-      } finally {
-        loading = false
-        if (again && !disposed) {
+      // A list that left before a reset may be the previous account's; it is dropped when it arrives, and
+      // the read the reset asked for runs after it. A change of server or course ends this effect instead.
+      const generation = groupChatGeneration(server)
+      void sdk.client.jolli
+        .groupChats(courseId ? { courseId } : {})
+        .then(async (response) => {
+          const answer = decodeChatAnswer(response.data)
+          // Read from this window's own record, which may still be loading.
+          const held = await tabs.groupChatOwners.held(server)
+          if (disposed || generation !== groupChatGeneration(server)) return
+          takeGroupChatList(tabs, server, answer, held, courseId)
+        })
+        // Keep the last confirmed list through a transient disconnect.
+        .catch(() => undefined)
+        .finally(() => {
+          loading = false
+          if (!again || disposed) return
           again = false
-          void refresh()
-        }
-      }
+          refresh()
+        })
     }
+    // Every message in any of the reader's chats nudges the list, and a read asks the server several
+    // things: a burst of nudges is read once, shortly after the first. Made inside this effect, the
+    // throttle registers its own `clear` with the effect's cleanup, so a nudge left waiting when the
+    // course or server changes is dropped rather than read for the old one.
+    const nudge = throttle(refresh, 300)
+    current = { server, refresh }
     const stop = sdk.event.listen((event) => {
       const data = event.details
       // A chat's own `changed` reaches only that chat's page; the list moves on list and mention nudges.
-      if (
-        data.type === "server.connected" ||
-        data.type === "jolli.groupChat.listChanged" ||
-        data.type === "jolli.groupChat.mention"
-      )
-        void refresh()
-      if (data.type === "jolli.groupChat.reset") {
-        resetGroupChatRows(server)
-        tabs.removeGroupChats(server)
-        void refresh()
-      }
+      if (data.type === "jolli.groupChat.listChanged" || data.type === "jolli.groupChat.mention") nudge()
+      if (data.type === "server.connected") refresh()
       if (data.type === "jolli.groupChat.revoked") {
         const id = groupChatRouteId(data.properties.chatID)
         if (id) lose(server, id)
@@ -303,12 +442,13 @@ export function useGroupChatConnection() {
       }
     })
     const focus = () => {
-      if (document.visibilityState !== "hidden") void refresh()
+      if (document.visibilityState !== "hidden") refresh()
     }
     window.addEventListener("focus", focus)
-    void refresh()
+    refresh()
     onCleanup(() => {
       disposed = true
+      current = undefined
       stop()
       window.removeEventListener("focus", focus)
     })

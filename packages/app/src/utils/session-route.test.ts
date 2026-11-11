@@ -1,6 +1,15 @@
 import { describe, expect, test } from "bun:test"
+import { Jolli } from "@opencode-ai/schema/jolli"
 import { ServerConnection } from "@/context/server"
-import { legacySessionHref, legacySessionServer, requireServerKey, rootSession, sessionHref } from "./session-route"
+import {
+  groupChatHref,
+  groupChatRouteId,
+  legacySessionHref,
+  legacySessionServer,
+  requireServerKey,
+  rootSession,
+  sessionHref,
+} from "./session-route"
 
 describe("session routes", () => {
   test("uses the unique persisted server for a legacy session route", () => {
@@ -67,5 +76,23 @@ describe("session routes", () => {
     }
 
     expect(rootSession(sessions.child, async (id) => sessions[id]!)).rejects.toThrow("Session parent cycle: child")
+  })
+})
+
+describe("group chat route ids", () => {
+  const chatID = Jolli.GroupChatID.make("school:course:chat-1")
+
+  test("an encoded org-scoped id opens; anything else is not found instead of throwing", () => {
+    expect(groupChatRouteId("school%3Acourse%3Achat-1")).toBe(chatID)
+    expect(groupChatRouteId("school:course:chat-1")).toBe(chatID)
+    expect(groupChatRouteId("%E0%A4%A")).toBeUndefined()
+    expect(groupChatRouteId("bare-id")).toBeUndefined()
+    expect(groupChatRouteId("school%3Acourse%3A..%2Fescape")).toBeUndefined()
+    expect(groupChatRouteId(undefined)).toBeUndefined()
+  })
+
+  test("reads back the id of the address it makes", () => {
+    const href = groupChatHref(ServerConnection.Key.make("http://localhost:4096"), chatID)
+    expect(groupChatRouteId(href.split("/").at(-1))).toBe(chatID)
   })
 })

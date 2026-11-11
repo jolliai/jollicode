@@ -1,4 +1,5 @@
-import type { Jolli } from "@opencode-ai/schema/jolli"
+import { Option, Schema } from "effect"
+import { Jolli } from "@opencode-ai/schema/jolli"
 import { base64Encode } from "@opencode-ai/core/util/encode"
 import { ServerConnection } from "@/context/server"
 import { decode64 } from "@/utils/base64"
@@ -41,4 +42,13 @@ export async function rootSession<T extends SessionParent>(session: T, get: (ses
 
 export function groupChatHref(server: ServerConnection.Key, id: Jolli.GroupChatID) {
   return `/server/${base64Encode(server)}/group-chat/${encodeURIComponent(id)}`
+}
+
+/**
+ * The chat a route names, or nothing for an address that names none. A chat id holds only letters,
+ * digits, `_`, `-` and the `:` separators, so `%3A` is the only escape a valid address carries.
+ */
+export function groupChatRouteId(raw: string | undefined) {
+  if (!raw) return undefined
+  return Option.getOrUndefined(Schema.decodeUnknownOption(Jolli.GroupChatID)(raw.replaceAll(/%3a/gi, ":")))
 }

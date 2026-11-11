@@ -5,6 +5,7 @@ import { Effect } from "effect"
 import { Jolli } from "@opencode-ai/schema/jolli"
 import { Database } from "../src/database/database"
 import {
+  groupChatOwner,
   makeGroupChatCache,
   canReadOffline,
   offlineCredentialFailure,
@@ -81,6 +82,32 @@ test("only a complete list may purge, and a course filter cannot purge another c
     expect(await cache.get("a", chat(2).id)).toBeDefined()
   }))
 
+test("a purge removes every copy the list no longer names and drops a read still on its way", () =>
+  run(async (cache, database) => {
+    for (const n of [1, 2, 3]) await cache.put("a", chat(n), 0)
+    await cache.put("b", chat(2), 0)
+    const late = cache.version("a", chat(2).id)
+    await cache.reconcile("a", [chat(1).id], true)
+    const rows = await Effect.runPromise(database.db.select().from(JolliGroupChatCacheTable).all().pipe(Effect.orDie))
+    expect(rows.map((row) => [row.account_id, row.chat_id]).sort()).toEqual([
+      ["a", chat(1).id],
+      ["b", chat(2).id],
+    ])
+    await cache.put("a", chat(2), late)
+    expect(await cache.get("a", chat(2).id)).toBeUndefined()
+  }))
+test("an expired copy is never served, even before the periodic sweep deletes it", () =>
+  run(async (cache, database) => {
+    const now = Date.now()
+    await cache.put("a", chat(1), 0, now)
+    // A sweep that has just run keeps the next read from sweeping again.
+    await cache.expire(now + MAX_CACHE_AGE)
+    expect(await cache.get("a", chat(1).id, now + MAX_CACHE_AGE + 100)).toBeUndefined()
+    expect(await cache.list("a", now + MAX_CACHE_AGE + 100)).toEqual([])
+    const rows = await Effect.runPromise(database.db.select().from(JolliGroupChatCacheTable).all().pipe(Effect.orDie))
+    expect(rows).toHaveLength(1)
+  }))
+
 test("only unavailable credentials may read a previously authorized cache", () => {
   expect(offlineCredentialFailure(new JolliUnavailable({ message: "Network unavailable" }))).toBe(true)
   expect(offlineCredentialFailure(new JolliSignedOut({ message: "Sign in again" }))).toBe(false)
@@ -104,6 +131,23 @@ test("a sign-out or another sign-in drops a read that was still on its way to th
     expect(await cache.get("a", value.id)).toBeUndefined()
     await cache.put("a", value, cache.version("a", value.id))
     expect((await cache.get("a", value.id))?.chat.id).toBe(value.id)
+  }))
+test("a sign-in that keeps one account lets its reads land and drops every other account's", () =>
+  run(async (cache) => {
+    const value = chat(1)
+    const mine = cache.version("a", value.id)
+    const theirs = cache.version("b", value.id)
+    cache.forget("a")
+    // A second sign-in of the same person moves nothing either.
+    cache.forget("a")
+    await cache.put("a", value, mine)
+    await cache.put("b", value, theirs)
+    expect((await cache.get("a", value.id))?.chat.id).toBe(value.id)
+    expect(await cache.get("b", value.id)).toBeUndefined()
+    // Signing out keeps nobody, the account kept before included.
+    const before = cache.version("a", value.id)
+    cache.forget()
+    expect(cache.version("a", value.id)).not.toBe(before)
   }))
 test("an offline copy this version cannot read is deleted instead of failing the list", () =>
   run(async (cache, database) => {
@@ -148,3 +192,20 @@ test("a list that could not read the catalogue purges no offline copy", () =>
     expect(answer.complete).toBe(false)
     expect(await cache.get("a", chat(1).id)).toBeDefined()
   }))
+
+test("an owner is one person: the same subject on another deployment or tenant is somebody else", () => {
+  const row = { base_url: "https://acme.jolli.ai", subject: "42", cache_key: "key-1" }
+  // A renewed credential, or a new one after the last expired, gets a new key and is the same person.
+  expect(groupChatOwner({ ...row, cache_key: "key-2" })).toBe(groupChatOwner(row))
+  expect(groupChatOwner({ ...row, base_url: "https://acme.jolli.ai/" })).toBe(groupChatOwner(row))
+  expect(groupChatOwner({ ...row, base_url: "https://other.jolli.ai" })).not.toBe(groupChatOwner(row))
+  expect(groupChatOwner({ ...row, base_url: "https://jolli.ai/acme" })).not.toBe(
+    groupChatOwner({ ...row, base_url: "https://jolli.ai/beta" }),
+  )
+  expect(groupChatOwner({ ...row, subject: "43" })).not.toBe(groupChatOwner(row))
+  // Without a subject only the key tells people apart.
+  expect(groupChatOwner({ ...row, subject: null })).not.toBe(
+    groupChatOwner({ ...row, subject: null, cache_key: "key-2" }),
+  )
+  expect(groupChatOwner(row)).not.toContain("42")
+})

@@ -18,7 +18,13 @@ const Answer = define({
 })
 const Mention = define({ type: "jolli.groupChat.mention", schema: { chatID: Schema.String } })
 const ListChanged = define({ type: "jolli.groupChat.listChanged", schema: { chatID: Schema.String.pipe(optional) } })
-const Reset = define({ type: "jolli.groupChat.reset", schema: {} })
+/**
+ * The credential went away (a sign-out, one that could not be renewed, one another process removed), another
+ * account signed in, or the sidecar cannot tell whose group chats are on screen: drop them all. With
+ * `sameAccount` the same person signed in again over a credential the sidecar was following: everything stays,
+ * and only the streams restart, so lists and open chats read and watch again.
+ */
+const Reset = define({ type: "jolli.groupChat.reset", schema: { sameAccount: Schema.Boolean.pipe(optional) } })
 export const Event = {
   Changed,
   Revoked,

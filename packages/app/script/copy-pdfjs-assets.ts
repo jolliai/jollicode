@@ -21,7 +21,7 @@
  * `pdfjs/`, so a directory left by an older pdf.js never ships.
  */
 
-import { cpSync, readFileSync, rmSync } from "node:fs"
+import { cpSync, rmSync } from "node:fs"
 import { createRequire } from "node:module"
 import { dirname, join } from "node:path"
 
@@ -32,12 +32,11 @@ function print(msg: string): void {
   process.stdout.write(`${msg}\n`)
 }
 
-export function copyPdfjsAssets(): void {
+/** Resolves once the copy is done; the desktop prebuild and predev scripts await it before their next step. */
+export async function copyPdfjsAssets() {
   const require = createRequire(import.meta.url)
   const packageDir = dirname(require.resolve("pdfjs-dist/package.json"))
-  // Read synchronously rather than with `Bun.file().json()`: the desktop prebuild and predev scripts
-  // call this without awaiting and run their next step right after, so the copy must be done on return.
-  const metadata: unknown = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"))
+  const metadata: unknown = await Bun.file(join(packageDir, "package.json")).json()
   if (!metadata || typeof metadata !== "object" || !("version" in metadata) || typeof metadata.version !== "string")
     throw new Error("Invalid pdf.js package metadata")
   const version = metadata.version
@@ -54,4 +53,4 @@ export function copyPdfjsAssets(): void {
   print(`Copied pdf.js ${version} assets to ${output}`)
 }
 
-if (import.meta.main) copyPdfjsAssets()
+if (import.meta.main) await copyPdfjsAssets()
