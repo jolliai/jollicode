@@ -1354,6 +1354,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "{{date}} 已交",
   "dialog.assignment.task.submitted": "{{date}} 已提交",
   "dialog.assignment.task.notOwed": "无需再做",
+  "dialog.assignment.task.optionalStatus": "可选 · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "先在至少一个可选任务里发条消息，再交这份作业；发出消息就算提交了该任务。",
+  "dialog.assignment.turnIn.firstHandIn": "至少交一个可选任务后，才能交这份作业。",
+  "dialog.assignment.turnIn.optionalLeft": "以下可选任务还没交——现在交作业，它们就不会算在内：",
   "dialog.assignment.task.web": "请在网页上完成此任务",
   "dialog.assignment.task.elsewhere": "已在另一台电脑上开始",
   "dialog.assignment.task.start": "开始",

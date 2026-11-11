@@ -1249,6 +1249,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "ჩაბარებულია {{date}}",
   "dialog.assignment.task.submitted": "ჩაბარებულია {{date}}",
   "dialog.assignment.task.notOwed": "აღარ არის საჭირო",
+  "dialog.assignment.task.optionalStatus": "არასავალდებულო · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "ამ დავალების ჩაბარებამდე გაგზავნე შეტყობინება სულ მცირე ერთ არასავალდებულო დავალებაში. ის ავტომატურად ჩაითვლება ჩაბარებულად.",
+  "dialog.assignment.turnIn.firstHandIn": "ამ დავალების ჩაბარებამდე ჩააბარე სულ მცირე ერთი არასავალდებულო დავალება.",
+  "dialog.assignment.turnIn.optionalLeft": "ჩაუბარებელი არასავალდებულო დავალებები — თუ ახლა ჩააბარებ, ისინი არ შევა:",
   "dialog.assignment.task.web": "შეასრულე ეს ამოცანა ვებში",
   "dialog.assignment.task.elsewhere": "დაწყებულია სხვა კომპიუტერზე",
   "dialog.assignment.task.start": "დაწყება",

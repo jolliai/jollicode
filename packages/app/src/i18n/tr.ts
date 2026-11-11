@@ -1351,6 +1351,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "{{date}} tarihinde teslim edildi",
   "dialog.assignment.task.submitted": "{{date}} tarihinde teslim edildi",
   "dialog.assignment.task.notOwed": "Artık gerekli değil",
+  "dialog.assignment.task.optionalStatus": "İsteğe bağlı · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Bu ödevi teslim etmeden önce en az bir isteğe bağlı görevde mesaj gönder. Görev otomatik olarak teslim edilmiş sayılır.",
+  "dialog.assignment.turnIn.firstHandIn": "Bu ödevi teslim etmeden önce en az bir isteğe bağlı görevi teslim et.",
+  "dialog.assignment.turnIn.optionalLeft":
+    "Teslim edilmemiş isteğe bağlı görevler — şimdi teslim edersen bunlar dahil edilmez:",
   "dialog.assignment.task.web": "Bu görevi web'de yapın",
   "dialog.assignment.task.elsewhere": "Başka bir bilgisayarda başlatıldı",
   "dialog.assignment.task.start": "Başlat",

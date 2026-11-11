@@ -1261,6 +1261,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "{{date}}에 제출됨",
   "dialog.assignment.task.submitted": "{{date}}에 제출됨",
   "dialog.assignment.task.notOwed": "더 이상 필요 없음",
+  "dialog.assignment.task.optionalStatus": "선택 사항 · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "이 과제를 제출하려면 먼저 선택 과제 하나 이상에서 메시지를 보내세요. 해당 과제는 자동으로 제출된 것으로 처리됩니다.",
+  "dialog.assignment.turnIn.firstHandIn": "이 과제를 제출하려면 먼저 선택 과제를 하나 이상 제출하세요.",
+  "dialog.assignment.turnIn.optionalLeft": "제출하지 않은 선택 과제 — 지금 제출하면 이 과제들은 포함되지 않습니다:",
   "dialog.assignment.task.web": "이 작업은 웹에서 하세요",
   "dialog.assignment.task.elsewhere": "다른 컴퓨터에서 시작됨",
   "dialog.assignment.task.start": "시작",

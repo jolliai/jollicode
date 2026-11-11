@@ -1239,6 +1239,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "ສົ່ງແລ້ວ {{date}}",
   "dialog.assignment.task.submitted": "ສົ່ງແລ້ວ {{date}}",
   "dialog.assignment.task.notOwed": "ບໍ່ຕ້ອງເຮັດອີກແລ້ວ",
+  "dialog.assignment.task.optionalStatus": "ທາງເລືອກ · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "ສົ່ງຂໍ້ຄວາມໃນໜ້າວຽກທາງເລືອກຢ່າງໜ້ອຍໜຶ່ງຢ່າງ ກ່ອນສົ່ງວຽກມອບໝາຍນີ້. ໜ້າວຽກນັ້ນຈະຖືກນັບວ່າສົ່ງແລ້ວໂດຍອັດຕະໂນມັດ.",
+  "dialog.assignment.turnIn.firstHandIn": "ສົ່ງໜ້າວຽກທາງເລືອກຢ່າງໜ້ອຍໜຶ່ງຢ່າງ ກ່ອນສົ່ງວຽກມອບໝາຍນີ້.",
+  "dialog.assignment.turnIn.optionalLeft": "ໜ້າວຽກທາງເລືອກທີ່ຍັງບໍ່ໄດ້ສົ່ງ — ຖ້າສົ່ງຕອນນີ້ ໜ້າວຽກເຫຼົ່ານີ້ຈະບໍ່ຖືກລວມ:",
   "dialog.assignment.task.web": "ເຮັດໜ້າວຽກນີ້ໃນເວັບ",
   "dialog.assignment.task.elsewhere": "ເລີ່ມໃນຄອມພິວເຕີເຄື່ອງອື່ນແລ້ວ",
   "dialog.assignment.task.start": "ເລີ່ມ",

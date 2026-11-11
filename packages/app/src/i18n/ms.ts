@@ -1249,6 +1249,13 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Diserahkan {{date}}",
   "dialog.assignment.task.submitted": "Diserahkan {{date}}",
   "dialog.assignment.task.notOwed": "Tidak diperlukan lagi",
+  "dialog.assignment.task.optionalStatus": "Pilihan · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Hantar mesej dalam sekurang-kurangnya satu tugasan pilihan sebelum menyerahkan tugasan ini. Tugasan tersebut dikira telah dihantar secara automatik.",
+  "dialog.assignment.turnIn.firstHandIn":
+    "Hantar sekurang-kurangnya satu tugasan pilihan sebelum menyerahkan tugasan ini.",
+  "dialog.assignment.turnIn.optionalLeft":
+    "Tugasan pilihan yang belum dihantar — jika dihantar sekarang, tugasan ini tidak disertakan:",
   "dialog.assignment.task.web": "Buat tugas ini di web",
   "dialog.assignment.task.elsewhere": "Dimulakan di komputer lain",
   "dialog.assignment.task.start": "Mula",

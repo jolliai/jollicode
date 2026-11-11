@@ -1242,6 +1242,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "បានប្រគល់ {{date}}",
   "dialog.assignment.task.submitted": "បានប្រគល់ {{date}}",
   "dialog.assignment.task.notOwed": "លែងត្រូវការទៀតហើយ",
+  "dialog.assignment.task.optionalStatus": "ស្រេចចិត្ត · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "ផ្ញើសារក្នុងកិច្ចការស្រេចចិត្តយ៉ាងហោចណាស់មួយ មុនពេលប្រគល់កិច្ចការនេះ។ កិច្ចការនោះនឹងត្រូវចាត់ទុកថាបានប្រគល់ដោយស្វ័យប្រវត្តិ។",
+  "dialog.assignment.turnIn.firstHandIn": "ប្រគល់កិច្ចការស្រេចចិត្តយ៉ាងហោចណាស់មួយ មុនពេលប្រគល់កិច្ចការនេះ។",
+  "dialog.assignment.turnIn.optionalLeft":
+    "កិច្ចការស្រេចចិត្តដែលមិនទាន់ប្រគល់ — បើប្រគល់ឥឡូវនេះ កិច្ចការទាំងនេះនឹងមិនរួមបញ្ចូលទេ៖",
   "dialog.assignment.task.web": "សូមធ្វើភារកិច្ចនេះនៅលើគេហទំព័រ",
   "dialog.assignment.task.elsewhere": "បានចាប់ផ្តើមនៅលើកុំព្យូទ័រផ្សេង",
   "dialog.assignment.task.start": "ចាប់ផ្តើម",

@@ -1246,6 +1246,11 @@ export const dict: Record<string, string> = {
   "dialog.assignment.task.handedIn": "{{date}} භාර දෙන ලදී",
   "dialog.assignment.task.submitted": "{{date}} භාර දෙන ලදී",
   "dialog.assignment.task.notOwed": "තවදුරටත් අවශ්‍ය නැත",
+  "dialog.assignment.task.optionalStatus": "විකල්ප · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "මෙම පැවරුම භාර දීමට පෙර අවම වශයෙන් එක් විකල්ප කාර්යයකවත් පණිවිඩයක් යවන්න. එම කාර්යය ස්වයංක්‍රීයව භාර දුන් ලෙස සැලකේ.",
+  "dialog.assignment.turnIn.firstHandIn": "මෙම පැවරුම භාර දීමට පෙර අවම වශයෙන් එක් විකල්ප කාර්යයක්වත් භාර දෙන්න.",
+  "dialog.assignment.turnIn.optionalLeft": "භාර නොදුන් විකල්ප කාර්ය — දැන් භාර දුන්නොත් මේවා ඇතුළත් නොවේ:",
   "dialog.assignment.task.web": "මෙම කාර්යය වෙබයේ කරන්න",
   "dialog.assignment.task.elsewhere": "වෙනත් පරිගණකයක ආරම්භ කරන ලදී",
   "dialog.assignment.task.start": "අරඹන්න",

@@ -1263,6 +1263,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Предадена на {{date}}",
   "dialog.assignment.task.submitted": "Предадена на {{date}}",
   "dialog.assignment.task.notOwed": "Вече не е нужна",
+  "dialog.assignment.task.optionalStatus": "По избор · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Изпрати съобщение в поне една задача по избор, преди да предадеш това задание. Задачата автоматично се отчита като предадена.",
+  "dialog.assignment.turnIn.firstHandIn": "Предай поне една задача по избор, преди да предадеш това задание.",
+  "dialog.assignment.turnIn.optionalLeft":
+    "Непредадени задачи по избор — ако предадеш сега, те няма да бъдат включени:",
   "dialog.assignment.task.web": "Изпълнете тази задача в уеб",
   "dialog.assignment.task.elsewhere": "Започната на друг компютър",
   "dialog.assignment.task.start": "Старт",

@@ -1261,6 +1261,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Предадено {{date}}",
   "dialog.assignment.task.submitted": "Предадено {{date}}",
   "dialog.assignment.task.notOwed": "Повеќе не е потребно",
+  "dialog.assignment.task.optionalStatus": "Изборно · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Испрати порака во барем една изборна задача пред да ја предадеш оваа домашна работа. Задачата автоматски се смета за предадена.",
+  "dialog.assignment.turnIn.firstHandIn": "Предај барем една изборна задача пред да ја предадеш оваа домашна работа.",
+  "dialog.assignment.turnIn.optionalLeft": "Непредадени изборни задачи — ако предадеш сега, нема да бидат вклучени:",
   "dialog.assignment.task.web": "Направете ја оваа задача на веб",
   "dialog.assignment.task.elsewhere": "Започнато на друг компјутер",
   "dialog.assignment.task.start": "Започни",

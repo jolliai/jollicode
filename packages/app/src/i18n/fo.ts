@@ -1246,6 +1246,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Latið inn {{date}}",
   "dialog.assignment.task.submitted": "Latið inn {{date}}",
   "dialog.assignment.task.notOwed": "Ikki longur neyðugt",
+  "dialog.assignment.task.optionalStatus": "Valfrítt · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Send eini boð í minst einari valfríari uppgávu, áðrenn tú letur hesa innlatingina inn. Uppgávan verður sjálvvirkandi roknað sum innlatin.",
+  "dialog.assignment.turnIn.firstHandIn": "Lat minst eina valfría uppgávu inn, áðrenn tú letur hesa innlatingina inn.",
+  "dialog.assignment.turnIn.optionalLeft":
+    "Valfríar uppgávur, sum ikki eru latnar inn – letur tú inn nú, verða tær ikki við:",
   "dialog.assignment.task.web": "Ger hesa uppgávuna á vevinum",
   "dialog.assignment.task.elsewhere": "Byrjað á aðrari teldu",
   "dialog.assignment.task.start": "Byrja",

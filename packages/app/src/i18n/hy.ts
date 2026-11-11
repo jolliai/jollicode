@@ -1257,6 +1257,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Հանձնված է {{date}}",
   "dialog.assignment.task.submitted": "Հանձնված է {{date}}",
   "dialog.assignment.task.notOwed": "Այլևս պետք չէ",
+  "dialog.assignment.task.optionalStatus": "Ընտրովի · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Այս հանձնարարությունը հանձնելուց առաջ հաղորդագրություն ուղարկիր առնվազն մեկ ընտրովի առաջադրանքում։ Առաջադրանքն ինքնաբերաբար կհամարվի հանձնված։",
+  "dialog.assignment.turnIn.firstHandIn":
+    "Այս հանձնարարությունը հանձնելուց առաջ հանձնիր առնվազն մեկ ընտրովի առաջադրանք։",
+  "dialog.assignment.turnIn.optionalLeft": "Չհանձնված ընտրովի առաջադրանքներ — եթե հիմա հանձնես, դրանք չեն ներառվի:",
   "dialog.assignment.task.web": "Կատարիր այս խնդիրը վեբում",
   "dialog.assignment.task.elsewhere": "Սկսվել է այլ համակարգչում",
   "dialog.assignment.task.start": "Սկսել",

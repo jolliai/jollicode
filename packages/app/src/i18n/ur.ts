@@ -1257,6 +1257,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "{{date}} کو جمع کرایا گیا",
   "dialog.assignment.task.submitted": "{{date}} کو جمع کرایا گیا",
   "dialog.assignment.task.notOwed": "اب ضرورت نہیں",
+  "dialog.assignment.task.optionalStatus": "اختیاری · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "یہ اسائنمنٹ جمع کرانے سے پہلے کم از کم ایک اختیاری کام میں پیغام بھیجیں۔ وہ کام خود بخود جمع شدہ شمار ہوگا۔",
+  "dialog.assignment.turnIn.firstHandIn": "یہ اسائنمنٹ جمع کرانے سے پہلے کم از کم ایک اختیاری کام جمع کرائیں۔",
+  "dialog.assignment.turnIn.optionalLeft": "جمع نہ کیے گئے اختیاری کام — ابھی جمع کرنے پر یہ شامل نہیں ہوں گے:",
   "dialog.assignment.task.web": "یہ ٹاسک ویب پر کریں",
   "dialog.assignment.task.elsewhere": "کسی اور کمپیوٹر پر شروع کیا گیا",
   "dialog.assignment.task.start": "شروع کریں",

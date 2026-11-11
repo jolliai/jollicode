@@ -1364,6 +1364,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Здано {{date}}",
   "dialog.assignment.task.submitted": "Здано {{date}}",
   "dialog.assignment.task.notOwed": "Більше не потрібно",
+  "dialog.assignment.task.optionalStatus": "Необов'язково · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Перш ніж здати цю роботу, надішли повідомлення хоча б в одному необов’язковому завданні. Воно автоматично вважатиметься зданим.",
+  "dialog.assignment.turnIn.firstHandIn": "Перш ніж здати цю роботу, здай хоча б одне необов’язкове завдання.",
+  "dialog.assignment.turnIn.optionalLeft": "Не здані необов'язкові завдання — якщо здати зараз, вони не ввійдуть:",
   "dialog.assignment.task.web": "Виконайте це підзавдання у вебверсії",
   "dialog.assignment.task.elsewhere": "Розпочато на іншому комп’ютері",
   "dialog.assignment.task.start": "Почати",

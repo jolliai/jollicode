@@ -1260,6 +1260,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Илгээсэн: {{date}}",
   "dialog.assignment.task.submitted": "Илгээсэн: {{date}}",
   "dialog.assignment.task.notOwed": "Шаардлагагүй болсон",
+  "dialog.assignment.task.optionalStatus": "Сонголттой · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Энэ бие даалтыг илгээхээсээ өмнө дор хаяж нэг сонголттой даалгаварт мессеж илгээнэ үү. Тухайн даалгаврыг автоматаар илгээсэнд тооцно.",
+  "dialog.assignment.turnIn.firstHandIn":
+    "Энэ бие даалтыг илгээхээсээ өмнө дор хаяж нэг сонголттой даалгавар илгээнэ үү.",
+  "dialog.assignment.turnIn.optionalLeft": "Илгээгээгүй сонголттой даалгаврууд — одоо илгээвэл эдгээр орохгүй:",
   "dialog.assignment.task.web": "Энэ ажлыг вэб дээр хийнэ үү",
   "dialog.assignment.task.elsewhere": "Өөр компьютер дээр эхэлсэн",
   "dialog.assignment.task.start": "Эхлэх",

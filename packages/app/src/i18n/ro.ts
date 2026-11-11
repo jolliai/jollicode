@@ -1258,6 +1258,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Predat {{date}}",
   "dialog.assignment.task.submitted": "Predat {{date}}",
   "dialog.assignment.task.notOwed": "Nu mai este necesar",
+  "dialog.assignment.task.optionalStatus": "Opțional · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Trimite un mesaj în cel puțin o sarcină opțională înainte de a preda această temă. Sarcina va fi considerată automat predată.",
+  "dialog.assignment.turnIn.firstHandIn": "Predă cel puțin o sarcină opțională înainte de a preda această temă.",
+  "dialog.assignment.turnIn.optionalLeft": "Sarcini opționale nepredate — dacă predai acum, nu vor fi incluse:",
   "dialog.assignment.task.web": "Fă această sarcină pe web",
   "dialog.assignment.task.elsewhere": "Început pe alt computer",
   "dialog.assignment.task.start": "Începe",

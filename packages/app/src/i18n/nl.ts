@@ -1263,6 +1263,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Ingeleverd {{date}}",
   "dialog.assignment.task.submitted": "Ingeleverd {{date}}",
   "dialog.assignment.task.notOwed": "Niet meer nodig",
+  "dialog.assignment.task.optionalStatus": "Optioneel · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Stuur een bericht in minstens één optionele taak voordat je deze opdracht inlevert. Die taak telt automatisch als ingeleverd.",
+  "dialog.assignment.turnIn.firstHandIn": "Lever minstens één optionele taak in voordat je deze opdracht inlevert.",
+  "dialog.assignment.turnIn.optionalLeft":
+    "Niet ingeleverde optionele taken — als je nu inlevert, worden ze niet meegenomen:",
   "dialog.assignment.task.web": "Doe deze taak op het web",
   "dialog.assignment.task.elsewhere": "Gestart op een andere computer",
   "dialog.assignment.task.start": "Starten",

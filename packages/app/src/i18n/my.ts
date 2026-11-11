@@ -1268,6 +1268,13 @@ export const dict = {
   "dialog.assignment.task.handedIn": "{{date}} တွင် တင်သွင်းခဲ့သည်",
   "dialog.assignment.task.submitted": "{{date}} တွင် တင်သွင်းခဲ့သည်",
   "dialog.assignment.task.notOwed": "မလိုအပ်တော့ပါ",
+  "dialog.assignment.task.optionalStatus": "ရွေးချယ်နိုင်သည် · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "ဤတာဝန်ကို မတင်သွင်းမီ ရွေးချယ်နိုင်သည့် လုပ်ငန်း အနည်းဆုံးတစ်ခုတွင် မက်ဆေ့ချ်ပို့ပါ။ ထိုလုပ်ငန်းကို အလိုအလျောက် တင်သွင်းပြီးဟု သတ်မှတ်မည်ဖြစ်သည်။",
+  "dialog.assignment.turnIn.firstHandIn":
+    "ဤတာဝန်ကို မတင်သွင်းမီ ရွေးချယ်နိုင်သည့် လုပ်ငန်း အနည်းဆုံးတစ်ခုကို တင်သွင်းပါ။",
+  "dialog.assignment.turnIn.optionalLeft":
+    "မတင်သွင်းရသေးသော ရွေးချယ်နိုင်သည့် လုပ်ငန်းများ — ယခု တင်သွင်းပါက ၎င်းတို့ ပါဝင်မည်မဟုတ်ပါ:",
   "dialog.assignment.task.web": "ဤလုပ်ငန်းကို ဝဘ်တွင် လုပ်ပါ",
   "dialog.assignment.task.elsewhere": "အခြားကွန်ပျူတာတွင် စတင်ထားသည်",
   "dialog.assignment.task.start": "စတင်ရန်",

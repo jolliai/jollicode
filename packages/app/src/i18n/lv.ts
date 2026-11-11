@@ -1256,6 +1256,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Iesniegts {{date}}",
   "dialog.assignment.task.submitted": "Iesniegts {{date}}",
   "dialog.assignment.task.notOwed": "Vairs nav vajadzīgs",
+  "dialog.assignment.task.optionalStatus": "Neobligāts · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Pirms šī darba iesniegšanas nosūti ziņu vismaz vienā neobligātā uzdevumā. Tas automātiski tiks uzskatīts par iesniegtu.",
+  "dialog.assignment.turnIn.firstHandIn": "Pirms šī darba iesniegšanas iesniedz vismaz vienu neobligātu uzdevumu.",
+  "dialog.assignment.turnIn.optionalLeft": "Neiesniegti neobligāti uzdevumi — ja iesniegsi tagad, tie netiks iekļauti:",
   "dialog.assignment.task.web": "Izpildi šo uzdevumu tīmeklī",
   "dialog.assignment.task.elsewhere": "Sākts citā datorā",
   "dialog.assignment.task.start": "Sākt",

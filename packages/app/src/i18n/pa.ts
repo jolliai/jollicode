@@ -1254,6 +1254,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "{{date}} نوں جمع کرایا",
   "dialog.assignment.task.submitted": "{{date}} نوں جمع کرایا",
   "dialog.assignment.task.notOwed": "ہن لوڑ نئیں",
+  "dialog.assignment.task.optionalStatus": "اختیاری · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "ایہہ اسائنمنٹ جمع کراؤن توں پہلاں گھٹّو گھٹّ اک اختیاری کم وچ پیغام بھیجو۔ اوہ کم آپے جمع ہویا منیا جاوے گا۔",
+  "dialog.assignment.turnIn.firstHandIn": "ایہہ اسائنمنٹ جمع کراؤن توں پہلاں گھٹّو گھٹّ اک اختیاری کم جمع کراؤ۔",
+  "dialog.assignment.turnIn.optionalLeft": "جمع نہ کرائے گئے اختیاری کم — ہن جمع کراؤن نال ایہہ شامل نئیں ہون گے:",
   "dialog.assignment.task.web": "ایہہ کم ویب اُتے کرو",
   "dialog.assignment.task.elsewhere": "کسے ہور کمپیوٹر تے شروع کیتا گیا",
   "dialog.assignment.task.start": "شروع کرو",

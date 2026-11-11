@@ -928,6 +928,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Handed in {{date}}",
   "dialog.assignment.task.submitted": "Submitted {{date}}",
   "dialog.assignment.task.notOwed": "No longer needed",
+  "dialog.assignment.task.optionalStatus": "Optional · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Send a message in at least one optional task before turning in this assignment. It counts as submitted automatically.",
+  "dialog.assignment.turnIn.firstHandIn": "Hand in at least one optional task before turning in this assignment.",
+  "dialog.assignment.turnIn.optionalLeft": "Optional tasks not handed in — turning in now leaves them out:",
   "dialog.assignment.task.web": "Do this task on the web",
   "dialog.assignment.task.elsewhere": "Started on another computer",
   "dialog.assignment.task.start": "Start",

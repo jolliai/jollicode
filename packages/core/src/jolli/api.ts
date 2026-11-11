@@ -404,8 +404,15 @@ export interface AssignmentTurnIn extends Schema.Schema.Type<typeof AssignmentTu
  */
 const AssignmentProgress = Schema.Struct({
   state: Schema.String,
+  /** The required parts: an optional one is counted apart, below. */
   partsSubmitted: Schema.Number,
   partsTotal: Schema.Number,
+  /**
+   * The optional parts owed, handed in or not, and how many of them are handed in. Absent when there are
+   * none, and from a server that predates them.
+   */
+  optionalSubmitted: Schema.optional(Schema.Number),
+  optionalTotal: Schema.optional(Schema.Number),
   turnedInAt: Schema.NullOr(Schema.String),
 })
 
@@ -482,6 +489,8 @@ export const StudentAssignmentAgentPart = Schema.Struct({
   attempts: Schema.Array(StudentAssignmentAttempt),
   submission: Schema.NullOr(StudentAssignmentSubmission),
   owed: Schema.Boolean,
+  /** Students may skip it: not needed to turn in. Absent from a server that predates optional tasks. */
+  optional: Schema.optional(Schema.Boolean),
 }).annotate({ identifier: "JolliApi.StudentAssignmentAgentPart" })
 export interface StudentAssignmentAgentPart extends Schema.Schema.Type<typeof StudentAssignmentAgentPart> {}
 
@@ -502,6 +511,8 @@ export const StudentAssignmentOtherPart = Schema.Struct({
   name: Schema.String,
   submission: Schema.NullOr(Schema.Struct({ submittedAt: Schema.String })),
   owed: Schema.Boolean,
+  /** Students may skip it: not needed to turn in. Absent from a server that predates optional tasks. */
+  optional: Schema.optional(Schema.Boolean),
 }).annotate({ identifier: "JolliApi.StudentAssignmentOtherPart" })
 export interface StudentAssignmentOtherPart extends Schema.Schema.Type<typeof StudentAssignmentOtherPart> {}
 
@@ -587,7 +598,10 @@ export const HandInPreview = Schema.Struct({
 }).annotate({ identifier: "JolliApi.HandInPreview" })
 export interface HandInPreview extends Schema.Schema.Type<typeof HandInPreview> {}
 
-/** jolliedu `JolliCodeHandInResult`: the part as it now stands, and how many tasks are still owed. */
+/**
+ * jolliedu `JolliCodeHandInResult`: the part as it now stands, and how many required tasks are still to
+ * hand in. An optional task is never counted: none left means the assignment can be turned in.
+ */
 export const HandInResult = Schema.Struct({
   part: StudentAssignmentAgentPart,
   owedCount: Schema.Number,

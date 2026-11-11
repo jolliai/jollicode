@@ -146,6 +146,14 @@ async function tools(h: ReturnType<typeof harness>) {
   return hooks.tool!
 }
 
+/** The gateway for a hand-in: the assignment, the preview, then the hand-in's answer with nothing left owed. */
+const answerHandIn = (url: string) =>
+  url.endsWith("/student-view")
+    ? json(assignment)
+    : url.endsWith("/preview")
+      ? json(preview)
+      : json({ part, owedCount: 0 })
+
 const output = (result: unknown) => (typeof result === "string" ? result : (result as { output: string }).output)
 
 describe("plugin.jolli-assignment: handing a task in", () => {
@@ -172,7 +180,7 @@ describe("plugin.jolli-assignment: handing a task in", () => {
   })
 
   test("asks the student with the gateway's preview, then hands in up to where the preview ended", async () => {
-    const h = harness((url) => (url.endsWith("/preview") ? json(preview) : json({ part, owedCount: 0 })))
+    const h = harness(answerHandIn)
     const asked: Parameters<ToolContext["ask"]>[0][] = []
     const result = await (
       await tools(h)
@@ -207,8 +215,178 @@ describe("plugin.jolli-assignment: handing a task in", () => {
     expect(output(result)).toContain("ask the student whether to turn the whole assignment in")
   })
 
+  /** The assignment before and after the hand-in, with an optional File upload task beside this one. */
+  function optionalHarness(optionalAfter: { submittedAt: string } | null) {
+    const optional = { id: 44, kind: "files", name: "Lab report", submission: null, owed: true, optional: true }
+    const reads = [
+      { ...assignment, parts: [{ ...part, submission: null }, optional] },
+      { ...assignment, parts: [part, { ...optional, submission: optionalAfter }] },
+    ]
+    return harness((url) =>
+      url.endsWith("/student-view")
+        ? json(reads.shift())
+        : url.endsWith("/preview")
+          ? json(preview)
+          : json({ part, owedCount: 0 }),
+    )
+  }
+
+  test("names the optional tasks still open once no required task is left, as read after the hand-in", async () => {
+    const h = optionalHarness(null)
+    const result = await (
+      await tools(h)
+    )[SUBMIT_TASK_PERMISSION].execute(
+      {},
+      context(async () => undefined),
+    )
+    expect(output(result)).toContain("No required tasks are left to hand in")
+    expect(output(result)).toContain("Optional, not handed in: Task 2 (Lab report).")
+    expect(h.sent.filter((item) => item.url.endsWith("/student-view"))).toHaveLength(2)
+  })
+
+  test.each([false, true])(
+    "publishes the hand-in before the advisory read settles (interrupted: %s)",
+    async (interrupt) => {
+      const h = optionalHarness(null)
+      const reading = Promise.withResolvers<void>()
+      const release = Promise.withResolvers<void>()
+      const interrupted = new Error("bridge interrupted during advisory read")
+      const tool = await tools({
+        ...h,
+        bridge: {
+          ...h.bridge,
+          promise: async (effect) => {
+            if (h.sent.at(-1)?.url.endsWith("/hand-in")) {
+              reading.resolve()
+              await release.promise
+              if (interrupt) throw interrupted
+            }
+            return h.bridge.promise(effect)
+          },
+        },
+      })
+      JolliAssignmentCache.putList(REQUEST.identity, [], Date.now())
+      const pending = tool[SUBMIT_TASK_PERMISSION].execute(
+        {},
+        context(async () => undefined),
+      ).then(
+        (value) => ({ value, error: undefined }),
+        (error: unknown) => ({ value: undefined, error }),
+      )
+      await reading.promise
+      const kept = JolliAssignmentCache.assignment(REQUEST.identity, "7", "40", Date.now())
+      const list = JolliAssignmentCache.list(REQUEST.identity, Date.now())
+      release.resolve()
+      const result = await pending
+      expect(kept?.parts.find((item) => item.id === 42)?.submission).toEqual(part.submission)
+      expect(list).toBeUndefined()
+      if (interrupt) expect(result.error).toBe(interrupted)
+      if (!interrupt) expect(output(result.value)).toContain("Handed in")
+      expect(JolliAssignmentCache.assignment(REQUEST.identity, "7", "40", Date.now())?.parts[0]?.submission).toEqual(
+        part.submission,
+      )
+    },
+  )
+
+  test("says nothing of optional tasks, and reads nothing more, while a required task is left", async () => {
+    const optional = { id: 44, kind: "files", name: "Lab report", submission: null, owed: true, optional: true }
+    const h = harness((url) =>
+      url.endsWith("/student-view")
+        ? json({ ...assignment, parts: [{ ...part, submission: null }, optional] })
+        : url.endsWith("/preview")
+          ? json(preview)
+          : json({ part, owedCount: 1 }),
+    )
+    const result = await (
+      await tools(h)
+    )[SUBMIT_TASK_PERMISSION].execute(
+      {},
+      context(async () => undefined),
+    )
+    expect(output(result)).toContain("1 required task is still to hand in")
+    expect(output(result)).not.toContain("Optional")
+    expect(h.sent.filter((item) => item.url.endsWith("/student-view"))).toHaveLength(1)
+  })
+
+  test.each([false, true])(
+    "returns the confirmed hand-in when stopped around the advisory read (before: %s)",
+    async (before) => {
+      const h = optionalHarness(null)
+      const reading = Promise.withResolvers<void>()
+      const release = Promise.withResolvers<void>()
+      const controller = new AbortController()
+      const tool = await tools({
+        ...h,
+        bridge: {
+          ...h.bridge,
+          promise: async (effect) => {
+            if (h.sent.at(-1)?.url.endsWith("/hand-in")) {
+              reading.resolve()
+              await release.promise
+            }
+            const result = await h.bridge.promise(effect)
+            if (before && h.sent.at(-1)?.url.endsWith("/hand-in")) controller.abort()
+            return result
+          },
+        },
+      })
+      const pending = tool[SUBMIT_TASK_PERMISSION].execute(
+        {},
+        context(async () => undefined, controller.signal),
+      )
+      if (!before) {
+        await reading.promise
+        controller.abort()
+      }
+      // The advisory read remains pending; stopping must deliver the confirmed write without it.
+      const first = await Promise.race([pending, Bun.sleep(250).then(() => "still waiting for the read")])
+      release.resolve()
+      await pending
+      expect(output(first)).toStartWith("Handed in")
+      expect(output(first)).not.toContain("Optional, not handed in")
+      expect(JolliAssignmentCache.assignment(REQUEST.identity, "7", "40", Date.now())?.parts[0]?.submission).toEqual(
+        part.submission,
+      )
+    },
+  )
+
+  test("never names the optional task just handed in, though the read after lags it", async () => {
+    const optional = { id: 44, kind: "files", name: "Lab report", submission: null, owed: true, optional: true }
+    const lagging = { ...assignment, parts: [{ ...part, submission: null, optional: true }, optional] }
+    const h = harness((url) =>
+      url.endsWith("/student-view")
+        ? json(lagging)
+        : url.endsWith("/preview")
+          ? json(preview)
+          : json({ part: { ...part, optional: true }, owedCount: 0 }),
+    )
+    JolliAssignmentCache.putList(REQUEST.identity, [], Date.now())
+    const result = await (
+      await tools(h)
+    )[SUBMIT_TASK_PERMISSION].execute(
+      {},
+      context(async () => undefined),
+    )
+    expect(output(result)).toContain("Optional, not handed in: Task 2 (Lab report).")
+    // The lagging read is kept, but with the hand-in's own answer for this task, and the list is read again.
+    const kept = JolliAssignmentCache.assignment(REQUEST.identity, "7", "40", Date.now())
+    expect(kept?.parts.find((item) => item.id === 42)?.submission).toEqual(part.submission)
+    expect(JolliAssignmentCache.list(REQUEST.identity, Date.now())).toBeUndefined()
+  })
+
+  test("leaves out an optional task handed in elsewhere while the student was approving", async () => {
+    const h = optionalHarness({ submittedAt: "2026-10-22T10:30:00Z" })
+    const result = await (
+      await tools(h)
+    )[SUBMIT_TASK_PERMISSION].execute(
+      {},
+      context(async () => undefined),
+    )
+    expect(output(result)).not.toContain("Optional, not handed in")
+  })
+
   test("an org-scoped task is previewed and handed in in its org, by the numeric ids", async () => {
-    const h = harness((url) => (url.endsWith("/preview") ? json(preview) : json({ part, owedCount: 0 })), {
+    const h = harness(answerHandIn, {
       ...TASK_SESSION.metadata,
       jolli: { courseId: "acme:main:7", assistantId: "acme:main:13" },
     })
@@ -228,7 +406,7 @@ describe("plugin.jolli-assignment: handing a task in", () => {
   })
 
   test("a bare task sends no scope", async () => {
-    const h = harness((url) => (url.endsWith("/preview") ? json(preview) : json({ part, owedCount: 0 })))
+    const h = harness(answerHandIn)
     await (
       await tools(h)
     )[SUBMIT_TASK_PERMISSION].execute(

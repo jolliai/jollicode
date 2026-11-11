@@ -1262,6 +1262,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Odevzdáno {{date}}",
   "dialog.assignment.task.submitted": "Odevzdáno {{date}}",
   "dialog.assignment.task.notOwed": "Již není potřeba",
+  "dialog.assignment.task.optionalStatus": "Volitelné · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Než odevzdáš toto zadání, pošli zprávu alespoň v jednom volitelném úkolu. Úkol se automaticky započítá jako odevzdaný.",
+  "dialog.assignment.turnIn.firstHandIn": "Než odevzdáš toto zadání, odevzdej alespoň jeden volitelný úkol.",
+  "dialog.assignment.turnIn.optionalLeft": "Neodevzdané volitelné úkoly – když odevzdáš teď, nebudou zahrnuty:",
   "dialog.assignment.task.web": "Tuto úlohu vypracujte na webu",
   "dialog.assignment.task.elsewhere": "Zahájeno na jiném počítači",
   "dialog.assignment.task.start": "Začít",

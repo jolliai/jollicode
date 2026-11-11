@@ -1341,6 +1341,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Dikumpulkan {{date}}",
   "dialog.assignment.task.submitted": "Dikumpulkan {{date}}",
   "dialog.assignment.task.notOwed": "Tidak diperlukan lagi",
+  "dialog.assignment.task.optionalStatus": "Opsional · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Kirim pesan dalam setidaknya satu tugas opsional sebelum mengumpulkan tugas ini. Tugas tersebut otomatis dianggap sudah dikumpulkan.",
+  "dialog.assignment.turnIn.firstHandIn": "Kumpulkan setidaknya satu tugas opsional sebelum mengumpulkan tugas ini.",
+  "dialog.assignment.turnIn.optionalLeft":
+    "Tugas opsional yang belum dikumpulkan — jika dikumpulkan sekarang, tugas ini tidak ikut:",
   "dialog.assignment.task.web": "Kerjakan subtugas ini di web",
   "dialog.assignment.task.elsewhere": "Dimulai di komputer lain",
   "dialog.assignment.task.start": "Mulai",

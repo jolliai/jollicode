@@ -1273,6 +1273,11 @@ export const dict: Record<string, string> = {
   "dialog.assignment.task.handedIn": "{{date}} ལུ་ཕུལ་ཡོདཔ།",
   "dialog.assignment.task.submitted": "{{date}} ལུ་ཕུལ་ཡོདཔ།",
   "dialog.assignment.task.notOwed": "ད་ལས་དགོཔ་མེད།",
+  "dialog.assignment.task.optionalStatus": "གདམ་ཁ་ཅན། · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "ལཱ་ཁག་འདི་མ་ཕུལ་བའི་ཧེ་མ་ གདམ་ཁ་ཅན་གྱི་ལཱ་ཚན་ ཉུང་མཐའ་གཅིག་ནང་ འཕྲིན་དོན་ཅིག་གཏང་། ལཱ་ཚན་དེ་རང་བཞིན་གྱིས་ཕུལ་ཡོདཔ་སྦེ་རྩིཝ་ཨིན།",
+  "dialog.assignment.turnIn.firstHandIn": "ལཱ་ཁག་འདི་མ་ཕུལ་བའི་ཧེ་མ་ གདམ་ཁ་ཅན་གྱི་ལཱ་ཚན་ ཉུང་མཐའ་གཅིག་ཕུལ་དགོ།",
+  "dialog.assignment.turnIn.optionalLeft": "མ་ཕུལ་བའི་གདམ་ཁ་ཅན་གྱི་ལཱ་ — ད་ལྟ་ཕུལ་པ་ཅིན་ དེ་ཚུ་མི་ཚུདཔ་ཨིན།",
   "dialog.assignment.task.web": "ལཱ་ཚན་འདི་ ཝེབ་ནང་འབད།",
   "dialog.assignment.task.elsewhere": "གློག་རིག་གཞན་ཅིག་གུ་འགོ་བཙུགས་ཡོདཔ།",
   "dialog.assignment.task.start": "འགོ་བཙུགས།",

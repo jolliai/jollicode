@@ -1348,6 +1348,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "{{date}} 已繳交",
   "dialog.assignment.task.submitted": "{{date}} 已提交",
   "dialog.assignment.task.notOwed": "不再需要",
+  "dialog.assignment.task.optionalStatus": "選填 · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "先在至少一個選填任務裡傳送訊息，再繳交這份作業；傳送訊息就算提交了該任務。",
+  "dialog.assignment.turnIn.firstHandIn": "至少繳交一個選填任務後，才能繳交這份作業。",
+  "dialog.assignment.turnIn.optionalLeft": "以下選填任務還沒繳交——現在繳交作業，它們就不會算在內：",
   "dialog.assignment.task.web": "請在網頁上完成此任務",
   "dialog.assignment.task.elsewhere": "已在另一台電腦上開始",
   "dialog.assignment.task.start": "開始",

@@ -1251,6 +1251,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "{{date}} tabşyryldy",
   "dialog.assignment.task.submitted": "{{date}} tabşyryldy",
   "dialog.assignment.task.notOwed": "Indi gerek däl",
+  "dialog.assignment.task.optionalStatus": "Islege görä · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Bu tabşyrygy tabşyrmazdan öň azyndan bir islege görä ýumuşda habar iber. Ol ýumuş awtomatik ýagdaýda tabşyrylan hasaplanýar.",
+  "dialog.assignment.turnIn.firstHandIn": "Bu tabşyrygy tabşyrmazdan öň azyndan bir islege görä ýumşy tabşyr.",
+  "dialog.assignment.turnIn.optionalLeft": "Tabşyrylmadyk islege görä ýumuşlar — häzir tabşyrsaň, olar goşulmaz:",
   "dialog.assignment.task.web": "Bu ýumşy webde ýerine ýetir",
   "dialog.assignment.task.elsewhere": "Başga kompýuterde başlandy",
   "dialog.assignment.task.start": "Başla",

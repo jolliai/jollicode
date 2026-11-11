@@ -26,6 +26,7 @@ import {
   scopedRequest,
   turnInAssignment,
   type GatewayRequest,
+  type StudentAssignment,
 } from "@opencode-ai/core/jolli/api"
 import {
   assignmentApprovalKey,
@@ -41,6 +42,7 @@ import {
   turnInBlocker,
   turnInLines,
 } from "@opencode-ai/core/jolli/assignment"
+import { openOptionalTasks, taskMention } from "@opencode-ai/core/jolli/assignment-actions"
 import { JolliAssignmentCache } from "@opencode-ai/core/jolli/assignment-cache"
 import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
 import { parseCourseBinding, type OrgScope } from "@opencode-ai/core/jolli/org-scoped-id"
@@ -170,13 +172,20 @@ export async function JolliAssignmentPlugin(
   }
 
   /** The assignment as the gateway now has it, or undefined when it cannot be read either. */
-  function reread(request: GatewayRequest, task: TaskSession) {
-    return run(
+  function reread(request: GatewayRequest, task: TaskSession, signal?: AbortSignal) {
+    if (signal?.aborted) return Promise.resolve(undefined)
+    const stopped = Promise.withResolvers<undefined>()
+    const abort = () => stopped.resolve(undefined)
+    signal?.addEventListener("abort", abort, { once: true })
+    const work = run(
       fetchStudentAssignment(request, task.course.id, Number(task.assignmentId)).pipe(
         Effect.provide(FetchHttpClient.layer),
         Effect.catch(() => Effect.succeed(undefined)),
       ),
     )
+    if (!signal) return work
+    // Only a confirmed write uses this signal: stopping must still report its successful hand-in.
+    return Promise.race([work, stopped.promise]).finally(() => signal.removeEventListener("abort", abort))
   }
 
   /**
@@ -196,7 +205,7 @@ export async function JolliAssignmentPlugin(
     if (!part || !isAgentPart(part) || part.submission?.completionKind === "participation") return undefined
     const handedIn = part.attempts.find((attempt) => attempt.id === part.submission?.attemptId)
     if (handedIn?.conversationId !== sessionID) return undefined
-    return { part, owedCount: now.progress.partsTotal - now.progress.partsSubmitted }
+    return { part, owedCount: now.progress.partsTotal - now.progress.partsSubmitted, now }
   }
 
   return {
@@ -208,7 +217,7 @@ export async function JolliAssignmentPlugin(
           "If the task asks for a reflection, ask the student the reflection question in the chat first, in your own message (never with the question tool), and wait for their answer. Pass their answer exactly as they typed it, or one passage of it, in `reflection` — never your own words.",
           "Call this tool on its own, not alongside other tools that ask for permission. The student sees exactly what will be handed in and approves it.",
           "If the result says nothing was handed in, tell the student why in your own words, with the next step it gives.",
-          "If the result says no tasks are left to hand in, ask the student whether to turn the whole assignment in now; call jolli_turn_in_assignment only if they say yes.",
+          "If the result says no required tasks are left to hand in, ask the student whether to turn the whole assignment in now; call jolli_turn_in_assignment only if they say yes. If it names optional tasks not handed in, tell the student they are optional and that turning in now leaves them out.",
         ].join("\n"),
         args: {
           reflection: tool.schema
@@ -275,24 +284,49 @@ export async function JolliAssignmentPlugin(
             true,
           )
           if (!handed.ok && !handed.unsure) return handed.told
-          const result = handed.ok ? handed.value : await settleHandIn(request, task, context.sessionID)
+          const result = handed.ok
+            ? { ...handed.value, now: undefined }
+            : await settleHandIn(request, task, context.sessionID)
           if (result === "unknown") return unconfirmed(HAND_IN)
           if (result === undefined) return unreachable(HAND_IN)
+          // Publish the confirmed hand-in before an advisory read can delay or interrupt the tool.
           JolliAssignmentCache.handedIn(request.identity, task.courseId, task.assignmentId, result.part, Date.now())
           const name = `${preview.value.assignmentTitle} · ${preview.value.taskTitle}`
+          // The hand-in answers only the required count. Once none is left the model offers the turn-in, so
+          // it is told which optional tasks that leaves out, read after the hand-in: the read before may be
+          // minutes old by now. Read only when that one shows such a task besides this one, or could not
+          // tell; a read that fails leaves the note out rather than guessing. This task is never named, in
+          // case the read lags the hand-in. A task added during approval may be missed here; the fresh
+          // turn-in preview remains the fallback, so ordinary hand-ins need not make another request.
+          const open = (value: StudentAssignment) =>
+            openOptionalTasks(projectAssignment({ id: task.courseId, code: "" }, value, new Map(), Date.now())).filter(
+              (item) => item.partId !== task.partId,
+            )
+          const mayLeave = result.owedCount === 0 && (!current || open(current).length > 0)
+          const after = mayLeave ? (result.now ?? (await reread(request, task, context.abort))) : undefined
+          // The hand-in's own part is laid over the read, which may lag it, and the list is dropped either way.
+          if (after) {
+            JolliAssignmentCache.keep(request.identity, task.courseId, after, Date.now())
+            JolliAssignmentCache.handedIn(request.identity, task.courseId, task.assignmentId, result.part, Date.now())
+          }
+          const optional = after ? open(after).map(taskMention) : []
+          const skipped =
+            optional.length > 0
+              ? ` Optional, not handed in: ${optional.join("; ")}. They are not needed to turn in. Turning in now leaves them out.`
+              : ""
           return {
             title: `Handed in ${name}`,
             output:
               result.owedCount === 0
-                ? `Handed in ${name}. No tasks are left to hand in for ${preview.value.assignmentTitle}: ask the student whether to turn the whole assignment in now.`
-                : `Handed in ${name}. ${result.owedCount} ${result.owedCount === 1 ? "task is" : "tasks are"} still to hand in for ${preview.value.assignmentTitle}.`,
+                ? `Handed in ${name}. No required tasks are left to hand in for ${preview.value.assignmentTitle}: ask the student whether to turn the whole assignment in now.${skipped}`
+                : `Handed in ${name}. ${result.owedCount} required ${result.owedCount === 1 ? "task is" : "tasks are"} still to hand in for ${preview.value.assignmentTitle}.`,
             metadata: { owedCount: result.owedCount },
           }
         },
       }),
       [TURN_IN_PERMISSION]: tool({
         description: [
-          "Turn in the assignment this chat's task belongs to, for the student's teacher to review. It needs every task handed in first.",
+          "Turn in the assignment this chat's task belongs to, for the student's teacher to review. It needs every required task handed in first; optional tasks need not be.",
           "Call it only after the student said yes to turning the assignment in. The student sees what will be turned in and approves it.",
           "If the result says nothing was turned in, tell the student why in your own words, with the next step it gives.",
         ].join("\n"),

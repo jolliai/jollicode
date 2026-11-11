@@ -1273,6 +1273,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Pateikta {{date}}",
   "dialog.assignment.task.submitted": "Pateikta {{date}}",
   "dialog.assignment.task.notOwed": "Nebereikalinga",
+  "dialog.assignment.task.optionalStatus": "Neprivaloma · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Prieš pateikdamas šį darbą, išsiųsk žinutę bent vienoje neprivalomoje užduotyje. Užduotis bus automatiškai laikoma pateikta.",
+  "dialog.assignment.turnIn.firstHandIn": "Prieš pateikdamas šį darbą, pateik bent vieną neprivalomą užduotį.",
+  "dialog.assignment.turnIn.optionalLeft": "Nepateiktos neprivalomos užduotys – pateikus dabar, jos nebus įtrauktos:",
   "dialog.assignment.task.web": "Atlik šią užduotį žiniatinklyje",
   "dialog.assignment.task.elsewhere": "Pradėta kitame kompiuteryje",
   "dialog.assignment.task.start": "Pradėti",

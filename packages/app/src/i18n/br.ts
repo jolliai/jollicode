@@ -1276,6 +1276,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Entregue em {{date}}",
   "dialog.assignment.task.submitted": "Entregue em {{date}}",
   "dialog.assignment.task.notOwed": "Não é mais necessária",
+  "dialog.assignment.task.optionalStatus": "Opcional · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Envie uma mensagem em pelo menos uma tarefa opcional antes de entregar esta atividade. A tarefa será considerada entregue automaticamente.",
+  "dialog.assignment.turnIn.firstHandIn": "Entregue pelo menos uma tarefa opcional antes de entregar esta atividade.",
+  "dialog.assignment.turnIn.optionalLeft": "Tarefas opcionais não entregues — se entregar agora, elas ficam de fora:",
   "dialog.assignment.task.web": "Faça esta tarefa na web",
   "dialog.assignment.task.elsewhere": "Iniciada em outro computador",
   "dialog.assignment.task.start": "Começar",

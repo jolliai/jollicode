@@ -1262,6 +1262,11 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Oddano {{date}}",
   "dialog.assignment.task.submitted": "Oddano {{date}}",
   "dialog.assignment.task.notOwed": "Ni več potrebno",
+  "dialog.assignment.task.optionalStatus": "Neobvezno · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Preden oddaš to nalogo, pošlji sporočilo v vsaj eni neobvezni nalogi. Ta se bo samodejno štela za oddano.",
+  "dialog.assignment.turnIn.firstHandIn": "Preden oddaš to nalogo, oddaj vsaj eno neobvezno nalogo.",
+  "dialog.assignment.turnIn.optionalLeft": "Neoddane neobvezne naloge – če oddaš zdaj, ne bodo vključene:",
   "dialog.assignment.task.web": "To opravilo opravi na spletu",
   "dialog.assignment.task.elsewhere": "Začeto na drugem računalniku",
   "dialog.assignment.task.start": "Začni",

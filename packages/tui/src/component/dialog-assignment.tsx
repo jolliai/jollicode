@@ -15,7 +15,15 @@
  */
 
 import type { Jolli } from "@opencode-ai/schema/jolli"
-import { isParticipation, participationSubmitted, taskActionsOf } from "@opencode-ai/core/jolli/assignment-actions"
+import {
+  isParticipation,
+  firstHandInAction,
+  openOptionalTasks,
+  taskActionsOf,
+  taskMention,
+  taskStandingOf,
+  type TaskStandingKind,
+} from "@opencode-ai/core/jolli/assignment-actions"
 import { taskDraftOf, toRead } from "@opencode-ai/core/jolli/assignment"
 import { createMemo, createResource } from "solid-js"
 import { useJolli } from "../context/jolli"
@@ -38,6 +46,32 @@ function when(instant: string) {
   })
 }
 
+const STANDING = {
+  submitted: "Submitted",
+  "handed-in": "Handed in",
+  "not-owed": "No longer needed",
+  web: "Do this task on the web",
+  "in-progress": "In progress",
+  elsewhere: "Started on another computer",
+  "not-started": "Not started",
+} satisfies Record<TaskStandingKind, string>
+
+/** Where a task stands, as its row says it: "Optional · Not started" for an optional task not begun. */
+export function taskStatus(task: Jolli.AssignmentTask, at: (instant: string) => string) {
+  const standing = taskStandingOf(task)
+  const words = task.handedInAt ? `${STANDING[standing.kind]} ${at(task.handedInAt)}` : STANDING[standing.kind]
+  return standing.optional ? `Optional · ${words}` : words
+}
+
+/** How much of an assignment is handed in: "1/2 tasks handed in · 0/1 optional", or "1/2 optional tasks handed in". */
+export function taskCount(assignment: Jolli.AssignmentSummary) {
+  const optional = assignment.optionalTotal
+    ? `${assignment.optionalHandedIn ?? 0}/${assignment.optionalTotal} optional`
+    : undefined
+  if (assignment.tasksTotal === 0 && optional) return `${optional} tasks handed in`
+  return [`${assignment.tasksHandedIn}/${assignment.tasksTotal} tasks handed in`, optional].filter(Boolean).join(" · ")
+}
+
 export function DialogAssignments() {
   const sdk = useSDK()
   const dialog = useDialog()
@@ -53,7 +87,7 @@ export function DialogAssignments() {
       description: [
         assignment.courseCode,
         assignment.dueAt ? `due ${when(assignment.dueAt)}` : undefined,
-        `${assignment.tasksHandedIn}/${assignment.tasksTotal} tasks handed in`,
+        taskCount(assignment),
       ]
         .filter(Boolean)
         .join(" · "),
@@ -113,14 +147,10 @@ export function DialogAssignmentTasks(props: { courseId: string; assignmentId: s
   /** The folder this terminal works in: where a task's session can be continued, and a new one starts. */
   const here = () => sync.path.directory || sdk.directory
 
-  const status = (task: Jolli.AssignmentTask) => {
-    if (task.handedInAt) return `${participationSubmitted(task) ? "Submitted" : "Handed in"} ${when(task.handedInAt)}`
-    if (!task.owed) return "No longer needed"
-    if (task.place === "web") return "Do this task on the web"
-    if (task.local) return "In progress"
-    if (task.elsewhere) return "Started on another computer"
-    return "Not started"
-  }
+  const firstHandIn = createMemo(() => {
+    const found = assignment()
+    return found ? firstHandInAction(found) : undefined
+  })
 
   const options = createMemo(() => {
     const found = assignment()
@@ -132,7 +162,7 @@ export function DialogAssignmentTasks(props: { courseId: string; assignmentId: s
           value: { kind: "task", task } as TaskChoice,
           title: `${task.title} · ${task.name}`,
           description: [
-            status(task),
+            taskStatus(task, when),
             task.requiresExplicitSubmit === false && actions.canContinue ? "Continue practicing" : undefined,
           ]
             .filter(Boolean)
@@ -151,8 +181,19 @@ export function DialogAssignmentTasks(props: { courseId: string; assignmentId: s
           : []),
       ]
     })
+    const skipped = openOptionalTasks(found).length
     const turnIn = found.readyToTurnIn
-      ? [{ value: { kind: "turn-in" } as TaskChoice, title: "Turn in", description: "Every task is handed in" }]
+      ? [
+          {
+            value: { kind: "turn-in" } as TaskChoice,
+            title: "Turn in",
+            description:
+              skipped === 0
+                ? "Every task is handed in"
+                : // An assignment of optional tasks alone is ready once one of them is in, as the gateway has it.
+                  `${found.tasksTotal === 0 ? "No task is required" : "Every required task is handed in"} · ${skipped} optional ${skipped === 1 ? "isn't" : "aren't"} handed in`,
+          },
+        ]
       : []
     return [...tasks, ...turnIn]
   })
@@ -201,10 +242,16 @@ export function DialogAssignmentTasks(props: { courseId: string; assignmentId: s
    * confirmation says what it means, and their answer is the approval.
    */
   const turnIn = async (found: Jolli.Assignment) => {
+    const skipped = openOptionalTasks(found).map(taskMention)
     const ok = await DialogConfirm.show(
       dialog,
       `Turn in ${found.title}?`,
-      `${found.authorName ?? "Your teacher"} can review it once it's turned in. You can't hand in more unless they reopen it.`,
+      [
+        `${found.authorName ?? "Your teacher"} can review it once it's turned in. You can't hand in more unless they reopen it.`,
+        ...(skipped.length > 0
+          ? [`Optional, not handed in: ${skipped.join("; ")}. Turning in now leaves them out.`]
+          : []),
+      ].join(" "),
       "Turn in",
     )
     if (!ok) return
@@ -230,6 +277,15 @@ export function DialogAssignmentTasks(props: { courseId: string; assignmentId: s
     <DialogSelect
       title={assignment()?.title ?? "Assignment"}
       options={options()}
+      footer={
+        firstHandIn() ? (
+          <text fg={theme.textMuted}>
+            {firstHandIn() === "participate"
+              ? "Send a message in at least one optional task before turning in this assignment. It counts as submitted automatically."
+              : "Hand in at least one optional task before turning in this assignment."}
+          </text>
+        ) : undefined
+      }
       emptyView={
         <box paddingLeft={4} paddingRight={4}>
           <text fg={theme.textMuted}>{read.loading ? "Loading the assignment…" : failure()}</text>

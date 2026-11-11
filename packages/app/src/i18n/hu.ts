@@ -1263,6 +1263,12 @@ export const dict = {
   "dialog.assignment.task.handedIn": "Beadva: {{date}}",
   "dialog.assignment.task.submitted": "Beadva: {{date}}",
   "dialog.assignment.task.notOwed": "Már nem szükséges",
+  "dialog.assignment.task.optionalStatus": "Választható · {{status}}",
+  "dialog.assignment.turnIn.firstParticipation":
+    "Az egész feladatsor beadása előtt küldj üzenetet legalább egy választható feladatban. A feladat automatikusan beadottnak számít.",
+  "dialog.assignment.turnIn.firstHandIn":
+    "Az egész feladatsor beadása előtt adj be legalább egy választható feladatot.",
+  "dialog.assignment.turnIn.optionalLeft": "Be nem adott választható feladatok – ha most beadod, ezek kimaradnak:",
   "dialog.assignment.task.web": "Ezt a feladatot a weben végezze el",
   "dialog.assignment.task.elsewhere": "Egy másik számítógépen elkezdve",
   "dialog.assignment.task.start": "Indítás",
