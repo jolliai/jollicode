@@ -1117,6 +1117,116 @@ it.instance("subtask uses independent zero-based Jolli identities and inherits t
   }),
 )
 
+const isTitleHit = (hit: { readonly body: unknown }) =>
+  JSON.stringify(hit.body).includes("Generate a title for this conversation")
+
+/** A first turn of a session with no title yet, so its loop asks the model for one. */
+const untitledTurn = Effect.fn("test.untitledTurn")(function* (model: typeof ref) {
+  const prompt = yield* SessionPrompt.Service
+  const sessions = yield* Session.Service
+  const chat = yield* sessions.create({ metadata: { jolli: { courseId: "acme:main:7", assistantId: "acme:main:12" } } })
+  yield* prompt.prompt({
+    typed: "student",
+    sessionID: chat.id,
+    agent: "build",
+    model,
+    noReply: true,
+    parts: [{ type: "text", text: "hello" }],
+  })
+  return chat
+})
+
+/** A second turn, run to its end: a title the first turn asked for has long arrived by then. */
+const followUpTurn = Effect.fn("test.followUpTurn")(function* (sessionID: SessionID, model: typeof ref) {
+  const prompt = yield* SessionPrompt.Service
+  yield* prompt.prompt({
+    typed: "student",
+    sessionID,
+    agent: "build",
+    model,
+    noReply: true,
+    parts: [{ type: "text", text: "again" }],
+  })
+  yield* prompt.loop({ sessionID })
+})
+
+it.instance("a Jolli title is asked for once the gateway admits the first step, naming its kind, session and org", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(jolliProviderCfg)
+    const prompt = yield* SessionPrompt.Service
+    const chat = yield* untitledTurn(jolliRef)
+    // The step's response has begun, so the gateway holds the session, but its body is held: the title
+    // arrives while the step is still running, never held up by it.
+    const gate = yield* Deferred.make<void>()
+    yield* llm.hold("done", deferredAsPromise(gate))
+
+    const run = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
+    yield* llm.wait(2)
+    const hits = yield* llm.hits
+    expect(hits.map(isTitleHit)).toEqual([false, true])
+    yield* Deferred.succeed(gate, undefined)
+    yield* Fiber.join(run)
+
+    const titled = hits[1]
+    expect(titled?.headers["x-jolli-request-kind"]).toBe("title")
+    expect(titled?.headers["x-jolli-conversation-id"]).toBe(chat.id)
+    expect(titled?.headers["x-jolli-org-scope"]).toBe("1")
+    expect(titled?.headers["x-tenant-slug"]).toBe("acme")
+    expect(titled?.headers["x-org-slug"]).toBe("main")
+    expect(titled?.headers["x-jolli-turn-id"]).toBeUndefined()
+    expect(titled?.headers["x-jolli-input-text"]).toBeUndefined()
+  }),
+)
+
+it.instance("a Jolli title is not asked for when the gateway refuses the first step", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(jolliProviderCfg)
+    const prompt = yield* SessionPrompt.Service
+    const chat = yield* untitledTurn(jolliRef)
+    yield* llm.error(403, { error: { message: "not admitted" } })
+    yield* prompt.loop({ sessionID: chat.id })
+    yield* followUpTurn(chat.id, jolliRef)
+
+    expect((yield* llm.hits).map(isTitleHit)).toEqual([false, false])
+  }),
+)
+
+it.instance("another provider's title is asked for at once, whatever becomes of the first step", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(providerCfg)
+    const prompt = yield* SessionPrompt.Service
+    const chat = yield* untitledTurn(ref)
+    yield* llm.error(403, { error: { message: "refused" } })
+    yield* prompt.loop({ sessionID: chat.id })
+    yield* llm.wait(2)
+
+    expect((yield* llm.hits).filter(isTitleHit)).toHaveLength(1)
+  }),
+)
+
+it.instance("a name given while the title is being written stands", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(jolliProviderCfg)
+    const prompt = yield* SessionPrompt.Service
+    const sessions = yield* Session.Service
+    const chat = yield* untitledTurn(jolliRef)
+    // The step is not answered until the student has renamed the session, so the loop read it untitled.
+    const gate = yield* Deferred.make<void>()
+    yield* llm.push(reply().admit(deferredAsPromise(gate)).text("done").stop())
+
+    const run = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
+    yield* llm.wait(1)
+    yield* sessions.setTitle({ sessionID: chat.id, title: "My own name" })
+    yield* Deferred.succeed(gate, undefined)
+    yield* Fiber.join(run)
+    yield* llm.wait(2)
+    yield* followUpTurn(chat.id, jolliRef)
+
+    expect((yield* llm.hits).map(isTitleHit)).toEqual([false, true, false])
+    expect((yield* sessions.get(chat.id)).title).toBe("My own name")
+  }),
+)
+
 const commandSubtask = Effect.fn("test.commandSubtask")(function* (model: typeof ref, parentID?: SessionID) {
   const prompt = yield* SessionPrompt.Service
   const sessions = yield* Session.Service

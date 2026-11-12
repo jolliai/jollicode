@@ -177,6 +177,7 @@ const attribute = Effect.fn("Test.attribute")(function* (input: {
   const exit = yield* CourseSources.attribute({
     sessionID: input.sessionID,
     userMessageID: input.userMessageID,
+    courseBinding: { courseId: "acme:main:7", assistantId: "acme:main:12" },
     citationsShown: Effect.sync(() => {
       switches.asked++
       return input.citationsShown ?? true
@@ -231,6 +232,22 @@ describe("CourseSources.attribute", () => {
       expect(request?.agent.prompt).toContain("Select only sources whose supplied evidence directly supports")
       expect(request?.user.system).toBeUndefined()
       expect((yield* stored(turn.sessionID, turn.answer))?.metadata).toEqual({ answerSources: [] })
+    }),
+  )
+
+  it.instance("names the selection's kind, its session and the course the turn ran under", () =>
+    Effect.gen(function* () {
+      const turn = yield* answeredTurn()
+      const run = yield* attribute({
+        sessionID: turn.sessionID,
+        userMessageID: turn.userID,
+        replies: ['{"usedSourceRefs":[]}'],
+      })
+      expect(run.calls[0]?.requestKind).toBe("course_sources")
+      expect(run.calls[0]?.sessionID).toBe(turn.sessionID)
+      expect(run.calls[0]?.courseID).toBe("acme:main:7")
+      expect(run.calls[0]?.courseAssistantID).toBe("acme:main:12")
+      expect(run.calls[0]?.turnID).toBeUndefined()
     }),
   )
 

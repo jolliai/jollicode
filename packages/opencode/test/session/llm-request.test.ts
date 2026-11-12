@@ -157,12 +157,28 @@ describe("jolli coding-agent request headers", () => {
         providerID: providerIdFor("anthropic"),
         sessionID,
         requestKind: "compaction",
-        turnID: MessageID.ascending(),
-        clientAttemptID: "attempt-1",
-        stepIndex: 0,
       }),
     ).toEqual({ "x-jolli-conversation-id": sessionID, "x-jolli-request-kind": "compaction" })
     expect(jolliCodingAgentHeaders({ providerID: "anthropic", sessionID, requestKind: "compaction" })).toEqual({})
+  })
+  test("names the session a title or a course's source selection is asked for, and its kind", () => {
+    const sessionID = SessionID.descending()
+    for (const requestKind of ["title", "course_sources"] as const)
+      expect(
+        jolliCodingAgentHeaders({
+          providerID: providerIdFor("anthropic"),
+          sessionID,
+          requestKind,
+          courseID: "acme:main:12",
+          courseAssistantID: "acme:main:5",
+        }),
+      ).toEqual({
+        "x-jolli-conversation-id": sessionID,
+        "x-jolli-request-kind": requestKind,
+        "x-jolli-org-scope": "1",
+        "x-tenant-slug": "acme",
+        "x-org-slug": "main",
+      })
   })
   test("names the slash command that opened the turn", () => {
     const base = {
