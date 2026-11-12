@@ -223,6 +223,8 @@ const layer = Layer.effect(
       history: SessionV1.WithParts[]
       providerID: ProviderV2.ID
       modelID: ModelV2.ID
+      /** The turn's course binding: the gateway admits a title only for a session the student owns, in its org. */
+      courseBinding: ReturnType<typeof courseBindingOf>
     }) {
       if (input.session.parentID) return
 
@@ -272,6 +274,9 @@ const layer = Layer.effect(
           tools: {},
           model: mdl,
           sessionID: input.session.id,
+          requestKind: "title",
+          courseID: input.courseBinding?.courseId,
+          courseAssistantID: input.courseBinding?.assistantId,
           retries: 2,
           messages: [{ role: "user", content: "Generate a title for this conversation:\n" }, ...msgs],
         })
@@ -288,6 +293,10 @@ const layer = Layer.effect(
         .find((line) => line.length > 0)
       if (!cleaned) return
       const t = cleaned.length > 100 ? cleaned.substring(0, 97) + "..." : cleaned
+      // ⚠ A NAME GIVEN WHILE THE TITLE WAS BEING WRITTEN STANDS. The title is written beside the first
+      // step, which can run long, so the session is read again rather than trusted from when it began.
+      const current = yield* sessions.get(input.session.id).pipe(Effect.orDie)
+      if (!Session.isDefaultTitle(current.title)) return
       yield* sessions.setTitle({ sessionID: input.session.id, title: t }).pipe(
         Effect.andThen(sync(t)),
         Effect.catchCause((cause) => Effect.logError("failed to generate title", { error: Cause.squash(cause) })),
@@ -1229,6 +1238,8 @@ const layer = Layer.effect(
         // A course server that failed since the last message gets its chance to come back before the
         // tool list is read; see `CourseServer`.
         if (courseBinding) yield* CourseServer.ensure(scope).pipe(Effect.provideService(MCP.Service, mcp))
+        // What a step the Jolli gateway admits does about the title; see the first step below.
+        let askTitle: Effect.Effect<void> = Effect.void
 
         while (true) {
           yield* status.set(sessionID, { type: "busy" })
@@ -1275,13 +1286,25 @@ const layer = Layer.effect(
           }
 
           step++
-          if (step === 1)
-            yield* title({
+          if (step === 1) {
+            const ask = title({
               session,
               modelID: lastUser.model.modelID,
               providerID: lastUser.model.providerID,
               history: msgs,
-            }).pipe(Effect.ignore, Effect.forkIn(scope))
+              courseBinding,
+            }).pipe(Effect.ignore, Effect.forkIn(scope), Effect.asVoid)
+            /**
+             * ⚠ A JOLLI TITLE WAITS FOR THE GATEWAY TO ADMIT A STEP OF THIS SESSION. The gateway creates
+             * the session as it admits its first step and refuses a student's title for one it does not
+             * hold yet, so the title is asked for once, as the first admitted step's response begins. A
+             * run no step of which is admitted asks for none: the gateway would refuse it. Any other
+             * provider is asked at once. Either way the title runs beside the turn, never in its way, and
+             * from the history as this first step read it.
+             */
+            if (isJolliProviderId(lastUser.model.providerID)) askTitle = yield* Effect.cached(ask)
+            else yield* ask
+          }
 
           const model = yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)
           const task = tasks.pop()
@@ -1451,6 +1474,7 @@ const layer = Layer.effect(
               model,
               toolChoice: format.type === "json_schema" ? "required" : undefined,
               onModelSwitchPrepare: prepareForModel,
+              onJolliAdmitted: () => askTitle,
             })
             providerStepIndex++
 
@@ -1534,6 +1558,7 @@ const layer = Layer.effect(
               CourseSources.attribute({
                 sessionID,
                 userMessageID,
+                courseBinding,
                 // Only where the course shows citations, as the student's catalogue states it.
                 citationsShown: JolliCourseGuardrails.ofBinding(courseBinding).pipe(
                   Effect.map((guardrails) => guardrails?.showCitations === true),

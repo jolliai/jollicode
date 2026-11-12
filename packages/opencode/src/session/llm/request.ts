@@ -9,7 +9,7 @@ import type { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "../system"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
-import { jolliCodingAgentHeaders, overrideHeaders } from "@opencode-ai/core/jolli/coding-headers"
+import { jolliCodingAgentHeaders, overrideHeaders, type JolliRequestKind } from "@opencode-ai/core/jolli/coding-headers"
 import { Effect, Record } from "effect"
 import { jsonSchema, tool as aiTool, type ModelMessage, type Tool } from "ai"
 import type { Plugin } from "@/plugin"
@@ -30,7 +30,7 @@ type PrepareInput = {
   /** The turn only carries on with the previous one, after compaction. */
   readonly continuesTurn?: boolean
   /** What a request that is no step of a turn is for; see {@link jolliCodingAgentHeaders}. */
-  readonly requestKind?: "compaction"
+  readonly requestKind?: JolliRequestKind
   /** Each MCP tool's key -> the sanitized name of its server, from the same resolve that built `tools`. */
   readonly mcpToolServers?: ReadonlyMap<string, string>
   /** Names of the tools whose results this request carries for the first time and that failed. */
@@ -274,27 +274,37 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
         ...input.model.headers,
         ...headers,
       },
-      jolliCodingAgentHeaders({
-        providerID: input.model.providerID,
-        sessionID: input.sessionID,
-        requestKind: input.requestKind,
-        parentSessionID: input.parentSessionID,
-        turnID: input.turnID,
-        clientAttemptID: input.clientAttemptID,
-        stepIndex: input.stepIndex,
-        assistantMessageID: input.assistantMessageID,
-        courseID: input.courseID,
-        courseAssistantID: input.courseAssistantID,
-        modelID: input.model.id,
-        continuesTurn: input.continuesTurn,
-        command: input.user.command,
-        toolErrors: input.toolErrors,
-        skillMessageIds: input.skillMessageIds,
-        ...jolliMcpReport({
-          toolNames: Object.keys(tools),
-          mcpToolServers: input.mcpToolServers,
-        }),
-      }),
+      jolliCodingAgentHeaders(
+        // A request that names its kind is no step of a turn, so it takes none of a turn's fields.
+        input.requestKind !== undefined
+          ? {
+              providerID: input.model.providerID,
+              sessionID: input.sessionID,
+              requestKind: input.requestKind,
+              courseID: input.courseID,
+              courseAssistantID: input.courseAssistantID,
+            }
+          : {
+              providerID: input.model.providerID,
+              sessionID: input.sessionID,
+              parentSessionID: input.parentSessionID,
+              turnID: input.turnID,
+              clientAttemptID: input.clientAttemptID,
+              stepIndex: input.stepIndex,
+              assistantMessageID: input.assistantMessageID,
+              courseID: input.courseID,
+              courseAssistantID: input.courseAssistantID,
+              modelID: input.model.id,
+              continuesTurn: input.continuesTurn,
+              command: input.user.command,
+              toolErrors: input.toolErrors,
+              skillMessageIds: input.skillMessageIds,
+              ...jolliMcpReport({
+                toolNames: Object.keys(tools),
+                mcpToolServers: input.mcpToolServers,
+              }),
+            },
+      ),
     ),
   }
 })

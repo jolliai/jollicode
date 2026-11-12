@@ -92,6 +92,47 @@ test("a compaction without an org-scoped course binding carries no scope", () =>
     ).toEqual({ "x-jolli-conversation-id": "ses_test", "x-jolli-request-kind": "compaction" })
 })
 
+for (const kind of ["title", "course_sources"] as const) {
+  test(`a ${kind} request of an org-scoped session names the session, the kind and the org, nothing of a turn`, () => {
+    const headers = jolliCodingAgentHeaders({
+      providerID: turn.providerID,
+      sessionID: "ses_test",
+      requestKind: kind,
+      courseID: "acme:main:12",
+      courseAssistantID: "acme:main:5",
+    })
+    expect(headers).toEqual({ "x-jolli-conversation-id": "ses_test", "x-jolli-request-kind": kind, ...scope })
+    expect(headers).not.toHaveProperty(JOLLI_CODE_PARTICIPATION_HEADER)
+    expect(headers).not.toHaveProperty("x-jolli-turn-id")
+    expect(headers).not.toHaveProperty("x-jolli-step-index")
+  })
+
+  test(`a ${kind} request without an org-scoped course binding carries no scope`, () => {
+    for (const ids of [{}, { courseID: "12", courseAssistantID: "5" }, { courseID: "acme:main:12" }])
+      expect(
+        jolliCodingAgentHeaders({ providerID: turn.providerID, sessionID: "ses_test", requestKind: kind, ...ids }),
+      ).toEqual({ "x-jolli-conversation-id": "ses_test", "x-jolli-request-kind": kind })
+  })
+
+  test(`a ${kind} request to a non-Jolli provider gets no headers`, () => {
+    expect(
+      jolliCodingAgentHeaders({
+        providerID: "anthropic",
+        sessionID: "ses_test",
+        requestKind: kind,
+        courseID: "acme:main:12",
+        courseAssistantID: "acme:main:5",
+      }),
+    ).toEqual({})
+  })
+}
+
+test("a request kind cannot be given beside a turn's ids", () => {
+  // @ts-expect-error A request that names a kind is no step of a turn and takes none of a turn's ids.
+  const headers = jolliCodingAgentHeaders({ ...turn, requestKind: "title" })
+  expect(headers).not.toHaveProperty("x-jolli-turn-id")
+})
+
 test("a non-Jolli provider gets no headers", () => {
   expect(jolliCodingAgentHeaders({ ...turn, providerID: "anthropic", courseID: "acme:main:12" })).toEqual({})
 })
@@ -105,9 +146,9 @@ test("request headers replace static ones whatever their case", () => {
 
 test("turn requests declare the additive participation UX capability, compactions do not", () => {
   expect(jolliCodingAgentHeaders(turn)[JOLLI_CODE_PARTICIPATION_HEADER]).toBe(JOLLI_CODE_PARTICIPATION_VERSION)
-  expect(jolliCodingAgentHeaders({ ...turn, requestKind: "compaction" })).not.toHaveProperty(
-    JOLLI_CODE_PARTICIPATION_HEADER,
-  )
+  expect(
+    jolliCodingAgentHeaders({ providerID: turn.providerID, sessionID: "ses_test", requestKind: "compaction" }),
+  ).not.toHaveProperty(JOLLI_CODE_PARTICIPATION_HEADER)
   expect(jolliCodingAgentHeaders({ ...turn, providerID: "openai" })).not.toHaveProperty(JOLLI_CODE_PARTICIPATION_HEADER)
 })
 

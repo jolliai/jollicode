@@ -2014,7 +2014,7 @@ describe("session.llm.stream", () => {
   )
 
   it.instance(
-    "tells the Jolli gateway what the student typed on a step of a turn and on a compaction, never on a title",
+    "tells the Jolli gateway what the student typed on a step of a turn and on a compaction, never on a title or a source selection",
     () =>
       Effect.gen(function* () {
         const model = loadFixture("openai", "gpt-5.2").model
@@ -2037,7 +2037,9 @@ describe("session.llm.stream", () => {
           )
         const step = waitRequest("/responses", reply())
         const title = waitRequest("/responses", reply())
+        const sources = waitRequest("/responses", reply())
         const compaction = waitRequest("/responses", reply())
+        const direct = waitRequest("/responses", reply())
         const providerID = ProviderV2.ID.make("jolli-openai")
         const resolved = yield* Provider.use.getModel(providerID, ModelV2.ID.make(model.id))
         const sessionID = SessionID.descending()
@@ -2072,25 +2074,52 @@ describe("session.llm.stream", () => {
           tools: {},
         }
 
-        yield* drain({ ...base, turnID, clientAttemptID: "attempt-input", stepIndex: 0 })
-        yield* drain(base)
+        const admitted: string[] = []
+        const admit = (name: string) => () => Effect.sync(() => void admitted.push(name))
+        yield* drain({
+          ...base,
+          turnID,
+          clientAttemptID: "attempt-input",
+          stepIndex: 0,
+          onJolliAdmitted: admit("step"),
+        })
+        yield* drain({ ...base, requestKind: "title" })
+        yield* drain({ ...base, requestKind: "course_sources" })
         yield* drain({ ...base, requestKind: "compaction" })
+        // Another provider's compaction is no business of the gateway's, and nothing there admits it.
+        const other = yield* Provider.use.getModel(ProviderV2.ID.make("openai"), ModelV2.ID.make(model.id))
+        yield* drain({ ...base, model: other, requestKind: "compaction", onJolliAdmitted: admit("direct") })
 
         const hash = new Bun.CryptoHasher("sha256").update("Hello Li Ming").digest("hex")
         expect((yield* Effect.promise(() => step)).headers.get("x-jolli-input-text")).toBe(hash)
-        expect((yield* Effect.promise(() => title)).headers.get("x-jolli-input-text")).toBeNull()
+        const titled = (yield* Effect.promise(() => title)).headers
+        expect(titled.get("x-jolli-request-kind")).toBe("title")
+        expect(titled.get("x-jolli-conversation-id")).toBe(sessionID)
+        expect(titled.get("x-jolli-input-text")).toBeNull()
+        const selected = (yield* Effect.promise(() => sources)).headers
+        expect(selected.get("x-jolli-request-kind")).toBe("course_sources")
+        expect(selected.get("x-jolli-conversation-id")).toBe(sessionID)
+        expect(selected.get("x-jolli-input-text")).toBeNull()
         const compacted = (yield* Effect.promise(() => compaction)).headers
         expect(compacted.get("x-jolli-request-kind")).toBe("compaction")
         expect(compacted.get("x-jolli-input-text")).toBe(hash)
+        expect((yield* Effect.promise(() => direct)).headers.get("x-jolli-input-text")).toBeNull()
+        expect(admitted).toEqual(["step"])
       }),
     {
       config: () => {
         const model = loadFixture("openai", "gpt-5.2").model
         return {
-          enabled_providers: ["jolli-openai"],
+          enabled_providers: ["jolli-openai", "openai"],
           provider: {
             "jolli-openai": {
               name: "Jolli",
+              npm: "@ai-sdk/openai",
+              models: { [model.id]: configModel(model) as ConfigModel },
+              options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` },
+            },
+            openai: {
+              name: "OpenAI",
               npm: "@ai-sdk/openai",
               models: { [model.id]: configModel(model) as ConfigModel },
               options: { apiKey: "test-key", baseURL: `${state.server!.url.origin}/v1` },

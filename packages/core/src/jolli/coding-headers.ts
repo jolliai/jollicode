@@ -41,22 +41,17 @@ export function overrideHeaders(
 }
 
 /**
- * ⚠ A COMPACTION NAMES ITS SESSION AND THE ORG IT LIVES IN, NOTHING ELSE. It is no step of a turn, so
- * it carries none of a turn's headers; the gateway reads its session only to rewrite the history it
- * summarises with the placeholders that session's personal data already has. That session lives in
- * the org its course binding names, so the scope goes with it; an unbound or bare session names none.
+ * What a request that is no step of a turn is for: a compaction's summary, a session's title, or the
+ * selection of the sources a course answer rests on.
  */
-export function jolliCodingAgentHeaders(input: {
-  readonly providerID: string
-  readonly sessionID: string
-  readonly requestKind?: "compaction"
+export type JolliRequestKind = "compaction" | "title" | "course_sources"
+
+type JolliTurnFields = {
   readonly parentSessionID?: string
   readonly turnID?: string
   readonly clientAttemptID?: string
   readonly stepIndex?: number
   readonly assistantMessageID?: string
-  readonly courseID?: string
-  readonly courseAssistantID?: string
   /** The catalogue id of the model this request runs on; the body carries only its name. */
   readonly modelID?: string
   readonly continuesTurn?: boolean
@@ -65,7 +60,34 @@ export function jolliCodingAgentHeaders(input: {
   readonly mcpToolOverrides?: ReadonlyArray<readonly [tool: string, server: string]>
   readonly toolErrors?: ReadonlyArray<string>
   readonly skillMessageIds?: ReadonlyArray<number>
-}): Record<string, string> {
+}
+
+type JolliRequestTarget = {
+  readonly providerID: string
+  readonly sessionID: string
+  readonly courseID?: string
+  readonly courseAssistantID?: string
+}
+
+/** A request that is no step of a turn: its kind, and none of a turn's fields. */
+export type JolliHelperRequest = JolliRequestTarget & {
+  readonly requestKind: JolliRequestKind
+} & { readonly [K in keyof JolliTurnFields]?: never }
+
+/** A step of a turn. */
+export type JolliTurnRequest = JolliRequestTarget & JolliTurnFields & { readonly requestKind?: undefined }
+
+/**
+ * ⚠ A REQUEST THAT IS NO STEP OF A TURN NAMES ITS SESSION, ITS KIND AND THE ORG IT LIVES IN, NOTHING
+ * ELSE. It carries none of a turn's headers. The gateway admits it only for a session the student
+ * owns, and a compaction's session is also where it finds the placeholders the history it summarises
+ * is rewritten with. That session lives in the org its course binding names, so the scope goes with
+ * it — without it an org's session is not found; an unbound or bare session names none.
+ *
+ * A request is one or the other, never both: a kind names no turn, so the type refuses a turn's ids
+ * beside it rather than letting them be dropped without a word.
+ */
+export function jolliCodingAgentHeaders(input: JolliHelperRequest | JolliTurnRequest): Record<string, string> {
   if (!isJolliProviderId(input.providerID)) return {}
   // The course and assistant are one binding, read whole: half of one, or a pair naming two orgs,
   // names no course and no org, since half a scope would address the right number in the wrong org.
@@ -73,7 +95,7 @@ export function jolliCodingAgentHeaders(input: {
     input.courseID !== undefined && input.courseAssistantID !== undefined
       ? parseCourseBinding({ courseId: input.courseID, assistantId: input.courseAssistantID })
       : undefined
-  if (input.requestKind === "compaction")
+  if (input.requestKind !== undefined)
     return {
       "x-jolli-conversation-id": input.sessionID,
       "x-jolli-request-kind": input.requestKind,

@@ -16,6 +16,7 @@
  */
 export * as CourseSources from "./course-sources"
 
+import type { CourseBinding } from "@opencode-ai/core/jolli/binding"
 import { JolliSources } from "@opencode-ai/core/jolli/sources"
 import type { SessionV1 } from "@opencode-ai/core/v1/session"
 import { LLMEvent } from "@opencode-ai/llm"
@@ -45,6 +46,11 @@ const SELECTOR: Agent.Info = {
 export const attribute = Effect.fn("CourseSources.attribute")(function* (input: {
   readonly sessionID: SessionID
   readonly userMessageID: MessageID
+  /**
+   * The course the turn ran under. The gateway admits the selection only for a session the student
+   * owns, and finds an org's session only in the org this binding names.
+   */
+  readonly courseBinding: CourseBinding
   /**
    * Whether the course shows citations, as the student's catalogue states it.
    *
@@ -95,7 +101,15 @@ export const attribute = Effect.fn("CourseSources.attribute")(function* (input: 
   const outcome = yield* JolliSources.select({
     answer,
     candidates,
-    complete: (conversation) => round({ llm, sessionID: input.sessionID, user: turn.user, model, conversation }),
+    complete: (conversation) =>
+      round({
+        llm,
+        sessionID: input.sessionID,
+        courseBinding: input.courseBinding,
+        user: turn.user,
+        model,
+        conversation,
+      }),
   }).pipe(
     Effect.map((result) => ({ ok: true as const, ...result })),
     Effect.catch((error) =>
@@ -312,6 +326,7 @@ const stepsDuring = Effect.fnUntraced(function* (
 const round = Effect.fnUntraced(function* (input: {
   readonly llm: LLM.Interface
   readonly sessionID: SessionID
+  readonly courseBinding: CourseBinding
   readonly user: SessionV1.User
   readonly model: Provider.Model
   readonly conversation: readonly JolliSources.SelectionMessage[]
@@ -329,6 +344,9 @@ const round = Effect.fnUntraced(function* (input: {
       tools: {},
       model: input.model,
       sessionID: input.sessionID,
+      requestKind: "course_sources",
+      courseID: input.courseBinding.courseId,
+      courseAssistantID: input.courseBinding.assistantId,
       messages: input.conversation.map((message) => ({ role: message.role, content: message.content })),
     })
     .pipe(

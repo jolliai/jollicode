@@ -30,6 +30,7 @@ import { LLMAISDK } from "./llm/ai-sdk"
 import { LLMNativeRuntime } from "./llm/native-runtime"
 import { LLMRequestPrep } from "./llm/request"
 import { JolliInput } from "./jolli-input"
+import type { JolliRequestKind } from "@opencode-ai/core/jolli/coding-headers"
 import {
   isJolliProviderId,
   isSupportedProtocol,
@@ -99,7 +100,7 @@ export type StreamInput = PreparedModelInput & {
   /** The turn only carries on with the previous one, after compaction; see `SessionPrompt.continuesTurn`. */
   continuesTurn?: boolean
   /** What a request that is no step of a turn is for, when the Jolli gateway needs to know. */
-  requestKind?: "compaction"
+  requestKind?: JolliRequestKind
   toolErrors?: ReadonlyArray<string>
   skillMessageIds?: ReadonlyArray<number>
   model: Provider.Model
@@ -109,6 +110,11 @@ export type StreamInput = PreparedModelInput & {
   retries?: number
   toolChoice?: "auto" | "required" | "none"
   onModelSwitch?: (model: Provider.Model) => Effect.Effect<void, unknown>
+  /**
+   * Runs when the Jolli gateway has admitted this request, as its response begins. By then the gateway
+   * holds the session the request names. Never runs for any other provider, or for a request it refused.
+   */
+  onJolliAdmitted?: () => Effect.Effect<void, unknown>
   onModelSwitchPrepare?: (model: Provider.Model) => Effect.Effect<PreparedModelInput, unknown>
   onModelSwitchProposal?: (
     model: Provider.Model,
@@ -424,9 +430,12 @@ const live: Layer.Layer<
                   }
                   // Hashed here, after every transform, so it names the bytes the gateway receives. A step of a
                   // turn says what the student typed, and so does a compaction, whose history can hold words no
-                  // step has carried yet; a title or a course's source selection belongs to no turn, and the
-                  // gateway checks those on its own.
-                  if ("x-jolli-turn-id" in prepared.headers || "x-jolli-request-kind" in prepared.headers)
+                  // step has carried yet. A title or a course's source selection names its kind too, but belongs
+                  // to no turn and sends none: the gateway checks those on its own.
+                  if (
+                    "x-jolli-turn-id" in prepared.headers ||
+                    (isJolliProviderId(input.model.providerID) && input.requestKind === "compaction")
+                  )
                     args.params.headers = {
                       ...args.params.headers,
                       [JolliInput.HEADER]: JolliInput.header(args.params.prompt),
@@ -472,9 +481,11 @@ const live: Layer.Layer<
               ...input,
               abort: ctrl.signal,
               onResponseHeaders:
-                isJolliProviderId(input.model.providerID) && input.onModelSwitch
+                isJolliProviderId(input.model.providerID) && (input.onModelSwitch || input.onJolliAdmitted)
                   ? (headers) =>
                       Effect.gen(function* () {
+                        if (input.onJolliAdmitted) yield* input.onJolliAdmitted()
+                        if (!input.onModelSwitch) return
                         const protocol = headers?.["x-jolli-served-provider"]
                         const modelID = headers?.["x-jolli-served-model"]
                         if (!isSupportedProtocol(protocol) || !modelID) return
@@ -483,7 +494,7 @@ const live: Layer.Layer<
                         if (key === servedModelKey) return
                         const model = yield* provider.getModel(providerID, ModelV2.ID.make(modelID)).pipe(Effect.option)
                         if (Option.isNone(model)) return
-                        yield* input.onModelSwitch!(model.value)
+                        yield* input.onModelSwitch(model.value)
                         servedModelKey = key
                       })
                   : undefined,

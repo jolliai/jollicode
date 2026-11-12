@@ -38,6 +38,8 @@ type Sse = {
   head: unknown[]
   tail: unknown[]
   headers?: Readonly<Record<string, string>>
+  /** Holds the whole response, headers included, until it settles; `wait` holds only the body's tail. */
+  admit?: PromiseLike<unknown>
   wait?: PromiseLike<unknown>
   hang?: boolean
   error?: unknown
@@ -461,6 +463,7 @@ export class Reply {
   #usage: Usage | undefined
   #finish: string | undefined
   #wait: PromiseLike<unknown> | undefined
+  #admit: PromiseLike<unknown> | undefined
   #hang = false
   #error: unknown
   #reset = false
@@ -493,6 +496,11 @@ export class Reply {
 
   wait(value: PromiseLike<unknown>) {
     this.#wait = value
+    return this
+  }
+
+  admit(value: PromiseLike<unknown>) {
+    this.#admit = value
     return this
   }
 
@@ -565,6 +573,7 @@ export class Reply {
       head: this.#head,
       tail: this.#finish ? [...this.#tail, finishLine(this.#finish, this.#usage)] : this.#tail,
       headers: this.#headers,
+      admit: this.#admit,
       wait: this.#wait,
       hang: this.#hang,
       error: this.#error,
@@ -704,6 +713,8 @@ export class TestLLMServer extends Context.Service<TestLLMServer, TestLLMServer.
         hits = [...hits, current]
         yield* notify()
         if (next.type !== "sse") return fail(next)
+        const admit = next.admit
+        if (admit) yield* Effect.promise(() => admit)
         if (mode === "responses") return send(responses(next, modelFrom(body)))
         if (next.reset) {
           yield* reset(next)
