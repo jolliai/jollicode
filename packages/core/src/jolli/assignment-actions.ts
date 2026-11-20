@@ -6,9 +6,9 @@ export function taskActionsOf(assignment: Jolli.Assignment, task: Jolli.Assignme
   const blocked = task.workBlocked ?? (!!task.handedInAt && (!participation || assignment.turnedIn))
   const workable = task.place === "jolli_code" && task.owed && !blocked
   return {
-    canStart: workable && !task.local && (participation || !task.handedInAt),
+    canStart: workable && !task.orderWait && !task.local && (participation || !task.handedInAt),
     canContinue: workable && !!task.local,
-    canRestart: workable && participation && !!task.local,
+    canRestart: workable && !task.orderWait && participation && !!task.local,
     readOnly: !workable,
   }
 }
@@ -41,6 +41,8 @@ export function taskStandingOf(task: Jolli.AssignmentTask) {
   const optional = isOptional(task)
   if (task.handedInAt) return { kind: participationSubmitted(task) ? "submitted" : "handed-in", optional } as const
   if (!task.owed) return { kind: "not-owed", optional } as const
+  // A task with its own session can be continued, so an order wait locks only one not yet begun.
+  if (task.orderWait && !task.local) return { kind: "waiting", optional } as const
   if (task.place === "web") return { kind: "web", optional } as const
   if (task.local) return { kind: "in-progress", optional } as const
   if (task.elsewhere) return { kind: "elsewhere", optional } as const
@@ -63,7 +65,7 @@ export function needsFirstHandIn(assignment: Pick<Jolli.Assignment, "tasks">) {
 /** A next step the student can actually take, omitted when none of the optional tasks can be worked. */
 export function firstHandInAction(assignment: Jolli.Assignment) {
   if (assignment.turnedIn || !needsFirstHandIn(assignment)) return undefined
-  const available = openOptionalTasks(assignment).filter((task) => !task.workBlocked)
+  const available = openOptionalTasks(assignment).filter((task) => !task.workBlocked && (!task.orderWait || !!task.local))
   if (available.length === 0) return undefined
   return available.every(isParticipation) ? "participate" : "hand-in"
 }

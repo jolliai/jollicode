@@ -454,6 +454,7 @@ const startRefused = Effect.fn("SessionHttpApi.startRefused")(function* (
      * renderer's own dictionary.
      */
     ...(forTask && error.explanation !== undefined ? { message: error.explanation } : {}),
+    ...(forTask && error.orderWait !== undefined ? { orderWait: error.orderWait } : {}),
   }
 })
 

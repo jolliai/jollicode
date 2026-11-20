@@ -28,6 +28,12 @@ test("says where a task stands", () => {
   expect(taskStatus(task({ handedInAt: "2026-10-21T10:00:00Z" }), when)).toBe("Handed in 2026-10-21")
 })
 
+test("puts the order blocker before a web-only task's generic standing", () => {
+  const orderWait = { taskId: 40, taskName: "Review materials" }
+  expect(taskStatus(task({ place: "web", orderWait }), when)).toBe("Submit Review materials first")
+  expect(taskStatus(task({ place: "web", orderWait }), when, "es_MX.UTF-8")).toBe("Envía primero Review materials")
+})
+
 test("says an optional task is optional before where it stands", () => {
   expect(taskStatus(task({ optional: true }), when)).toBe("Optional · Not started")
   expect(taskStatus(task({ optional: true, place: "web" }), when)).toBe("Optional · Do this task on the web")
@@ -35,6 +41,16 @@ test("says an optional task is optional before where it stands", () => {
     "Optional · Handed in 2026-10-21",
   )
   expect(taskStatus(task({ optional: true, owed: false }), when)).toBe("No longer needed")
+})
+
+test("keeps optional status in complete localized waiting phrases", () => {
+  const orderWait = { taskId: 40, taskName: "Review materials" }
+  expect(taskStatus(task({ optional: true, orderWait }), when, "en_US.UTF-8")).toBe(
+    "Optional · Submit Review materials first",
+  )
+  expect(taskStatus(task({ optional: true, orderWait, place: "web" }), when, "es_MX.UTF-8")).toBe(
+    "Opcional · Envía primero Review materials",
+  )
 })
 
 test("counts optional tasks apart from the ones to hand in", () => {

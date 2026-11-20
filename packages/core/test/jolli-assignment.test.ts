@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Schema } from "effect"
+import { Jolli } from "@opencode-ai/schema/jolli"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 import {
   fetchStudentAssignment,
@@ -294,6 +295,41 @@ describe("todoAssignments", () => {
 })
 
 describe("projectAssignment", () => {
+  test("retains ordered waits for Code and every web task kind through both schema layers", async () => {
+    const orderWait = { taskId: 41, taskName: "Review materials" }
+    const read = assignment([
+      part({ orderWait }),
+      ...["files", "quiz", "materials"].map((kind, index) => filePart({ id: 44 + index, kind, orderWait })),
+    ])
+    const http = stub(() => json(read))
+    const decoded = await Effect.runPromise(fetchStudentAssignment(REQUEST, 7, 40).pipe(Effect.provide(http.layer)))
+    expect(decoded.parts.map((task) => task.orderWait)).toEqual(Array(4).fill(orderWait))
+    const projected = projectAssignment(CS310, decoded, new Map(), NOW)
+    const publicRead = Schema.decodeUnknownSync(Jolli.Assignment)(projected)
+    expect(publicRead.tasks.map((task) => task.orderWait)).toEqual(Array(4).fill(orderWait))
+    expect(taskDraftOf(publicRead, publicRead.tasks[0])).toBeUndefined()
+    expect(taskDraftOf({ ...publicRead }, { ...publicRead.tasks[0], orderWait: undefined })).toBeDefined()
+    expect(
+      Schema.encodeSync(Jolli.AssignmentTask)({ ...publicRead.tasks[0], orderWait: undefined }),
+    ).not.toHaveProperty("orderWait")
+  })
+
+  test("reads a null wait as none and names a blank waited-on task by its place", async () => {
+    const read = assignment([
+      filePart({ id: 41 }),
+      part({ orderWait: { taskId: 41, taskName: " " } }),
+      filePart({ id: 44, orderWait: null }),
+    ])
+    const http = stub(() => json(read))
+    const decoded = await Effect.runPromise(fetchStudentAssignment(REQUEST, 7, 40).pipe(Effect.provide(http.layer)))
+    const projected = projectAssignment(CS310, decoded, new Map(), NOW)
+    expect(projected.tasks.map((task) => task.orderWait)).toEqual([
+      undefined,
+      { taskId: 41, taskName: "Task 1" },
+      undefined,
+    ])
+  })
+
   test("participation completion keeps the newest local session writable and does not make it a handed-in chat", () => {
     const practice = part({
       turnIn: { transcript: false, summary: false, reflection: false },
@@ -658,6 +694,55 @@ describe("JolliAssignmentCache", () => {
 })
 
 describe("the assignment calls", () => {
+  test("keeps a structured ordering refusal and never retries a refused Start", async () => {
+    const refusal = {
+      code: "task_order_waiting",
+      error: "Tasks in this assignment go in order. Submit Review materials first.",
+      taskId: 41,
+      taskName: "Review materials",
+    }
+    const http = stub(() => json(refusal, 409))
+    const error = await Effect.runPromise(
+      startTaskSession(REQUEST, { courseId: 7, assignmentId: 40, partId: 42, publicSessionId: "ses_a" }).pipe(
+        Effect.provide(http.layer),
+        Effect.flip,
+      ),
+    )
+    expect(error).toMatchObject({
+      status: 409,
+      code: refusal.code,
+      explanation: refusal.error,
+      orderWait: { taskId: 41, taskName: "Review materials" },
+    })
+    expect(http.seen).toHaveLength(1)
+  })
+
+  test("falls back to the server sentence when structured ordering details are malformed", async () => {
+    const http = stub(() => json({ code: "task_order_waiting", error: "Submit Task 1 first.", taskId: "41" }, 409))
+    const error = await Effect.runPromise(
+      startTaskSession(REQUEST, { courseId: 7, assignmentId: 40, partId: 42, publicSessionId: "ses_a" }).pipe(
+        Effect.provide(http.layer),
+        Effect.flip,
+      ),
+    )
+    expect(error.explanation).toBe("Submit Task 1 first.")
+    expect(error.orderWait).toBeUndefined()
+  })
+
+  test("falls back to the server sentence when the waited-on task has no name", async () => {
+    const http = stub(() =>
+      json({ code: "task_order_waiting", error: "Submit Task 1 first.", taskId: 41, taskName: "" }, 409),
+    )
+    const error = await Effect.runPromise(
+      startTaskSession(REQUEST, { courseId: 7, assignmentId: 40, partId: 42, publicSessionId: "ses_a" }).pipe(
+        Effect.provide(http.layer),
+        Effect.flip,
+      ),
+    )
+    expect(error.explanation).toBe("Submit Task 1 first.")
+    expect(error.orderWait).toBeUndefined()
+  })
+
   test("read a course's list and one assignment from the student's paths", async () => {
     const list = { todo: [listItem()], upcoming: [], completed: [] }
     const h = stub((request) =>

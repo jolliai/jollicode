@@ -703,6 +703,13 @@ export const AssignmentTaskSession = Schema.Struct({
 }).annotate({ identifier: "Jolli.AssignmentTaskSession" })
 export type AssignmentTaskSession = typeof AssignmentTaskSession.Type
 
+export interface TaskOrderWait extends Schema.Schema.Type<typeof TaskOrderWait> {}
+/** The nearest required predecessor that still needs a submission. Absent on older gateways. */
+export const TaskOrderWait = Schema.Struct({
+  taskId: Schema.Int.check(Schema.isGreaterThan(0)),
+  taskName: Schema.String,
+}).annotate({ identifier: "Jolli.TaskOrderWait" })
+
 export interface AssignmentTask extends Schema.Schema.Type<typeof AssignmentTask> {}
 export const AssignmentTask = Schema.Struct({
   partId: Schema.String,
@@ -720,6 +727,8 @@ export const AssignmentTask = Schema.Struct({
   completionKind: optional(Schema.Literals(["hand_in", "participation"])),
   /** Completion is separate from permission to continue or restart the task. */
   workBlocked: optional(Schema.Boolean),
+  /** Ordering holds new starts; an accepted session remains available to its owner. */
+  orderWait: optional(TaskOrderWait),
   /** When the student completed it; null while it is not. */
   handedInAt: Schema.NullOr(Schema.String),
   /** The session handed in for it, when that was a Jolli Code session. */

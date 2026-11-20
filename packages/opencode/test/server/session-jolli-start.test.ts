@@ -380,6 +380,23 @@ describe("startJolliSession", () => {
 })
 
 describe("startJolliSession for an assignment task", () => {
+  test("carries the ordering blocker to both clients without creating a local session", async () => {
+    const message = "Tasks in this assignment go in order. Submit Review materials first."
+    const h = harness(() =>
+      json({ code: "task_order_waiting", error: message, taskId: 39, taskName: "Review materials" }, 409),
+    )
+    expect(
+      await Effect.runPromise(h.start({ courseId: "7", assistantId: "12", assignmentId: "40", partId: "41" })),
+    ).toEqual({
+      status: "refused",
+      code: "task_order_waiting",
+      message,
+      orderWait: { taskId: 39, taskName: "Review materials" },
+    })
+    expect(h.created).toEqual([])
+    expect(h.sent).toHaveLength(1)
+  })
+
   const TASK = { courseId: "7", assistantId: "12", assignmentId: "40", partId: "41" }
   /** What the gateway answers a task's start with: the course and agent the task bound it to. */
   const BOUND = { courseId: 7, courseAssistantId: 12 }

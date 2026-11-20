@@ -1,4 +1,7 @@
+import { ASSIGNMENT_ORDER_ENGLISH } from "./assignment-order-en"
+
 export const dict = {
+  ...ASSIGNMENT_ORDER_ENGLISH,
   "command.category.suggested": "Ehdotetut",
   "command.category.view": "Näytä",
   "command.category.project": "Projekti",

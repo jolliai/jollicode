@@ -41,6 +41,26 @@ const assignment: Jolli.Assignment = {
 }
 
 describe("taskActionsOf", () => {
+  test("blocks new ordered starts and restarts while preserving an accepted local session", () => {
+    const waiting = { ...task, orderWait: { taskId: 29, taskName: "Review materials" } }
+    expect(taskActionsOf(assignment, { ...waiting, local: null }).canStart).toBe(false)
+    expect(taskActionsOf(assignment, { ...waiting, requiresExplicitSubmit: false })).toMatchObject({
+      canContinue: true,
+      canRestart: false,
+    })
+    expect(taskStandingOf({ ...waiting, local: null, place: "web" }).kind).toBe("waiting")
+    expect(taskStandingOf({ ...waiting, owed: false }).kind).toBe("not-owed")
+    expect(taskStandingOf({ ...waiting, handedInAt: "2026-10-26T01:00:00Z" }).kind).toBe("handed-in")
+    expect(firstHandInAction({ ...assignment, tasks: [{ ...waiting, local: null, optional: true }] })).toBeUndefined()
+  })
+
+  test("lets a waiting task with its own session read and count as continuable", () => {
+    const waiting = { ...task, optional: true, orderWait: { taskId: 29, taskName: "Review materials" } }
+    expect(taskActionsOf(assignment, waiting).canContinue).toBe(true)
+    expect(taskStandingOf(waiting).kind).toBe("in-progress")
+    expect(firstHandInAction({ ...assignment, tasks: [waiting] })).toBe("hand-in")
+  })
+
   test("keeps completed participation continuable and restartable, without calling it a handed-in session", () => {
     const done = {
       ...task,
