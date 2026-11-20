@@ -61,6 +61,7 @@ export class JolliApiError extends Schema.TaggedErrorClass<JolliApiError>()("Jol
    * step with theirs.
    */
   explanation: Schema.optional(Schema.String),
+  orderWait: Schema.optional(Jolli.TaskOrderWait),
   /**
    * Set when the answer came from the gateway itself: a refusal whose body is its own JSON error
    * (`{ error, code? }`). A page that a proxy, CDN or ingress answered in its place leaves it unset, and
@@ -491,6 +492,7 @@ export const StudentAssignmentAgentPart = Schema.Struct({
   owed: Schema.Boolean,
   /** Students may skip it: not needed to turn in. Absent from a server that predates optional tasks. */
   optional: Schema.optional(Schema.Boolean),
+  orderWait: Schema.optional(Jolli.TaskOrderWait),
 }).annotate({ identifier: "JolliApi.StudentAssignmentAgentPart" })
 export interface StudentAssignmentAgentPart extends Schema.Schema.Type<typeof StudentAssignmentAgentPart> {}
 
@@ -513,6 +515,7 @@ export const StudentAssignmentOtherPart = Schema.Struct({
   owed: Schema.Boolean,
   /** Students may skip it: not needed to turn in. Absent from a server that predates optional tasks. */
   optional: Schema.optional(Schema.Boolean),
+  orderWait: Schema.optional(Jolli.TaskOrderWait),
 }).annotate({ identifier: "JolliApi.StudentAssignmentOtherPart" })
 export interface StudentAssignmentOtherPart extends Schema.Schema.Type<typeof StudentAssignmentOtherPart> {}
 
@@ -674,12 +677,17 @@ const send = Effect.fn("Jolli.send")(function* <A, I>(
 ) {
   const http = yield* HttpClient.HttpClient
   const url = new URL(path, request.origin).toString()
-  const failed = (cause: unknown, status?: number, refusal?: { code?: string; explanation?: string }) =>
+  const failed = (
+    cause: unknown,
+    status?: number,
+    refusal?: { code?: string; explanation?: string; orderWait?: Jolli.TaskOrderWait },
+  ) =>
     new JolliApiError({
       path,
       ...(status === undefined ? {} : { status }),
       ...(refusal?.code === undefined ? {} : { code: refusal.code }),
       ...(refusal?.explanation === undefined ? {} : { explanation: refusal.explanation }),
+      ...(refusal?.orderWait === undefined ? {} : { orderWait: refusal.orderWait }),
       message: `Jolli request failed: ${method} ${path}`,
       cause,
     })
@@ -713,6 +721,16 @@ function refusalOf(json: unknown) {
   return {
     ...("code" in json && typeof json.code === "string" ? { code: json.code } : {}),
     ...("error" in json && typeof json.error === "string" ? { explanation: json.error } : {}),
+    ...("code" in json &&
+    json.code === "task_order_waiting" &&
+    "taskId" in json &&
+    typeof json.taskId === "number" &&
+    Number.isSafeInteger(json.taskId) &&
+    json.taskId > 0 &&
+    "taskName" in json &&
+    typeof json.taskName === "string"
+      ? { orderWait: { taskId: json.taskId, taskName: json.taskName } }
+      : {}),
   }
 }
 

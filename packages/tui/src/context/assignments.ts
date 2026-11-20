@@ -11,20 +11,24 @@ import { HAND_IN_PERMISSIONS, handedInBy, taskBindingOf, taskLabel, toRead } fro
 import { assignmentSettledSession, createAssignmentRefresh } from "@opencode-ai/core/jolli/assignment-watch"
 import { useRenderer } from "@opentui/solid"
 import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
-import { createMemo, createResource, createSignal, onCleanup } from "solid-js"
+import { createEffect, createMemo, createResource, createSignal, onCleanup } from "solid-js"
 import { useEvent } from "./event"
 import { useSDK } from "./sdk"
 import { useSync } from "./sync"
 
-/** Share concurrent reads across header consumers, while preserving fresh settlement reads. */
+/** Share concurrent reads across headers and dialogs, while preserving fresh settlement reads. */
 type PendingRead = ReturnType<typeof createAssignmentRefresh<ReturnType<typeof toRead>>>
 const pending = new WeakMap<ReturnType<typeof useSDK>["client"], Map<string, PendingRead>>()
+const subscribers = new WeakMap<
+  ReturnType<typeof useSDK>["client"],
+  Map<string, Set<(read: ReturnType<typeof toRead>) => void>>
+>()
 
-function readAssignment(
+export function refreshAssignment(
   client: ReturnType<typeof useSDK>["client"],
   courseId: string,
   assignmentId: string,
-  fresh: boolean,
+  fresh = true,
 ) {
   const reads = pending.get(client) ?? new Map<string, PendingRead>()
   pending.set(client, reads)
@@ -38,9 +42,63 @@ function readAssignment(
       return toRead(response?.data)
     })
   reads.set(key, reader)
-  return reader.refresh(fresh).finally(() => {
-    if (reads.get(key) === reader && !reader.loading()) reads.delete(key)
+  return reader
+    .refresh(fresh)
+    .then((answer) => {
+      subscribers
+        .get(client)
+        ?.get(key)
+        ?.forEach((accept) => accept(answer))
+      return answer
+    })
+    .finally(() => {
+      if (reads.get(key) === reader && !reader.loading()) reads.delete(key)
+    })
+}
+
+/** An open assignment dialog follows completed work and shares fresh results with other TUI readers. */
+export function useAssignmentRead(props: { courseId: string; assignmentId: string }) {
+  const sdk = useSDK()
+  const sync = useSync()
+  const event = useEvent()
+  const target = createMemo(() => ({ courseId: props.courseId, assignmentId: props.assignmentId }), undefined, {
+    equals: (a, b) => a?.courseId === b?.courseId && a?.assignmentId === b?.assignmentId,
   })
+  const [read, control] = createResource(target, (key) => refreshAssignment(sdk.client, key.courseId, key.assignmentId))
+  createEffect(() => {
+    const key = JSON.stringify([target().courseId, target().assignmentId])
+    const byAssignment =
+      subscribers.get(sdk.client) ?? new Map<string, Set<(answer: ReturnType<typeof toRead>) => void>>()
+    subscribers.set(sdk.client, byAssignment)
+    const listeners = byAssignment.get(key) ?? new Set<(answer: ReturnType<typeof toRead>) => void>()
+    byAssignment.set(key, listeners)
+    listeners.add(control.mutate)
+    onCleanup(() => {
+      listeners.delete(control.mutate)
+      if (!listeners.size) byAssignment.delete(key)
+    })
+  })
+  onCleanup(
+    event.subscribe((evt) => {
+      if (evt.type === "message.part.updated") {
+        const part = evt.properties.part
+        if (part.type === "tool" && HAND_IN_PERMISSIONS.has(part.tool) && part.state.status === "completed") {
+          void refreshAssignment(sdk.client, target().courseId, target().assignmentId)
+        }
+        return
+      }
+      const sessionID = assignmentSettledSession(evt)
+      if (!sessionID) return
+      const session = sync.data.session.find((item) => item.id === sessionID)
+      if (
+        taskBindingOf(session)?.assignmentId !== target().assignmentId ||
+        courseBindingOf(session)?.courseId !== target().courseId
+      )
+        return
+      void refreshAssignment(sdk.client, target().courseId, target().assignmentId)
+    }),
+  )
+  return read
 }
 
 /** A task's completion and work permission, refreshed on settlement and while idle. */
@@ -86,7 +144,7 @@ export function useTaskHeader(sessionID: () => string | undefined) {
   )
   const [read] = createResource(target, async (key) => ({
     key,
-    read: await readAssignment(sdk.client, key.courseId, key.task.assignmentId, key.generation.fresh),
+    read: await refreshAssignment(sdk.client, key.courseId, key.task.assignmentId, key.generation.fresh),
   }))
   // Idle tasks need polling to discover teacher changes, including a switch into participation.
   // Only read this assignment; do not refresh the course-wide TODO list on a timer.

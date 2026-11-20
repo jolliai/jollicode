@@ -1,7 +1,10 @@
+import { ASSIGNMENT_ORDER_ENGLISH } from "./assignment-order-en"
+
 import { GROUP_CHAT_ENGLISH } from "./group-chat-en"
 import { DESKTOP_NATIVE_ENGLISH } from "./desktop-native"
 
 export const dict = {
+  ...ASSIGNMENT_ORDER_ENGLISH,
   ...GROUP_CHAT_ENGLISH,
   ...DESKTOP_NATIVE_ENGLISH,
   "command.category.suggested": "Suggested",

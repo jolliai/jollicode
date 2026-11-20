@@ -1,4 +1,7 @@
+import { ASSIGNMENT_ORDER_ENGLISH } from "./assignment-order-en"
+
 export const dict = {
+  ...ASSIGNMENT_ORDER_ENGLISH,
   "desktop.menu.app": "Jolli Code",
   "desktop.menu.file": "ფაილი",
   "desktop.menu.edit": "რედაქტირება",

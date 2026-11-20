@@ -15,7 +15,7 @@ import { registerOpencodeSpinner } from "../register-spinner"
 import path from "path"
 import { fileURLToPath } from "url"
 import { startOutcome, useJolli } from "../../context/jolli"
-import { useTaskHeader } from "../../context/assignments"
+import { refreshAssignment, useTaskHeader } from "../../context/assignments"
 import { useLocal } from "../../context/local"
 import { Flag } from "@opencode-ai/core/flag/flag"
 import { Identifier } from "@opencode-ai/core/id/id"
@@ -1562,6 +1562,7 @@ export function Prompt(props: PromptProps) {
     )
     if (outcome.type === "failed") {
       if (outcome.refresh) jolli.refresh()
+      if (outcome.refresh && task) void refreshAssignment(sdk.client, task.courseId, task.assignmentId)
       toast.show({ message: outcome.message, variant: "warning", duration: 5000 })
       return undefined
     }

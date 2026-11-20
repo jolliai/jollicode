@@ -38,6 +38,7 @@ import { taskDraftOf } from "@opencode-ai/core/jolli/assignment"
 import { AssignmentIntent } from "@/jolli/assignment-intent"
 import { readAssignment, turnIn, useTaskTitle, type AssignmentRead } from "@/jolli/assignments"
 import { courseIntentRouteKey } from "@/jolli/course-intent"
+import { assignmentsGeneration } from "@/jolli/assignment-refresh"
 import type { HomeLocalSessionRecord } from "@/pages/home/home-sessions-controller"
 
 const STANDING = {
@@ -45,6 +46,7 @@ const STANDING = {
   "handed-in": "dialog.assignment.task.handedIn",
   "not-owed": "dialog.assignment.task.notOwed",
   web: "dialog.assignment.task.web",
+  waiting: "dialog.assignment.task.waiting",
   "in-progress": "dialog.assignment.task.inProgress",
   elsewhere: "dialog.assignment.task.elsewhere",
   "not-started": "dialog.assignment.task.notStarted",
@@ -58,8 +60,9 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
   const { sessions } = useHomeData()
   const [attempt, setAttempt] = createSignal(0)
   const [answer, setAnswer] = createSignal<AssignmentRead>()
-  const [read] = createResource(attempt, () =>
-    readAssignment(serverSDK().client, props.courseId, props.assignmentId, true),
+  const [read] = createResource(
+    () => ({ attempt: attempt(), generation: assignmentsGeneration() }),
+    () => readAssignment(serverSDK().client, props.courseId, props.assignmentId, true),
   )
   /** The latest word on the assignment: a turn-in's answer once there is one, else the read's. */
   const current = () => answer() ?? read.latest ?? { status: "loading" as const }
@@ -98,7 +101,10 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
   /** Where a task stands, in the student's language: "Optional · Not started". */
   const statusOf = (task: Jolli.AssignmentTask) => {
     const standing = taskStandingOf(task)
-    const status = language.t(STANDING[standing.kind], { date: task.handedInAt ? when(task.handedInAt) : "" })
+    const status = language.t(STANDING[standing.kind], {
+      date: task.handedInAt ? when(task.handedInAt) : "",
+      task: task.orderWait?.taskName ?? "",
+    })
     return standing.optional ? language.t("dialog.assignment.task.optionalStatus", { status }) : status
   }
 
@@ -191,14 +197,39 @@ export function DialogAssignment(props: { courseId: string; assignmentId: string
                         <li
                           data-component="dialog-assignment-task"
                           data-part={task.partId}
+                          data-waiting={taskStandingOf(task).kind === "waiting" ? "true" : undefined}
                           class="flex items-center gap-3 rounded-lg bg-v2-background-bg-base px-3 py-2.5 shadow-[var(--v2-elevation-raised)]"
                         >
                           <div class="flex min-w-0 flex-1 flex-col">
                             <span class="truncate text-[13px] text-v2-text-text-base">
                               {taskTitle(index())} · {task.name}
                             </span>
-                            <span class="truncate text-[12px] text-v2-text-text-muted">{statusOf(task)}</span>
+                            <span
+                              class="text-[12px] break-words"
+                              classList={{
+                                "text-v2-text-text-base": taskStandingOf(task).kind === "waiting",
+                                "text-v2-text-text-muted": taskStandingOf(task).kind !== "waiting",
+                              }}
+                            >
+                              {statusOf(task)}
+                            </span>
                           </div>
+                          <Show when={taskStandingOf(task).kind === "waiting"}>
+                            <svg
+                              data-component="dialog-assignment-task-lock"
+                              class="size-4 shrink-0 text-v2-text-text-muted"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              aria-hidden="true"
+                            >
+                              <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                          </Show>
                           <Show when={task.place === "jolli_code"}>
                             <Switch>
                               <Match when={task.local}>

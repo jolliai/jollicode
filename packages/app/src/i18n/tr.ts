@@ -1,8 +1,11 @@
+import { ASSIGNMENT_ORDER_ENGLISH } from "./assignment-order-en"
+
 import { dict as en } from "./en"
 
 type Keys = keyof typeof en
 
 export const dict = {
+  ...ASSIGNMENT_ORDER_ENGLISH,
   "desktop.menu.app": "Jolli Code",
   "desktop.menu.file": "Dosya",
   "desktop.menu.edit": "Düzen",

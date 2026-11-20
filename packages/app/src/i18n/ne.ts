@@ -1,4 +1,7 @@
+import { ASSIGNMENT_ORDER_ENGLISH } from "./assignment-order-en"
+
 export const dict: Record<string, string> = {
+  ...ASSIGNMENT_ORDER_ENGLISH,
   "desktop.menu.app": "Jolli Code",
   "desktop.menu.file": "फाइल",
   "desktop.menu.edit": "सम्पादन गर्नुहोस्",
