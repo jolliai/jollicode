@@ -128,7 +128,7 @@ const model = {
 }
 
 /** How the fake sidecar answers one Start; `opened` is started with an opener. */
-type Answer = "rejected" | "failed" | "dropped" | "refused" | "unreachable" | "started" | "opened"
+type Answer = "rejected" | "failed" | "dropped" | "refused" | "ordered" | "unreachable" | "started" | "opened"
 
 function answer(kind: Answer) {
   if (kind === "started" || kind === "opened")
@@ -141,6 +141,13 @@ function answer(kind: Answer) {
   if (kind === "failed") return new Response("boom", { status: 500 })
   if (kind === "dropped") throw new TypeError("fetch failed")
   if (kind === "refused") return json({ status: "refused", code: "assistant_closed" })
+  if (kind === "ordered")
+    return json({
+      status: "refused",
+      code: "task_order_waiting",
+      message: "Tasks in this assignment go in order. Submit Review materials first.",
+      orderWait: { taskId: 39, taskName: "Review materials" },
+    })
   return json({ status: "unreachable" })
 }
 
@@ -174,12 +181,14 @@ async function mount(
   /** The sessions a shell command was run in, and how often the catalogue was read. */
   const shelled: string[] = []
   const catalogs = { read: 0 }
+  const assignmentReads: URL[] = []
   /** Plain `session.create` calls — what a Start must never fall back to. */
   const created: unknown[] = []
   /** When set, the sidecar holds every Start and plain `session.create` until it resolves. */
   let held: PromiseWithResolvers<void> | undefined
   const events = createEventSource()
   const calls = createFetch((url) => {
+    if (url.pathname === "/jolli/assignment/101/40") assignmentReads.push(url)
     if (options.readOnly && url.pathname === "/session")
       return json([
         {
@@ -404,6 +413,7 @@ async function mount(
     said,
     shelled,
     catalogs,
+    assignmentReads,
     created,
     submits,
     app,
@@ -577,6 +587,25 @@ test("a refused task start sends nothing and keeps the typed line", async () => 
     view.prompt.submit()
     await view.app.waitFor(() => view.sent.length > 0 && !view.jolli.starting())
     await Bun.sleep(20)
+    expect(view.created).toEqual([])
+    expect(view.prompted).toEqual([])
+    expect(view.prompt.current.input).toBe("what does this task ask?")
+  } finally {
+    view.prompt.reset()
+    view.close()
+  }
+})
+
+test("a stale ordered task draft refreshes detail, keeps its text and shows the blocker", async () => {
+  const view = await mount({ opensConversation: false })
+  try {
+    view.jolli.draft.setTask({ courseId: "101", assistantId: "1", assignmentId: "40", partId: "41", label: "Lab 4" })
+    view.queue("ordered")
+    view.prompt.set({ input: "what does this task ask?", parts: [] })
+    view.prompt.submit()
+    await view.app.waitFor(() => view.assignmentReads.length > 0)
+    await view.app.waitFor(() => view.toast.currentToast?.message.includes("Submit Review materials first") === true)
+    expect(view.assignmentReads.at(-1)?.searchParams.get("fresh")).toBe("true")
     expect(view.created).toEqual([])
     expect(view.prompted).toEqual([])
     expect(view.prompt.current.input).toBe("what does this task ask?")

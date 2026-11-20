@@ -114,7 +114,7 @@ export function taskDraftOf(
   task: Jolli.AssignmentTask,
   title = task.title,
 ): TaskDraft | undefined {
-  if (task.assistantId === null || task.workBlocked === true) return undefined
+  if (task.assistantId === null || task.workBlocked === true || task.orderWait !== undefined) return undefined
   return {
     courseId: assignment.courseId,
     assistantId: task.assistantId,
@@ -221,6 +221,13 @@ export function projectAssignment(
     assignment.status !== "published" ||
     pastStop(assignment, now) ||
     (assignment.opensAt !== null && Date.parse(assignment.opensAt) > now)
+  // A blank name would read "Submit first."; the waited-on task's place in the list still names it.
+  const orderWaitOf = (wait: Jolli.TaskOrderWait | null | undefined) => {
+    if (!wait) return {}
+    const index = assignment.parts.findIndex((part) => part.id === wait.taskId)
+    const taskName = wait.taskName.trim() || (index >= 0 ? `Task ${index + 1}` : wait.taskName)
+    return { orderWait: { taskId: wait.taskId, taskName } }
+  }
   const tasks = assignment.parts.map((part, index): Jolli.AssignmentTask => {
     if (!isAgentPart(part)) {
       return {
@@ -235,6 +242,7 @@ export function projectAssignment(
         handedInSessionID: null,
         owed: part.owed,
         ...(part.optional && { optional: true }),
+        ...orderWaitOf(part.orderWait),
         local: null,
         elsewhere: false,
       }
@@ -274,6 +282,7 @@ export function projectAssignment(
       handedInSessionID: place === "jolli_code" ? (handedIn?.conversationId ?? null) : null,
       owed: part.owed,
       ...(part.optional && { optional: true }),
+      ...orderWaitOf(part.orderWait),
       local: here ? { sessionID: here.sessionID, directory: here.directory } : null,
       elsewhere: sessions.some((sessionID) => !locals.has(sessionID)),
     }

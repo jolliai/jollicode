@@ -1,4 +1,5 @@
 import { CourseSkillName } from "@opencode-ai/schema/course-skill-name"
+import type { Jolli } from "@opencode-ai/schema/jolli"
 import type { Message, Session } from "@opencode-ai/sdk/v2/client"
 import { showToast } from "@/utils/toast"
 import { base64Encode } from "@opencode-ai/core/util/encode"
@@ -503,7 +504,7 @@ export function createSessionStart(
     }
 
     const task = courseSession.draft.task
-    showStartFailure(courseSession, undefined)
+    showStartFailure(courseSession, undefined, language)
     courseSession.draft.setStarting(true)
     const opening = openOnGateway({
       scope: sdk().scope,
@@ -542,7 +543,7 @@ export function createSessionStart(
         }
       })
       .finally(() => courseSession.draft.setStarting(false))
-    if (result.status === "not-created") showStartFailure(courseSession, result.failure)
+    if (result.status === "not-created") showStartFailure(courseSession, result.failure, language)
     return result
   }
 }
@@ -614,6 +615,9 @@ function openOnGateway(input: {
         failure: {
           key: startErrorKey(answer.result.code),
           ...(input.task && answer.result.message ? { message: answer.result.message } : {}),
+          ...(input.task && answer.result.code === "task_order_waiting" && answer.result.orderWait
+            ? { orderWait: answer.result.orderWait }
+            : {}),
         },
       }
     },
@@ -627,12 +631,20 @@ function openOnGateway(input: {
 }
 
 /** Why opening on the gateway failed: what the draft words it as, and for a task the gateway's own sentence. */
-type StartFailure = { key: StartErrorKey; message?: string }
+type StartFailure = { key: StartErrorKey; message?: string; orderWait?: Jolli.TaskOrderWait }
 
 /** Say on the draft why opening on the gateway failed; undefined clears what was said before. */
-function showStartFailure(courseSession: ReturnType<typeof useCourseSession>, failure: StartFailure | undefined) {
+function showStartFailure(
+  courseSession: ReturnType<typeof useCourseSession>,
+  failure: StartFailure | undefined,
+  language: ReturnType<typeof useLanguage>,
+) {
   courseSession.draft.setStartError(failure?.key)
-  courseSession.draft.setStartMessage(failure?.message)
+  courseSession.draft.setStartMessage(
+    failure?.orderWait
+      ? language.t("prompt.jolli.refusal.taskOrderWaiting", { task: failure.orderWait.taskName })
+      : failure?.message,
+  )
 }
 
 /** The HTTP status the SDK put under `cause` when it threw, or undefined when it got no answer. */
@@ -867,7 +879,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
        * anything typed meanwhile would go with the `clear()` that follows the send, never sent.
        */
       if (opening) {
-        showStartFailure(courseSession, undefined)
+        showStartFailure(courseSession, undefined, language)
         courseSession.draft.setStarting(true)
       }
       const result = await newSession({
@@ -922,22 +934,24 @@ export function createPromptSubmit(input: PromptSubmitInput) {
                   })
                   return { failure: undefined as StartFailure | undefined }
                 }),
-      }).catch((err) => {
-        /**
-         * ⚠ A THROW AFTER THE GATEWAY ANSWERED IS A FAILED START ON SCREEN, as Start's is. The session
-         * may exist there by then, which is why its id is still kept: the next Enter reattaches to it.
-         * A plain session's create keeps throwing as it always has.
-         */
-        if (!opening) throw err
-        console.error("Starting the task's session failed", err)
-        return {
-          status: "not-created" as const,
-          directory: sdk().directory,
-          failure: { key: startErrorKey(undefined) } as StartFailure | undefined,
-        }
-      }).finally(() => {
-        if (opening) courseSession.draft.setStarting(false)
       })
+        .catch((err) => {
+          /**
+           * ⚠ A THROW AFTER THE GATEWAY ANSWERED IS A FAILED START ON SCREEN, as Start's is. The session
+           * may exist there by then, which is why its id is still kept: the next Enter reattaches to it.
+           * A plain session's create keeps throwing as it always has.
+           */
+          if (!opening) throw err
+          console.error("Starting the task's session failed", err)
+          return {
+            status: "not-created" as const,
+            directory: sdk().directory,
+            failure: { key: startErrorKey(undefined) } as StartFailure | undefined,
+          }
+        })
+        .finally(() => {
+          if (opening) courseSession.draft.setStarting(false)
+        })
       opening?.settle(result)
       if (result.status === "no-directory") {
         input.discardHistory?.()
@@ -946,7 +960,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       // A refused or unreachable start is said where Start's is, above the composer, and the typed
       // message stays in it for the next Enter.
       if (opening && result.status === "not-created") {
-        showStartFailure(courseSession, result.failure)
+        showStartFailure(courseSession, result.failure, language)
         input.discardHistory?.()
         return
       }

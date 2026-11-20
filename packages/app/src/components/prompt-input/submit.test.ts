@@ -2,6 +2,10 @@ import { afterEach, beforeAll, beforeEach, describe, expect, mock, setSystemTime
 import { createStore } from "solid-js/store"
 import type { Prompt, PromptStore } from "@/context/prompt"
 import type { ModelSelection } from "@/context/local"
+const english = await import("@/i18n/en")
+const spanish = await import("@/i18n/es")
+
+let uiLocale: "en" | "es" = "en"
 
 let createPromptSubmit: typeof import("./submit").createPromptSubmit
 let createSessionStart: typeof import("./submit").createSessionStart
@@ -408,7 +412,10 @@ beforeAll(async () => {
 
   mock.module("@/context/language", () => ({
     useLanguage: () => ({
-      t: (key: string) => key,
+      t: (key: string, params?: { task?: string }) =>
+        key === "prompt.jolli.refusal.taskOrderWaiting"
+          ? (uiLocale === "es" ? spanish.dict[key] : english.dict[key]).replace("{{task}}", params?.task ?? "")
+          : key,
     }),
   }))
 
@@ -436,6 +443,7 @@ beforeEach(() => {
   sessionUpdates.length = 0
   jolliStartAnswer = async () => ({ data: { status: "unreachable" } })
   draftState.starting = false
+  uiLocale = "en"
   draftState.startError = undefined
   draftState.startMessage = undefined
   draftState.task = undefined
@@ -1186,6 +1194,28 @@ describe("prompt submit history handoff", () => {
     expect(draftState.starting).toBe(false)
   })
 
+  test("an old task draft refused for order keeps the typed message and localizes the blocker", async () => {
+    uiLocale = "es"
+    courseBinding = { courseId: "7", assistantId: "42" }
+    draftState.task = { ...courseBinding, assignmentId: "40", partId: "41", label: "Lab 4 · Task 2" }
+    jolliStartAnswer = async () => ({
+      data: {
+        status: "refused",
+        code: "task_order_waiting",
+        message: "Tasks in this assignment go in order. Submit Review materials first.",
+        orderWait: { taskId: 39, taskName: "Review materials" },
+      },
+    })
+    await submitWithHistory(undefined, "normal").handleSubmit(event())
+    expect(draftState.startMessage).toBe(
+      "Los ejercicios de esta tarea se hacen en orden. Envía primero Review materials.",
+    )
+    expect(sessionCreateInputs).toEqual([])
+    expect(sentPrompts).toEqual([])
+    expect(coursePromoted).toEqual([])
+    expect(history.discarded).toBe(1)
+  })
+
   /**
    * ⚠ A THROW AFTER THE GATEWAY ANSWERED IS SAID ON THE DRAFT, as Start's is, not left to escape the
    * submit unseen. The session may exist on the gateway, so the next Enter reattaches to its id.
@@ -1355,6 +1385,22 @@ describe("session start", () => {
     // Past the server's snapshot, which still lists the assistant that just closed.
     expect(catalogRefreshed(catalogGeneration())).toBe(true)
     expect(draftState.starting).toBe(false)
+  })
+
+  test("Start localizes a task order refusal using structured details", async () => {
+    courseBinding = binding
+    draftState.task = { ...binding, assignmentId: "40", partId: "41", label: "Lab 4 · Task 2" }
+    jolliStartAnswer = async () => ({
+      data: {
+        status: "refused",
+        code: "task_order_waiting",
+        orderWait: { taskId: 39, taskName: "Review materials" },
+      },
+    })
+    expect(await startSession()()).toMatchObject({ status: "not-created" })
+    expect(draftState.startMessage).toBe("Tasks in this assignment go in order. Submit Review materials first.")
+    expect(promoted).toEqual([])
+    expect(indexedSessions).toEqual([])
   })
 
   /**

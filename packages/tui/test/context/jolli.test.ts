@@ -157,6 +157,19 @@ describe("needsCourseChoice", () => {
 })
 
 describe("startOutcome", () => {
+  test("localizes structured task order refusals and preserves the older server fallback", () => {
+    const message = "Tasks in this assignment go in order. Submit Review materials first."
+    const refused = { status: "refused" as const, code: "task_order_waiting", message }
+    expect(
+      startOutcome({ ...refused, orderWait: { taskId: 39, taskName: "Review materials" } }, "es_ES.UTF-8"),
+    ).toEqual({
+      type: "failed",
+      message: "Los ejercicios de esta tarea se hacen en orden. Envía primero Review materials.",
+      refresh: true,
+    })
+    expect(startOutcome(refused, "es_ES.UTF-8")).toEqual({ type: "failed", message, refresh: true })
+  })
+
   const session = { id: "ses_started" } as Session
 
   /** ⚠ AN OPENER THE GATEWAY COULD NOT WRITE IS STILL A STARTED CHAT, which the student types into. */
