@@ -26,6 +26,7 @@ import { QueryBoolean } from "./query"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { Brand } from "@opencode-ai/core/brand"
+import { Jolli } from "@opencode-ai/schema/jolli"
 
 const root = "/session"
 export const ListQuery = Schema.Struct({
@@ -120,6 +121,7 @@ export const JolliStartResult = Schema.Union([
     code: Schema.optional(Schema.String),
     /** The gateway's own sentence, when it sent one: a task's start is refused in the assignment's words. */
     message: Schema.optional(Schema.String),
+    orderWait: Schema.optional(Jolli.TaskOrderWait),
   }),
   Schema.Struct({ status: Schema.Literal("unreachable") }),
 ]).annotate({ identifier: "JolliStartResult" })

@@ -35,6 +35,7 @@ import { useSDK } from "./sdk"
 import { useEvent } from "./event"
 import { useSync } from "./sync"
 import { Locale } from "../util/locale"
+import { taskOrderCopy } from "../util/task-order"
 
 export type { CourseBinding }
 
@@ -983,13 +984,17 @@ export const START_FAILED = "Couldn't start the chat. Try again."
  */
 export function startOutcome(
   result: JolliStartResult | undefined,
+  locale?: string,
 ): { type: "started"; sessionID: string; opener: boolean } | { type: "failed"; message: string; refresh: boolean } {
   if (result?.status === "started") return { type: "started", sessionID: result.session.id, opener: result.opener }
   if (result?.status !== "refused") return { type: "failed", message: START_FAILED, refresh: false }
   /** A task's refusal is worded by the gateway — the assignment's dates and what to do — and said as it is. */
   return {
     type: "failed",
-    message: result.message ?? startRefusalMessage(result.code) ?? START_FAILED,
+    message:
+      result.code === "task_order_waiting" && result.orderWait
+        ? taskOrderCopy(result.orderWait.taskName, locale).refusal
+        : (result.message ?? startRefusalMessage(result.code) ?? START_FAILED),
     refresh: true,
   }
 }

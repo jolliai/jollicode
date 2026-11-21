@@ -1327,6 +1327,7 @@ export const dict = {
   "prompt.jolli.start.button": "Empezar",
   "prompt.jolli.start.writing": "El agente está escribiendo…",
   "prompt.jolli.start.failed": "No se pudo iniciar el chat. Inténtalo de nuevo.",
+  "prompt.jolli.refusal.taskOrderWaiting": "Los ejercicios de esta tarea se hacen en orden. Envía primero {{task}}.",
   "prompt.jolli.start.heldBack":
     "El agente abrió la conversación primero, así que tu mensaje no se envió. Te espera en el campo de entrada.",
   "prompt.jolli.closed.notice": "Este agente ha cerrado. Todavía puedes leer este chat.",
@@ -1364,6 +1365,7 @@ export const dict = {
   "dialog.assignment.turnIn.firstHandIn": "Entrega al menos una tarea opcional antes de entregar este trabajo.",
   "dialog.assignment.turnIn.optionalLeft": "Tareas opcionales sin entregar: si entregas ahora, quedan fuera:",
   "dialog.assignment.task.web": "Haz este ejercicio en la web",
+  "dialog.assignment.task.waiting": "Envía primero {{task}}",
   "dialog.assignment.task.elsewhere": "Iniciado en otro equipo",
   "dialog.assignment.task.start": "Empezar",
   "dialog.assignment.task.continue": "Continuar",

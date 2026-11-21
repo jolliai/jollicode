@@ -26,6 +26,7 @@ import {
 } from "@opencode-ai/core/jolli/assignment-actions"
 import { taskDraftOf, toRead } from "@opencode-ai/core/jolli/assignment"
 import { createMemo, createResource } from "solid-js"
+import { useAssignmentRead } from "../context/assignments"
 import { useJolli } from "../context/jolli"
 import { useRoute } from "../context/route"
 import { useSDK } from "../context/sdk"
@@ -35,6 +36,7 @@ import { DialogConfirm } from "../ui/dialog-confirm"
 import { DialogSelect } from "../ui/dialog-select"
 import { useDialog } from "../ui/dialog"
 import { useToast } from "../ui/toast"
+import { taskOrderCopy } from "../util/task-order"
 
 /** "Oct 24, 11:59 PM", in the terminal's own locale. */
 function when(instant: string) {
@@ -51,14 +53,19 @@ const STANDING = {
   "handed-in": "Handed in",
   "not-owed": "No longer needed",
   web: "Do this task on the web",
+  waiting: "Waiting",
   "in-progress": "In progress",
   elsewhere: "Started on another computer",
   "not-started": "Not started",
 } satisfies Record<TaskStandingKind, string>
 
 /** Where a task stands, as its row says it: "Optional · Not started" for an optional task not begun. */
-export function taskStatus(task: Jolli.AssignmentTask, at: (instant: string) => string) {
+export function taskStatus(task: Jolli.AssignmentTask, at: (instant: string) => string, locale?: string) {
   const standing = taskStandingOf(task)
+  if (standing.kind === "waiting" && task.orderWait) {
+    const copy = taskOrderCopy(task.orderWait.taskName, locale)
+    return standing.optional ? copy.optionalSubmitFirst : copy.submitFirst
+  }
   const words = task.handedInAt ? `${STANDING[standing.kind]} ${at(task.handedInAt)}` : STANDING[standing.kind]
   return standing.optional ? `Optional · ${words}` : words
 }
@@ -125,15 +132,7 @@ export function DialogAssignmentTasks(props: { courseId: string; assignmentId: s
   const dialog = useDialog()
   const toast = useToast()
   const { theme } = useTheme()
-  const [read] = createResource(async () =>
-    toRead(
-      (
-        await sdk.client.jolli
-          .assignment({ courseId: props.courseId, assignmentId: props.assignmentId, fresh: "true" })
-          .catch(() => undefined)
-      )?.data,
-    ),
-  )
+  const read = useAssignmentRead(props)
   const assignment = () => {
     const answer = read()
     return answer?.status === "ok" ? answer.assignment : undefined
@@ -167,7 +166,9 @@ export function DialogAssignmentTasks(props: { courseId: string; assignmentId: s
           ]
             .filter(Boolean)
             .join(" · "),
-          disabled: task.place === "web" || (!task.owed && !task.handedInAt),
+          descriptionBelow: true,
+          disabled:
+            task.place === "web" || (!task.local && task.orderWait !== undefined) || (!task.owed && !task.handedInAt),
         },
         ...(actions.canRestart
           ? [
@@ -218,6 +219,10 @@ export function DialogAssignmentTasks(props: { courseId: string; assignmentId: s
       return
     }
     const actions = taskActionsOf(found, task)
+    if (task.orderWait) {
+      toast.show({ message: taskOrderCopy(task.orderWait.taskName).refusal, variant: "info" })
+      return
+    }
     if (!actions.canStart && !actions.canRestart) {
       toast.show({
         // Only a hand-in or a turn-in is the teacher's to reopen; a closed window or paused agent is not, and
@@ -277,6 +282,7 @@ export function DialogAssignmentTasks(props: { courseId: string; assignmentId: s
     <DialogSelect
       title={assignment()?.title ?? "Assignment"}
       options={options()}
+      showDisabled
       footer={
         firstHandIn() ? (
           <text fg={theme.textMuted}>

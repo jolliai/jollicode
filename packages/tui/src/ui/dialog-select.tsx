@@ -27,6 +27,8 @@ export interface DialogSelectProps<T> {
   footer?: JSX.Element
   emptyView?: JSX.Element
   options: DialogSelectOption<T>[]
+  /** Keep unavailable choices readable in sequence while skipping them during navigation and selection. */
+  showDisabled?: boolean
   flat?: boolean
   ref?: (ref: DialogSelectRef<T>) => void
   onMove?: (option: DialogSelectOption<T>) => void
@@ -58,6 +60,8 @@ export interface DialogSelectOption<T = any> {
   titleView?: JSX.Element
   value: T
   description?: string
+  /** Render an entire reason below the title, wrapping to the dialog width rather than truncating it. */
+  descriptionBelow?: boolean
   details?: string[]
   footer?: JSX.Element | string
   titleWidth?: number
@@ -91,12 +95,15 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     selected: 0,
     filter: "",
     input: "keyboard" as "keyboard" | "mouse",
+    reading: false,
   })
   const [focusedAction, setFocusedAction] = createSignal<number>()
   const actionFocused = createMemo(() => focusedAction() !== undefined)
   let selection: { value: T; category?: string } | undefined
   let resetSelection = false
   let visibilityGeneration = 0
+  const measuredRows = new WeakMap<DialogSelectOption<T>, number>()
+  const [layoutGeneration, setLayoutGeneration] = createSignal(0)
 
   createEffect(
     on(
@@ -152,11 +159,12 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   })
 
   const filtered = createMemo(() => {
-    if (props.skipFilter || props.renderFilter === false) return props.options.filter((x) => x.disabled !== true)
+    if (props.skipFilter || props.renderFilter === false)
+      return props.options.filter((x) => props.showDisabled || x.disabled !== true)
     const needle = store.filter.toLowerCase()
     const options = pipe(
       props.options,
-      filter((x) => x.disabled !== true),
+      filter((x) => props.showDisabled || x.disabled !== true),
     )
     if (!needle) return options
 
@@ -202,11 +210,15 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   })
 
   const rows = createMemo(() => {
+    layoutGeneration()
     const headers = grouped().reduce((acc, [category], i) => {
       if (!category) return acc
       return acc + (i > 0 ? 2 : 1)
     }, 0)
-    return flat().reduce((acc, option) => acc + 1 + (option.details?.length ?? 0), headers)
+    return flat().reduce(
+      (acc, option) => acc + (measuredRows.get(option) ?? 1 + (option.details?.length ?? 0)),
+      headers,
+    )
   })
 
   const dimensions = useTerminalDimensions()
@@ -214,10 +226,22 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
 
   const selected = createMemo(() => flat()[store.selected])
 
+  createEffect(() => {
+    if (store.reading) return
+    const options = flat()
+    if (
+      options[store.selected]?.disabled ||
+      store.selected >= options.length ||
+      (store.selected < 0 && options.some((option) => !option.disabled))
+    )
+      moveTo(Math.max(0, store.selected))
+  })
+
   createEffect(
     on(
       () => props.options,
       () => {
+        if (store.reading) return
         if (!props.preserveSelection) return
         if (resetSelection && store.filter.length > 0) {
           const option = flat()[0]
@@ -290,15 +314,52 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
   function move(direction: number) {
     if (props.locked) return
     if (flat().length === 0) return
+    if (Math.abs(direction) > 1 && (store.reading || canReadDisabled())) {
+      readBy(direction)
+      return
+    }
+    if (store.reading) {
+      // Resume a visible choice without jumping over unread disabled prefixes or suffixes.
+      const options = flat()
+      const visible = Array.from({ length: options.length }, (_, offset) =>
+        direction < 0 ? options.length - offset - 1 : offset,
+      ).find((index) => !options[index].disabled && selectionVisible(index))
+      if (visible !== undefined) {
+        moveTo(visible)
+        return
+      }
+      readBy(direction)
+      return
+    }
+    if (flat().every((option) => option.disabled)) {
+      scroll?.scrollBy(direction)
+      return
+    }
     let next = store.selected + direction
     if (next < 0) next = flat().length - 1
     if (next >= flat().length) next = 0
-    moveTo(next, true)
+    moveTo(next, true, true, direction < 0 ? -1 : 1, true)
   }
 
-  function moveTo(next: number, center = false, preserve = true) {
+  function moveTo(next: number, center = false, preserve = true, direction = 1, readOnWrap = false) {
     setFocusedAction(undefined)
-    setStore("selected", next)
+    const options = flat()
+    const available = Array.from(
+      { length: options.length },
+      (_, offset) => (next + direction * offset + options.length) % options.length,
+    ).find((index) => !options[index].disabled)
+    if (available === store.selected && readOnWrap && canReadDisabled()) {
+      readBy(direction)
+      return
+    }
+    batch(() => {
+      setStore("reading", false)
+      setStore("selected", available ?? -1)
+    })
+    if (available === undefined && options.length > 0) {
+      if (scroll) scroll.scrollTo(next <= 0 ? 0 : scroll.scrollHeight)
+      return
+    }
     const option = selected()
     if (option) {
       selection = option
@@ -308,9 +369,9 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     scrollToSelection(center)
   }
 
-  function scrollToSelection(center: boolean) {
-    if (!scroll) return
-    let remaining = store.selected
+  function selectionRow(selectedIndex = store.selected) {
+    if (!scroll || selectedIndex < 0) return undefined
+    let remaining = selectedIndex
     let index = 0
     // Locate the row by position because a unique renderable ID cannot currently be ensured.
     for (const [category, options] of grouped()) {
@@ -322,15 +383,43 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
       index += options.length
       remaining -= options.length
     }
-    const target = scroll.getChildren()[index]
+    return scroll.getChildren()[index]
+  }
+
+  function selectionVisible(selectedIndex = store.selected) {
+    if (!props.showDisabled || !scroll) return true
+    const row = selectionRow(selectedIndex)
+    return !!row && row.y >= scroll.y && row.y < scroll.y + scroll.height
+  }
+
+  function canReadDisabled() {
+    return (
+      props.showDisabled && scroll && scroll.scrollHeight > scroll.height && flat().some((option) => option.disabled)
+    )
+  }
+
+  /** Reading unavailable choices never leaves an enabled task selected outside the viewport. */
+  function readBy(lines: number) {
+    if (!scroll) return
+    setFocusedAction(undefined)
+    scroll.scrollBy(lines)
+    batch(() => {
+      setStore("reading", true)
+      setStore("selected", -1)
+    })
+  }
+
+  function scrollToSelection(center: boolean) {
+    if (!scroll) return
+    const target = selectionRow()
     if (!target) return
     const y = target.y - scroll.y
     if (center) {
       const centerOffset = Math.floor(scroll.height / 2)
       scroll.scrollBy(y - centerOffset)
     } else {
-      if (y >= scroll.height) {
-        scroll.scrollBy(y - scroll.height + 1)
+      if (y + target.height > scroll.height) {
+        scroll.scrollBy(y - scroll.height + Math.min(target.height, scroll.height))
       }
       if (y < 0) {
         scroll.scrollBy(y)
@@ -350,7 +439,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
       return
     }
     const option = selected()
-    if (!option) return
+    if (!option || option.disabled || !selectionVisible()) return
     option.onSelect?.(dialog)
     props.onSelect?.(option)
   }
@@ -414,6 +503,10 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
           run() {
             if (props.locked) return
             setStore("input", "keyboard")
+            if (canReadDisabled() && scroll) {
+              readBy(-scroll.scrollHeight)
+              return
+            }
             moveTo(0)
           },
         },
@@ -424,7 +517,11 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
           run() {
             if (props.locked) return
             setStore("input", "keyboard")
-            moveTo(flat().length - 1)
+            if (canReadDisabled() && scroll) {
+              readBy(scroll.scrollHeight)
+              return
+            }
+            moveTo(flat().length - 1, false, true, -1)
           },
         },
         {
@@ -442,7 +539,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
             if (isActionDisabled(item)) return
             setStore("input", "keyboard")
             const option = selected()
-            if (!option) return
+            if (!option || option.disabled || !selectionVisible()) return
             item.onTrigger(option)
           },
         })),
@@ -505,7 +602,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     if (!item || !isActionItem(item) || isActionDisabled(item)) return
     setStore("input", "keyboard")
     const option = selected()
-    if (!option) return
+    if (!option || option.disabled || !selectionVisible()) return
     item.onTrigger(option)
   }
 
@@ -634,31 +731,40 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                   </Show>
                   <For each={options}>
                     {(option) => {
-                      const active = createMemo(() => !props.locked && isDeepEqual(option.value, selected()?.value))
+                      const active = createMemo(
+                        () => !props.locked && !option.disabled && isDeepEqual(option.value, selected()?.value),
+                      )
                       const current = createMemo(() => isDeepEqual(option.value, props.current))
                       return (
                         <box
                           flexDirection="column"
+                          flexShrink={option.descriptionBelow ? 0 : undefined}
                           position="relative"
+                          onSizeChange={function (this: Renderable) {
+                            const height = Math.max(1, this.height)
+                            if (!option.descriptionBelow || measuredRows.get(option) === height) return
+                            measuredRows.set(option, height)
+                            setLayoutGeneration((value) => value + 1)
+                          }}
                           onMouseMove={() => {
-                            if (props.locked) return
+                            if (props.locked || option.disabled) return
                             setStore("input", "mouse")
                             setFocusedAction(undefined)
                           }}
                           onMouseUp={() => {
-                            if (props.locked) return
+                            if (props.locked || option.disabled) return
                             option.onSelect?.(dialog)
                             props.onSelect?.(option)
                           }}
                           onMouseOver={() => {
-                            if (props.locked) return
+                            if (props.locked || option.disabled) return
                             if (store.input !== "mouse") return
                             const index = flat().findIndex((x) => isDeepEqual(x.value, option.value))
                             if (index === -1) return
                             moveTo(index)
                           }}
                           onMouseDown={() => {
-                            if (props.locked) return
+                            if (props.locked || option.disabled) return
                             const index = flat().findIndex((x) => isDeepEqual(x.value, option.value))
                             if (index === -1) return
                             moveTo(index)
@@ -688,13 +794,25 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
                               footer={flatten() ? (option.category ?? option.footer) : option.footer}
                               titleWidth={option.titleWidth}
                               truncateTitle={option.truncateTitle}
-                              description={option.description !== category ? option.description : undefined}
+                              description={
+                                !option.descriptionBelow && option.description !== category
+                                  ? option.description
+                                  : undefined
+                              }
                               active={active()}
                               current={current()}
                               muted={actionFocused()}
+                              disabled={option.disabled}
                               gutter={option.gutter}
                             />
                           </box>
+                          <Show when={option.descriptionBelow && option.description}>
+                            <box paddingLeft={6} paddingRight={3} flexShrink={0}>
+                              <text fg={theme.textMuted} wrapMode="word" width="100%">
+                                {option.description}
+                              </text>
+                            </box>
+                          </Show>
                           <For each={option.details}>
                             {(detail) => (
                               <box paddingLeft={3} paddingRight={3}>
@@ -736,6 +854,7 @@ function Option(props: {
   active?: boolean
   current?: boolean
   muted?: boolean
+  disabled?: boolean
   footer?: JSX.Element | string
   titleWidth?: number
   truncateTitle?: boolean | "left"
@@ -745,6 +864,7 @@ function Option(props: {
   const { theme } = useTheme()
   const fg = selectedForeground(theme)
   const text = createMemo(() => {
+    if (props.disabled) return theme.textMuted
     if (props.active && !props.muted) return fg
     if (props.muted && (props.active || props.current)) return theme.textMuted
     if (props.current) return theme.primary

@@ -114,7 +114,7 @@ export function taskDraftOf(
   task: Jolli.AssignmentTask,
   title = task.title,
 ): TaskDraft | undefined {
-  if (task.assistantId === null || task.workBlocked === true) return undefined
+  if (task.assistantId === null || task.workBlocked === true || task.orderWait !== undefined) return undefined
   return {
     courseId: assignment.courseId,
     assistantId: task.assistantId,
@@ -235,6 +235,7 @@ export function projectAssignment(
         handedInSessionID: null,
         owed: part.owed,
         ...(part.optional && { optional: true }),
+        ...(part.orderWait && { orderWait: part.orderWait }),
         local: null,
         elsewhere: false,
       }
@@ -274,6 +275,7 @@ export function projectAssignment(
       handedInSessionID: place === "jolli_code" ? (handedIn?.conversationId ?? null) : null,
       owed: part.owed,
       ...(part.optional && { optional: true }),
+      ...(part.orderWait && { orderWait: part.orderWait }),
       local: here ? { sessionID: here.sessionID, directory: here.directory } : null,
       elsewhere: sessions.some((sessionID) => !locals.has(sessionID)),
     }

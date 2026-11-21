@@ -2616,6 +2616,7 @@ export type JolliStartResult =
       status: "refused"
       code?: string
       message?: string
+      orderWait?: JolliTaskOrderWait
     }
   | {
       status: "unreachable"
@@ -4166,6 +4167,11 @@ export type JolliAssignmentStatus = "ok" | "refused" | "unreachable"
 
 export type JolliAssignmentTaskPlace = "jolli_code" | "web"
 
+export type JolliTaskOrderWait = {
+  taskId: number
+  taskName: string
+}
+
 export type JolliAssignmentTaskSession = {
   sessionID: string
   directory: string
@@ -4181,6 +4187,7 @@ export type JolliAssignmentTask = {
   requiresExplicitSubmit?: boolean
   completionKind?: "hand_in" | "participation"
   workBlocked?: boolean
+  orderWait?: JolliTaskOrderWait
   handedInAt: string
   handedInSessionID: string
   owed: boolean

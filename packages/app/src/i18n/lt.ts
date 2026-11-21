@@ -1,3 +1,5 @@
+import { ASSIGNMENT_ORDER_ENGLISH } from "./assignment-order-en"
+
 import { DESKTOP_NATIVE_KEYS } from "./desktop-native"
 
 const desktop = [
@@ -96,6 +98,7 @@ const desktop = [
 ]
 
 export const dict = {
+  ...ASSIGNMENT_ORDER_ENGLISH,
   ...Object.fromEntries(DESKTOP_NATIVE_KEYS.map((key, index) => [key, desktop[index]])),
   "command.category.suggested": "Siūloma",
   "command.category.view": "Rodinys",
