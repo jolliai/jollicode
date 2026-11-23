@@ -703,7 +703,6 @@ export const dict = {
   "session.sources.reflection": "თვითრეფლექსია",
   "session.sources.feedback": "მასწავლებლის უკუკავშირი",
   "session.sources.openWork": "{{title}} — {{category}} გახსნა (იხსნება ახალ ჩანართში)",
-  "session.sources.assignments": "დავალებების ნახვა",
   "session.review.change.one": "შეცვლა",
   "session.review.change.other": "ცვლილებები",
   "session.review.loadingChanges": "ცვლილებების ჩატვირთვა...",

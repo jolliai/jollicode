@@ -705,7 +705,6 @@ export const dict = {
   "session.sources.reflection": "Ígrundun",
   "session.sources.feedback": "Endurgjöf kennara",
   "session.sources.openWork": "Opna {{title}} — {{category}} (opnast í nýjum flipa)",
-  "session.sources.assignments": "Skoða verkefni",
   "session.review.change.one": "Breyta",
   "session.review.change.other": "Breytingar",
   "session.review.loadingChanges": "Hleður breytingum...",

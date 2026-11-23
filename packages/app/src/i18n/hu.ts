@@ -708,7 +708,6 @@ export const dict = {
   "session.sources.reflection": "Önreflexió",
   "session.sources.feedback": "Oktatói visszajelzés",
   "session.sources.openWork": "{{title}} — {{category}} megnyitása (új lapon nyílik meg)",
-  "session.sources.assignments": "Feladatok megtekintése",
   "session.review.change.one": "Változás",
   "session.review.change.other": "Változások",
   "session.review.loadingChanges": "Módosítások betöltése...",

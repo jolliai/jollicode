@@ -748,7 +748,6 @@ export const dict = {
   "session.sources.reflection": "Рефлексия",
   "session.sources.feedback": "Комментарии преподавателя",
   "session.sources.openWork": "Открыть {{title}} — {{category}} (откроется в новой вкладке)",
-  "session.sources.assignments": "Посмотреть задания",
   "session.review.change.one": "Изменение",
   "session.review.change.other": "Изменения",
   "session.review.loadingChanges": "Загрузка изменений...",

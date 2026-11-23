@@ -705,7 +705,6 @@ export const dict = {
   "session.sources.reflection": "Худандешӣ",
   "session.sources.feedback": "Шарҳи омӯзгор",
   "session.sources.openWork": "Кушодани {{title}} — {{category}} (дар варақаи нав кушода мешавад)",
-  "session.sources.assignments": "Дидани супоришҳо",
   "session.review.change.one": "Тағйир",
   "session.review.change.other": "Тағйирот",
   "session.review.loadingChanges": "Тағйирот бор карда мешавад...",

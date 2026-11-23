@@ -698,7 +698,6 @@ export const dict = {
   "session.sources.reflection": "Reflection",
   "session.sources.feedback": "Teacher feedback",
   "session.sources.openWork": "Open {{title}} — {{category}} (opens in a new tab)",
-  "session.sources.assignments": "View assignments",
   "session.review.change.one": "Change",
   "session.review.change.other": "Changes",
   "session.review.loadingChanges": "Loading changes...",

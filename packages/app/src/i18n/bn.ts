@@ -702,7 +702,6 @@ export const dict: Record<string, string> = {
   "session.sources.reflection": "আত্মপর্যালোচনা",
   "session.sources.feedback": "শিক্ষকের মতামত",
   "session.sources.openWork": "{{title}} — {{category}} খুলুন (নতুন ট্যাবে খুলবে)",
-  "session.sources.assignments": "অ্যাসাইনমেন্ট দেখুন",
   "session.review.change.one": "পরিবর্তন",
   "session.review.change.other": "পরিবর্তন",
   "session.review.loadingChanges": "পরিবর্তনগুলি লোড হচ্ছে...",

@@ -770,7 +770,6 @@ export const dict = {
   "session.sources.reflection": "Рефлексія",
   "session.sources.feedback": "Коментарі викладача",
   "session.sources.openWork": "Відкрити {{title}} — {{category}} (відкриється в новій вкладці)",
-  "session.sources.assignments": "Переглянути завдання",
   "session.review.change.one": "Зміна",
   "session.review.change.other": "Зміни",
   "session.review.loadingChanges": "Завантаження змін...",

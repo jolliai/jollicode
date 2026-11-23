@@ -739,7 +739,6 @@ export const dict = {
   "session.sources.reflection": "การสะท้อนคิด",
   "session.sources.feedback": "ข้อเสนอแนะจากผู้สอน",
   "session.sources.openWork": "เปิด {{title}} — {{category}} (เปิดในแท็บใหม่)",
-  "session.sources.assignments": "ดูงานที่มอบหมาย",
   "session.review.change.one": "การเปลี่ยนแปลง",
   "session.review.change.other": "การเปลี่ยนแปลง",
   "session.review.loadingChanges": "กำลังโหลดการเปลี่ยนแปลง...",

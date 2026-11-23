@@ -701,7 +701,6 @@ export const dict = {
   "session.sources.reflection": "Refleksi",
   "session.sources.feedback": "Maklum balas pengajar",
   "session.sources.openWork": "Buka {{title}} — {{category}} (dibuka dalam tab baharu)",
-  "session.sources.assignments": "Lihat tugasan",
   "session.review.change.one": "Perubahan",
   "session.review.change.other": "Perubahan",
   "session.review.loadingChanges": "Memuat perubahan...",

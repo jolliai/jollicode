@@ -702,7 +702,6 @@ export const dict = {
   "session.sources.reflection": "خوداندیشی",
   "session.sources.feedback": "بازخورد معلم",
   "session.sources.openWork": "باز کردن {{title}} — {{category}} (در زبانهٔ جدید باز می‌شود)",
-  "session.sources.assignments": "مشاهده تکالیف",
   "session.review.change.one": "تغییر دهید",
   "session.review.change.other": "تغییرات",
   "session.review.loadingChanges": "در حال بارگیری تغییرات...",

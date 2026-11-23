@@ -707,7 +707,6 @@ export const dict = {
   "session.sources.reflection": "Ինքնանդրադարձ",
   "session.sources.feedback": "Ուսուցչի արձագանք",
   "session.sources.openWork": "Բացել {{title}} — {{category}} (բացվում է նոր ներդիրում)",
-  "session.sources.assignments": "Դիտել առաջադրանքները",
   "session.review.change.one": "Փոխել",
   "session.review.change.other": "Փոփոխություններ",
   "session.review.loadingChanges": "Բեռնվում են փոփոխություններ...",

@@ -771,7 +771,6 @@ export const dict = {
   "session.sources.reflection": "反思",
   "session.sources.feedback": "教師回饋",
   "session.sources.openWork": "開啟 {{title}} — {{category}}（在新分頁中開啟）",
-  "session.sources.assignments": "查看作業",
   "session.review.change.one": "變更",
   "session.review.change.other": "變更",
   "session.review.loadingChanges": "正在載入變更...",

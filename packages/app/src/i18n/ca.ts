@@ -708,7 +708,6 @@ export const dict = {
   "session.sources.reflection": "Reflexió",
   "session.sources.feedback": "Comentaris del professorat",
   "session.sources.openWork": "Obre {{title}} — {{category}} (s'obre en una pestanya nova)",
-  "session.sources.assignments": "Mostra les tasques",
   "session.review.change.one": "Canviar",
   "session.review.change.other": "Canvis",
   "session.review.loadingChanges": "S'estan carregant els canvis...",

@@ -778,7 +778,6 @@ export const dict = {
   "session.sources.reflection": "反思",
   "session.sources.feedback": "教师反馈",
   "session.sources.openWork": "打开 {{title}} — {{category}}（在新标签页中打开）",
-  "session.sources.assignments": "查看作业",
   "session.review.change.one": "更改",
   "session.review.change.other": "更改",
   "session.review.loadingChanges": "正在加载更改...",

@@ -701,7 +701,6 @@ export const dict = {
   "session.sources.reflection": "Reflexia",
   "session.sources.feedback": "Spätná väzba vyučujúceho",
   "session.sources.openWork": "Otvoriť {{title}} — {{category}} (otvorí sa na novej karte)",
-  "session.sources.assignments": "Zobraziť úlohy",
   "session.review.change.one": "Zmena",
   "session.review.change.other": "Zmeny",
   "session.review.loadingChanges": "Načítavam zmeny...",

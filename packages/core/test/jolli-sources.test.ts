@@ -448,25 +448,6 @@ describe("JolliSources tool names", () => {
   })
 })
 
-describe("JolliSources.turnAssignmentsUrl", () => {
-  const url = "https://school.jolli.ai/learn/11/assignments"
-  const text = (metadata: unknown) => ({ type: "text", text: "I cannot look up assignments.", metadata })
-
-  test("reads the link the turn's answer carries, the newest where there are two", () => {
-    expect(JolliSources.turnAssignmentsUrl([text({ assignmentsUrl: url })])).toBe(url)
-    const newer = "https://school.jolli.ai/learn/12/assignments"
-    expect(JolliSources.turnAssignmentsUrl([text({ assignmentsUrl: url }), text({ assignmentsUrl: newer })])).toBe(
-      newer,
-    )
-  })
-
-  test("draws nothing for a turn without one, or for a link that is not http(s)", () => {
-    expect(JolliSources.turnAssignmentsUrl([text(undefined), text({ answerSources: [] })])).toBeUndefined()
-    expect(JolliSources.turnAssignmentsUrl([text({ assignmentsUrl: "javascript:alert(1)" })])).toBeUndefined()
-    expect(JolliSources.turnAssignmentsUrl([{ type: "tool", metadata: { assignmentsUrl: url } }])).toBeUndefined()
-  })
-})
-
 describe("submitted work citations", () => {
   const source = {
     kind: "student_work" as const,

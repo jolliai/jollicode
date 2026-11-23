@@ -710,7 +710,6 @@ export const dict = {
   "session.sources.reflection": "Osvrt",
   "session.sources.feedback": "Komentari nastavnika",
   "session.sources.openWork": "Otvori {{title}} — {{category}} (otvara se u novoj kartici)",
-  "session.sources.assignments": "Prikaži zadatke",
   "session.review.change.one": "Promijeniti",
   "session.review.change.other": "Promjene",
   "session.review.loadingChanges": "Učitavanje promjena...",

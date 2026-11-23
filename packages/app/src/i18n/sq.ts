@@ -706,7 +706,6 @@ export const dict = {
   "session.sources.reflection": "Reflektim",
   "session.sources.feedback": "Komentet e mësuesit",
   "session.sources.openWork": "Hap {{title}} — {{category}} (hapet në një skedë të re)",
-  "session.sources.assignments": "Shiko detyrat",
   "session.review.change.one": "Ndryshimi",
   "session.review.change.other": "Ndryshimet",
   "session.review.loadingChanges": "Ndryshimet po ngarkohen...",

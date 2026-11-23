@@ -699,7 +699,6 @@ export const dict = {
   "session.sources.reflection": "Eneserefleksioon",
   "session.sources.feedback": "Õpetaja tagasiside",
   "session.sources.openWork": "Ava {{title}} — {{category}} (avaneb uuel vahekaardil)",
-  "session.sources.assignments": "Vaata ülesandeid",
   "session.review.change.one": "Muuda",
   "session.review.change.other": "Muudatused",
   "session.review.loadingChanges": "Muudatuste laadimine...",

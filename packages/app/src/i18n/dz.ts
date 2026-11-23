@@ -714,7 +714,6 @@ export const dict: Record<string, string> = {
   "session.sources.reflection": "རང་བསམ་ཞིབ་འབད་ནི་",
   "session.sources.feedback": "སློབ་དཔོན་གྱི་བསམ་ལན་",
   "session.sources.openWork": "{{title}} — {{category}} ཁ་ཕྱེ། (མཆོང་ལྡེ་གསརཔ་ཅིག་ནང་ཁ་ཕྱེ་འོང་།)",
-  "session.sources.assignments": "ལས་འགན་ཚུ་བལྟ།",
   "session.review.change.one": "འགྱུར་བ",
   "session.review.change.other": "བསྒྱུར་བཅོས་ཚུ།",
   "session.review.loadingChanges": "བསྒྱུར་བཅོས་ཚུ་མངོན་གསལ་འབད་དོ...",

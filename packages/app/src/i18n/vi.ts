@@ -712,7 +712,6 @@ export const dict = {
   "session.sources.reflection": "Tự suy ngẫm",
   "session.sources.feedback": "Nhận xét của giáo viên",
   "session.sources.openWork": "Mở {{title}} — {{category}} (mở trong thẻ mới)",
-  "session.sources.assignments": "Xem bài tập",
   "session.review.change.one": "Thay đổi",
   "session.review.change.other": "Thay đổi",
   "session.review.loadingChanges": "Đang tải các thay đổi...",

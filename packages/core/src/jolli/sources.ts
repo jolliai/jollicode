@@ -736,24 +736,6 @@ export function turnSources(parts: readonly TurnPart[]): TurnSources | undefined
   }
 }
 
-/**
- * THE WAY TO THE COURSE'S ASSIGNMENTS PAGE A FINISHED TURN'S ANSWER CARRIES, or undefined. Set when the
- * turn asked about assignments the session's agent does not read: the answer says it cannot look
- * them up, and this is where the student can. No source, so it is drawn whether or not the course
- * shows citations.
- *
- * ⚠ CHECKED AS A WEB LINK HERE, as a web source's is, for the same reason: any client can write a
- * part's metadata, and both renderers open the link.
- */
-export function turnAssignmentsUrl(parts: readonly TurnPart[]): string | undefined {
-  return parts
-    .flatMap((part) => {
-      const url = part.type === "text" && isRecord(part.metadata) ? part.metadata.assignmentsUrl : undefined
-      return typeof url === "string" && isWebUrl(url) ? [url] : []
-    })
-    .at(-1)
-}
-
 // ── helpers ───────────────────────────────────────────────────────────────────────────────────────
 
 /** Offer each assignment before spending spare record places on its additional paragraphs. */
