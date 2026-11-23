@@ -703,7 +703,6 @@ export const dict: Record<string, string> = {
   "session.sources.reflection": "आत्मचिन्तन",
   "session.sources.feedback": "शिक्षकको प्रतिक्रिया",
   "session.sources.openWork": "{{title}} — {{category}} खोल्नुहोस् (नयाँ ट्याबमा खुल्छ)",
-  "session.sources.assignments": "असाइनमेन्टहरू हेर्नुहोस्",
   "session.review.change.one": "परिवर्तन गर्नुहोस्",
   "session.review.change.other": "परिवर्तनहरू",
   "session.review.loadingChanges": "परिवर्तनहरू लोड गर्दै...",

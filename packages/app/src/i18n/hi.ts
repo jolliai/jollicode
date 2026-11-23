@@ -713,7 +713,6 @@ export const dict = {
   "session.sources.reflection": "आत्मचिंतन",
   "session.sources.feedback": "शिक्षक की प्रतिक्रिया",
   "session.sources.openWork": "{{title}} — {{category}} खोलें (नए टैब में खुलता है)",
-  "session.sources.assignments": "असाइनमेंट देखें",
   "session.review.change.one": "परिवर्तन",
   "session.review.change.other": "परिवर्तन",
   "session.review.loadingChanges": "परिवर्तन लोड हो रहे हैं...",

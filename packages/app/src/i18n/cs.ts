@@ -703,7 +703,6 @@ export const dict = {
   "session.sources.reflection": "Reflexe",
   "session.sources.feedback": "Zpětná vazba vyučujícího",
   "session.sources.openWork": "Otevřít {{title}} — {{category}} (otevře se na nové kartě)",
-  "session.sources.assignments": "Zobrazit úkoly",
   "session.review.change.one": "Změna",
   "session.review.change.other": "Změny",
   "session.review.loadingChanges": "Načítání změn...",

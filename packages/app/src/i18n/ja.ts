@@ -694,7 +694,6 @@ export const dict = {
   "session.sources.reflection": "振り返り",
   "session.sources.feedback": "教員からのフィードバック",
   "session.sources.openWork": "{{title}} — {{category}} を開く（新しいタブで開きます）",
-  "session.sources.assignments": "課題を表示",
   "session.review.change.one": "変更",
   "session.review.change.other": "変更",
   "session.review.loadingChanges": "変更を読み込み中...",

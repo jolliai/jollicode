@@ -702,7 +702,6 @@ export const dict = {
   "session.sources.reflection": "Özüňe baha bermek",
   "session.sources.feedback": "Mugallymyň teswirleri",
   "session.sources.openWork": "{{title}} — {{category}} açyň (täze goýma açylýar)",
-  "session.sources.assignments": "Ýumuşlary gör",
   "session.review.change.one": "Üýtget",
   "session.review.change.other": "Üýtgeşmeler",
   "session.review.loadingChanges": "Üýtgeşmeler ýüklenýär ...",

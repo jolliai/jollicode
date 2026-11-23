@@ -703,7 +703,6 @@ export const dict = {
   "session.sources.reflection": "Eginhugleiðing",
   "session.sources.feedback": "Viðmerkingar frá læraranum",
   "session.sources.openWork": "Lat {{title}} — {{category}} upp (verður latið upp í nýggjum spjaldi)",
-  "session.sources.assignments": "Vís uppgávur",
   "session.review.change.one": "Broyting",
   "session.review.change.other": "Broytingar",
   "session.review.loadingChanges": "Heinta broytingar...",

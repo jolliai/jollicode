@@ -46,7 +46,7 @@ import { Truncate } from "@/tool/truncate"
 import { Image } from "@/image/image"
 import { decodeDataUrl } from "@/util/data-url"
 import { Process } from "@/util/process"
-import { Cause, Effect, Exit, Latch, Layer, Option, Scope, Semaphore, Context, Schema, Types } from "effect"
+import { Cause, Effect, Exit, Latch, Layer, Option, Scope, Context, Schema, Types } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { TaskTool, type TaskPromptOps } from "@/tool/task"
 import { SessionRunState } from "./run-state"
@@ -64,7 +64,6 @@ import { courseBindingOf } from "@opencode-ai/core/jolli/binding"
 import { bindingOrg } from "@opencode-ai/core/jolli/org-scoped-id"
 import { JolliCourseGuardrails } from "@opencode-ai/core/jolli/course-guardrails"
 import { CourseServer } from "./course-server"
-import { CourseLinks } from "./course-links"
 import { CourseSources } from "./course-sources"
 import { isJolliProviderId } from "@opencode-ai/core/jolli/gateway-config"
 import { JolliSession } from "@opencode-ai/core/jolli/session"
@@ -1535,48 +1534,23 @@ const layer = Layer.effect(
         const answered = yield* lastAssistant(sessionID)
         // Not for a subagent: the student reads the parent's answer.
         if (courseBinding && !session.parentID && answered.info.role === "assistant") {
-          const userMessageID = answered.info.parentID
-          // ⚠ SIDE BY SIDE, WRITING ONE AT A TIME. Both write the answer's text part, each from a copy it
-          // reads just before, and two writes run over each other would let the later one drop the other's
-          // key. So each reads and writes under this one lock — and only then: neither waits on the
-          // other's gateway or model call, so the link shows once the gateway answers and the sources once
-          // the model has picked them, rather than the sources waiting out the links' timeout first.
-          const answerWrites = Semaphore.makeUnsafe(1)
-          const serialize = <A, E, R>(effect: Effect.Effect<A, E, R>) => answerWrites.withPermit(effect)
-          yield* Effect.all(
-            [
-              CourseLinks.attach({ sessionID, userMessageID, serialize }).pipe(
-                Effect.provide(FetchHttpClient.layer),
-                Effect.timeout("20 seconds"),
-                Effect.catchCause((cause) =>
-                  Effect.logWarning("jolli course answer links failed", {
-                    "session.id": sessionID,
-                    cause: String(cause),
-                  }),
-                ),
-              ),
-              CourseSources.attribute({
-                sessionID,
-                userMessageID,
-                courseBinding,
-                // Only where the course shows citations, as the student's catalogue states it.
-                citationsShown: JolliCourseGuardrails.ofBinding(courseBinding).pipe(
-                  Effect.map((guardrails) => guardrails?.showCitations === true),
-                  Effect.provideService(JolliSession.Service, jolli),
-                ),
-                serialize,
-              }).pipe(
-                Effect.timeout("60 seconds"),
-                Effect.catchCause((cause) =>
-                  Effect.logWarning("jolli course answer sources failed", {
-                    "session.id": sessionID,
-                    cause: String(cause),
-                  }),
-                ),
-              ),
-            ],
-            { concurrency: "unbounded", discard: true },
-          ).pipe(
+          yield* CourseSources.attribute({
+            sessionID,
+            userMessageID: answered.info.parentID,
+            courseBinding,
+            // Only where the course shows citations, as the student's catalogue states it.
+            citationsShown: JolliCourseGuardrails.ofBinding(courseBinding).pipe(
+              Effect.map((guardrails) => guardrails?.showCitations === true),
+              Effect.provideService(JolliSession.Service, jolli),
+            ),
+          }).pipe(
+            Effect.timeout("60 seconds"),
+            Effect.catchCause((cause) =>
+              Effect.logWarning("jolli course answer sources failed", {
+                "session.id": sessionID,
+                cause: String(cause),
+              }),
+            ),
             Effect.provideService(Session.Service, sessions),
             Effect.provideService(JolliSession.Service, jolli),
             Effect.provideService(LLM.Service, llm),

@@ -706,7 +706,6 @@ export const dict = {
   "session.sources.reflection": "O‘z-o‘zini tahlil qilish",
   "session.sources.feedback": "O‘qituvchi fikr-mulohazalari",
   "session.sources.openWork": "{{title}} — {{category}} ochish (yangi varaqda ochiladi)",
-  "session.sources.assignments": "Topshiriqlarni ko'rish",
   "session.review.change.one": "O'zgartirish",
   "session.review.change.other": "O'zgarishlar",
   "session.review.loadingChanges": "Oʻzgarishlar yuklanmoqda...",

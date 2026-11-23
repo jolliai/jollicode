@@ -700,7 +700,6 @@ export const dict: Record<string, string> = {
   "session.sources.reflection": "ඉගෙනුම් ආවර්ජනය",
   "session.sources.feedback": "ගුරුවරයාගේ ප්‍රතිචාර",
   "session.sources.openWork": "{{title}} — {{category}} විවෘත කරන්න (නව ටැබ් එකක විවෘත වේ)",
-  "session.sources.assignments": "පැවරුම් බලන්න",
   "session.review.change.one": "වෙනස් කරන්න",
   "session.review.change.other": "වෙනස්කම්",
   "session.review.loadingChanges": "වෙනස්කම් පූරණය කරමින්...",

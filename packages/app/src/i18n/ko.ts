@@ -469,7 +469,6 @@ export const dict = {
   "session.sources.reflection": "성찰",
   "session.sources.feedback": "교사 피드백",
   "session.sources.openWork": "{{title}} — {{category}} 열기(새 탭에서 열림)",
-  "session.sources.assignments": "과제 보기",
   "session.review.change.one": "변경",
   "session.review.change.other": "변경",
   "session.review.loadingChanges": "변경 사항 로드 중...",

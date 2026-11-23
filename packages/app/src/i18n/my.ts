@@ -710,7 +710,6 @@ export const dict = {
   "session.sources.reflection": "မိမိကိုယ်ကို သုံးသပ်ချက်",
   "session.sources.feedback": "ဆရာ၏ အကြံပြုချက်",
   "session.sources.openWork": "{{title}} — {{category}} ကို ဖွင့်ရန် (တက်ဘ်အသစ်တွင် ဖွင့်မည်)",
-  "session.sources.assignments": "တာဝန်များကို ကြည့်ရန်",
   "session.review.change.one": "ပြောင်းလဲခြင်း။",
   "session.review.change.other": "ပြောင်းလဲမှုများ",
   "session.review.loadingChanges": "အပြောင်းအလဲများကို ဖွင့်နေသည်...",

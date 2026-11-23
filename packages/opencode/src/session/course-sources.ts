@@ -59,8 +59,6 @@ export const attribute = Effect.fn("CourseSources.attribute")(function* (input: 
    * itself, which this has already read.
    */
   readonly citationsShown: Effect.Effect<boolean>
-  /** Runs the read-and-write of the answer part, so a caller can keep it from interleaving with another's. */
-  readonly serialize?: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
 }) {
   const sessions = yield* Session.Service
   const provider = yield* Provider.Service
@@ -158,7 +156,7 @@ export const attribute = Effect.fn("CourseSources.attribute")(function* (input: 
     })
     return true
   })
-  if (!(yield* input.serialize ? input.serialize(write) : write)) return
+  if (!(yield* write)) return
   yield* Effect.logInfo("jolli course answer sources", {
     "session.id": input.sessionID,
     candidates: candidates.length,
@@ -171,8 +169,8 @@ export const attribute = Effect.fn("CourseSources.attribute")(function* (input: 
 })
 
 /**
- * A finished course turn, read back for what is written beside its answer — its sources here, its
- * links in `CourseLinks`: the turn's parts, its closing step, and the text part the answer is in.
+ * A finished course turn, read back for the sources written beside its answer: the turn's parts, its
+ * closing step, and the text part the answer is in.
  * Undefined for a turn whose closing step is not an answer; `answerPart` is absent for one that wrote
  * no answer text.
  *

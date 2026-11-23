@@ -765,7 +765,6 @@ export const dict = {
   "session.sources.reflection": "Refleksi",
   "session.sources.feedback": "Umpan balik pengajar",
   "session.sources.openWork": "Buka {{title}} — {{category}} (terbuka di tab baru)",
-  "session.sources.assignments": "Lihat tugas",
   "session.review.change.one": "Perubahan",
   "session.review.change.other": "Perubahan",
   "session.review.loadingChanges": "Memuat perubahan...",

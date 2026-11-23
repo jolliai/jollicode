@@ -28,10 +28,6 @@ import { Link } from "../../ui/link"
  * again only when messages are added or removed, not as a reply streams in. A grouping shared by every
  * row would have to be built above the message list and threaded down to it, which costs more than
  * the filter does.
- *
- * ⚠ THE ASSIGNMENTS LINK IS NO SOURCE, so it is drawn whether or not the course shows citations: it
- * is where the answer sends the student, when the turn asked about assignments its agent does not
- * read (`JolliSources.turnAssignmentsUrl`).
  */
 export function TurnSources(props: { message: AssistantMessage }) {
   const { theme } = useTheme()
@@ -52,82 +48,64 @@ export function TurnSources(props: { message: AssistantMessage }) {
     const parts = turnParts()
     return parts && jolli.assistant()?.guardrails.showCitations ? JolliSources.turnSources(parts) : undefined
   })
-  const assignmentsUrl = createMemo(() => {
-    const parts = turnParts()
-    return parts ? JolliSources.turnAssignmentsUrl(parts) : undefined
-  })
 
   return (
-    <Show when={sources() || assignmentsUrl()}>
-      <box paddingLeft={3} marginTop={1} flexDirection="column">
-        <Show when={sources()}>
-          {(turn) => (
-            <>
-              <Show when={turn().materials.length > 0}>
-                <text fg={theme.textMuted}>
-                  Course materials:{" "}
-                  <span style={{ fg: theme.text }}>
-                    {turn()
-                      .materials.map((item) => item.title)
-                      .join(" · ")}
-                  </span>
-                </text>
-              </Show>
-              <For each={turn().materials}>
-                {(material) => (
-                  <Show when={material.url}>
-                    {(url) => (
-                      <box paddingLeft={2}>
-                        <Link href={url()} fg={theme.primary} />
-                      </box>
-                    )}
-                  </Show>
+    <Show when={sources()}>
+      {(turn) => (
+        <box paddingLeft={3} marginTop={1} flexDirection="column">
+          <Show when={turn().materials.length > 0}>
+            <text fg={theme.textMuted}>
+              Course materials:{" "}
+              <span style={{ fg: theme.text }}>
+                {turn()
+                  .materials.map((item) => item.title)
+                  .join(" · ")}
+              </span>
+            </text>
+          </Show>
+          <For each={turn().materials}>
+            {(material) => (
+              <Show when={material.url}>
+                {(url) => (
+                  <box paddingLeft={2}>
+                    <Link href={url()} fg={theme.primary} />
+                  </box>
                 )}
-              </For>
-              <Show when={(turn().work?.length ?? 0) > 0}>
-                <text fg={theme.textMuted}>Assignments:</text>
-                <For each={turn().work}>
-                  {(source) => (
-                    <box paddingLeft={2} flexDirection="column">
-                      <text fg={theme.text}>
-                        {source.title} ·{" "}
-                        {source.category === "record"
-                          ? "Assignment record"
-                          : source.category === "submission"
-                            ? "Submitted work"
-                            : source.category === "reflection"
-                              ? "Reflection"
-                              : "Teacher feedback"}
-                      </text>
-                      <Show when={source.url}>{(url) => <Link href={url()} fg={theme.primary} />}</Show>
-                    </box>
-                  )}
-                </For>
               </Show>
-              <Show when={turn().web.length > 0}>
-                <text fg={theme.textMuted}>Web pages:</text>
-                <For each={turn().web}>
-                  {(page) => (
-                    <box paddingLeft={2}>
-                      <Link href={page.url} fg={theme.primary} />
-                    </box>
-                  )}
-                </For>
-              </Show>
-            </>
-          )}
-        </Show>
-        <Show when={assignmentsUrl()}>
-          {(url) => (
-            <>
-              <text fg={theme.textMuted}>View assignments:</text>
-              <box paddingLeft={2}>
-                <Link href={url()} fg={theme.primary} />
-              </box>
-            </>
-          )}
-        </Show>
-      </box>
+            )}
+          </For>
+          <Show when={(turn().work?.length ?? 0) > 0}>
+            <text fg={theme.textMuted}>Assignments:</text>
+            <For each={turn().work}>
+              {(source) => (
+                <box paddingLeft={2} flexDirection="column">
+                  <text fg={theme.text}>
+                    {source.title} ·{" "}
+                    {source.category === "record"
+                      ? "Assignment record"
+                      : source.category === "submission"
+                        ? "Submitted work"
+                        : source.category === "reflection"
+                          ? "Reflection"
+                          : "Teacher feedback"}
+                  </text>
+                  <Show when={source.url}>{(url) => <Link href={url()} fg={theme.primary} />}</Show>
+                </box>
+              )}
+            </For>
+          </Show>
+          <Show when={turn().web.length > 0}>
+            <text fg={theme.textMuted}>Web pages:</text>
+            <For each={turn().web}>
+              {(page) => (
+                <box paddingLeft={2}>
+                  <Link href={page.url} fg={theme.primary} />
+                </box>
+              )}
+            </For>
+          </Show>
+        </box>
+      )}
     </Show>
   )
 }

@@ -710,7 +710,6 @@ export const dict = {
   "session.sources.reflection": "Reflectie",
   "session.sources.feedback": "Feedback van de docent",
   "session.sources.openWork": "{{title}} — {{category}} openen (opent in een nieuw tabblad)",
-  "session.sources.assignments": "Opdrachten bekijken",
   "session.review.change.one": "Wijziging",
   "session.review.change.other": "Wijzigingen",
   "session.review.loadingChanges": "Wijzigingen laden...",

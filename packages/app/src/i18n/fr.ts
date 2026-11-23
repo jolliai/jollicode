@@ -705,7 +705,6 @@ export const dict = {
   "session.sources.reflection": "Réflexion",
   "session.sources.feedback": "Commentaires de l'enseignant",
   "session.sources.openWork": "Ouvrir {{title}} — {{category}} (s'ouvre dans un nouvel onglet)",
-  "session.sources.assignments": "Voir les devoirs",
   "session.review.change.one": "Modification",
   "session.review.change.other": "Modifications",
   "session.review.loadingChanges": "Chargement des modifications...",

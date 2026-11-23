@@ -751,7 +751,6 @@ export const dict = {
   "session.sources.reflection": "Öz değerlendirme",
   "session.sources.feedback": "Öğretmen geri bildirimi",
   "session.sources.openWork": "{{title}} — {{category}} aç (yeni sekmede açılır)",
-  "session.sources.assignments": "Ödevleri görüntüle",
   "session.review.change.one": "Değişiklik",
   "session.review.change.other": "Değişiklik",
   "session.review.loadingChanges": "Değişiklikler yükleniyor...",

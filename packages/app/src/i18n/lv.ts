@@ -704,7 +704,6 @@ export const dict = {
   "session.sources.reflection": "Pašrefleksija",
   "session.sources.feedback": "Pasniedzēja atsauksmes",
   "session.sources.openWork": "Atvērt {{title}} — {{category}} (atveras jaunā cilnē)",
-  "session.sources.assignments": "Skatīt uzdevumus",
   "session.review.change.one": "Izmaiņa",
   "session.review.change.other": "Izmaiņas",
   "session.review.loadingChanges": "Notiek izmaiņu ielāde...",

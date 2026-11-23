@@ -700,7 +700,6 @@ export const dict = {
   "session.sources.reflection": "ការឆ្លុះបញ្ចាំងលើការរៀនសូត្រ",
   "session.sources.feedback": "មតិយោបល់របស់គ្រូ",
   "session.sources.openWork": "បើក {{title}} — {{category}} (បើកក្នុងផ្ទាំងថ្មី)",
-  "session.sources.assignments": "មើលកិច្ចការ",
   "session.review.change.one": "ការផ្លាស់ប្តូរ",
   "session.review.change.other": "ការផ្លាស់ប្តូរ",
   "session.review.loadingChanges": "កំពុងផ្ទុកការផ្លាស់ប្តូរ...",

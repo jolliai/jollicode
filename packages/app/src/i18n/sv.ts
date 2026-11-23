@@ -707,7 +707,6 @@ export const dict = {
   "session.sources.reflection": "Reflektion",
   "session.sources.feedback": "Lärarens återkoppling",
   "session.sources.openWork": "Öppna {{title}} — {{category}} (öppnas i en ny flik)",
-  "session.sources.assignments": "Visa uppgifter",
   "session.review.change.one": "Ändring",
   "session.review.change.other": "Ändringar",
   "session.review.loadingChanges": "Läser in ändringar...",

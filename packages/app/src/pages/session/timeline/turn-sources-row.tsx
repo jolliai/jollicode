@@ -5,30 +5,6 @@ import { Icon } from "@opencode-ai/ui/icon"
 import { StudentWorkSources } from "./student-work-sources"
 
 /**
- * Under a course turn that asked about assignments its agent does not read: the way to the course's
- * Assignments page. The answer says it cannot look them up; this is where the student can.
- *
- * Keep the native anchor so students can open, copy, or middle-click the destination.
- */
-export function TimelineAssignmentsLinkRow(props: { url: string }) {
-  const language = useLanguage()
-
-  return (
-    <div data-slot="session-turn-assignments-link" class="flex">
-      <a
-        class="inline-flex min-h-6 items-center gap-1 rounded-sm px-1.5 py-0.5 text-[11px] leading-4 font-[560] text-v2-text-text-accent hover:text-v2-text-text-accent-hover hover:underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-v2-border-border-focus"
-        href={props.url}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <Icon name="checklist" size="small" class="size-3.5 shrink-0 text-v2-text-text-accent" aria-hidden="true" />
-        {language.t("session.sources.assignments")}
-      </a>
-    </div>
-  )
-}
-
-/**
  * What one course turn drew on, drawn under its answer.
  *
  * Ordinary materials carry a title only. An assignment also carries the worksheet URL supplied

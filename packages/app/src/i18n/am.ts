@@ -693,7 +693,6 @@ export const dict = {
   "session.sources.reflection": "ራስን ማሰላሰል",
   "session.sources.feedback": "የመምህር አስተያየት",
   "session.sources.openWork": "{{title}} — {{category}} ክፈት (በአዲስ ትር ይከፈታል)",
-  "session.sources.assignments": "የቤት ሥራዎችን ይመልከቱ",
   "session.review.change.one": "ለውጥ",
   "session.review.change.other": "ለውጦች",
   "session.review.loadingChanges": "ለውጦችን በመጫን ላይ...",

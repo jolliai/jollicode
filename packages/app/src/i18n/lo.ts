@@ -698,7 +698,6 @@ export const dict = {
   "session.sources.reflection": "ການທົບທວນການຮຽນຮູ້",
   "session.sources.feedback": "ຄຳຄິດເຫັນຈາກຄູ",
   "session.sources.openWork": "ເປີດ {{title}} — {{category}} (ເປີດໃນແຖບໃໝ່)",
-  "session.sources.assignments": "ເບິ່ງວຽກມອບໝາຍ",
   "session.review.change.one": "ປ່ຽນແປງ",
   "session.review.change.other": "ການປ່ຽນແປງ",
   "session.review.loadingChanges": "ກຳລັງໂຫຼດການປ່ຽນແປງ...",

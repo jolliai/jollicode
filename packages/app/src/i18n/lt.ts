@@ -709,7 +709,6 @@ export const dict = {
   "session.sources.reflection": "Refleksija",
   "session.sources.feedback": "Mokytojo komentarai",
   "session.sources.openWork": "Atverti {{title}} — {{category}} (atveriama naujoje kortelėje)",
-  "session.sources.assignments": "Peržiūrėti užduotis",
   "session.review.change.one": "Keisti",
   "session.review.change.other": "Pakeitimai",
   "session.review.loadingChanges": "Įkeliami pakeitimai...",

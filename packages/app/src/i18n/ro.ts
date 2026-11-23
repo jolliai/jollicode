@@ -703,7 +703,6 @@ export const dict = {
   "session.sources.reflection": "Reflecție",
   "session.sources.feedback": "Comentariile profesorului",
   "session.sources.openWork": "Deschide {{title}} — {{category}} (se deschide într-o filă nouă)",
-  "session.sources.assignments": "Vezi temele",
   "session.review.change.one": "Modificare",
   "session.review.change.other": "Modificări",
   "session.review.loadingChanges": "Se încarcă modificările...",
